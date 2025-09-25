@@ -61,13 +61,23 @@ async function convertHtmlToPdf(htmlPath, outputPath, dataPath = null) {
     console.log('🖨️  Generating PDF...');
     await page.pdf({
       path: outputPath,
-      format: 'A4',
+      format: "A4",
       printBackground: true,
-      margin: {
-        top: '16mm',
-        right: '16mm',
-        bottom: '16mm',
-        left: '16mm'
+      displayHeaderFooter: true,
+      headerTemplate: `
+        <div style="font-size:9px;width:100%;padding:0 16px;color:#6072a6;">
+          <span class="title"></span>
+        </div>`,
+      footerTemplate: `
+        <div style="font-size:9px;width:100%;padding:0 16px;color:#6072a6;display:flex;justify-content:space-between;">
+          <div>UatuAudit • SOPs > AI</div>
+          <div><span class="pageNumber"></span>/<span class="totalPages"></span></div>
+        </div>`,
+      margin: { 
+        top: "14mm", 
+        bottom: "14mm", 
+        left: "12mm", 
+        right: "12mm" 
       },
       preferCSSPageSize: true
     });

@@ -34,13 +34,14 @@ program
   .option("--ai", "enable AI-assisted ideas", false)
   .action(async (o) => {
     try {
-      const { pdfPath } = await runAll({ 
+      const { htmlPath, score, grade } = await runAll({ 
         repo: o.repo, 
         project: o.project, 
         branch: o.branch, 
         ai: !!o.ai 
       });
-      console.log(`Report: file://${pdfPath}`);
+      console.log(`✅ Audit complete! HTML Report: file://${htmlPath}`);
+      console.log(`📊 Score: ${score}/100 (${grade})`);
     } catch (error) {
       console.error('Run failed:', error);
       process.exit(1);

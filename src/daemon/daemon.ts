@@ -198,58 +198,62 @@ async function handleRequest(req: any, res: any) {
       return;
     }
 
-    // GET /report?project=&branch=&format=pdf|html
+    // GET /report?project=&branch=&format=pdf|html (v1 only)
     if (req.method === "GET" && parsed.pathname === "/report") {
       const project = String(parsed.query.project || "");
       const branch = String(parsed.query.branch || "");
-      const format = String(parsed.query.format || "pdf"); // default to PDF
+      const format = String(parsed.query.format || "html"); // default to HTML v1
+      
       if (!project || !branch) { 
         res.statusCode = 400; 
         res.end("project & branch required"); 
         return; 
       }
+      
       const { runsPath } = await resolveWorkspace(project, branch);
       const runs = (await fs.pathExists(runsPath)) ? (await fs.readdir(runsPath)).sort() : [];
       const last = runs.at(-1); 
       if (!last) { 
         res.statusCode = 404; 
-        res.end("No runs"); 
+        res.end("No runs found"); 
         return; 
       }
-
-      let reportPath: string;
-      let contentType: string;
-      let filename: string;
-
-      if (format === "html") {
-        reportPath = path.join(runsPath, last, "report.html");
-        contentType = "text/html; charset=utf-8";
-        filename = `${project}-${branch}-report.html`;
-      } else {
-        reportPath = path.join(runsPath, last, "report.pdf");
-        contentType = "application/pdf";
-        filename = `${project}-${branch}-report.pdf`;
-      }
-
-      if (!(await fs.pathExists(reportPath))) {
-        res.statusCode = 404;
-        res.end(`No ${format} report found`);
-        return;
-      }
-
-      res.setHeader("Content-Type", contentType);
       
-      // For HTML, set inline display; for PDF, set as attachment
+      const runPath = path.join(runsPath, last);
+      
       if (format === "html") {
+        // V1 HTML report (always available)
+        const reportPath = path.join(runPath, "report.html");
+        if (!(await fs.pathExists(reportPath))) {
+          res.statusCode = 404;
+          res.end("report.html not found (v1)");
+          return;
+        }
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
         res.setHeader("Cache-Control", "no-cache");
         res.setHeader("X-Frame-Options", "SAMEORIGIN");
+        const reportData = await fs.readFile(reportPath);
+        res.end(reportData);
+        return;
+      } else if (format === "pdf") {
+        // PDF only available if puppeteer generated it
+        const pdfPath = path.join(runPath, "report.pdf");
+        if (!(await fs.pathExists(pdfPath))) {
+          res.statusCode = 404;
+          res.setHeader("Content-Type","application/json");
+          res.end(JSON.stringify({ error: "pdf_not_generated", hint: "Generate PDF via Puppeteer from report.html" }));
+          return;
+        }
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${project}-${branch}-audit.pdf"`);
+        const reportData = await fs.readFile(pdfPath);
+        res.end(reportData);
+        return;
       } else {
-        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.statusCode = 400;
+        res.end("format must be 'html' or 'pdf'");
+        return;
       }
-      
-      const reportData = await fs.readFile(reportPath);
-      res.end(reportData);
-      return;
     }
 
     if (req.method === "POST" && parsed.pathname === "/enqueue") {
@@ -293,7 +297,7 @@ async function startWorker(workerId: number) {
       jobLog.info(`Worker processing job`, { workerId });
       
       try {
-        const { pdfPath } = await runAll({
+        const { htmlPath, score, grade } = await runAll({
           repo: job.repo,
           project: job.project,
           branch: job.branch,
@@ -301,8 +305,13 @@ async function startWorker(workerId: number) {
           jobId: job.id
         });
         
-        await complete(job.id, true, pdfPath);
-        jobLog.info(`Job completed successfully`, { reportPath: pdfPath, workerId });
+        await complete(job.id, true, htmlPath);
+        jobLog.info(`Job completed successfully`, { 
+          htmlPath, 
+          score, 
+          grade, 
+          workerId 
+        });
       } catch (error) {
         jobLog.error(`Job failed`, { error: String(error), workerId });
         await complete(job.id, false, undefined, String(error));

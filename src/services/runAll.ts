@@ -7,9 +7,10 @@ import { inventorySOP } from "../sops/inventory.js";
 import { analysisSOP } from "../sops/analysis.js";
 import { testgenSOP } from "../sops/testgen.js";
 import { executeSOP } from "../sops/execute.js";
-import { writePdfReport } from "./report/pdfReport.js";
 import { writeHtmlReport } from "./report/htmlReport.js";
 import { writeSarif } from "./report/sarif.js";
+import { buildReportDataFromRun } from "./report/reportData.js";
+import { loadBranding } from "./report/branding.js";
 import { loadConfig } from "./configService.js";
 import { withRetry, withTimeout } from "../utils/retry.js";
 import { createJobLogger } from "../utils/logger.js";
@@ -81,28 +82,38 @@ export async function runAll(params: {
   ));
 
   // report generation
-  log.info('Generating reports');
+  log.info('Generating reports v1');
   const analysis = await fs.readJson(path.join(runPath, "analysis.json")).catch(() => ({ findings: [] }));
   await writeSarif(runPath, analysis.findings || []);
-  
-  const bootstrap = await fs.readJson(path.join(branchPath, ".uatu", "sop", "bootstrap.status.json")).catch(() => null);
-  const execStatus = await fs.readJson(path.join(branchPath, ".uatu", "sop", "execute.status.json")).catch(() => null);
-  const coveragePct = execStatus?.outputs?.coverage;
 
-  const reportData = {
+  // Load branding assets (no fallbacks)
+  const branding = await loadBranding(branchPath);
+  
+  // Build structured report data using the v1 contract
+  const reportData = await buildReportDataFromRun({
     project, 
     branch, 
+    branchPath, 
+    runPath, 
     timestamp,
-    ecosystemSummary: (bootstrap?.outputs?.fingerprint?.ecosystems ?? []) as string[],
-    findings: analysis.findings ?? [],
-    coverage: typeof coveragePct === "number" ? coveragePct/100 : undefined
-  };
+    htmlUrl: `/report?project=${encodeURIComponent(project)}&branch=${encodeURIComponent(branch)}&format=html`,
+    pdfUrl: `/report?project=${encodeURIComponent(project)}&branch=${encodeURIComponent(branch)}&format=pdf`,
+  });
 
-  // Generate both HTML and PDF reports
-  const htmlPath = await writeHtmlReport(runPath, reportData);
-  const pdfPath = await writePdfReport(runPath, reportData);
+  // Generate HTML report v1 (single canonical path)
+  const htmlPath = await writeHtmlReport(runPath, reportData, branding);
 
-  log.info('Reports generated successfully', { htmlPath, pdfPath });
+  // (optional) call puppeteer converter here to write report.pdf
+  // For now, PDF is only available via external puppeteer script
 
-  return { pdfPath, htmlPath, timestamp, runPath };
+  log.info('Report v1 generated successfully', { 
+    htmlPath, 
+    score: reportData.score, 
+    grade: reportData.grade,
+    version: (reportData as any).reportVersion,
+    hasLogo: !!branding.logoPath,
+    hasMascot: !!branding.mascotPath
+  });
+
+  return { htmlPath, timestamp, runPath, score: reportData.score, grade: reportData.grade };
 }
