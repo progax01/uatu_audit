@@ -60,17 +60,20 @@ async function load(): Promise<QueueFile> {
   return { nextId: 1, jobs: [] };
 }
 
-async function save(q: QueueFile) { 
-  // Atomic write using temporary file
-  const tmpPath = QPATH + '.tmp.' + Date.now();
+async function writeJsonAtomic(file: string, data: unknown) {
+  const dir = path.dirname(file);
+  await fs.ensureDir(dir);
+  const tmp = path.join(dir, `.${path.basename(file)}.tmp.${Date.now()}`);
+  await fs.writeJson(tmp, data, { spaces: 2 });
   try {
-    await fs.writeJson(tmpPath, q, { spaces: 2 });
-    await fs.move(tmpPath, QPATH, { overwrite: true });
-  } catch (error) {
-    // Clean up temp file on error
-    await fs.remove(tmpPath).catch(() => {});
-    throw error;
+    await fs.rename(tmp, file); // atomic on same fs
+  } catch {
+    await fs.move(tmp, file, { overwrite: true }); // cross-device / race fallback
   }
+}
+
+async function save(q: QueueFile) { 
+  await writeJsonAtomic(QPATH, q);
 }
 
 export async function enqueue(job: Omit<AuditJob, "id" | "status" | "createdAt">) {

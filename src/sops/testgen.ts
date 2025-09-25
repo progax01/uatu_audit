@@ -35,9 +35,15 @@ export const testgenSOP: SOP = {
     
     await step(onProgress, { phase: "testgen", step: "load-analysis", pct: 35 });
     
-    // Load inventory and analysis for plan generation
-    const inv = await fs.readJson(path.join(i.projectPath as string, "runs", (i.timestamp as string) ?? "", "inventory.json")).catch(() => null as any);
-    const analysis = await fs.readJson(path.join(i.projectPath as string, "runs", (i.timestamp as string) ?? "", "analysis.json")).catch(() => null as any);
+        // Load inventory and analysis for plan generation
+        const inv = await fs.readJson(path.join(i.projectPath as string, "runs", (i.timestamp as string) ?? "", "inventory.json")).catch(() => null as any);
+        const analysis = await fs.readJson(path.join(i.projectPath as string, "runs", (i.timestamp as string) ?? "", "analysis.json")).catch(() => null as any);
+        
+        // Use inventory data for skeleton generation instead of re-globbing
+        const solidityFiles = Object.keys(inv?.solidity || {});
+        if (!solidityFiles.length) {
+          liveLogger.info("No Solidity contracts discovered; skipping skeletons.");
+        }
     
     // Generate test plans for enabled styles
     const testPlans = [];

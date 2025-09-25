@@ -222,9 +222,10 @@ export const executeSOP: SOP = {
                   await fs.writeJson(path.join(sandboxPath, "deployments", "lineaSepolia-latest.json"), mockDeployment);
                 }
                 
-                stdout += "\n[Uatu] trying hardhat coverage ...\n";
-                const coverageResult = await runCmd("npx", ["hardhat", "coverage", "--testfiles", "test/!(lineaSepolia)/**/*.ts"], sandboxPath);
-                stdout += coverageResult;
+            stdout += "\n[Uatu] trying hardhat coverage ...\n";
+            // Use bash with extglob enabled to handle the !(lineaSepolia) pattern
+            const coverageResult = await runCmd("bash", ["-lc", "shopt -s extglob; npx hardhat coverage --testfiles \"test/!(lineaSepolia)/**/*.ts\""], sandboxPath);
+            stdout += coverageResult;
                 
                 // Try multiple coverage file locations
                 const coveragePaths = [

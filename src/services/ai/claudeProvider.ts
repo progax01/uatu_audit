@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { logger } from "../../utils/logger.js";
 import { ProjectStructure } from "../projectAnalyzer.js";
 import { createLiveLogger } from "../liveLogger.js";
+import { claudeChat } from "./claudeRunner.js";
 
 const execAsync = promisify(exec);
 const log = logger.child({ module: 'claudeProvider' });
@@ -232,19 +233,15 @@ ${events.slice(0, 3).map(e => `  - ${e}`).join('\n')}
       const promptFile = path.join(this.runPath, `claude-prompt-${sessionId}.txt`);
       await fs.writeFile(promptFile, prompt);
       
-      // Construct Claude CLI command
-      const command = this.autoAccept 
-        ? `claude chat --file "${promptFile}" --auto-accept`
-        : `claude chat --file "${promptFile}"`;
-      
-      this.liveLogger.info('Executing Claude CLI command', { command: command.replace(promptFile, 'prompt-file') });
-      
-      // Execute Claude CLI
-      const { stdout, stderr } = await execAsync(command, {
-        cwd: this.runPath,
-        timeout: 300000, // 5 minutes timeout
-        maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+      // Use robust Claude CLI runner
+      this.liveLogger.info('Executing Claude CLI command', { 
+        command: 'claude chat (via stdin pipe or --input-file)',
+        promptFile: path.basename(promptFile)
       });
+      
+      // Execute Claude CLI using robust runner
+      const stdout = await claudeChat(this.runPath, promptFile);
+      const stderr = ""; // claudeChat doesn't return stderr separately
       
       if (stderr) {
         this.liveLogger.warn('Claude CLI stderr output', { stderr });

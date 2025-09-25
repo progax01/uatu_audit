@@ -1,10 +1,16 @@
 import os from 'node:os';
 import path from 'node:path';
 
+export function expandTilde(p: string): string {
+  return p.startsWith("~")
+    ? path.join(os.homedir(), p.slice(1))
+    : p;
+}
+
 export function getUatuHome(): string {
   const override = process.env.UATU_HOME;
   if (override && override.trim().length > 0) {
-    return path.resolve(override);
+    return path.resolve(expandTilde(override));
   }
   return path.resolve(path.join(os.homedir(), '.uatu'));
 }
