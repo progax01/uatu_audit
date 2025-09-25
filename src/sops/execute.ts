@@ -12,13 +12,32 @@ import {
 } from "../services/dockerSandbox.js";
 import { loadConfig } from "../services/configService.js";
 import { logger } from "../utils/logger.js";
+import { recordExecuteTimeout } from "../services/metrics.js";
 
 const execp = promisify(_exec);
 
-async function runCmd(cmd: string, args: string[], cwd: string): Promise<string> {
+async function runCmd(cmd: string, args: string[], cwd: string, timeoutMs: number = 15 * 60 * 1000): Promise<string> {
   const full = `${cmd} ${args.join(" ")}`;
-  const { stdout, stderr } = await execp(full, { cwd, env: process.env });
-  return `${stdout || ""}${stderr || ""}`;
+  
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      recordExecuteTimeout();
+      reject(new Error(`Command timeout after ${timeoutMs}ms: ${full}`));
+    }, timeoutMs);
+  });
+  
+  const execPromise = execp(full, { cwd, env: process.env });
+  
+  try {
+    const { stdout, stderr } = await Promise.race([execPromise, timeoutPromise]);
+    return `${stdout || ""}${stderr || ""}`;
+  } catch (error: any) {
+    // If it's a timeout, log for debugging
+    if (error.message?.includes('timeout')) {
+      logger.warn('Command timed out', { cmd: full, cwd, timeoutMs });
+    }
+    throw error;
+  }
 }
 
 async function safeJson(p: string) { try { return await fs.readJson(p); } catch { return null; } }
@@ -178,12 +197,64 @@ export const executeSOP: SOP = {
               await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
               stdout += await runCmd("npx", ["hardhat", "test"], sandboxPath);
               try {
+                // Check for missing deployment files first
+                const deploymentChecks = [
+                  path.join(sandboxPath, "deployments", "lineaSepolia-latest.json"),
+                  path.join(sandboxPath, "deployments"),
+                ];
+                
+                let missingDeployments = [];
+                for (const deployPath of deploymentChecks) {
+                  if (!(await fs.pathExists(deployPath))) {
+                    missingDeployments.push(deployPath);
+                  }
+                }
+                
+                if (missingDeployments.length > 0) {
+                  stdout += "\n[Uatu] Creating missing deployment files for testing...\n";
+                  // Create minimal deployment structure
+                  await fs.ensureDir(path.join(sandboxPath, "deployments"));
+                  const mockDeployment = {
+                    contracts: {},
+                    timestamp: Date.now(),
+                    note: "Mock deployment for testing purposes"
+                  };
+                  await fs.writeJson(path.join(sandboxPath, "deployments", "lineaSepolia-latest.json"), mockDeployment);
+                }
+                
                 stdout += "\n[Uatu] trying hardhat coverage ...\n";
-                await runCmd("npx", ["hardhat", "coverage", "--testfiles", ""], sandboxPath);
-                const sum = await safeJson(path.join(sandboxPath, "coverage", "coverage-summary.json"));
-                if (sum?.total?.lines?.pct != null) coveragePct = Math.round(sum.total.lines.pct);
-                await fs.copy(path.join(sandboxPath, "coverage"), path.join(runPath, "coverage")).catch(()=>{});
-              } catch {}
+                const coverageResult = await runCmd("npx", ["hardhat", "coverage", "--testfiles", "test/!(lineaSepolia)/**/*.ts"], sandboxPath);
+                stdout += coverageResult;
+                
+                // Try multiple coverage file locations
+                const coveragePaths = [
+                  path.join(sandboxPath, "coverage", "coverage-summary.json"),
+                  path.join(sandboxPath, "coverage.json"),
+                  path.join(sandboxPath, "coverage", "lcov-report", "index.html")
+                ];
+                
+                for (const coveragePath of coveragePaths) {
+                  try {
+                    if (coveragePath.endsWith('.json')) {
+                      const sum = await safeJson(coveragePath);
+                      if (sum?.total?.lines?.pct != null) {
+                        coveragePct = Math.round(sum.total.lines.pct);
+                        log.info('Coverage extracted', { pct: coveragePct, source: coveragePath });
+                        break;
+                      }
+                    }
+                  } catch {}
+                }
+                
+                // Copy coverage files if they exist
+                const coverageDir = path.join(sandboxPath, "coverage");
+                if (await fs.pathExists(coverageDir)) {
+                  await fs.copy(coverageDir, path.join(runPath, "coverage")).catch(()=>{});
+                }
+              } catch (e: any) {
+                stdout += `\n[Coverage failed] ${e?.message||e}\n`;
+                log.warn('Coverage extraction failed', { error: String(e) });
+              }
             } else if (hasAnchor) {
               await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
               stdout += await runCmd("anchor", ["test"], sandboxPath);

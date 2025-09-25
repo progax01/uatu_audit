@@ -19,9 +19,9 @@ import type { ProgressHook } from "../utils/stepHelper.js";
 import { attachRunTimestamp, updateJobNote, updateJobPct } from "./jobQueue.js";
 
 export async function runAll(params: {
-  repo: string; project: string; branch: string; ai?: boolean; jobId?: number;
+  repo: string; project: string; branch: string; ai?: boolean; testStyles?: string[]; jobId?: number;
 }) {
-  const { project, branch, repo, ai, jobId } = params;
+  const { project, branch, repo, ai, testStyles, jobId } = params;
   const { branchPath, contextPath, sopPath, runsPath } = await resolveWorkspace(project, branch);
   
   const log = createJobLogger(jobId, project, branch);
@@ -49,7 +49,7 @@ export async function runAll(params: {
   // SOP order with retries and timeouts
   const cfg = await loadConfig(branchPath);
   const aiFlag = typeof ai === "boolean" ? ai : !!cfg.ai;
-  const sopInputs = { projectPath: branchPath, contextPath, runsPath, timestamp, ai: aiFlag };
+  const sopInputs = { projectPath: branchPath, contextPath, runsPath, timestamp, ai: aiFlag, testStyles: (testStyles || ["behavioral", "stride"]) as ("behavioral" | "stride")[] };
   
   log.info('Executing bootstrap SOP');
   await withRetry(() => withTimeout(() => 

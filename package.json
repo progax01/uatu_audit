@@ -14,7 +14,14 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . --ext .ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify": "scripts/verify-production.sh",
+    "check-regressions": "scripts/check-regressions.sh",
+    "break-glass": "scripts/break-glass.sh",
+    "runbook": "scripts/runbook.sh",
+    "daemon": "node dist/bin/uatu.js daemon",
+    "run:sample": "node dist/bin/uatu.js run --repo https://github.com/Uniswap/v2-core.git --project uniswap-v2 --branch master --test-styles behavioral,stride",
+    "report:lint": "scripts/check-regressions.sh"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +32,7 @@
     "@typescript-eslint/eslint-plugin": "^8.44.1",
     "@typescript-eslint/parser": "^8.44.1",
     "eslint": "^9.36.0",
+    "puppeteer": "^24.22.3",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.44.1",
     "vitest": "^3.2.4"

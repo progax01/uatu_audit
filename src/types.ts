@@ -1,7 +1,9 @@
 export type SOPName = string;
+export type TestStyle = "behavioral" | "stride";
 
 export interface SOPInputs {
   [key: string]: unknown;
+  testStyles?: TestStyle[];  // default: ["behavioral","stride"]
 }
 
 export interface SOPResult {

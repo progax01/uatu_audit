@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import { runAll } from '../services/runAll.js';
+import { validateTestStyles } from '../services/testStyles.js';
 import { enqueue } from '../services/jobQueue.js';
 import { startDaemon } from '../daemon/daemon.js';
 
@@ -32,16 +33,20 @@ program
   .requiredOption("--project <name>")
   .requiredOption("--branch <name>")
   .option("--ai", "enable AI-assisted ideas", false)
+  .option("--test-styles <styles>", "test styles to generate (behavioral,stride)", "behavioral,stride")
   .action(async (o) => {
     try {
+      const testStyles = validateTestStyles(o.testStyles.split(',').map((s: string) => s.trim()));
       const { htmlPath, score, grade } = await runAll({ 
         repo: o.repo, 
         project: o.project, 
         branch: o.branch, 
-        ai: !!o.ai 
+        ai: !!o.ai,
+        testStyles 
       });
       console.log(`✅ Audit complete! HTML Report: file://${htmlPath}`);
       console.log(`📊 Score: ${score}/100 (${grade})`);
+      console.log(`🧪 Test Styles: ${testStyles.join(', ')}`);
     } catch (error) {
       console.error('Run failed:', error);
       process.exit(1);
@@ -52,13 +57,15 @@ program
   .command("batch")
   .option("--repos <list>", "comma-separated urls like https://.../repo.git#branch")
   .option("--ai", "enable AI", false)
+  .option("--test-styles <styles>", "test styles to generate (behavioral,stride)", "behavioral,stride")
   .action(async (o) => {
     try {
       const list = String(o.repos || "").split(",").map((s: string) => s.trim()).filter(Boolean);
       for (const spec of list) {
         const [url, br = "main"] = spec.split("#");
         const project = url.split("/").pop()?.replace(/\.git$/, "") || "proj";
-        await enqueue({ repo: url, project, branch: br, ai: !!o.ai });
+        const testStyles = validateTestStyles(o.testStyles.split(',').map((s: string) => s.trim()));
+        await enqueue({ repo: url, project, branch: br, ai: !!o.ai, testStyles });
         console.log(`Enqueued ${project}#${br}`);
       }
       console.log("Start workers: uatu daemon");

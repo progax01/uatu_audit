@@ -6,14 +6,19 @@ import fs from "fs-extra";
 import { loadProgress } from "../services/progressService.js";
 import { resolveWorkspace } from "../services/workspaceService.js";
 import { runAll } from "../services/runAll.js";
-import { claimNext, complete, enqueue } from "../services/jobQueue.js";
+import { claimNext, complete, enqueue, recoverStuckJobs } from "../services/jobQueue.js";
 import { getUatuHome, getUserId } from "../constants/paths.js";
 import { logger, createJobLogger } from "../utils/logger.js";
+import { Metrics } from "../services/metrics.js";
 
 const PORT = parseInt(process.env.UATU_PORT || "9090");
 const CONCURRENCY = parseInt(process.env.UATU_CONCURRENCY || "2");
 
 export async function startDaemon() {
+  // Crash recovery - reconcile stuck jobs before starting workers  
+  logger.info('Performing crash recovery...');
+  await recoverStuckJobs();
+  
   console.log(`🚀 Starting Uatu daemon on port ${PORT} with ${CONCURRENCY} workers`);
   
   // Start worker pool
@@ -61,7 +66,42 @@ async function handleRequest(req: any, res: any) {
     }
     if (req.method === "GET" && parsed.pathname === "/healthz") {
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ ok: true }));
+      try {
+        // Basic health checks
+        const queueFile = path.join(getUatuHome(), "queue", "jobs.json");
+        const queueReadable = await fs.pathExists(queueFile);
+        const stats = await fs.stat('.').catch(() => null);
+        const diskSpaceOk = !stats || stats.size > 100 * 1024 * 1024; // 100MB threshold
+        
+        const health = {
+          ok: queueReadable && diskSpaceOk,
+          timestamp: new Date().toISOString(),
+          checks: {
+            queueReadable,
+            diskSpaceOk,
+            port: PORT,
+            workers: CONCURRENCY
+          }
+        };
+        
+        res.statusCode = health.ok ? 200 : 503;
+        res.end(JSON.stringify(health));
+      } catch (error) {
+        res.statusCode = 503;
+        res.end(JSON.stringify({ ok: false, error: String(error) }));
+      }
+      return;
+    }
+
+    if (req.method === "GET" && parsed.pathname === "/metrics") {
+      res.setHeader("Content-Type", "text/plain");
+      try {
+        const prometheusMetrics = Metrics.toPrometheus();
+        res.end(prometheusMetrics);
+      } catch (error) {
+        res.statusCode = 500;
+        res.end(`# Error generating metrics: ${error}\n`);
+      }
       return;
     }
 
@@ -224,6 +264,55 @@ async function handleRequest(req: any, res: any) {
       return;
     }
 
+    // SSE Progress Stream (buttery smooth UI updates)
+    if (req.method === "GET" && parsed.pathname === "/progress/stream") {
+      const project = String(parsed.query.project || "");
+      const branch = String(parsed.query.branch || "");
+      if (!project || !branch) {
+        res.statusCode = 400;
+        res.end("project & branch required");
+        return;
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*'
+      });
+
+      const { runsPath } = await resolveWorkspace(project, branch);
+      
+      const sendProgress = async () => {
+        try {
+          const runs = (await fs.pathExists(runsPath)) ? (await fs.readdir(runsPath)).sort() : [];
+          const last = runs.at(-1);
+          if (last) {
+            const rp = path.join(runsPath, last);
+            const prog = await loadProgress(rp);
+            if (prog) {
+              res.write(`data: ${JSON.stringify(prog)}\n\n`);
+            }
+          }
+        } catch (error) {
+          res.write(`data: ${JSON.stringify({ error: String(error) })}\n\n`);
+        }
+      };
+
+      // Send initial progress
+      await sendProgress();
+
+      // Send updates every 2 seconds
+      const interval = setInterval(sendProgress, 2000);
+
+      // Cleanup on client disconnect
+      req.on('close', () => {
+        clearInterval(interval);
+      });
+
+      return;
+    }
+
     if (req.method === "GET" && parsed.pathname === "/jobs") {
       const qpath = path.join(getUatuHome(), "queue", "jobs.json");
       const j = await fs.readJson(qpath).catch(()=>({ jobs: [] }));
@@ -298,10 +387,10 @@ async function handleRequest(req: any, res: any) {
         console.log("Enqueue request body:", body);
         let payload: any = {};
         try { payload = JSON.parse(body || '{}'); } catch (e) { console.error("JSON parse error:", e); }
-        const { repo, project, branch, ai } = payload || {};
-        console.log("Enqueue params:", { repo, project, branch, ai });
+        const { repo, project, branch, ai, testStyles } = payload || {};
+        console.log("Enqueue params:", { repo, project, branch, ai, testStyles });
         if (!repo || !project || !branch) { res.statusCode = 400; res.end(JSON.stringify({ ok:false, error: "repo, project, branch required" })); return; }
-        const job = await enqueue({ repo, project, branch, ai: !!ai });
+        const job = await enqueue({ repo, project, branch, ai: !!ai, testStyles: testStyles || ["behavioral", "stride"] });
         console.log("Job created:", job);
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ ok: true, job }));
@@ -345,6 +434,7 @@ async function startWorker(workerId: number) {
           repo: job.repo,
           project: job.project,
           branch: job.branch,
+          testStyles: job.testStyles || ["behavioral", "stride"],
           ai: job.ai,
           jobId: job.id
         });

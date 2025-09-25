@@ -46,6 +46,23 @@ export const ReportData = z.object({
     pct: z.number().min(0).max(100),
     detail: z.string().optional(),
   })),
+  testStrategy: z.object({
+    styles: z.array(z.string()).default([]),
+    coverage: z.object({
+      behavioral: z.number().min(0).max(1).default(0),
+      stride: z.number().min(0).max(1).default(0),
+    }).default({ behavioral: 0, stride: 0 }),
+    uncovered: z.object({
+      behavioral: z.array(z.string()).optional(),
+      stride: z.array(z.string()).optional(),
+    }).default({}),
+    skeletonsGenerated: z.number().int().nonnegative().default(0),
+  }).default({
+    styles: [],
+    coverage: { behavioral: 0, stride: 0 },
+    uncovered: {},
+    skeletonsGenerated: 0
+  }),
   improve: z.array(z.string()).default([]),
   logs: z.string().optional(), // Optional: last N lines of execution logs
 });
@@ -242,12 +259,50 @@ export async function buildReportDataFromRun(params: {
     severity: sevCounts,
     artifacts,
     findings,
-    timeline,
-    improve,
-    logs,
+      timeline,
+      testStrategy: await buildTestStrategyData(runPath),
+      improve,
+      logs,
   });
   
   return data;
+}
+
+async function buildTestStrategyData(runPath: string) {
+  try {
+    // Try to load test plan metrics
+    const metricsPath = path.join(runPath, "testplan.metrics.json");
+    const metrics = await fs.readJson(metricsPath).catch(() => ({ coverage: {} }));
+    
+    // Try to load testgen outputs 
+    const testgenPath = path.join(runPath, "testgen.json");
+    const testgen = await fs.readJson(testgenPath).catch(() => ({ outputs: {} }));
+    
+    // Check for individual test plan files
+    const behavioralExists = await fs.pathExists(path.join(runPath, "testplan.behavioral.json"));
+    const strideExists = await fs.pathExists(path.join(runPath, "testplan.stride.json"));
+    
+    const styles = [];
+    if (behavioralExists) styles.push("behavioral");
+    if (strideExists) styles.push("stride");
+    
+    return {
+      styles: testgen.outputs?.testStyles || styles,
+      coverage: {
+        behavioral: Math.round((metrics.coverage?.behavioral || 0) * 100) / 100,
+        stride: Math.round((metrics.coverage?.stride || 0) * 100) / 100,
+      },
+      uncovered: metrics.coverage?.uncovered || {},
+      skeletonsGenerated: testgen.outputs?.generatedFiles?.length || 0
+    };
+  } catch (error) {
+    return {
+      styles: [],
+      coverage: { behavioral: 0, stride: 0 },
+      uncovered: {},
+      skeletonsGenerated: 0
+    };
+  }
 }
 
 // Helper function for generating recommendations

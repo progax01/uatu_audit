@@ -70,6 +70,14 @@
       <span class="pill"><input type="checkbox" id="t-soroban"> Soroban</span>
       <span class="pill"><input type="checkbox" id="t-node"> Node.js</span>
     </div>
+  </div>
+
+  <div class="row">
+    <label>Test Styles</label>
+    <div>
+      <span class="pill"><input type="checkbox" id="ts-behavioral" checked> Behavioral (H/N/S/N)</span>
+      <span class="pill"><input type="checkbox" id="ts-stride" checked> STRIDE Threats</span>
+    </div>
     <button onclick="startAudit()" class="primary">Run Audit</button>
   </div>
 </div>
@@ -150,10 +158,19 @@ function selectedTypes(){
   return t;
 }
 
+function selectedTestStyles(){
+  const styles = [];
+  if($("ts-behavioral").checked) styles.push("behavioral");
+  if($("ts-stride").checked) styles.push("stride");
+  return styles;
+}
+
 async function startAudit(){
   // Step 3 done
   setPct("p3", selectedTypes().length?100:60);
-  setNote("n3", selectedTypes().length?`Selected: ${selectedTypes().join(", ")}`:"No hints provided (auto-detect)");
+  const typesNote = selectedTypes().length ? `Ecosystems: ${selectedTypes().join(", ")}` : "Auto-detect ecosystems";
+  const stylesNote = `Test Styles: ${selectedTestStyles().join(", ") || "None"}`;
+  setNote("n3", `${typesNote} | ${stylesNote}`);
   markActive("s3", true);
 
   // Enqueue audit
@@ -163,7 +180,7 @@ async function startAudit(){
   const branch  = $("branch").value || repoObj.default_branch || "main";
   state.project = project; state.branch = branch;
 
-  const body = { repo: repoUrl, project, branch, ai: true, hintEcosystems: selectedTypes() };
+  const body = { repo: repoUrl, project, branch, ai: true, hintEcosystems: selectedTypes(), testStyles: selectedTestStyles() };
   const r = await fetch("/enqueue", { method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   const j = await r.json();
   setPct("p4", 5); setNote("n4", "Queued. Workers will pick it up…"); markActive("s4", true);
