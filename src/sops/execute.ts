@@ -1,0 +1,107 @@
+import path from "node:path";
+import fs from "fs-extra";
+import { SOP, SOPInputs, SOPResult } from "../types.js";
+import { step, ProgressHook } from "../utils/stepHelper.js";
+import { exec as _exec } from "node:child_process";
+import { promisify } from "node:util";
+
+const execp = promisify(_exec);
+
+async function runCmd(cmd: string, args: string[], cwd: string): Promise<string> {
+  const full = `${cmd} ${args.join(" ")}`;
+  const { stdout, stderr } = await execp(full, { cwd, env: process.env });
+  return `${stdout || ""}${stderr || ""}`;
+}
+
+async function safeJson(p: string) { try { return await fs.readJson(p); } catch { return null; } }
+
+export const executeSOP: SOP = {
+  name: "execute",
+  version: "1.0.1",
+  prerequisites: ["bootstrap", "inventory", "analysis", "testgen"],
+  async validateInputs(i) { return !!i.projectPath; },
+  async execute(i: SOPInputs, onProgress?: ProgressHook): Promise<SOPResult> {
+    const started_at = new Date().toISOString(); const errors: string[] = [];
+
+    const stamp = (i.timestamp as string) ?? new Date().toISOString().replace(/[:.]/g, "-");
+    const runPath = path.join(i.runsPath as string, stamp);
+    const sandboxPath = path.join(runPath, "sandbox");
+    await fs.ensureDir(sandboxPath);
+
+    // 1) sandbox copy
+    await step(onProgress, { phase: "execute", step: "sandbox-materialize", pct: 25 });
+    await fs.copy(i.projectPath as string, sandboxPath, {
+      filter: (src) => !/\.git(\/|$)/.test(src) && !/node_modules(\/|$)/.test(src) && !/\/runs(\/|$)/.test(src) && !/\.uatu\/ai_tests\/.*\.plan\.txt$/.test(src)
+    });
+
+    let stdout = "";
+    let coveragePct: number | undefined;
+
+    const hasFoundry = await fs.pathExists(path.join(sandboxPath, "foundry.toml"));
+    const hasHardhat = await fs.pathExists(path.join(sandboxPath, "hardhat.config.ts")) || await fs.pathExists(path.join(sandboxPath, "hardhat.config.js"));
+    const hasAnchor  = await fs.pathExists(path.join(sandboxPath, "Anchor.toml")) || await fs.pathExists(path.join(sandboxPath, "anchor.toml"));
+    const hasSoroban = await fs.pathExists(path.join(sandboxPath, "soroban.toml")) || await fs.pathExists(path.join(sandboxPath, "soroban.config.toml"));
+    const hasNode    = await fs.pathExists(path.join(sandboxPath, "package.json"));
+
+    // 2) deps install (node/hardhat)
+    if (hasHardhat || (hasNode && !hasFoundry && !hasAnchor && !hasSoroban)) {
+      await step(onProgress, { phase: "execute", step: "deps-install", pct: 40 });
+      try { stdout += await runCmd("npm", ["i", "--silent", "--no-progress"], sandboxPath); } catch {}
+    }
+
+    // 3) compile
+    await step(onProgress, { phase: "execute", step: "compile", pct: 65 });
+
+    try {
+      if (hasFoundry) {
+        stdout += await runCmd("forge", ["build"], sandboxPath);
+        await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
+        stdout += await runCmd("forge", ["test", "-vvv"], sandboxPath);
+        try {
+          const cov = await runCmd("forge", ["coverage"], sandboxPath);
+          const m = cov.match(/Total.*?(\d{1,3})\.\d+\s*%/);
+          if (m) coveragePct = Math.max(0, Math.min(100, parseInt(m[1], 10)));
+          await fs.writeFile(path.join(runPath, "coverage.txt"), cov, "utf8");
+        } catch {}
+      } else if (hasHardhat) {
+        stdout += await runCmd("npx", ["hardhat", "compile"], sandboxPath);
+        await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
+        stdout += await runCmd("npx", ["hardhat", "test"], sandboxPath);
+        try {
+          stdout += "\n[Uatu] trying hardhat coverage ...\n";
+          await runCmd("npx", ["hardhat", "coverage", "--testfiles", ""], sandboxPath);
+          const sum = await safeJson(path.join(sandboxPath, "coverage", "coverage-summary.json"));
+          if (sum?.total?.lines?.pct != null) coveragePct = Math.round(sum.total.lines.pct);
+          await fs.copy(path.join(sandboxPath, "coverage"), path.join(runPath, "coverage")).catch(()=>{});
+        } catch {}
+      } else if (hasAnchor) {
+        await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
+        stdout += await runCmd("anchor", ["test"], sandboxPath);
+      } else if (hasSoroban) {
+        await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
+        stdout += await runCmd("soroban", ["test"], sandboxPath);
+      } else if (hasNode) {
+        await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
+        try { stdout += await runCmd("npm", ["test", "--silent"], sandboxPath); } catch (e:any) { stdout += `\n[npm test failed] ${e?.message||e}\n`; }
+      } else {
+        stdout += "No known toolchain found; execution skipped.\n";
+      }
+    } catch (e:any) {
+      errors.push(`Execution error: ${e?.message || String(e)}`);
+    }
+
+    const outputs: any = { runPath, sandbox: sandboxPath, stdout };
+    if (typeof coveragePct === "number") outputs.coverage = coveragePct;
+    const outFile = path.join(i.projectPath as string, "runs", (i.timestamp as string) ?? Date.now().toString(), "execute.json");
+    await fs.ensureDir(path.dirname(outFile)); await fs.writeJson(outFile, outputs, { spaces: 2 });
+
+    // Write execution log
+    const logFile = path.join(runPath, "execute.log");
+    await fs.writeFile(logFile, stdout, "utf8");
+
+    await step(onProgress, { phase: "execute", step: "aggregate", pct: 100 });
+
+    return { ok: errors.length === 0, outputs, errors, started_at, completed_at: new Date().toISOString(), version: this.version };
+  },
+  async verifyOutputs(r) { return !!(r.outputs && (r.outputs as any).testResults); }
+};

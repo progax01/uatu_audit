@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>UatuAudit — Test UI</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 880px; margin: 24px auto; padding: 0 16px; }
+    h1 { margin-bottom: 8px; }
+    .row { display: grid; grid-template-columns: 160px 1fr auto; gap: 8px; align-items: center; margin: 8px 0; }
+    input[type="text"] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; }
+    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #999; cursor: pointer; background: #fafafa; }
+    button.primary { background: #0a7cff; color: white; border-color: #0a7cff; }
+    .bar { height: 12px; width: 100%; background: #eee; border-radius: 8px; overflow: hidden; margin-top: 6px; }
+    .bar > div { height: 100%; width: 0%; background: #0a7cff; transition: width .2s; }
+    pre { background: #0b1020; color: #cfd7ff; padding: 12px; border-radius: 8px; overflow: auto; }
+    small.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #666; }
+    .row > label { font-weight: 600; }
+    .muted { color: #666; }
+  </style>
+  </head>
+  <body>
+  <h1>UatuAudit – Test Console</h1>
+  <p class="muted">Daemon base URL: <input id="baseUrl" type="text" value="http://localhost:9090" style="width:340px" />
+    <button onclick="health()">Health</button>
+    <button onclick="me()">Who am I?</button>
+    <button class="primary" onclick="login()">Login with GitHub</button>
+    <button onclick="logout()">Logout</button>
+  </p>
+
+  <div class="row">
+    <label>Repo URL</label>
+    <input id="repo" type="text" placeholder="https://github.com/owner/repo.git" />
+    <button onclick="autofill()">Autofill demo</button>
+  </div>
+  <div class="row">
+    <label>Project</label>
+    <input id="project" type="text" placeholder="repo" />
+    <button onclick="enqueue()">Enqueue</button>
+  </div>
+  <div class="row">
+    <label>Branch</label>
+    <input id="branch" type="text" placeholder="main" />
+    <button class="primary" onclick="runOne()">Run Now</button>
+  </div>
+  <div class="row">
+    <label>AI Test Ideas</label>
+    <input id="ai" type="text" value="true" />
+    <button onclick="listJobs()">List Jobs</button>
+  </div>
+
+  <div style="margin-top:16px">
+    <div class="row">
+      <label>Watch Progress</label>
+      <input id="watchProject" type="text" placeholder="repo" />
+      <button onclick="watch()">Start</button>
+    </div>
+    <div class="row">
+      <label>Watch Branch</label>
+      <input id="watchBranch" type="text" placeholder="main" />
+      <button onclick="stop()">Stop</button>
+    </div>
+    <div class="bar"><div id="bar"></div></div>
+    <small id="lastEvent" class="mono"></small>
+  </div>
+
+  <p style="margin-top:16px">
+    <button onclick="downloadReport()">Download Latest Report (PDF)</button>
+  </p>
+
+  <h3>Output</h3>
+  <pre id="out"></pre>
+
+<script>
+let timer = null;
+
+function ui() {
+  return {
+    base: document.getElementById('baseUrl').value.trim(),
+    repo: document.getElementById('repo').value.trim(),
+    project: document.getElementById('project').value.trim(),
+    branch: document.getElementById('branch').value.trim(),
+    ai: document.getElementById('ai').value.trim().toLowerCase() === 'true',
+    wproj: document.getElementById('watchProject').value.trim(),
+    wbranch: document.getElementById('watchBranch').value.trim(),
+    out: document.getElementById('out'),
+    bar: document.getElementById('bar'),
+    lastEvent: document.getElementById('lastEvent'),
+  };
+}
+function log(x){ const o=ui().out; o.textContent = (typeof x==='string'?x:JSON.stringify(x,null,2)); }
+function setBar(p){ ui().bar.style.width = `${Math.max(0,Math.min(100, p))}%`; }
+
+async function health(){
+  const r = await fetch(`${ui().base}/healthz`); log(await r.json());
+}
+function login(){
+  window.location.href = `${ui().base}/auth/github/login`;
+}
+async function logout(){
+  const r = await fetch(`${ui().base}/auth/github/logout`, { method: 'POST' });
+  log(await r.json());
+}
+async function me(){
+  const r = await fetch(`${ui().base}/auth/github/me`);
+  log(await r.json());
+}
+function autofill(){
+  document.getElementById('repo').value = 'https://github.com/openzeppelin/openzeppelin-contracts.git';
+  document.getElementById('project').value = 'openzeppelin-contracts';
+  document.getElementById('branch').value = 'master';
+}
+async function enqueue(){
+  const {base, repo, project, branch, ai} = ui();
+  const r = await fetch(`${base}/enqueue`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({repo, project, branch, ai}) });
+  log(await r.json());
+}
+async function runOne(){
+  const {base, repo, project, branch, ai} = ui();
+  const r = await fetch(`${base}/enqueue`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({repo, project, branch, ai}) });
+  log(await r.json());
+}
+async function listJobs(){
+  const r = await fetch(`${ui().base}/jobs`); log(await r.json());
+}
+async function pollOnce(){
+  const {base, wproj, wbranch} = ui();
+  if (!wproj || !wbranch) return;
+  const r = await fetch(`${base}/progress?project=${encodeURIComponent(wproj)}&branch=${encodeURIComponent(wbranch)}`);
+  if (!r.ok){ log(await r.text()); return; }
+  const p = await r.json();
+  setBar(p.overall_pct||0);
+  ui().lastEvent.textContent = p.last_event || '';
+  log(p);
+}
+function watch(){
+  if (timer) clearInterval(timer);
+  pollOnce();
+  timer = setInterval(pollOnce, 2000);
+}
+function stop(){
+  if (timer) clearInterval(timer);
+  timer = null;
+}
+function downloadReport(){
+  const {base, wproj, wbranch} = ui();
+  if (!wproj || !wbranch) { alert('Set Watch Project & Branch'); return; }
+  window.open(`${base}/report?project=${encodeURIComponent(wproj)}&branch=${encodeURIComponent(wbranch)}`, '_blank');
+}
+</script>
+</body>
+</html>
+
