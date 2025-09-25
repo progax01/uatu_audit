@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { createServer } from "node:http";
 import { URL } from "node:url";
 import path from "node:path";
@@ -7,6 +8,7 @@ import { resolveWorkspace } from "../services/workspaceService.js";
 import { runAll } from "../services/runAll.js";
 import { claimNext, complete, enqueue as enqueueJob } from "../services/jobQueue.js";
 import { getUatuHome, getUserId } from "../constants/paths.js";
+import { logger, createJobLogger } from "../utils/logger.js";
 
 const PORT = parseInt(process.env.UATU_PORT || "9090");
 const CONCURRENCY = parseInt(process.env.UATU_CONCURRENCY || "2");
@@ -110,6 +112,56 @@ async function handleRequest(req: any, res: any) {
       await deleteToken();
       res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify({ ok: true })); return;
     }
+
+    // GET /github/repos?org=<org>
+    if (req.method === "GET" && parsed.pathname === "/github/repos") {
+      const token = await loadToken();
+      if (!token) { res.statusCode = 401; res.end(JSON.stringify({error:"not authed"})); return; }
+      const org = String(parsed.query.org || "");
+      const base = org
+        ? `https://api.github.com/orgs/${encodeURIComponent(org)}/repos?per_page=100`
+        : `https://api.github.com/user/repos?per_page=100`;
+      const r = await fetch(base, { headers: { Authorization: `Bearer ${token}`, "User-Agent": "UatuAudit" }});
+      const list = await r.json() as any[];
+      const slim = list.map(r => ({
+        id: r.id,
+        full_name: r.full_name,
+        default_branch: r.default_branch,
+        clone_url: r.clone_url,
+        private: r.private
+      }));
+      res.setHeader("Content-Type","application/json"); res.end(JSON.stringify(slim)); return;
+    }
+
+    // GET /github/branches?repo=owner/name
+    if (req.method === "GET" && parsed.pathname === "/github/branches") {
+      const token = await loadToken();
+      if (!token) { res.statusCode = 401; res.end(JSON.stringify({error:"not authed"})); return; }
+      const repo = String(parsed.query.repo || "");
+      if (!repo || !repo.includes("/")) { res.statusCode = 400; res.end("repo=owner/name required"); return; }
+      const r = await fetch(`https://api.github.com/repos/${repo}/branches?per_page=200`,
+        { headers: { Authorization: `Bearer ${token}`, "User-Agent": "UatuAudit" }});
+      const list = await r.json() as any[];
+      const slim = list.map(b => ({ name: b.name, protected: !!b.protected }));
+      res.setHeader("Content-Type","application/json"); res.end(JSON.stringify(slim)); return;
+    }
+
+    // GET /logs?project=&branch=&tail=100
+    if (req.method === "GET" && parsed.pathname === "/logs") {
+      const project = String(parsed.query.project || "");
+      const branch = String(parsed.query.branch || "");
+      const tail = Math.max(10, Math.min(5000, parseInt(String(parsed.query.tail || "400"),10)));
+      if (!project || !branch) { res.statusCode = 400; res.end("project & branch required"); return; }
+      const { runsPath } = await resolveWorkspace(project, branch);
+      const runs = (await fs.pathExists(runsPath)) ? (await fs.readdir(runsPath)).sort() : [];
+      const last = runs.at(-1); if (!last) { res.statusCode = 404; res.end("No runs"); return; }
+      const rp = path.join(runsPath, last);
+      const execLog = path.join(rp, "execute.log");
+      const cliLog  = path.join(rp, "cli.log");
+      const readTail = async (p: string) => (await fs.pathExists(p)) ? (await fs.readFile(p,"utf8")).split("\n").slice(-tail).join("\n") : "";
+      const payload = { run: last, execute: await readTail(execLog), cli: await readTail(cliLog) };
+      res.setHeader("Content-Type","application/json"); res.end(JSON.stringify(payload)); return;
+    }
     if (req.method === "GET" && parsed.pathname === "/progress") {
       const project = String(parsed.query.project || "");
       const branch = String(parsed.query.branch || "");
@@ -146,9 +198,11 @@ async function handleRequest(req: any, res: any) {
       return;
     }
 
+    // GET /report?project=&branch=&format=pdf|html
     if (req.method === "GET" && parsed.pathname === "/report") {
       const project = String(parsed.query.project || "");
       const branch = String(parsed.query.branch || "");
+      const format = String(parsed.query.format || "pdf"); // default to PDF
       if (!project || !branch) { 
         res.statusCode = 400; 
         res.end("project & branch required"); 
@@ -162,14 +216,37 @@ async function handleRequest(req: any, res: any) {
         res.end("No runs"); 
         return; 
       }
-      const reportPath = path.join(runsPath, last, "report.pdf");
+
+      let reportPath: string;
+      let contentType: string;
+      let filename: string;
+
+      if (format === "html") {
+        reportPath = path.join(runsPath, last, "report.html");
+        contentType = "text/html; charset=utf-8";
+        filename = `${project}-${branch}-report.html`;
+      } else {
+        reportPath = path.join(runsPath, last, "report.pdf");
+        contentType = "application/pdf";
+        filename = `${project}-${branch}-report.pdf`;
+      }
+
       if (!(await fs.pathExists(reportPath))) {
         res.statusCode = 404;
-        res.end("No report found");
+        res.end(`No ${format} report found`);
         return;
       }
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="${project}-${branch}-report.pdf"`);
+
+      res.setHeader("Content-Type", contentType);
+      
+      // For HTML, set inline display; for PDF, set as attachment
+      if (format === "html") {
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("X-Frame-Options", "SAMEORIGIN");
+      } else {
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      }
+      
       const reportData = await fs.readFile(reportPath);
       res.end(reportData);
       return;
@@ -200,7 +277,8 @@ async function handleRequest(req: any, res: any) {
 }
 
 async function startWorker(workerId: number) {
-  console.log(`👷 Worker ${workerId} started`);
+  const log = logger.child({ workerId });
+  log.info(`Worker started`);
   
   while (true) {
     try {
@@ -211,7 +289,8 @@ async function startWorker(workerId: number) {
         continue;
       }
 
-      console.log(`🔧 Worker ${workerId} processing job ${job.id}: ${job.project}#${job.branch}`);
+      const jobLog = createJobLogger(job.id, job.project, job.branch);
+      jobLog.info(`Worker processing job`, { workerId });
       
       try {
         const { pdfPath } = await runAll({
@@ -223,13 +302,13 @@ async function startWorker(workerId: number) {
         });
         
         await complete(job.id, true, pdfPath);
-        console.log(`✅ Worker ${workerId} completed job ${job.id}: ${pdfPath}`);
+        jobLog.info(`Job completed successfully`, { reportPath: pdfPath, workerId });
       } catch (error) {
-        console.error(`❌ Worker ${workerId} failed job ${job.id}:`, error);
+        jobLog.error(`Job failed`, { error: String(error), workerId });
         await complete(job.id, false, undefined, String(error));
       }
     } catch (error) {
-      console.error(`💥 Worker ${workerId} error:`, error);
+      log.error(`Worker error`, { error: String(error) });
       await new Promise(resolve => setTimeout(resolve, 10000));
     }
   }

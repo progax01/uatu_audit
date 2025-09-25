@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UatuAudit Report</title>
+    <style>
+        /* Print-optimized CSS for A4 */
+        @page {
+            size: A4;
+            margin: 16mm;
+        }
+        
+        @media print {
+            .no-print { display: none !important; }
+            body { font-size: 11pt; line-height: 1.4; }
+            .page-break { page-break-before: always; }
+            .hero { page-break-inside: avoid; }
+            .findings-table { page-break-inside: avoid; }
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+            background: #ffffff;
+        }
+        
+        .container { max-width: 210mm; margin: 0 auto; padding: 0 8mm; }
+        
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 0;
+            border-bottom: 2px solid #0066cc;
+            margin-bottom: 30px;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0066cc;
+        }
+        
+        .print-btn {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        /* Hero Section */
+        .hero {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8faff 0%, #e6f2ff 100%);
+            border-radius: 12px;
+        }
+        
+        .score-section {
+            text-align: center;
+        }
+        
+        .score-gauge {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 15px;
+        }
+        
+        .score-text {
+            font-size: 48px;
+            font-weight: 800;
+            color: #0066cc;
+        }
+        
+        .grade {
+            font-size: 24px;
+            font-weight: 600;
+            color: #28a745;
+            margin-top: 5px;
+        }
+        
+        .meta-section h2 {
+            color: #0066cc;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .meta-item {
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #0066cc;
+        }
+        
+        .meta-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .meta-value {
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        
+        .ecosystems {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .ecosystem-chip {
+            background: #0066cc;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .coverage-badge {
+            background: #28a745;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        
+        /* Sections */
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #0066cc;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e6f2ff;
+            padding-bottom: 10px;
+        }
+        
+        /* Severity Breakdown */
+        .severity-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+        
+        .severity-item {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            background: white;
+            border: 2px solid #f0f0f0;
+        }
+        
+        .severity-critical { border-color: #dc3545; }
+        .severity-high { border-color: #fd7e14; }
+        .severity-medium { border-color: #ffc107; }
+        .severity-low { border-color: #20c997; }
+        
+        .severity-count {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 5px;
+        }
+        
+        .severity-critical .severity-count { color: #dc3545; }
+        .severity-high .severity-count { color: #fd7e14; }
+        .severity-medium .severity-count { color: #ffc107; }
+        .severity-low .severity-count { color: #20c997; }
+        
+        .severity-label {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #666;
+        }
+        
+        /* Coverage Bars */
+        .coverage-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        
+        .coverage-item {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #f0f0f0;
+        }
+        
+        .coverage-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .coverage-bar {
+            width: 100%;
+            height: 12px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        
+        .coverage-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+            transition: width 0.3s ease;
+        }
+        
+        .coverage-percent {
+            font-size: 18px;
+            font-weight: 700;
+            color: #28a745;
+        }
+        
+        /* Artifacts */
+        .artifacts {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        
+        .artifact-link {
+            display: block;
+            padding: 15px;
+            background: white;
+            border: 2px solid #0066cc;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #0066cc;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+        
+        .artifact-link:hover {
+            background: #0066cc;
+            color: white;
+        }
+        
+        /* Findings Table */
+        .findings-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .findings-table th {
+            background: #0066cc;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .findings-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .findings-table tr:hover {
+            background: #f8faff;
+        }
+        
+        .severity-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .severity-badge.critical { background: #dc3545; color: white; }
+        .severity-badge.high { background: #fd7e14; color: white; }
+        .severity-badge.medium { background: #ffc107; color: black; }
+        .severity-badge.low { background: #20c997; color: white; }
+        
+        .file-path {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* Timeline */
+        .timeline {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #f0f0f0;
+        }
+        
+        .timeline-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .timeline-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .timeline-step {
+            flex: 0 0 120px;
+            font-weight: 600;
+            color: #0066cc;
+        }
+        
+        .timeline-bar-container {
+            flex: 1;
+            margin: 0 20px;
+        }
+        
+        .timeline-bar {
+            width: 100%;
+            height: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .timeline-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0066cc 0%, #28a745 100%);
+        }
+        
+        .timeline-detail {
+            flex: 0 0 200px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        /* Improvements */
+        .improvements {
+            background: #fff9e6;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .improvements ul {
+            list-style: none;
+        }
+        
+        .improvements li {
+            margin-bottom: 10px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .improvements li:before {
+            content: "💡";
+            position: absolute;
+            left: 0;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding: 30px 0;
+            border-top: 2px solid #f0f0f0;
+            color: #666;
+        }
+        
+        .footer-mascot {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 15px;
+            opacity: 0.8;
+        }
+        
+        .footer-text {
+            font-style: italic;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-section">
+                <svg class="logo" viewBox="0 0 40 40" fill="none">
+                    <circle cx="20" cy="20" r="18" fill="#0066cc"/>
+                    <path d="M20 8L16 16L20 24L24 16L20 8Z" fill="white"/>
+                    <circle cx="20" cy="28" r="2" fill="white"/>
+                </svg>
+                <div class="title">UatuAudit Report</div>
+            </div>
+            <button class="print-btn no-print" onclick="window.print()">📄 Print/Save PDF</button>
+        </div>
+
+        <!-- Hero Section -->
+        <div class="hero">
+            <div class="score-section">
+                <svg class="score-gauge" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="#f0f0f0" stroke-width="8"/>
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="#28a745" stroke-width="8" 
+                            stroke-dasharray="314" stroke-dashoffset="0" stroke-linecap="round" 
+                            transform="rotate(-90 60 60)" id="score-circle"/>
+                </svg>
+                <div class="score-text" id="score-display">88</div>
+                <div class="grade" id="grade-display">Grade A</div>
+            </div>
+            
+            <div class="meta-section">
+                <h2>Project Overview</h2>
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <div class="meta-label">Project</div>
+                        <div class="meta-value" id="project-name">sample/project</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Branch</div>
+                        <div class="meta-value" id="branch-name">main</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Commit</div>
+                        <div class="meta-value" id="commit-hash">abc1234</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Run Time</div>
+                        <div class="meta-value" id="run-time">2025-09-25 12:00 UTC</div>
+                    </div>
+                </div>
+                
+                <div class="ecosystems" id="ecosystems">
+                    <span class="ecosystem-chip">solidity-foundry</span>
+                    <span class="ecosystem-chip">solana-anchor</span>
+                    <span class="ecosystem-chip">node</span>
+                </div>
+                
+                <div class="coverage-badge" id="coverage-summary">
+                    📊 Coverage: 82% statements
+                </div>
+            </div>
+        </div>
+
+        <!-- Severity Breakdown -->
+        <div class="section">
+            <h2 class="section-title">🚨 Security Findings Overview</h2>
+            <div class="severity-grid">
+                <div class="severity-item severity-critical">
+                    <div class="severity-count" id="critical-count">0</div>
+                    <div class="severity-label">Critical</div>
+                </div>
+                <div class="severity-item severity-high">
+                    <div class="severity-count" id="high-count">1</div>
+                    <div class="severity-label">High</div>
+                </div>
+                <div class="severity-item severity-medium">
+                    <div class="severity-count" id="medium-count">4</div>
+                    <div class="severity-label">Medium</div>
+                </div>
+                <div class="severity-item severity-low">
+                    <div class="severity-count" id="low-count">6</div>
+                    <div class="severity-label">Low</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coverage Details -->
+        <div class="section">
+            <h2 class="section-title">📊 Code Coverage Analysis</h2>
+            <div class="coverage-grid">
+                <div class="coverage-item">
+                    <div class="coverage-label">Statements</div>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 82%" id="statements-bar"></div>
+                    </div>
+                    <div class="coverage-percent" id="statements-percent">82%</div>
+                </div>
+                <div class="coverage-item">
+                    <div class="coverage-label">Branches</div>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 76%" id="branches-bar"></div>
+                    </div>
+                    <div class="coverage-percent" id="branches-percent">76%</div>
+                </div>
+                <div class="coverage-item">
+                    <div class="coverage-label">Functions</div>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 79%" id="functions-bar"></div>
+                    </div>
+                    <div class="coverage-percent" id="functions-percent">79%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Artifacts -->
+        <div class="section">
+            <h2 class="section-title">📁 Report Artifacts</h2>
+            <div class="artifacts">
+                <a href="#" class="artifact-link" id="pdf-link">📄 PDF Report</a>
+                <a href="#" class="artifact-link" id="sarif-link">🔍 SARIF Export</a>
+                <a href="#" class="artifact-link" id="inventory-link">📋 Inventory</a>
+                <a href="#" class="artifact-link" id="analysis-link">🔬 Analysis</a>
+            </div>
+        </div>
+
+        <!-- Key Findings -->
+        <div class="section">
+            <h2 class="section-title">🔍 Key Security Findings</h2>
+            <table class="findings-table">
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Finding</th>
+                        <th>Location</th>
+                        <th>Recommendation</th>
+                    </tr>
+                </thead>
+                <tbody id="findings-tbody">
+                    <!-- Populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SOP Timeline -->
+        <div class="section">
+            <h2 class="section-title">⚙️ Audit Process Timeline</h2>
+            <div class="timeline" id="timeline">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Improvements -->
+        <div class="section">
+            <h2 class="section-title">💡 Recommendations for Improvement</h2>
+            <div class="improvements">
+                <ul id="improvements-list">
+                    <!-- Populated by JavaScript -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-mascot">🛡️</div>
+            <div class="footer-text">
+                "Smart contracts secured through systematic audit procedures"<br>
+                Generated by UatuAudit Platform
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default sample data
+        const defaultData = {
+            meta: { 
+                project: "sample/project", 
+                branch: "main", 
+                commit: "abc1234", 
+                run: "2025-09-25 12:00 UTC" 
+            },
+            ecosystems: ["solidity-foundry", "solana-anchor", "node"],
+            score: 88, 
+            grade: "A",
+            coverage: { statements: 82, branches: 76, functions: 79 },
+            severity: { critical: 0, high: 1, medium: 4, low: 6 },
+            artifacts: {
+                pdf: "/runs/sample/report.pdf",
+                sarif: "/runs/sample/findings.sarif",
+                inventory: "/runs/sample/inventory.json",
+                analysis: "/runs/sample/analysis.json"
+            },
+            findings: [
+                { 
+                    severity: "high", 
+                    title: "Low-level call used", 
+                    file: "contracts/Router.sol:210", 
+                    rec: "Wrap with safe interface; verify returns" 
+                },
+                { 
+                    severity: "medium", 
+                    title: "Unbounded loop", 
+                    file: "contracts/Vault.sol:88", 
+                    rec: "Bound iterations or chunk work" 
+                },
+                { 
+                    severity: "low", 
+                    title: "No event on update", 
+                    file: "contracts/Factory.sol:55", 
+                    rec: "Emit events for critical changes" 
+                }
+            ],
+            timeline: [
+                { step: "bootstrap", label: "Bootstrap", pct: 100, detail: "Context & tools detected" },
+                { step: "inventory", label: "Inventory", pct: 100, detail: "Functions & tests catalogued" },
+                { step: "analysis", label: "Analysis", pct: 100, detail: "Patterns & access maps" },
+                { step: "testgen", label: "Testgen", pct: 100, detail: "AI plans for complex paths" },
+                { step: "execute", label: "Execute", pct: 100, detail: "Sandbox tests & coverage" }
+            ],
+            improve: [
+                "Increase branch coverage for error paths",
+                "Replace low-level calls with typed interfaces",
+                "Add pause/ownable guards to upgrade flows"
+            ]
+        };
+
+        // Use injected data or fall back to default
+        const data = window.UATU_DATA || defaultData;
+
+        function populateReport() {
+            // Meta information
+            document.getElementById('project-name').textContent = data.meta.project;
+            document.getElementById('branch-name').textContent = data.meta.branch;
+            document.getElementById('commit-hash').textContent = data.meta.commit;
+            document.getElementById('run-time').textContent = data.meta.run;
+
+            // Score and grade
+            document.getElementById('score-display').textContent = data.score;
+            document.getElementById('grade-display').textContent = `Grade ${data.grade}`;
+            
+            // Update score circle
+            const circle = document.getElementById('score-circle');
+            const circumference = 2 * Math.PI * 50; // radius = 50
+            const offset = circumference - (data.score / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+
+            // Ecosystems
+            const ecosystemsEl = document.getElementById('ecosystems');
+            ecosystemsEl.innerHTML = data.ecosystems.map(eco => 
+                `<span class="ecosystem-chip">${eco}</span>`
+            ).join('');
+
+            // Coverage summary
+            document.getElementById('coverage-summary').textContent = 
+                `📊 Coverage: ${data.coverage.statements}% statements`;
+
+            // Severity counts
+            document.getElementById('critical-count').textContent = data.severity.critical;
+            document.getElementById('high-count').textContent = data.severity.high;
+            document.getElementById('medium-count').textContent = data.severity.medium;
+            document.getElementById('low-count').textContent = data.severity.low;
+
+            // Coverage details
+            document.getElementById('statements-percent').textContent = `${data.coverage.statements}%`;
+            document.getElementById('statements-bar').style.width = `${data.coverage.statements}%`;
+            document.getElementById('branches-percent').textContent = `${data.coverage.branches}%`;
+            document.getElementById('branches-bar').style.width = `${data.coverage.branches}%`;
+            document.getElementById('functions-percent').textContent = `${data.coverage.functions}%`;
+            document.getElementById('functions-bar').style.width = `${data.coverage.functions}%`;
+
+            // Artifact links
+            document.getElementById('pdf-link').href = data.artifacts.pdf;
+            document.getElementById('sarif-link').href = data.artifacts.sarif;
+            document.getElementById('inventory-link').href = data.artifacts.inventory;
+            document.getElementById('analysis-link').href = data.artifacts.analysis;
+
+            // Findings table
+            const findingsEl = document.getElementById('findings-tbody');
+            findingsEl.innerHTML = data.findings.map(finding => `
+                <tr>
+                    <td><span class="severity-badge ${finding.severity}">${finding.severity}</span></td>
+                    <td>${finding.title}</td>
+                    <td><code class="file-path">${finding.file}</code></td>
+                    <td>${finding.rec}</td>
+                </tr>
+            `).join('');
+
+            // Timeline
+            const timelineEl = document.getElementById('timeline');
+            timelineEl.innerHTML = data.timeline.map(item => `
+                <div class="timeline-item">
+                    <div class="timeline-step">${item.label}</div>
+                    <div class="timeline-bar-container">
+                        <div class="timeline-bar">
+                            <div class="timeline-fill" style="width: ${item.pct}%"></div>
+                        </div>
+                    </div>
+                    <div class="timeline-detail">${item.detail}</div>
+                </div>
+            `).join('');
+
+            // Improvements
+            const improvementsEl = document.getElementById('improvements-list');
+            improvementsEl.innerHTML = data.improve.map(improvement => 
+                `<li>${improvement}</li>`
+            ).join('');
+        }
+
+        // Populate the report when the page loads
+        document.addEventListener('DOMContentLoaded', populateReport);
+    </script>
+</body>
+</html>

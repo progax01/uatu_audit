@@ -4,6 +4,14 @@ import { SOP, SOPInputs, SOPResult } from "../types.js";
 import { step, ProgressHook } from "../utils/stepHelper.js";
 import { exec as _exec } from "node:child_process";
 import { promisify } from "node:util";
+import { 
+  isDockerAvailable, 
+  executeFoundryInDocker, 
+  executeNodeInDocker,
+  executeRustInDocker 
+} from "../services/dockerSandbox.js";
+import { loadConfig } from "../services/configService.js";
+import { logger } from "../utils/logger.js";
 
 const execp = promisify(_exec);
 
@@ -22,11 +30,26 @@ export const executeSOP: SOP = {
   async validateInputs(i) { return !!i.projectPath; },
   async execute(i: SOPInputs, onProgress?: ProgressHook): Promise<SOPResult> {
     const started_at = new Date().toISOString(); const errors: string[] = [];
+    const log = logger.child({ sop: 'execute' });
 
     const stamp = (i.timestamp as string) ?? new Date().toISOString().replace(/[:.]/g, "-");
     const runPath = path.join(i.runsPath as string, stamp);
     const sandboxPath = path.join(runPath, "sandbox");
     await fs.ensureDir(sandboxPath);
+
+    // Check configuration for sandbox mode
+    const cfg = await loadConfig(i.projectPath as string);
+    const useSandbox = cfg.sandbox === 'docker' || process.env.UATU_SANDBOX === 'docker';
+    const dockerAvailable = useSandbox ? await isDockerAvailable() : false;
+    
+    if (useSandbox && !dockerAvailable) {
+      log.warn('Docker sandbox requested but Docker not available, falling back to local execution');
+    }
+    
+    const useDocker = useSandbox && dockerAvailable;
+    log.info(`Execution mode: ${useDocker ? 'Docker sandbox' : 'local'}`);
+    
+    await step(onProgress, { phase: "execute", step: `sandbox-mode: ${useDocker ? 'docker' : 'local'}`, pct: 10 });
 
     // 1) sandbox copy
     await step(onProgress, { phase: "execute", step: "sandbox-materialize", pct: 25 });
@@ -52,43 +75,93 @@ export const executeSOP: SOP = {
     // 3) compile
     await step(onProgress, { phase: "execute", step: "compile", pct: 65 });
 
-    try {
-      if (hasFoundry) {
-        stdout += await runCmd("forge", ["build"], sandboxPath);
-        await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
-        stdout += await runCmd("forge", ["test", "-vvv"], sandboxPath);
         try {
-          const cov = await runCmd("forge", ["coverage"], sandboxPath);
-          const m = cov.match(/Total.*?(\d{1,3})\.\d+\s*%/);
-          if (m) coveragePct = Math.max(0, Math.min(100, parseInt(m[1], 10)));
-          await fs.writeFile(path.join(runPath, "coverage.txt"), cov, "utf8");
-        } catch {}
-      } else if (hasHardhat) {
-        stdout += await runCmd("npx", ["hardhat", "compile"], sandboxPath);
-        await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
-        stdout += await runCmd("npx", ["hardhat", "test"], sandboxPath);
-        try {
-          stdout += "\n[Uatu] trying hardhat coverage ...\n";
-          await runCmd("npx", ["hardhat", "coverage", "--testfiles", ""], sandboxPath);
-          const sum = await safeJson(path.join(sandboxPath, "coverage", "coverage-summary.json"));
-          if (sum?.total?.lines?.pct != null) coveragePct = Math.round(sum.total.lines.pct);
-          await fs.copy(path.join(sandboxPath, "coverage"), path.join(runPath, "coverage")).catch(()=>{});
-        } catch {}
-      } else if (hasAnchor) {
-        await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
-        stdout += await runCmd("anchor", ["test"], sandboxPath);
-      } else if (hasSoroban) {
-        await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
-        stdout += await runCmd("soroban", ["test"], sandboxPath);
-      } else if (hasNode) {
-        await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
-        try { stdout += await runCmd("npm", ["test", "--silent"], sandboxPath); } catch (e:any) { stdout += `\n[npm test failed] ${e?.message||e}\n`; }
-      } else {
-        stdout += "No known toolchain found; execution skipped.\n";
-      }
-    } catch (e:any) {
-      errors.push(`Execution error: ${e?.message || String(e)}`);
-    }
+          if (useDocker) {
+            // Docker-based execution
+            if (hasFoundry) {
+              log.info('Running Foundry in Docker sandbox');
+              const buildResult = await executeFoundryInDocker("build", sandboxPath);
+              stdout += buildResult.stdout + buildResult.stderr;
+              
+              await step(onProgress, { phase: "execute", step: "docker-foundry-tests", pct: 90 });
+              const testResult = await executeFoundryInDocker("test", sandboxPath);
+              stdout += testResult.stdout + testResult.stderr;
+              
+              try {
+                const covResult = await executeFoundryInDocker("coverage", sandboxPath);
+                const m = covResult.stdout.match(/Total.*?(\d{1,3})\.\d+\s*%/);
+                if (m) coveragePct = Math.max(0, Math.min(100, parseInt(m[1], 10)));
+                await fs.writeFile(path.join(runPath, "coverage.txt"), covResult.stdout, "utf8");
+              } catch (e: any) {
+                log.warn('Coverage extraction failed in Docker', { error: e.message });
+              }
+            } else if (hasHardhat || hasNode) {
+              log.info('Running Node.js in Docker sandbox');
+              
+              if (hasHardhat || hasNode) {
+                const installResult = await executeNodeInDocker("install", sandboxPath);
+                stdout += installResult.stdout + installResult.stderr;
+              }
+              
+              if (hasHardhat) {
+                // For Hardhat, we'd need a custom Docker image with Hardhat pre-installed
+                // For now, fall back to local execution
+                log.warn('Hardhat in Docker not fully implemented, falling back to local');
+                stdout += await runCmd("npx", ["hardhat", "compile"], sandboxPath);
+                await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
+                stdout += await runCmd("npx", ["hardhat", "test"], sandboxPath);
+              } else {
+                await step(onProgress, { phase: "execute", step: "docker-node-tests", pct: 90 });
+                const testResult = await executeNodeInDocker("test", sandboxPath);
+                stdout += testResult.stdout + testResult.stderr;
+              }
+            } else if (hasAnchor || hasSoroban) {
+              log.info('Running Rust in Docker sandbox');
+              await step(onProgress, { phase: "execute", step: "docker-rust-tests", pct: 90 });
+              const testResult = await executeRustInDocker("test", sandboxPath);
+              stdout += testResult.stdout + testResult.stderr;
+            } else {
+              stdout += "No known toolchain found for Docker execution; execution skipped.\n";
+            }
+          } else {
+            // Local execution (original implementation)
+            if (hasFoundry) {
+              stdout += await runCmd("forge", ["build"], sandboxPath);
+              await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
+              stdout += await runCmd("forge", ["test", "-vvv"], sandboxPath);
+              try {
+                const cov = await runCmd("forge", ["coverage"], sandboxPath);
+                const m = cov.match(/Total.*?(\d{1,3})\.\d+\s*%/);
+                if (m) coveragePct = Math.max(0, Math.min(100, parseInt(m[1], 10)));
+                await fs.writeFile(path.join(runPath, "coverage.txt"), cov, "utf8");
+              } catch {}
+            } else if (hasHardhat) {
+              stdout += await runCmd("npx", ["hardhat", "compile"], sandboxPath);
+              await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
+              stdout += await runCmd("npx", ["hardhat", "test"], sandboxPath);
+              try {
+                stdout += "\n[Uatu] trying hardhat coverage ...\n";
+                await runCmd("npx", ["hardhat", "coverage", "--testfiles", ""], sandboxPath);
+                const sum = await safeJson(path.join(sandboxPath, "coverage", "coverage-summary.json"));
+                if (sum?.total?.lines?.pct != null) coveragePct = Math.round(sum.total.lines.pct);
+                await fs.copy(path.join(sandboxPath, "coverage"), path.join(runPath, "coverage")).catch(()=>{});
+              } catch {}
+            } else if (hasAnchor) {
+              await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
+              stdout += await runCmd("anchor", ["test"], sandboxPath);
+            } else if (hasSoroban) {
+              await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
+              stdout += await runCmd("soroban", ["test"], sandboxPath);
+            } else if (hasNode) {
+              await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
+              try { stdout += await runCmd("npm", ["test", "--silent"], sandboxPath); } catch (e:any) { stdout += `\n[npm test failed] ${e?.message||e}\n`; }
+            } else {
+              stdout += "No known toolchain found; execution skipped.\n";
+            }
+          }
+        } catch (e:any) {
+          errors.push(`Execution error: ${e?.message || String(e)}`);
+        }
 
     const outputs: any = { runPath, sandbox: sandboxPath, stdout };
     if (typeof coveragePct === "number") outputs.coverage = coveragePct;

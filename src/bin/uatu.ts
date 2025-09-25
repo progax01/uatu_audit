@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import 'dotenv/config';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
