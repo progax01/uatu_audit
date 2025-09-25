@@ -28,7 +28,10 @@
 </head>
 <body>
 
-<h1>UatuAudit — One-Page Audit</h1>
+<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+  <img src="/.uatu/brand/logo.svg" alt="Uatu" width="32" height="32" style="display: none;" id="logo" onerror="this.style.display='none';" onload="this.style.display='block';">
+  <h1 style="margin: 0;">UatuAudit — One-Page Audit</h1>
+</div>
 <p class="sub">SOPs &rarr; Inventory &rarr; Analysis &rarr; (optional) AI test ideas &rarr; Execution &rarr; Report.</p>
 
 <div class="card">
@@ -98,7 +101,10 @@
       <pre id="progressBox">{}</pre>
       <div style="display: flex; gap: 8px; margin-top: 8px;">
         <button onclick="downloadReport('html')" style="background: #28a745;">📄 View HTML Report</button>
-        <button onclick="downloadReport('pdf')">📊 Download PDF</button>
+        <button onclick="downloadReport('pdf')" title="PDF requires Puppeteer to be installed">📊 Download PDF</button>
+      </div>
+      <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+        📝 PDF generation requires <code>puppeteer</code> package. Install with: <code>npm install puppeteer</code>
       </div>
     </div>
     <div>
@@ -121,7 +127,9 @@
       <option value="running">Running</option>
       <option value="pending">Pending</option>
     </select>
-    <button onclick="loadJobHistory()">Refresh History</button>
+    <button onclick="robustInitJobHistory()">Refresh History</button>
+    <button onclick="initJobHistory()">Debug Load</button>
+    <button onclick="debugDOM()">Debug DOM</button>
   </div>
   
   <div id="jobHistory" style="margin-top: 16px;">
@@ -140,13 +148,22 @@ function markActive(stepId, active){ const el=$(stepId); if(!el) return; el.clas
 
 function base(){ return $("base").value.trim() || window.location.origin; }
 
-async function health(){ const r = await fetch("/healthz"); $("progressBox").textContent = await r.text(); }
-function login(){ window.location.href = "/auth/github/login"; }
-async function me(){ const r = await fetch("/auth/github/me"); const j = await r.json(); $("progressBox").textContent = JSON.stringify(j,null,2); setPct("p1", j.authed?100:0); setNote("n1", j.authed?"Connected":"Not connected"); markActive("s1", j.authed); }
-async function logout(){ await fetch("/auth/github/logout",{method:"POST"}); setPct("p1",0); setNote("n1","Logged out"); }
+async function health(){ 
+  debugDOM(); // Debug when health is called
+  const r = await fetch(`${base()}/healthz`); 
+  const progressBox = $("progressBox");
+  if (progressBox) {
+    progressBox.textContent = await r.text(); 
+  } else {
+    console.error('progressBox element not found in health()');
+  }
+}
+function login(){ window.location.href = `${base()}/auth/github/login`; }
+async function me(){ const r = await fetch(`${base()}/auth/github/me`); const j = await r.json(); $("progressBox").textContent = JSON.stringify(j,null,2); setPct("p1", j.authed?100:0); setNote("n1", j.authed?"Connected":"Not connected"); markActive("s1", j.authed); }
+async function logout(){ await fetch(`${base()}/auth/github/logout`,{method:"POST"}); setPct("p1",0); setNote("n1","Logged out"); }
 
 async function fetchRepos(){
-  const r = await fetch("/github/repos"); const list = await r.json();
+  const r = await fetch(`${base()}/github/repos`); const list = await r.json();
   const sel = $("repo"); sel.innerHTML = "";
   list.forEach(x => {
     const o = document.createElement("option");
@@ -159,7 +176,7 @@ async function fetchRepos(){
 async function fetchBranches(){
   const sel = $("repo"); if (!sel.value) return;
   const repo = JSON.parse(sel.value).full_name;
-  const r = await fetch(`/github/branches?repo=${encodeURIComponent(repo)}`);
+  const r = await fetch(`${base()}/github/branches?repo=${encodeURIComponent(repo)}`);
   const list = await r.json(); const br = $("branch"); br.innerHTML = "";
   list.forEach(x => { const o=document.createElement("option"); o.value=x.name; o.textContent=x.name; br.appendChild(o); });
   setPct("p2", 60); setNote("n2", `Loaded ${list.length} branches`);
@@ -202,12 +219,12 @@ async function startAudit(){
   state.project = project; state.branch = branch;
 
   const body = { repo: repoUrl, project, branch, ai: true, hintEcosystems: selectedTypes(), testStyles: selectedTestStyles() };
-  const r = await fetch("/enqueue", { method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const r = await fetch(`${base()}/enqueue`, { method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   const j = await r.json();
   setPct("p4", 5); setNote("n4", "Queued. Workers will pick it up…"); markActive("s4", true);
 
   // Refresh job history to show the new job
-  loadJobHistory();
+  setTimeout(() => robustInitJobHistory(), 500);
 
   // Start polling progress + logs
   if (pollTimer) clearInterval(pollTimer);
@@ -219,7 +236,7 @@ async function startAudit(){
 
 async function pollProgress(){
   if (!state.project || !state.branch) return;
-  const r = await fetch(`/progress?project=${encodeURIComponent(state.project)}&branch=${encodeURIComponent(state.branch)}`);
+  const r = await fetch(`${base()}/progress?project=${encodeURIComponent(state.project)}&branch=${encodeURIComponent(state.branch)}`);
   if (!r.ok){ $("progressBox").textContent = await r.text(); return; }
   const p = await r.json();
   $("progressBox").textContent = JSON.stringify(p,null,2);
@@ -234,13 +251,13 @@ async function pollProgress(){
     clearInterval(pollTimer);
     setPct("p5", 100); setNote("n5", `Run ${p.timestamp} complete. Download the report.`); markActive("s5", true);
     // Refresh job history when audit completes
-    loadJobHistory();
+    setTimeout(() => robustInitJobHistory(), 1000); // Add delay to ensure completion
   }
 }
 
 async function pollLogs(){
   if (!state.project || !state.branch) return;
-  const r = await fetch(`/logs?project=${encodeURIComponent(state.project)}&branch=${encodeURIComponent(state.branch)}&tail=400`);
+  const r = await fetch(`${base()}/logs?project=${encodeURIComponent(state.project)}&branch=${encodeURIComponent(state.branch)}&tail=400`);
   if (!r.ok){ $("logBox").textContent = await r.text(); return; }
   const j = await r.json();
   $("logBox").textContent = `# Run: ${j.run}\n\n[execute.log]\n${j.execute}\n\n[cli.log]\n${j.cli}`;
@@ -248,7 +265,7 @@ async function pollLogs(){
 
 function downloadReport(format = 'pdf'){
   if (!state.project || !state.branch) { alert("Run an audit first."); return; }
-  const url = `/report?project=${encodeURIComponent(state.project)}&branch=${encodeURIComponent(state.branch)}&format=${format}`;
+  const url = `${base()}/report?project=${encodeURIComponent(state.project)}&branch=${encodeURIComponent(state.branch)}&format=${format}`;
   
   if (format === 'html') {
     // Open HTML report in new tab for viewing
@@ -262,27 +279,61 @@ function downloadReport(format = 'pdf'){
 // Job History Functions
 let allJobs = [];
 
-async function loadJobHistory(){
+// New version that accepts elements as parameters
+async function loadJobHistoryWithElements(historyEl, filterEl) {
   try {
-    const r = await fetch("/jobs");
+    console.log('Loading job history with provided elements...');
+    const r = await fetch(`${base()}/jobs`);
+    if (!r.ok) {
+      throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+    }
     const data = await r.json();
     allJobs = data.jobs || [];
     allJobs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Most recent first
-    filterJobHistory();
+    filterJobHistoryWithElements(historyEl, filterEl);
   } catch (error) {
-    $("#jobHistory").innerHTML = `<div class="muted">Error loading job history: ${error.message}</div>`;
+    console.error('loadJobHistory failed:', error);
+    historyEl.innerHTML = `<div class="muted">Error loading job history: ${error.message}</div>`;
   }
 }
 
+// Legacy version for backward compatibility
+async function loadJobHistory(){
+  // Ensure DOM is ready before proceeding
+  const historyEl = $("#jobHistory");
+  const filterEl = $("#historyFilter");
+  
+  if (!historyEl || !filterEl) {
+    console.error('Job history DOM elements not ready', { historyEl: !!historyEl, filterEl: !!filterEl });
+    return;
+  }
+
+  return loadJobHistoryWithElements(historyEl, filterEl);
+}
+
+// New version that accepts elements as parameters
+function filterJobHistoryWithElements(historyEl, filterEl) {
+  const filter = filterEl.value;
+  const filtered = filter === 'all' ? allJobs : allJobs.filter(job => job.status === filter);
+  renderJobHistoryWithElements(historyEl, filtered);
+}
+
+// Legacy version for backward compatibility
 function filterJobHistory(){
-  const filter = $("#historyFilter").value;
+  const filterEl = $("#historyFilter");
+  if (!filterEl) {
+    console.error('historyFilter element not found');
+    return;
+  }
+  const filter = filterEl.value;
   const filtered = filter === 'all' ? allJobs : allJobs.filter(job => job.status === filter);
   renderJobHistory(filtered);
 }
 
-function renderJobHistory(jobs){
+// New version that accepts elements as parameters
+function renderJobHistoryWithElements(historyEl, jobs) {
   if (jobs.length === 0) {
-    $("#jobHistory").innerHTML = '<div class="muted">No jobs found</div>';
+    historyEl.innerHTML = '<div class="muted">No jobs found</div>';
     return;
   }
 
@@ -379,16 +430,28 @@ function renderJobHistory(jobs){
     `;
   }).join('');
 
-  $("#jobHistory").innerHTML = html;
+  historyEl.innerHTML = html;
 }
 
+// Legacy version for backward compatibility  
+function renderJobHistory(jobs){
+  const historyEl = $("#jobHistory");
+  if (!historyEl) {
+    console.error('jobHistory element not found in renderJobHistory');
+    return;
+  }
+  
+  return renderJobHistoryWithElements(historyEl, jobs);
+}
+
+
 function viewReport(project, branch, format) {
-  const url = `/report?project=${encodeURIComponent(project)}&branch=${encodeURIComponent(branch)}&format=${format}`;
+  const url = `${base()}/report?project=${encodeURIComponent(project)}&branch=${encodeURIComponent(branch)}&format=${format}`;
   window.open(url, "_blank");
 }
 
 function viewLogs(project, branch) {
-  const url = `/logs?project=${encodeURIComponent(project)}&branch=${encodeURIComponent(branch)}&tail=100`;
+  const url = `${base()}/logs?project=${encodeURIComponent(project)}&branch=${encodeURIComponent(branch)}&tail=100`;
   window.open(url, "_blank");
 }
 
@@ -412,10 +475,101 @@ function viewProgress(project, branch) {
   document.querySelector('.timeline').scrollIntoView({ behavior: 'smooth' });
 }
 
+// Comprehensive DOM diagnostic
+function debugDOM() {
+  console.log('=== DOM DEBUG ===');
+  console.log('Document ready state:', document.readyState);
+  console.log('Document body:', !!document.body);
+  console.log('All elements with IDs:');
+  
+  const allElements = document.querySelectorAll('[id]');
+  allElements.forEach(el => {
+    console.log(`  ${el.id}: ${el.tagName}`);
+  });
+  
+  console.log('Specific lookups:');
+  console.log('  historyFilter:', !!document.getElementById('historyFilter'));
+  console.log('  jobHistory:', !!document.getElementById('jobHistory'));
+  console.log('  $("historyFilter"):', !!$("historyFilter"));
+  console.log('  $("jobHistory"):', !!$("jobHistory"));
+  console.log('=================');
+}
+
 // Load job history on page load
-document.addEventListener('DOMContentLoaded', function() {
-  loadJobHistory();
-});
+function initJobHistory() {
+  debugDOM(); // Always run debug first
+  
+  const historyEl = $("#jobHistory");
+  const filterEl = $("#historyFilter");
+  
+  if (historyEl && filterEl) {
+    console.log('Job history elements found, loading...');
+    loadJobHistory();
+  } else {
+    console.error('Job history elements not found', { 
+      historyEl: !!historyEl, 
+      filterEl: !!filterEl 
+    });
+  }
+}
+
+// Robust element waiting function
+function waitForElement(id, maxAttempts = 20, interval = 100) {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+    
+    function check() {
+      const element = document.getElementById(id);
+      if (element) {
+        resolve(element);
+        return;
+      }
+      
+      attempts++;
+      if (attempts >= maxAttempts) {
+        reject(new Error(`Element ${id} not found after ${maxAttempts} attempts`));
+        return;
+      }
+      
+      setTimeout(check, interval);
+    }
+    
+    check();
+  });
+}
+
+// Robust job history initialization
+async function robustInitJobHistory() {
+  try {
+    console.log('Waiting for job history elements...');
+    
+    // Wait for both elements to be available
+    const [historyEl, filterEl] = await Promise.all([
+      waitForElement('jobHistory'),
+      waitForElement('historyFilter')
+    ]);
+    
+    console.log('✅ Job history elements found!', {
+      historyEl: historyEl.tagName,
+      filterEl: filterEl.tagName
+    });
+    
+    // Pass the found elements to avoid re-lookup issues
+    await loadJobHistoryWithElements(historyEl, filterEl);
+  } catch (error) {
+    console.error('❌ Failed to find job history elements:', error);
+    debugDOM(); // Show what's actually available
+  }
+}
+
+// Try multiple initialization strategies
+document.addEventListener('DOMContentLoaded', robustInitJobHistory);
+
+// Fallback: try again after a delay
+setTimeout(robustInitJobHistory, 1000);
+
+// Another fallback: try when window loads
+window.addEventListener('load', robustInitJobHistory);
 </script>
 </body>
 </html>

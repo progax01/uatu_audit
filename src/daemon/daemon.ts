@@ -64,6 +64,35 @@ async function handleRequest(req: any, res: any) {
       }
       return;
     }
+
+    // Serve brand assets
+    if (req.method === "GET" && parsed.pathname.startsWith("/.uatu/brand/")) {
+      const assetName = parsed.pathname.split("/").pop();
+      if (!assetName) {
+        res.statusCode = 404;
+        res.end("Asset name required");
+        return;
+      }
+      
+      const assetPath = path.resolve(".uatu", "brand", assetName);
+      
+      if (await fs.pathExists(assetPath)) {
+        const ext = path.extname(assetName).toLowerCase();
+        const contentType = ext === '.svg' ? 'image/svg+xml' : 
+                           ext === '.png' ? 'image/png' : 
+                           ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 
+                           'application/octet-stream';
+        
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
+        const asset = await fs.readFile(assetPath);
+        res.end(asset);
+      } else {
+        res.statusCode = 404;
+        res.end(`Asset ${assetName} not found`);
+      }
+      return;
+    }
     if (req.method === "GET" && parsed.pathname === "/healthz") {
       res.setHeader("Content-Type", "application/json");
       try {
