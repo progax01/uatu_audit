@@ -10,13 +10,30 @@ export async function cloneOrRefresh(repo: string, targetPath: string, branch: s
   const exists = await fs.pathExists(targetPath);
   
   if (exists) {
-    // Refresh existing repo
+    // Check if it's a valid git repository first
     try {
-      await execAsync(`git fetch origin && git reset --hard origin/${branch}`, { cwd: targetPath });
+      await execAsync(`git rev-parse --git-dir`, { cwd: targetPath });
+      // Verify this repo matches the expected remote and branch
+      const { stdout: remoteUrl } = await execAsync(`git config --get remote.origin.url`, { cwd: targetPath });
+      const normalizedRepo = repo.replace(/\.git$/, '');
+      const normalizedRemote = remoteUrl.trim().replace(/\.git$/, '').replace(/^https:\/\/.*@/, 'https://');
+      
+      if (normalizedRemote.includes(normalizedRepo.split('/').slice(-2).join('/'))) {
+        // Same repo, try to refresh
+        await execAsync(`git fetch origin && git reset --hard origin/${branch}`, { cwd: targetPath });
+      } else {
+        console.log(`Repository mismatch. Expected: ${repo}, Found: ${remoteUrl.trim()}`);
+        throw new Error('Repository mismatch');
+      }
     } catch (error) {
       console.warn(`Failed to refresh repo at ${targetPath}:`, error);
+      // If git operations fail, remove and re-clone
+      console.log(`Removing corrupted directory: ${targetPath}`);
+      await fs.remove(targetPath);
     }
-  } else {
+  }
+  
+  if (!(await fs.pathExists(targetPath))) {
     // Clone new repo
     try {
       const tokenFile = path.join(getUatuHome(), "users", getUserId(), "secrets", "github.json");
@@ -34,10 +51,7 @@ export async function cloneOrRefresh(repo: string, targetPath: string, branch: s
       await execAsync(`git clone --branch ${branch} --single-branch ${finalUrl} ${targetPath}`);
     } catch (error) {
       console.warn(`Failed to clone repo ${repo}:`, error);
-      // Create a mock directory structure for demo purposes
-      await fs.ensureDir(targetPath);
-      await fs.writeFile(path.join(targetPath, "README.md"), `# ${path.basename(repo)}\n\nMock repository for demo purposes.\n`);
-      await fs.writeFile(path.join(targetPath, "package.json"), JSON.stringify({ name: path.basename(repo), version: "1.0.0" }, null, 2));
+      throw new Error(`Failed to clone repository: ${error}`);
     }
   }
 }

@@ -6,7 +6,7 @@ import fs from "fs-extra";
 import { loadProgress } from "../services/progressService.js";
 import { resolveWorkspace } from "../services/workspaceService.js";
 import { runAll } from "../services/runAll.js";
-import { claimNext, complete, enqueue as enqueueJob } from "../services/jobQueue.js";
+import { claimNext, complete, enqueue } from "../services/jobQueue.js";
 import { getUatuHome, getUserId } from "../constants/paths.js";
 import { logger, createJobLogger } from "../utils/logger.js";
 
@@ -45,6 +45,20 @@ async function handleRequest(req: any, res: any) {
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Hub-Signature-256");
     if (req.method === "OPTIONS") { res.statusCode = 204; res.end(); return; }
+
+    // Serve timeline UI at / and /index.html if present
+    if (req.method === "GET" && (parsed.pathname === "/" || parsed.pathname === "/index.html")) {
+      const uiPath = path.resolve("index.html");
+      if (await fs.pathExists(uiPath)) {
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        const html = await fs.readFile(uiPath);
+        res.end(html);
+      } else {
+        res.statusCode = 404;
+        res.end("index.html not found in project root");
+      }
+      return;
+    }
     if (req.method === "GET" && parsed.pathname === "/healthz") {
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ ok: true }));
@@ -82,6 +96,26 @@ async function handleRequest(req: any, res: any) {
     }
 
     if (req.method === "GET" && parsed.pathname === "/auth/github/callback") {
+      try {
+        const params = new URLSearchParams(parsed.query as any);
+        const code = params.get("code");
+        if (!code) { res.statusCode = 400; res.end("missing code"); return; }
+        const r = await fetch("https://github.com/login/oauth/access_token", {
+          method: "POST",
+          headers: { "Accept": "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({ client_id: GH_CLIENT_ID, client_secret: GH_CLIENT_SECRET, code, redirect_uri: GH_CALLBACK })
+        });
+        const t: any = await r.json();
+        if (!t.access_token) { res.statusCode = 400; res.end(JSON.stringify(t)); return; }
+        await saveToken(t.access_token);
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(`<script>window.opener||window.opener;window.location='/'</script><p>GitHub auth ok. You can close this tab and return to the test UI.</p>`);
+      } catch (e: any) { res.statusCode = 500; res.end(String(e?.message||e)); }
+      return;
+    }
+
+    // Alias for /auth/callback → /auth/github/callback (GitHub apps sometimes use shorter path)
+    if (req.method === "GET" && parsed.pathname === "/auth/callback") {
       try {
         const params = new URLSearchParams(parsed.query as any);
         const code = params.get("code");
@@ -257,17 +291,27 @@ async function handleRequest(req: any, res: any) {
     }
 
     if (req.method === "POST" && parsed.pathname === "/enqueue") {
-      const chunks: any[] = [];
-      for await (const c of req) chunks.push(c);
-      const body = Buffer.concat(chunks).toString("utf8");
-      let payload: any = {};
-      try { payload = JSON.parse(body || '{}'); } catch {}
-      const { repo, project, branch, ai } = payload || {};
-      if (!repo || !project || !branch) { res.statusCode = 400; res.end(JSON.stringify({ ok:false, error: "repo, project, branch required" })); return; }
-      const job = await enqueueJob({ repo, project, branch, ai: !!ai, status: "pending", pct: 0 } as any);
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ ok: true, job }));
-      return;
+      try {
+        const chunks: any[] = [];
+        for await (const c of req) chunks.push(c);
+        const body = Buffer.concat(chunks).toString("utf8");
+        console.log("Enqueue request body:", body);
+        let payload: any = {};
+        try { payload = JSON.parse(body || '{}'); } catch (e) { console.error("JSON parse error:", e); }
+        const { repo, project, branch, ai } = payload || {};
+        console.log("Enqueue params:", { repo, project, branch, ai });
+        if (!repo || !project || !branch) { res.statusCode = 400; res.end(JSON.stringify({ ok:false, error: "repo, project, branch required" })); return; }
+        const job = await enqueue({ repo, project, branch, ai: !!ai });
+        console.log("Job created:", job);
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ ok: true, job }));
+        return;
+      } catch (error) {
+        console.error("Enqueue error:", error);
+        res.statusCode = 500;
+        res.end("Internal server error");
+        return;
+      }
     }
 
     // Default 404

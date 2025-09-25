@@ -34,8 +34,17 @@ export const executeSOP: SOP = {
 
     const stamp = (i.timestamp as string) ?? new Date().toISOString().replace(/[:.]/g, "-");
     const runPath = path.join(i.runsPath as string, stamp);
-    const sandboxPath = path.join(runPath, "sandbox");
+    // Create sandbox outside of project directory to avoid circular copy
+    const tempSandbox = path.join(require('os').tmpdir(), `uatu-sandbox-${Date.now()}`);
+    const sandboxPath = tempSandbox;
     await fs.ensureDir(sandboxPath);
+    
+    log.info('Execute SOP starting', { 
+      runPath, 
+      sandboxPath, 
+      projectPath: i.projectPath,
+      tempdir: require('os').tmpdir()
+    });
 
     // Check configuration for sandbox mode
     const cfg = await loadConfig(i.projectPath as string);
@@ -53,9 +62,38 @@ export const executeSOP: SOP = {
 
     // 1) sandbox copy
     await step(onProgress, { phase: "execute", step: "sandbox-materialize", pct: 25 });
-    await fs.copy(i.projectPath as string, sandboxPath, {
-      filter: (src) => !/\.git(\/|$)/.test(src) && !/node_modules(\/|$)/.test(src) && !/\/runs(\/|$)/.test(src) && !/\.uatu\/ai_tests\/.*\.plan\.txt$/.test(src)
-    });
+    
+    try {
+      log.info('Starting fs.copy operation', {
+        from: i.projectPath,
+        to: sandboxPath
+      });
+      
+      // Add timeout to prevent hanging
+      await Promise.race([
+        fs.copy(i.projectPath as string, sandboxPath, {
+          filter: (src) => {
+            const shouldInclude = !/\.git(\/|$)/.test(src) && 
+                                !/node_modules(\/|$)/.test(src) && 
+                                !/\/runs(\/|$)/.test(src) && 
+                                !/\.uatu\/ai_tests\/.*\.plan\.txt$/.test(src);
+            if (!shouldInclude) {
+              log.debug('Filtering out', { src });
+            }
+            return shouldInclude;
+          }
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('fs.copy timeout after 30s')), 30000)
+        )
+      ]);
+      
+      log.info('fs.copy completed successfully');
+    } catch (copyError) {
+      log.error('fs.copy failed', { error: String(copyError) });
+      errors.push(`Sandbox copy failed: ${copyError}`);
+      throw copyError;
+    }
 
     let stdout = "";
     let coveragePct: number | undefined;
@@ -153,8 +191,28 @@ export const executeSOP: SOP = {
               await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
               stdout += await runCmd("soroban", ["test"], sandboxPath);
             } else if (hasNode) {
+              // Install dependencies first
+              await step(onProgress, { phase: "execute", step: "install-deps", pct: 75 });
+              try {
+                stdout += await runCmd("npm", ["install"], sandboxPath);
+              } catch (e:any) {
+                stdout += `\n[npm install failed] ${e?.message||e}\n`;
+                log.warn('npm install failed', { error: String(e) });
+              }
+              
               await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
-              try { stdout += await runCmd("npm", ["test", "--silent"], sandboxPath); } catch (e:any) { stdout += `\n[npm test failed] ${e?.message||e}\n`; }
+              try { 
+                // Add timeout to npm test to prevent hanging
+                const testPromise = runCmd("npm", ["test", "--silent"], sandboxPath);
+                const timeoutPromise = new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('npm test timeout after 60s')), 60000)
+                );
+                stdout += await Promise.race([testPromise, timeoutPromise]);
+              } catch (e:any) { 
+                stdout += `\n[npm test failed] ${e?.message||e}\n`; 
+                errors.push(`Test execution failed: ${e?.message||e}`);
+                log.warn('npm test failed or timed out', { error: String(e) });
+              }
             } else {
               stdout += "No known toolchain found; execution skipped.\n";
             }
@@ -171,6 +229,13 @@ export const executeSOP: SOP = {
     // Write execution log
     const logFile = path.join(runPath, "execute.log");
     await fs.writeFile(logFile, stdout, "utf8");
+
+    // Clean up temporary sandbox
+    try {
+      await fs.remove(sandboxPath);
+    } catch (cleanupError) {
+      log.warn('Failed to cleanup sandbox directory', { sandboxPath, error: String(cleanupError) });
+    }
 
     await step(onProgress, { phase: "execute", step: "aggregate", pct: 100 });
 
