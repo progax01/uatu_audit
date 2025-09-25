@@ -108,6 +108,27 @@
   </div>
 </div>
 
+<div class="card">
+  <div class="caps">Job History</div>
+  <div class="muted" style="margin-bottom: 12px;">Previous audit runs and their reports</div>
+  
+  <div class="row">
+    <label>Filter</label>
+    <select id="historyFilter" onchange="filterJobHistory()">
+      <option value="all">All Jobs</option>
+      <option value="done">Completed</option>
+      <option value="failed">Failed</option>
+      <option value="running">Running</option>
+      <option value="pending">Pending</option>
+    </select>
+    <button onclick="loadJobHistory()">Refresh History</button>
+  </div>
+  
+  <div id="jobHistory" style="margin-top: 16px;">
+    <div class="muted">Loading job history...</div>
+  </div>
+</div>
+
 <script>
 const $ = id => document.getElementById(id);
 let pollTimer = null, logTimer = null;
@@ -185,6 +206,9 @@ async function startAudit(){
   const j = await r.json();
   setPct("p4", 5); setNote("n4", "Queued. Workers will pick it up…"); markActive("s4", true);
 
+  // Refresh job history to show the new job
+  loadJobHistory();
+
   // Start polling progress + logs
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(pollProgress, 2000);
@@ -209,6 +233,8 @@ async function pollProgress(){
   if (total >= 100){
     clearInterval(pollTimer);
     setPct("p5", 100); setNote("n5", `Run ${p.timestamp} complete. Download the report.`); markActive("s5", true);
+    // Refresh job history when audit completes
+    loadJobHistory();
   }
 }
 
@@ -232,6 +258,164 @@ function downloadReport(format = 'pdf'){
     window.open(url, "_blank");
   }
 }
+
+// Job History Functions
+let allJobs = [];
+
+async function loadJobHistory(){
+  try {
+    const r = await fetch("/jobs");
+    const data = await r.json();
+    allJobs = data.jobs || [];
+    allJobs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Most recent first
+    filterJobHistory();
+  } catch (error) {
+    $("#jobHistory").innerHTML = `<div class="muted">Error loading job history: ${error.message}</div>`;
+  }
+}
+
+function filterJobHistory(){
+  const filter = $("#historyFilter").value;
+  const filtered = filter === 'all' ? allJobs : allJobs.filter(job => job.status === filter);
+  renderJobHistory(filtered);
+}
+
+function renderJobHistory(jobs){
+  if (jobs.length === 0) {
+    $("#jobHistory").innerHTML = '<div class="muted">No jobs found</div>';
+    return;
+  }
+
+  const html = jobs.map(job => {
+    const statusColor = {
+      'done': '#10B981',
+      'failed': '#EF4444', 
+      'running': '#F59E0B',
+      'pending': '#6B7280'
+    }[job.status] || '#6B7280';
+
+    const statusIcon = {
+      'done': '✅',
+      'failed': '❌',
+      'running': '🔄',
+      'pending': '⏳'
+    }[job.status] || '❓';
+
+    const createdAt = new Date(job.createdAt).toLocaleString();
+    const duration = job.finishedAt ? 
+      Math.round((new Date(job.finishedAt) - new Date(job.createdAt)) / 1000) + 's' : 
+      'Running...';
+
+    const testStyles = job.testStyles ? job.testStyles.join(', ') : 'behavioral, stride';
+    const aiFlag = job.ai ? '🤖 AI' : '';
+
+    return `
+      <div style="border: 1px solid #24356e; border-radius: 12px; padding: 16px; margin-bottom: 12px; background: #0f1630;">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+          <div>
+            <div style="font-weight: 600; color: var(--text);">
+              ${statusIcon} Job #${job.id} - ${job.project} (${job.branch})
+            </div>
+            <div style="font-size: 13px; color: var(--muted); margin-top: 2px;">
+              ${createdAt} • ${duration} • ${testStyles} ${aiFlag}
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="background: ${statusColor}; color: white; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;">
+              ${job.status.toUpperCase()}
+            </span>
+            ${job.pct !== undefined ? `<span style="color: var(--muted); font-size: 12px;">${job.pct}%</span>` : ''}
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 13px; color: var(--muted); margin-bottom: 4px;">Repository:</div>
+          <div style="font-family: monospace; background: #0b122b; padding: 6px 8px; border-radius: 6px; font-size: 12px; word-break: break-all;">
+            ${job.repo}
+          </div>
+        </div>
+
+        ${job.note ? `
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 13px; color: var(--muted); margin-bottom: 4px;">Current Step:</div>
+            <div style="font-size: 13px; color: var(--text);">${job.note}</div>
+          </div>
+        ` : ''}
+
+        ${job.errorMessage ? `
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 13px; color: #EF4444; margin-bottom: 4px;">Error:</div>
+            <div style="font-size: 12px; color: #FCA5A5; background: #1f1f1f; padding: 8px; border-radius: 6px; font-family: monospace;">
+              ${job.errorMessage}
+            </div>
+          </div>
+        ` : ''}
+
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          ${job.status === 'done' && job.reportPath ? `
+            <button onclick="viewReport('${job.project}', '${job.branch}', 'html')" 
+                    style="background: #10B981; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;">
+              📄 View HTML Report
+            </button>
+            <button onclick="viewReport('${job.project}', '${job.branch}', 'pdf')" 
+                    style="background: #3B82F6; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;">
+              📊 Download PDF
+            </button>
+          ` : ''}
+          
+          <button onclick="viewLogs('${job.project}', '${job.branch}')" 
+                  style="background: #6B7280; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;">
+            📋 View Logs
+          </button>
+          
+          ${job.status === 'running' || job.status === 'pending' ? `
+            <button onclick="viewProgress('${job.project}', '${job.branch}')" 
+                    style="background: #F59E0B; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;">
+              📊 View Progress
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  $("#jobHistory").innerHTML = html;
+}
+
+function viewReport(project, branch, format) {
+  const url = `/report?project=${encodeURIComponent(project)}&branch=${encodeURIComponent(branch)}&format=${format}`;
+  window.open(url, "_blank");
+}
+
+function viewLogs(project, branch) {
+  const url = `/logs?project=${encodeURIComponent(project)}&branch=${encodeURIComponent(branch)}&tail=100`;
+  window.open(url, "_blank");
+}
+
+function viewProgress(project, branch) {
+  // Set the current state to this job and start monitoring
+  state.project = project;
+  state.branch = branch;
+  
+  // Update the form to show this job
+  $("#project").value = project;
+  $("#branch").value = branch;
+  
+  // Start polling for this job
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollProgress, 2000);
+  
+  if (logTimer) clearInterval(logTimer);
+  logTimer = setInterval(pollLogs, 2500);
+  
+  // Scroll to the progress section
+  document.querySelector('.timeline').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Load job history on page load
+document.addEventListener('DOMContentLoaded', function() {
+  loadJobHistory();
+});
 </script>
 </body>
 </html>

@@ -8,6 +8,16 @@ import { recordGitReclone } from "./metrics.js";
 const execAsync = promisify(exec);
 
 export async function cloneOrRefresh(repo: string, targetPath: string, branch: string) {
+  // Early validation to catch bad repo URLs
+  if (!repo || typeof repo !== 'string') {
+    throw new Error(`Invalid repository URL: ${repo}`);
+  }
+  
+  const trimmed = repo.trim();
+  if (!trimmed || trimmed === 'test' || trimmed.length < 5) {
+    throw new Error(`Invalid repository URL: "${trimmed}" - must be a valid git URL or owner/repo format`);
+  }
+  
   const exists = await fs.pathExists(targetPath);
   
   if (exists) {

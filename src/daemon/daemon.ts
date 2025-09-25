@@ -387,9 +387,26 @@ async function handleRequest(req: any, res: any) {
         console.log("Enqueue request body:", body);
         let payload: any = {};
         try { payload = JSON.parse(body || '{}'); } catch (e) { console.error("JSON parse error:", e); }
-        const { repo, project, branch, ai, testStyles } = payload || {};
+        let { repo, project, branch, ai, testStyles } = payload || {};
         console.log("Enqueue params:", { repo, project, branch, ai, testStyles });
         if (!repo || !project || !branch) { res.statusCode = 400; res.end(JSON.stringify({ ok:false, error: "repo, project, branch required" })); return; }
+
+        // Normalize repo input: allow "owner/name" shorthand, reject clearly invalid values
+        if (typeof repo === 'string') {
+          const trimmed = repo.trim();
+          const ownerRepo = /^([\w.-]+)\/([\w.-]+)$/; // owner/name
+          const urlLike = /^(https?:\/\/|git@)/i;
+          if (ownerRepo.test(trimmed)) {
+            const [, owner, name] = trimmed.match(ownerRepo)!;
+            repo = `https://github.com/${owner}/${name}.git`;
+          } else if (!urlLike.test(trimmed)) {
+            res.statusCode = 400;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ ok:false, error: "invalid_repo", hint: "Use https URL or owner/name" }));
+            return;
+          }
+        }
+
         const job = await enqueue({ repo, project, branch, ai: !!ai, testStyles: testStyles || ["behavioral", "stride"] });
         console.log("Job created:", job);
         res.setHeader("Content-Type", "application/json");

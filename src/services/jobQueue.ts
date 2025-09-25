@@ -31,6 +31,15 @@ interface QueueFile { nextId: number; jobs: AuditJob[]; }
 const QDIR = path.join(getUatuHome(), "queue");
 const QPATH = path.join(QDIR, "jobs.json");
 
+// Simple in-process mutex to serialize queue mutations within this process
+let queueLock: Promise<void> = Promise.resolve();
+function withQueueLock<T>(fn: () => Promise<T>): Promise<T> {
+  const next = queueLock.then(fn, fn);
+  // Ensure the lock always resolves
+  queueLock = next.then(() => undefined, () => undefined);
+  return next;
+}
+
 async function load(): Promise<QueueFile> {
   await fs.ensureDir(QDIR);
   if (!(await fs.pathExists(QPATH))) return { nextId: 1, jobs: [] };
@@ -63,7 +72,8 @@ async function load(): Promise<QueueFile> {
 async function writeJsonAtomic(file: string, data: unknown) {
   const dir = path.dirname(file);
   await fs.ensureDir(dir);
-  const tmp = path.join(dir, `.${path.basename(file)}.tmp.${Date.now()}`);
+  const rand = Math.random().toString(36).slice(2);
+  const tmp = path.join(dir, `.${path.basename(file)}.tmp.${Date.now()}.${rand}`);
   await fs.writeJson(tmp, data, { spaces: 2 });
   try {
     await fs.rename(tmp, file); // atomic on same fs
@@ -77,59 +87,66 @@ async function save(q: QueueFile) {
 }
 
 export async function enqueue(job: Omit<AuditJob, "id" | "status" | "createdAt">) {
-  const q = await load();
-  
-  // Idempotent enqueue - check for existing work
-  const key = `${job.repo}@${job.branch}@${job.commit ?? "-"}`;
-  const existing = q.jobs.find(j => j.status !== "failed" && j.key === key);
-  if (existing) {
-    console.log(`Job already exists for ${key}, returning existing job ${existing.id}`);
-    return existing;
-  }
-  
-  const newJob: AuditJob = { 
-    id: q.nextId++, 
-    createdAt: new Date().toISOString(), 
-    status: "pending", 
-    pct: 0, 
-    key,
-    attempts: 0,
-    ...job 
-  };
-  q.jobs.push(newJob); 
-  await save(q); 
-  return newJob;
+  return withQueueLock(async () => {
+    const q = await load();
+
+    // Idempotent enqueue - check for existing work
+    const key = `${job.repo}@${job.branch}@${job.commit ?? "-"}`;
+    const existing = q.jobs.find(j => j.status !== "failed" && j.key === key);
+    if (existing) {
+      console.log(`Job already exists for ${key}, returning existing job ${existing.id}`);
+      return existing;
+    }
+
+    const newJob: AuditJob = {
+      id: q.nextId++,
+      createdAt: new Date().toISOString(),
+      status: "pending",
+      pct: 0,
+      key,
+      attempts: 0,
+      ...job
+    };
+    q.jobs.push(newJob);
+    await save(q);
+    return newJob;
+  });
 }
 export async function claimNext(): Promise<AuditJob | null> {
   // Retry claim operation to handle race conditions
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const q = await load();
+      // Serialize claim to avoid concurrent writers stepping on each other
+      const j = await withQueueLock(async () => {
+        const q = await load();
       const now = new Date();
       
       // Find pending job that's ready to run (respects backoff)
-      const j = q.jobs.find(x => 
+        const job = q.jobs.find(x => 
         x.status === "pending" && 
         (!x.nextRunAt || new Date(x.nextRunAt) <= now)
       );
-      if (!j) return null;
+        if (!job) return null;
       
       // Guardrail: Max 5 attempts before permanent failure
-      const attempts = (j.attempts || 0) + 1;
+        const attempts = (job.attempts || 0) + 1;
       if (attempts > 5) {
-        j.status = "failed";
-        j.errorMessage = `Max attempts (${attempts}) exceeded`;
-        j.finishedAt = new Date().toISOString();
+          job.status = "failed";
+          job.errorMessage = `Max attempts (${attempts}) exceeded`;
+          job.finishedAt = new Date().toISOString();
         await save(q);
-        continue; // Try next job
+          return undefined; // Try next iteration
       }
       
-      j.status = "running"; 
-      j.startedAt = new Date().toISOString(); 
-      j.pct = 0;
-      j.attempts = attempts;
+        job.status = "running"; 
+        job.startedAt = new Date().toISOString(); 
+        job.pct = 0;
+        job.attempts = attempts;
       
       await save(q); 
+        return job;
+      });
+      if (j === undefined) continue;
       return j;
     } catch (error) {
       console.warn(`Claim attempt ${attempt + 1} failed:`, error);
@@ -143,46 +160,52 @@ export async function claimNext(): Promise<AuditJob | null> {
 
 // Crash recovery - call on daemon start
 export async function recoverStuckJobs() {
-  const q = await load();
-  let recovered = 0;
-  
-  for (const j of q.jobs) {
-    if (j.status === "running") {
-      j.status = "pending"; // Reset to pending for retry
-      j.startedAt = undefined;
-      j.pct = 0;
-      
-      // Apply backoff based on attempts
-      const attempts = j.attempts || 0;
-      const backoffMs = Math.min(Math.pow(2, attempts) * 30 * 1000, 15 * 60 * 1000); // Max 15 min
-      j.nextRunAt = new Date(Date.now() + backoffMs).toISOString();
-      recovered++;
+  await withQueueLock(async () => {
+    const q = await load();
+    let recovered = 0;
+    for (const j of q.jobs) {
+      if (j.status === "running") {
+        j.status = "pending";
+        j.startedAt = undefined;
+        j.pct = 0;
+        const attempts = j.attempts || 0;
+        const backoffMs = Math.min(Math.pow(2, attempts) * 30 * 1000, 15 * 60 * 1000);
+        j.nextRunAt = new Date(Date.now() + backoffMs).toISOString();
+        recovered++;
+      }
     }
-  }
-  
-  if (recovered > 0) {
-    await save(q);
-    console.log(`Recovered ${recovered} stuck jobs`);
-  }
+    if (recovered > 0) {
+      await save(q);
+      console.log(`Recovered ${recovered} stuck jobs`);
+    }
+  });
 }
 export async function complete(jobId: number, ok: boolean, reportPath?: string, errorMessage?: string) {
-  const q = await load();
-  const j = q.jobs.find(x => x.id === jobId); if (!j) return;
-  j.status = ok ? "done" : "failed"; j.finishedAt = new Date().toISOString();
-  if (ok && reportPath) j.reportPath = reportPath; if (!ok && errorMessage) j.errorMessage = errorMessage;
-  j.pct = ok ? 100 : (j.pct ?? 0); await save(q);
+  await withQueueLock(async () => {
+    const q = await load();
+    const j = q.jobs.find(x => x.id === jobId); if (!j) return;
+    j.status = ok ? "done" : "failed"; j.finishedAt = new Date().toISOString();
+    if (ok && reportPath) j.reportPath = reportPath; if (!ok && errorMessage) j.errorMessage = errorMessage;
+    j.pct = ok ? 100 : (j.pct ?? 0); await save(q);
+  });
 }
 
 // NEW: mirrors
 export async function updateJobPct(jobId: number, pct: number) {
-  const q = await load(); const j = q.jobs.find(x => x.id === jobId); if (!j) return;
-  j.pct = Math.max(0, Math.min(100, Math.round(pct))); await save(q);
+  await withQueueLock(async () => {
+    const q = await load(); const j = q.jobs.find(x => x.id === jobId); if (!j) return;
+    j.pct = Math.max(0, Math.min(100, Math.round(pct))); await save(q);
+  });
 }
 export async function attachRunTimestamp(jobId: number, ts: string) {
-  const q = await load(); const j = q.jobs.find(x => x.id === jobId); if (!j) return;
-  j.runTimestamp = ts; await save(q);
+  await withQueueLock(async () => {
+    const q = await load(); const j = q.jobs.find(x => x.id === jobId); if (!j) return;
+    j.runTimestamp = ts; await save(q);
+  });
 }
 export async function updateJobNote(jobId: number, note: string) {
-  const q = await load(); const j = q.jobs.find(x => x.id === jobId); if (!j) return;
-  j.note = note; await save(q);
+  await withQueueLock(async () => {
+    const q = await load(); const j = q.jobs.find(x => x.id === jobId); if (!j) return;
+    j.note = note; await save(q);
+  });
 }

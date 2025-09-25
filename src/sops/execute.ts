@@ -122,11 +122,31 @@ export const executeSOP: SOP = {
     const hasAnchor  = await fs.pathExists(path.join(sandboxPath, "Anchor.toml")) || await fs.pathExists(path.join(sandboxPath, "anchor.toml"));
     const hasSoroban = await fs.pathExists(path.join(sandboxPath, "soroban.toml")) || await fs.pathExists(path.join(sandboxPath, "soroban.config.toml"));
     const hasNode    = await fs.pathExists(path.join(sandboxPath, "package.json"));
+    
+    // Log detected toolchains for debugging
+    log.info('Detected toolchains', { 
+      hasFoundry, hasHardhat, hasAnchor, hasSoroban, hasNode,
+      executionStrategy: hasFoundry ? 'foundry' : hasHardhat ? 'hardhat' : hasAnchor ? 'anchor' : hasSoroban ? 'soroban' : hasNode ? 'node' : 'none'
+    });
 
-    // 2) deps install (node/hardhat)
-    if (hasHardhat || (hasNode && !hasFoundry && !hasAnchor && !hasSoroban)) {
+    // 2) deps install (prefer Solidity toolchains over Node to avoid native build issues)
+    if (hasHardhat && !hasFoundry) {
       await step(onProgress, { phase: "execute", step: "deps-install", pct: 40 });
-      try { stdout += await runCmd("npm", ["i", "--silent", "--no-progress"], sandboxPath); } catch {}
+      try { 
+        stdout += await runCmd("npm", ["i", "--silent", "--no-progress", "--ignore-scripts"], sandboxPath); 
+      } catch (e: any) {
+        stdout += `\n[npm install failed, continuing anyway] ${e?.message||e}\n`;
+        log.warn('npm install failed but continuing', { error: String(e) });
+      }
+    } else if (hasNode && !hasFoundry && !hasHardhat && !hasAnchor && !hasSoroban) {
+      // Only run npm install for pure Node projects
+      await step(onProgress, { phase: "execute", step: "deps-install", pct: 40 });
+      try { 
+        stdout += await runCmd("npm", ["i", "--silent", "--no-progress", "--ignore-scripts"], sandboxPath); 
+      } catch (e: any) {
+        stdout += `\n[npm install failed] ${e?.message||e}\n`;
+        log.warn('npm install failed', { error: String(e) });
+      }
     }
 
     // 3) compile
@@ -262,17 +282,33 @@ export const executeSOP: SOP = {
             } else if (hasSoroban) {
               await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
               stdout += await runCmd("soroban", ["test"], sandboxPath);
-            } else if (hasNode) {
-              // Install dependencies first
+            } else if (hasNode && !hasFoundry && !hasHardhat) {
+              // Pure Node project - handle carefully due to potential native dep issues
+              log.warn('Pure Node.js project detected - native dependencies may fail');
               await step(onProgress, { phase: "execute", step: "install-deps", pct: 75 });
+              
               try {
-                stdout += await runCmd("npm", ["install"], sandboxPath);
+                // Use --ignore-scripts to avoid native build failures
+                stdout += await runCmd("npm", ["install", "--ignore-scripts"], sandboxPath);
               } catch (e:any) {
                 stdout += `\n[npm install failed] ${e?.message||e}\n`;
                 log.warn('npm install failed', { error: String(e) });
               }
               
               await step(onProgress, { phase: "execute", step: "run-tests", pct: 90 });
+              
+              // Check if rimraf is available (common failure point)
+              try {
+                await runCmd("which", ["rimraf"], sandboxPath);
+              } catch {
+                stdout += "\n[Uatu] Installing rimraf globally to fix missing command...\n";
+                try {
+                  await runCmd("npm", ["install", "-g", "rimraf"], sandboxPath);
+                } catch (rimrafError: any) {
+                  stdout += `\n[rimraf install failed] ${rimrafError?.message||rimrafError}\n`;
+                }
+              }
+              
               try { 
                 // Add timeout to npm test to prevent hanging
                 const testPromise = runCmd("npm", ["test", "--silent"], sandboxPath);
