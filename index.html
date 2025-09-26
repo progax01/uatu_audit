@@ -146,7 +146,13 @@ function setPct(el, n){ $(el).style.width = Math.max(0,Math.min(100,n)) + "%"; }
 function setNote(el, t){ $(el).textContent = t; }
 function markActive(stepId, active){ const el=$(stepId); if(!el) return; el.classList.toggle("active", !!active); }
 
-function base(){ return $("base").value.trim() || window.location.origin; }
+function base(){ 
+  const baseInput = $("base").value.trim();
+  if (baseInput) return baseInput;
+  
+  // Use current origin (respects whatever port the page is served from)
+  return window.location.origin;
+}
 
 async function health(){ 
   debugDOM(); // Debug when health is called

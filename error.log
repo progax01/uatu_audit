@@ -1,0 +1,1 @@
+{"branch":"main","error":"Error: ENOTEMPTY: directory not empty, rmdir '/Users/soneshwar/.uatu/workspace/users/soneshwar/projects/astrix/branches/main'","jobId":1,"level":"error","message":"Job failed","pid":46150,"project":"astrix","service":"uatu-audit","timestamp":"2025-09-25T19:48:32.354Z","workerId":0}

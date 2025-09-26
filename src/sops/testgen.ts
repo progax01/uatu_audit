@@ -100,72 +100,72 @@ export const testgenSOP: SOP = {
 
     await step(onProgress, { phase: "testgen", step: "integration-scenarios", pct: 80 });
 
-    // Enhanced AI test generation with Claude CLI
-    if ((i as any).ai && projectStructure) {
-      await step(onProgress, { phase: "testgen", step: "ai-generation", pct: 90 });
-      
-      try {
-        liveLogger.info('Generating AI tests with Claude CLI');
-        
-        const claudeProvider = new ClaudeAIProvider(runPath, true); // Auto-accept mode
-        
-        const aiRequest = {
-          projectPath: i.projectPath as string,
-          runPath,
-          contractFiles: projectStructure.mainContracts || [],
-          existingTests: projectStructure.testFiles || [],
-          projectStructure,
-          securityFocus: true,
-          testTypes: ['unit', 'integration'] as ('unit' | 'integration' | 'fuzz' | 'invariant')[]
-        };
-        
-        const aiResult = await claudeProvider.generateTests(aiRequest);
-        
-        if (aiResult.success) {
-          liveLogger.info('AI test generation completed', {
-            testsGenerated: aiResult.testsGenerated.length,
-            claudeInteractions: aiResult.claudeInteractions
-          });
+        // Enhanced AI test generation with Claude CLI (non-blocking)
+        if ((i as any).ai && projectStructure) {
+          await step(onProgress, { phase: "testgen", step: "ai-generation", pct: 90 });
+
+          // Run AI generation in the background, don't block the main flow
+          const aiGenerationPromise = (async () => {
+            try {
+              liveLogger.info('Generating AI tests with Claude CLI');
+
+              const claudeProvider = new ClaudeAIProvider(runPath, true); // Auto-accept mode
+
+              const aiRequest = {
+                projectPath: i.projectPath as string,
+                runPath,
+                contractFiles: projectStructure.mainContracts || [],
+                existingTests: projectStructure.testFiles || [],
+                projectStructure,
+                securityFocus: true,
+                testTypes: ['unit', 'integration'] as ('unit' | 'integration' | 'fuzz' | 'invariant')[]
+              };
+
+              const aiResult = await claudeProvider.generateTests(aiRequest);
+
+              if (aiResult.success) {
+                liveLogger.info('AI test generation completed', {
+                  testsGenerated: aiResult.testsGenerated.length,
+                  claudeInteractions: aiResult.claudeInteractions
+                });
+
+                // Add AI test plans
+                const aiPlan = {
+                  file: "ai-enhanced.plan.txt",
+                  content: `# AI-Generated Test Plan\n\n${aiResult.recommendations.join('\n- ')}`
+                };
+                await fs.writeFile(path.join(ai_tests_path, aiPlan.file), aiPlan.content, "utf8");
+
+                // Copy generated test files to the test plan directory
+                for (const testFile of aiResult.testFiles) {
+                  const fileName = path.basename(testFile);
+                  const content = await fs.readFile(testFile, 'utf8');
+                  await fs.writeFile(path.join(ai_tests_path, `ai-${fileName}`), content, "utf8");
+                }
+              } else {
+                liveLogger.warn('AI test generation failed', { errors: aiResult.errors });
+              }
+
+              await claudeProvider.close();
+
+            } catch (err: any) {
+              liveLogger.error('AI test generation failed', { error: String(err) });
+              
+              // Write a simple AI plan indicating failure
+              await fs.writeFile(
+                path.join(ai_tests_path, "ai-failed.plan.txt"), 
+                `# AI Test Generation Failed\n\nError: ${err?.message || err}\n\nPlease generate tests manually.`,
+                "utf8"
+              );
+            }
+          })();
+
+          // Don't await - let AI generation continue in background
+          // The audit can proceed to execute phase without waiting
+          aiGenerationPromise.catch(() => {}); // Prevent unhandled rejection
           
-          // Add AI test plans
-          plans.push({
-            file: "ai-enhanced.plan.txt",
-            content: `# AI-Generated Test Plan\n\n${aiResult.recommendations.join('\n- ')}`
-          });
-          
-          // Copy generated test files to the test plan directory
-          for (const testFile of aiResult.testFiles) {
-            const fileName = path.basename(testFile);
-            const content = await fs.readFile(testFile, 'utf8');
-            plans.push({ file: `ai-${fileName}`, content });
-          }
-        } else {
-          errors.push(...aiResult.errors);
+          liveLogger.info('AI test generation started in background, continuing with audit');
         }
-        
-        await claudeProvider.close();
-        
-      } catch (err: any) {
-        liveLogger.error('AI test generation failed', { error: String(err) });
-        errors.push(`AI test generation failed: ${err?.message || err}`);
-        
-        // Fallback to basic AI suggestions
-        try {
-          const ctx = await fs.readFile(path.join(i.contextPath as string, "tree.txt")).catch(() => Buffer.from(""))
-            .then(b => b.toString());
-          const prompt = `Given this repository tree and inventory JSON, propose JSON {files:[{path,tests[]}]} with concise, high-signal tests.\n` +
-            ctx.slice(0, 16000) + "\nINVENTORY:\n" + JSON.stringify(inv ?? {}, null, 2).slice(0, 16000);
-          const ideas = await suggestTestsWithAnthropic(prompt).catch(e => { errors.push(String(e)); return { files: [] as any[] }; });
-          for (const f of ideas.files) {
-            const fn = (f.path || "generated").replace(/[^\w.-]/g, "_") + ".ai.plan.txt";
-            const body = `# AI Suggestions for ${f.path}\n${(f.tests||[]).map((t: string) => `- [ ] ${t}`).join("\n")}\n`;
-            await fs.writeFile(path.join(ai_tests_path, fn), body, "utf8");
-          }
-        } catch (fallbackErr: any) {
-          errors.push(`Fallback AI generation also failed: ${fallbackErr?.message || fallbackErr}`);
-        }
-      }
-    }
 
     await step(onProgress, { phase: "testgen", step: "testgen-complete", pct: 100 });
     

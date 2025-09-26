@@ -69,11 +69,22 @@ export async function cloneOrRefresh(repo: string, targetPath: string, branch: s
       shouldReclone = true;
     }
 
-    if (shouldReclone) {
-      console.log(`Performing reclone: rm -rf ${targetPath}`);
-      await fs.remove(targetPath);
-      recordGitReclone(); // Track for metrics
-    }
+        if (shouldReclone) {
+          console.log(`Performing reclone: rm -rf ${targetPath}`);
+          try {
+            await fs.remove(targetPath);
+          } catch (removeError: any) {
+            // If fs.remove fails, try using exec to force remove
+            console.warn(`fs.remove failed, trying exec rm -rf:`, removeError.message);
+            try {
+              await execAsync(`rm -rf ${targetPath}`);
+            } catch (execError) {
+              console.error(`Failed to remove directory ${targetPath}:`, execError);
+              throw new Error(`Cannot remove directory ${targetPath}: ${execError}`);
+            }
+          }
+          recordGitReclone(); // Track for metrics
+        }
   }
   
   if (!(await fs.pathExists(targetPath))) {

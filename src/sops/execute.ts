@@ -243,8 +243,11 @@ export const executeSOP: SOP = {
                 }
                 
             stdout += "\n[Uatu] trying hardhat coverage ...\n";
-            // Use bash with extglob enabled to handle the !(lineaSepolia) pattern
-            const coverageResult = await runCmd("bash", ["-lc", "shopt -s extglob; npx hardhat coverage --testfiles \"test/!(lineaSepolia)/**/*.ts\""], sandboxPath);
+                // Use bash with extglob enabled and memory limits to handle the !(lineaSepolia) pattern
+                const coverageResult = await runCmd("bash", [
+                  "-lc", 
+                  "shopt -s extglob; export NODE_OPTIONS='--max-old-space-size=4096'; npx hardhat coverage --testfiles \"test/!(lineaSepolia)/**/*.ts\""
+                ], sandboxPath);
             stdout += coverageResult;
                 
                 // Try multiple coverage file locations

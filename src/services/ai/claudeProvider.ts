@@ -117,10 +117,30 @@ export class ClaudeAIProvider {
 
   private async checkClaudeAvailability(): Promise<void> {
     try {
+      // Try default claude command
       await execAsync('claude --version');
       this.liveLogger.info('Claude CLI is available');
+      return;
     } catch (error) {
-      throw new Error('Claude CLI not found. Please install Claude CLI: https://github.com/anthropics/claude-cli');
+      // Try with explicit path if provided
+      const claudePath = process.env.CLAUDE_CLI_PATH;
+      if (claudePath) {
+        try {
+          await execAsync(`${claudePath} --version`);
+          this.liveLogger.info('Claude CLI is available via custom path');
+          return;
+        } catch (pathError) {
+          this.liveLogger.warn('Claude CLI not found at custom path', { path: claudePath });
+        }
+      }
+      
+      // Check if Anthropic API key is available as fallback
+      if (process.env.ANTHROPIC_API_KEY) {
+        this.liveLogger.warn('Claude CLI not found, but Anthropic API key is available for fallback');
+        throw new Error('Claude CLI not found. Please install Claude CLI: https://github.com/anthropics/claude-cli, or ensure ANTHROPIC_API_KEY is set for API fallback');
+      }
+      
+      throw new Error('Claude CLI not found and no Anthropic API key available. Please install Claude CLI: https://github.com/anthropics/claude-cli');
     }
   }
 
@@ -146,12 +166,21 @@ ${request.existingTests.length > 0 ? request.existingTests.map(t => `- ${path.ba
 - Framework: Detect from project (Hardhat/Foundry/Anchor)
 
 ## Request
+**IMPORTANT: You have full sandbox access with Bash, Edit, Read, and Write tools. You can create and execute test files directly.**
+
 Please analyze this smart contract project and provide:
-1. A comprehensive testing strategy
-2. Critical security test scenarios
+1. A comprehensive testing strategy with executable tests
+2. Critical security test scenarios as working test files
 3. Specific test cases for each contract function
 4. Edge cases and invariant tests
 5. Integration test scenarios
+
+**Required Actions:**
+1. Create test files in the appropriate directory structure
+2. Generate working test code for Hardhat/Foundry framework
+3. Include setup scripts and dependencies
+4. Test your generated code by running it
+5. Fix any compilation or runtime issues
 
 Focus on:
 - Access control testing
@@ -162,7 +191,15 @@ Focus on:
 - Gas optimization issues
 - Front-running scenarios
 
-Please provide concrete, executable test code that can be run immediately.
+**Output Requirements:**
+- Use appropriate test framework syntax (Hardhat/Foundry)
+- Include proper imports and setup
+- Add detailed comments explaining test scenarios
+- Create helper functions for common patterns
+- Generate both positive and negative test cases
+- Include gas usage assertions where relevant
+
+Please create and test the files directly in the sandbox environment.
 `;
   }
 
@@ -233,18 +270,25 @@ ${events.slice(0, 3).map(e => `  - ${e}`).join('\n')}
       const promptFile = path.join(this.runPath, `claude-prompt-${sessionId}.txt`);
       await fs.writeFile(promptFile, prompt);
       
-      // Use robust Claude CLI runner
+      // Use robust Claude CLI runner with timeout
+      const timeout = parseInt(process.env.CLAUDE_TIMEOUT_MS || '300000'); // 5 minutes default for AI operations
       this.liveLogger.info('Executing Claude CLI command', { 
-        command: 'claude chat (via stdin pipe or --input-file)',
-        promptFile: path.basename(promptFile)
+        command: `claude --print (with ${timeout/1000}s timeout)`,
+        promptFile: path.basename(promptFile),
+        promptSize: prompt.length
       });
       
-      // Execute Claude CLI using robust runner
-      const stdout = await claudeChat(this.runPath, promptFile);
-      const stderr = ""; // claudeChat doesn't return stderr separately
+      // Execute Claude CLI with configurable timeout for AI operations
+      const claudePromise = claudeChat(this.runPath, promptFile);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`Claude CLI timeout after ${timeout}ms`)), timeout);
+      });
       
-      if (stderr) {
-        this.liveLogger.warn('Claude CLI stderr output', { stderr });
+      const stdout = await Promise.race([claudePromise, timeoutPromise]);
+      
+      // Check if response is meaningful
+      if (!stdout || stdout.trim().length < 10) {
+        throw new Error('Claude CLI returned empty or minimal response');
       }
       
       // Save response
@@ -253,7 +297,8 @@ ${events.slice(0, 3).map(e => `  - ${e}`).join('\n')}
       
       this.liveLogger.info('Claude interaction completed', { 
         sessionId, 
-        responseLength: stdout.length 
+        responseLength: stdout.length,
+        preview: stdout.substring(0, 200) + '...'
       });
       
       // Clean up prompt file
@@ -261,9 +306,23 @@ ${events.slice(0, 3).map(e => `  - ${e}`).join('\n')}
       
       return stdout;
       
-    } catch (error) {
-      this.liveLogger.error('Claude interaction failed', { sessionId, error: String(error) });
-      throw error;
+    } catch (error: any) {
+      // Extract detailed error information
+      const errorDetails = {
+        sessionId,
+        message: error.message,
+        stderr: error.stderr || 'No stderr available',
+        stdout: error.stdout || 'No stdout available',
+        code: error.code || 'Unknown exit code'
+      };
+      
+      this.liveLogger.error('Claude interaction failed', errorDetails);
+      
+      // Save error details for debugging
+      const errorFile = path.join(this.runPath, `claude-error-${sessionId}.json`);
+      await fs.writeFile(errorFile, JSON.stringify(errorDetails, null, 2));
+      
+      throw new Error(`Claude CLI failed for ${sessionId}: ${error.message}${error.stderr ? ` | STDERR: ${error.stderr}` : ''}`);
     }
   }
 
@@ -288,6 +347,8 @@ ${contractContent}
 ${analysisResult}
 
 ## Request
+**IMPORTANT: Create and execute working tests in the sandbox environment.**
+
 Generate comprehensive tests for this contract including:
 1. Unit tests for all public/external functions
 2. Access control tests
@@ -295,13 +356,29 @@ Generate comprehensive tests for this contract including:
 4. Edge case scenarios
 5. Security vulnerability tests
 
-Please provide:
-- Complete test file code
-- Test setup and deployment scripts
-- Specific test scenarios with explanations
-- Security test cases
+**Required Actions:**
+1. Create a test file at: test/${contractName}.test.sol or test/${contractName}.test.js
+2. Include proper setup and deployment code
+3. Test compilation by running: npx hardhat compile or forge build
+4. Execute tests with: npx hardhat test or forge test
+5. Fix any issues found during execution
 
-Output format: Provide working test code that can be saved and executed immediately.
+**Test Requirements:**
+- Include beforeEach setup with proper contract deployment
+- Test all public/external functions with various inputs
+- Include negative test cases (should revert scenarios)
+- Add gas usage assertions for optimization checks
+- Test events emission where applicable
+- Include fuzzing tests for edge cases
+
+**Security Test Cases:**
+- Reentrancy attack scenarios
+- Access control bypass attempts
+- Integer overflow/underflow tests
+- Front-running simulations
+- Economic attack vectors
+
+Please create the test file and verify it works by running it in the sandbox.
 `;
 
     const response = await this.claudeInteraction(testPrompt, `test-${contractName}`);

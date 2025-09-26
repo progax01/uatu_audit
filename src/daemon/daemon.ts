@@ -255,9 +255,23 @@ async function handleRequest(req: any, res: any) {
       const branch = String(parsed.query.branch || "");
       const tail = Math.max(10, Math.min(5000, parseInt(String(parsed.query.tail || "400"),10)));
       if (!project || !branch) { res.statusCode = 400; res.end("project & branch required"); return; }
+      
       const { runsPath } = await resolveWorkspace(project, branch);
       const runs = (await fs.pathExists(runsPath)) ? (await fs.readdir(runsPath)).sort() : [];
-      const last = runs.at(-1); if (!last) { res.statusCode = 404; res.end("No runs"); return; }
+      const last = runs.at(-1); 
+      
+      if (!last) { 
+        // No runs yet - return empty logs
+        const payload = { 
+          run: "none", 
+          execute: "No runs yet - audit is starting...", 
+          cli: "Waiting for job to begin..." 
+        };
+        res.setHeader("Content-Type","application/json"); 
+        res.end(JSON.stringify(payload)); 
+        return;
+      }
+      
       const rp = path.join(runsPath, last);
       const execLog = path.join(rp, "execute.log");
       const cliLog  = path.join(rp, "cli.log");
@@ -273,20 +287,48 @@ async function handleRequest(req: any, res: any) {
         res.end("project & branch required"); 
         return; 
       }
+      
+      // Check if there are any runs first
       const { runsPath } = await resolveWorkspace(project, branch);
       const runs = (await fs.pathExists(runsPath)) ? (await fs.readdir(runsPath)).sort() : [];
       const last = runs.at(-1); 
+      
       if (!last) { 
-        res.statusCode = 404; 
-        res.end("No runs"); 
-        return; 
+        // No runs yet - return initial progress (phases as array to match UI)
+        const initialProgress = {
+          overall_pct: 0,
+          last_event: "Starting audit...",
+          phases: [
+            { name: "bootstrap", pct: 0, step: "initializing" },
+            { name: "inventory", pct: 0, step: "waiting" },
+            { name: "analysis", pct: 0, step: "waiting" },
+            { name: "testgen", pct: 0, step: "waiting" },
+            { name: "execute", pct: 0, step: "waiting" }
+          ]
+        };
+        res.setHeader("Content-Type", "application/json"); 
+        res.end(JSON.stringify(initialProgress)); 
+        return;
       }
+      
       const rp = path.join(runsPath, last);
       const prog = await loadProgress(rp);
       if (!prog) { 
-        res.statusCode = 404; 
-        res.end("No progress yet"); 
-        return; 
+        // Progress file doesn't exist yet - return initial progress (phases as array to match UI)
+        const initialProgress = {
+          overall_pct: 0,
+          last_event: "Setting up workspace...",
+          phases: [
+            { name: "bootstrap", pct: 0, step: "initializing" },
+            { name: "inventory", pct: 0, step: "waiting" },
+            { name: "analysis", pct: 0, step: "waiting" },
+            { name: "testgen", pct: 0, step: "waiting" },
+            { name: "execute", pct: 0, step: "waiting" }
+          ]
+        };
+        res.setHeader("Content-Type", "application/json"); 
+        res.end(JSON.stringify(initialProgress)); 
+        return;
       }
       res.setHeader("Content-Type", "application/json"); 
       res.end(JSON.stringify(prog)); 
