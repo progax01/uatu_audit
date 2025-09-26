@@ -70,20 +70,17 @@ export async function enforceNodeLTS(runPath: string, sandboxPath: string): Prom
 
   // Try to use nvm to switch to Node 20
   try {
-    const nvmScript = `
-      set -e
-      export NVM_DIR="$HOME/.nvm"
-      if [ -s "$NVM_DIR/nvm.sh" ]; then
-        . "$NVM_DIR/nvm.sh"
-        echo "NVM found, attempting to use Node 20..."
-        nvm install 20 >/dev/null 2>&1 || echo "Node 20 already installed"
-        nvm use 20
-        node -v
-      else
-        echo "NVM not found"
-        exit 1
-      fi
-    `;
+    // Use a single-line command to avoid "bash: -c: option requires an argument" when passing to -lc
+    const nvmScript = [
+      'set -e',
+      'export NVM_DIR="$HOME/.nvm"',
+      '[ -s "$NVM_DIR/nvm.sh" ] || { echo "NVM not found"; exit 1; }',
+      '. "$NVM_DIR/nvm.sh"',
+      'echo "NVM found, attempting to use Node 20..."',
+      'nvm install 20 >/dev/null 2>&1 || echo "Node 20 already installed"',
+      'nvm use 20 >/dev/null',
+      'node -v'
+    ].join(' && ');
 
     const nvmResult = await runCmdLogged(runPath, 'bash', ['-lc', nvmScript], { 
       cwd: sandboxPath 
