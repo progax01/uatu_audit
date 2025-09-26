@@ -6,7 +6,7 @@ import { bootstrapSOP } from "../sops/bootstrap.js";
 import { inventorySOP } from "../sops/inventory.js";
 import { analysisSOP } from "../sops/analysis.js";
 import { testgenSOP } from "../sops/testgen.js";
-import { executeSOP } from "../sops/execute.js";
+import { executeEnhancedSOP } from "../sops/executeEnhanced.js";
 import { writeHtmlReport } from "./report/htmlReport.js";
 import { writeSarif } from "./report/sarif.js";
 import { buildReportDataFromRun } from "./report/reportData.js";
@@ -32,6 +32,9 @@ export async function runAll(params: {
   const timestamp = Date.now().toString();
   const runPath = path.join(runsPath, timestamp);
   await fs.ensureDir(runPath);
+  
+  // Small delay to ensure filesystem is ready
+  await new Promise(resolve => setTimeout(resolve, 100));
 
   // init progress
   await saveProgress(runPath, newProgress(project, branch, timestamp));
@@ -75,9 +78,9 @@ export async function runAll(params: {
     10 * 60 * 1000, 'Testgen SOP timed out'
   ));
   
-  log.info('Executing execute SOP');
+  log.info('Executing executeEnhanced SOP');
   const executeResult = await withRetry(() => withTimeout(() => 
-    executeSOP.execute(sopInputs, onProgress), 
+    executeEnhancedSOP.execute(sopInputs, onProgress), 
     20 * 60 * 1000, 'Execute SOP timed out'
   ));
 

@@ -1,5 +1,6 @@
 import fs from "fs-extra";
 import path from "node:path";
+import os from "node:os";
 import { logger } from "../utils/logger.js";
 import { ProgressHook } from "../utils/stepHelper.js";
 
@@ -51,11 +52,11 @@ export class SandboxProvisioner {
 
   public async provision(projectPath: string, timestamp: number): Promise<string> {
     log.info('Starting sandbox provisioning', { projectPath, timestamp });
-    
-    this.onProgress({ phase: 'execute', step: 'sandbox-materialize', pct: 25 });
 
-    // 1. Create sandbox directory
-    const sandboxPath = path.join(this.runPath, 'sandbox');
+    // 1. Create sandbox directory in temp space (not inside project)
+    const tempDir = os.tmpdir();
+    const sandboxId = `uatu-sandbox-${timestamp}-${Math.random().toString(36).substr(2, 9)}`;
+    const sandboxPath = path.join(tempDir, sandboxId);
     await fs.ensureDir(sandboxPath);
     log.info('Created sandbox directory', { sandboxPath });
 
@@ -64,16 +65,19 @@ export class SandboxProvisioner {
 
     // 3. Selective copy (exclude heavy/unnecessary files)
     await this.selectiveCopy(projectPath, sandboxPath);
+    
+    // 4. Report progress AFTER copy is complete to avoid conflicts
+    this.onProgress({ phase: 'execute', step: 'sandbox-materialize', pct: 25 });
 
-    // 4. Detect toolchain
+    // 5. Detect toolchain
     const toolchain = await this.detectToolchain(sandboxPath);
     await fs.writeJson(path.join(sandboxPath, '.toolchain.json'), toolchain, { spaces: 2 });
 
-    // 5. Check Claude CLI capabilities
+    // 6. Check Claude CLI capabilities
     const claude = await this.checkClaudeCapabilities();
     await fs.writeJson(path.join(sandboxPath, '.claude.json'), claude, { spaces: 2 });
 
-    // 6. Write execution manifest
+    // 7. Write execution manifest
     const manifest: SandboxManifest = {
       projectPath,
       sandboxPath,
@@ -85,6 +89,10 @@ export class SandboxProvisioner {
     };
     
     await fs.writeJson(path.join(sandboxPath, 'manifest.json'), manifest, { spaces: 2 });
+    
+    // Also save sandbox path reference in run directory for cleanup/reference
+    await fs.writeJson(path.join(this.runPath, 'sandbox-path.json'), { sandboxPath, created: new Date().toISOString() }, { spaces: 2 });
+    
     log.info('Sandbox provisioning completed', { sandboxPath, toolchain: toolchain.detectedFramework });
 
     return sandboxPath;
@@ -136,7 +144,7 @@ export class SandboxProvisioner {
     return [
       '.git',
       'node_modules',
-      'runs',
+      'runs', // MUST exclude to prevent copying over our active progress tracking
       '.uatu/ai_tests',
       'coverage',
       'artifacts',

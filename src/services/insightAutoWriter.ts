@@ -560,6 +560,51 @@ const detectors: Detector[] = [
     }
     return null;
   },
+
+  // --- Anthropic model deprecation
+  (i) => {
+    const s = (i.stderr ?? "") + "\n" + (i.stdout ?? "");
+    if (/model .* deprecated|model.*scheduled for deprecation/i.test(s) && /anthropic/i.test(i.cmd)) {
+      return {
+        area: "Toolchain",
+        severity: "low",
+        summary: "Anthropic model deprecation warning",
+        command: i.cmd,
+        exitCode: i.exitCode ?? undefined,
+        evidence: tail(s, 10),
+        hypothesis: "Using a model scheduled for end-of-life.",
+        remediation: [
+          "Set ANTHROPIC_MODEL=claude-3-5-sonnet-20241022 (or current latest).",
+          "Check Anthropic documentation for latest model versions."
+        ],
+        impact: "Low"
+      };
+    }
+    return null;
+  },
+
+  // --- AI returned non-JSON payload
+  (i) => {
+    const s = (i.stderr ?? "") + "\n" + (i.stdout ?? "");
+    if (/No valid JSON found|Non-JSON|Failed to parse.*response/i.test(s) && /ai|anthropic|claude/i.test(i.cmd)) {
+      return {
+        area: "Toolchain",
+        severity: "low",
+        summary: "AI returned non-JSON payload",
+        command: i.cmd,
+        exitCode: i.exitCode ?? undefined,
+        evidence: tail(s, 10),
+        hypothesis: "Free-form text generation instead of structured output.",
+        remediation: [
+          "Upgrade to Anthropic Tools with tool_choice to force JSON.",
+          "Or use response_format: json_object on supported models.",
+          "Check ANTHROPIC_MODEL supports tools/structured output."
+        ],
+        impact: "Low"
+      };
+    }
+    return null;
+  },
 ];
 
 // ---- main

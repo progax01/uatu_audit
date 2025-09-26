@@ -17,10 +17,21 @@ export type RunProgress = {
 };
 
 async function atomicWrite(file: string, data: unknown) {
-  await fs.ensureDir(path.dirname(file));
-  const tmp = `${file}.tmp`;
-  await fs.writeJson(tmp, data, { spaces: 2 });
-  await fs.move(tmp, file, { overwrite: true });
+  try {
+    await fs.ensureDir(path.dirname(file));
+    const tmp = `${file}.tmp`;
+    await fs.writeJson(tmp, data, { spaces: 2 });
+    await fs.move(tmp, file, { overwrite: true });
+  } catch (error: any) {
+    console.error('atomicWrite failed:', {
+      file,
+      tmpFile: `${file}.tmp`,
+      error: error.message,
+      code: error.code,
+      errno: error.errno
+    });
+    throw error;
+  }
 }
 
 export function newProgress(project: string, branch: string, timestamp: string): RunProgress {

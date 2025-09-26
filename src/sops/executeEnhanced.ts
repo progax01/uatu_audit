@@ -18,6 +18,11 @@ import { getClaudeCaps, isClaudeSandboxReady } from "../services/ai/claudeCaps.j
 import { runPreflightChecks } from "../services/preflightChecker.js";
 import { enforceNodeLTS } from "../services/nodeVersionEnforcer.js";
 import { isDockerAvailable, runNodeInContainer, runFoundryInContainer, ensureDockerImage } from "../services/dockerSandboxRunner.js";
+import { copyAiTestsToSandbox, cleanupAiTestsFromSandbox } from "../services/ai/aiCopy.js";
+import { runAllAiTestPasses, type AiTestRunResult } from "../services/ai/aiRunners.js";
+import { collectAllAiFailures } from "../services/ai/failureCollectors.js";
+import { refineAiTestsWithAnthropic } from "../services/ai/aiRefiner.js";
+import { isAnyAIProviderAvailable } from "../services/ai/aiProviderSelector.js";
 
 const execp = promisify(_exec);
 const log = logger.child({ sop: 'executeEnhanced' });
@@ -145,15 +150,37 @@ export const executeEnhancedSOP: SOP = {
       const compileSuccess = await compileProject(sandboxPath, toolchain, insightGenerator);
       executionResults.compilationSucceeded = compileSuccess;
 
-      // SOP-40: Test Execution
-      onProgress?.({ phase: "execute", step: "run-tests", pct: 70 });
-      const testResults = await runTests(sandboxPath, toolchain, insightGenerator, runPath, useDocker);
-      executionResults.testsExecuted = testResults.executed;
+      // SOP-35: AI Test Execution (2-pass refinement)
+      onProgress?.({ phase: "execute", step: "ai-tests", pct: 65 });
+      const aiTestResults = await runAiTestPipeline(i.projectPath as string, runPath, sandboxPath, toolchain, insightGenerator, useDocker);
+      (executionResults as any).aiTestsExecuted = aiTestResults.executed;
+      (executionResults as any).aiTestsPass1 = aiTestResults.pass1Results;
+      (executionResults as any).aiTestsPass2 = aiTestResults.pass2Results;
+      (executionResults as any).aiRefinementApplied = aiTestResults.refinementApplied;
 
-      // SOP-70: Coverage Harvest (best effort)
-      onProgress?.({ phase: "execute", step: "coverage", pct: 85 });
-      const coverage = await harvestCoverage(sandboxPath, toolchain, insightGenerator, i);
-      executionResults.coverageCollected = coverage.collected;
+      // SOP-40: Test Execution (User Tests) - Optional based on AI-only mode
+      const aiTestsOnly = process.env.UATU_RUN_AI_TESTS_ONLY === "1";
+      if (!aiTestsOnly) {
+        onProgress?.({ phase: "execute", step: "run-tests", pct: 75 });
+        const testResults = await runTests(sandboxPath, toolchain, insightGenerator, runPath, useDocker);
+        executionResults.testsExecuted = testResults.executed;
+      } else {
+        log.info('Skipping user tests - AI tests only mode enabled');
+        executionResults.testsExecuted = false;
+        (executionResults as any).aiTestsOnlyMode = true;
+      }
+
+      // SOP-70: Coverage Harvest (best effort) - Skip in AI-only mode for speed
+      let coverage: { collected: boolean; data?: any } = { collected: false, data: null };
+      if (!aiTestsOnly && process.env.UATU_HARDHAT_COVERAGE !== "0") {
+        onProgress?.({ phase: "execute", step: "coverage", pct: 85 });
+        coverage = await harvestCoverage(sandboxPath, toolchain, insightGenerator, i);
+        executionResults.coverageCollected = coverage.collected;
+      } else {
+        log.info(aiTestsOnly ? 'Skipping coverage - AI tests only mode' : 'Skipping coverage - disabled');
+        executionResults.coverageCollected = false;
+        (executionResults as any).coverageSkipped = true;
+      }
 
       // Check for source mutations using fast tree hash (SOP compliance check)
       const integrityCheck = await verifySourceIntegrity(
@@ -365,26 +392,28 @@ async function runTests(
         testOutput = await runCmdLogged(sandboxPath, 'forge', ['test', '-vvv']);
       }
     } else if (toolchain.hasHardhat) {
-      // Build test file list, excluding network tests by default
+      // Force explicit file lists to prevent any network test execution
       const includeNetwork = process.env.UATU_INCLUDE_NETWORK_TESTS === "1";
-      const testGlobs = includeNetwork
+      const userGlobs = includeNetwork
         ? ["test/**/*.ts", "test/**/*.tsx", "test/**/*.js"]
-        : ["test/**/*.ts", "test/**/*.tsx", "test/**/*.js", "!test/lineaSepolia/**"];
+        : [
+            "test/**/*.ts",
+            "test/**/*.tsx", 
+            "test/**/*.js",
+            "!test/lineaSepolia/**",
+            "!test/mainnet/**",
+            "!test/testnet/**",
+            "!test/integration/**"
+          ];
+
+      const userList = await fg(userGlobs, { cwd: sandboxPath });
       
-      const testFiles = await fg(testGlobs, { cwd: sandboxPath });
-      
-      if (testFiles.length > 0) {
+      if (userList.length > 0) {
+        const cmd = `npx hardhat test ${userList.map(f => JSON.stringify(f)).join(" ")}`;
         if (useDocker) {
-          const testFileArgs = testFiles.map(f => `"${f}"`).join(' ');
-          const testCommand = `npx hardhat test ${testFileArgs}`;
-          testOutput = await runNodeInContainer(runPath, sandboxPath, [testCommand]);
+          testOutput = await runNodeInContainer(runPath, sandboxPath, [cmd]);
         } else {
-          const testArgs = ['hardhat', 'test'];
-          // Add each test file explicitly
-          for (const file of testFiles) {
-            testArgs.push(file);
-          }
-          testOutput = await runCmdLogged(sandboxPath, 'npx', testArgs);
+          testOutput = await runCmdLogged(runPath, 'bash', ['-lc', cmd], { cwd: sandboxPath });
         }
       } else {
         log.info('No test files found after filtering');
@@ -447,57 +476,7 @@ async function harvestCoverage(sandboxPath: string, toolchain: ToolchainInfo, in
 
     if (toolchain.hasHardhat && shouldEnableHardhatCoverage() && !isFeatureDisabled(inputs, 'coverage')) {
       try {
-        // Determine Node major version inside sandbox
-        let major = NaN;
-        try {
-          const out = await execp('node -p "process.versions.node.split(\'.\')[0]"', { cwd: sandboxPath });
-          major = parseInt((out.stdout || '').trim(), 10);
-        } catch {
-          await writeAutoInsights(path.dirname(sandboxPath), {
-            cmd: 'node -p process.versions.node',
-            exitCode: null,
-            stdout: '',
-            stderr: 'Could not determine Node version in sandbox.',
-            toolchain: { hasHardhat: true }
-          });
-        }
-
-        // Gate: skip coverage if Node is unsupported (>=22)
-        if (Number.isFinite(major) && major >= 22) {
-          await writeAutoInsights(path.dirname(sandboxPath), {
-            cmd: 'npx hardhat coverage',
-            exitCode: null,
-            stdout: '',
-            stderr: `Node ${major} is unsupported by Hardhat; skipping coverage.`,
-            toolchain: { hasHardhat: true }
-          });
-          await fs.writeJson(path.join(sandboxPath, '..', 'coverage.norm.json'), { reason: 'unsupported_node', node: major }, { spaces: 2 });
-        } else {
-          // Memory headroom for V8 heap; default to 6144 MB
-          const heapMb = parseInt(process.env.UATU_NODE_HEAP_MB || '6144', 10);
-
-          // Build test file list excluding network tests by default
-          const includeNetwork = process.env.UATU_INCLUDE_NETWORK_TESTS === "1";
-          const testGlobs = includeNetwork
-            ? ["test/**/*.ts", "test/**/*.tsx", "test/**/*.js"]
-            : ["test/**/*.ts", "test/**/*.tsx", "test/**/*.js", "!test/lineaSepolia/**"];
-          
-          const testFiles = await fg(testGlobs, { cwd: sandboxPath });
-          
-          if (testFiles.length > 0) {
-            // Build command with explicit test files 
-            const testFileArgs = testFiles.map(f => `--testfiles "${f}"`).join(' ');
-            const cmd = `export NODE_OPTIONS="--max-old-space-size=${heapMb}"; npx hardhat coverage ${testFileArgs}`;
-            await runCmdLogged(sandboxPath, 'bash', ['-lc', cmd]);
-          } else {
-            log.info('No test files found for coverage');
-          }
-
-          const coverageSummaryPath = path.join(sandboxPath, 'coverage', 'coverage-summary.json');
-          if (await fs.pathExists(coverageSummaryPath)) {
-            coverageData.hardhat = await fs.readJson(coverageSummaryPath);
-          }
-        }
+        await runHardhatCoverage(path.dirname(sandboxPath), sandboxPath, coverageData);
       } catch (coverageError: any) {
         log.debug('Hardhat coverage failed (non-critical)', { error: coverageError });
 
@@ -575,6 +554,69 @@ function isFeatureDisabled(inputs: SOPInputs, feature: string): boolean {
   return false;
 }
 
+async function getNodeMajor(cwd: string): Promise<number> {
+  try {
+    const out = await runCmdLogged("", "node", ["-p", "process.versions.node.split('.')[0]"], { cwd });
+    return parseInt(String(out).trim(), 10);
+  } catch { 
+    return NaN; 
+  }
+}
+
+async function runHardhatCoverage(runPath: string, sandbox: string, coverageData: any): Promise<void> {
+  const major = await getNodeMajor(sandbox);
+
+  // Gate: skip on Node >= 22
+  if (!Number.isFinite(major) || major >= 22) {
+    await writeAutoInsights(runPath, {
+      cmd: "hardhat coverage",
+      exitCode: null,
+      stdout: "",
+      stderr: `Skipping coverage: Node ${major} unsupported by Hardhat`,
+      toolchain: { hasHardhat: true }
+    });
+    await fs.writeJson(path.join(runPath, 'coverage.norm.json'), { reason: 'unsupported_node', node: major }, { spaces: 2 });
+    return;
+  }
+
+  // Explicit list (no extglob) and exclude network suites
+  const files = await fg([
+    "test/**/*.ts", "test/**/*.tsx", "test/**/*.js",
+    "!test/lineaSepolia/**", "!test/mainnet/**", "!test/testnet/**", "!test/integration/**"
+  ], { cwd: sandbox });
+
+  if (files.length === 0) {
+    log.info('No test files found for coverage');
+    return;
+  }
+
+  const heap = process.env.UATU_NODE_HEAP_MB || "6144";
+  const args = ["hardhat", "coverage", ...files.flatMap(f => ["--testfiles", f])];
+  const cmd = `export NODE_OPTIONS="--max-old-space-size=${heap}"; npx ${args.map(a => JSON.stringify(a)).join(" ")}`;
+
+  try {
+    if (process.env.UATU_USE_DOCKER === '1') {
+      await runNodeInContainer(runPath, sandbox, [cmd]);
+    } else {
+      await runCmdLogged(runPath, "bash", ["-lc", cmd], { cwd: sandbox });
+    }
+
+    // Check for coverage results
+    const coverageSummaryPath = path.join(sandbox, 'coverage', 'coverage-summary.json');
+    if (await fs.pathExists(coverageSummaryPath)) {
+      coverageData.hardhat = await fs.readJson(coverageSummaryPath);
+    }
+  } catch (e: any) {
+    await writeAutoInsights(runPath, {
+      cmd: "hardhat coverage",
+      exitCode: e?.exitCode ?? null,
+      stdout: e?.stdout ?? "",
+      stderr: e?.stderr ?? String(e),
+      toolchain: { hasHardhat: true }
+    });
+  }
+}
+
 async function retryOperation<T>(operation: () => Promise<T>, maxRetries: number): Promise<T> {
   let lastError: Error;
 
@@ -597,4 +639,234 @@ async function retryOperation<T>(operation: () => Promise<T>, maxRetries: number
   }
 
   throw lastError!;
+}
+
+/**
+ * SOP-35: AI Test Pipeline - 2-pass refinement system
+ * 1. Copy AI tests to sandbox
+ * 2. Pass 1: Run AI tests, collect failures
+ * 3. Refine: Send failures to Anthropic API for fixes
+ * 4. Pass 2: Run refined AI tests
+ */
+async function runAiTestPipeline(
+  projectPath: string,
+  runPath: string,
+  sandboxPath: string,
+  toolchain: ToolchainInfo,
+  insights: InsightGenerator,
+  useDocker: boolean
+): Promise<{
+  executed: boolean;
+  pass1Results: AiTestRunResult[];
+  pass2Results: AiTestRunResult[];
+  refinementApplied: boolean;
+}> {
+  const result = {
+    executed: false,
+    pass1Results: [] as AiTestRunResult[],
+    pass2Results: [] as AiTestRunResult[],
+    refinementApplied: false
+  };
+
+  try {
+    // Check if AI tests are available and provider is configured
+    const hasAiProvider = await isAnyAIProviderAvailable();
+    if (!hasAiProvider && process.env.UATU_AI_REFINE === "1") {
+      log.info('AI refinement requested but no provider available');
+      await insights.addInsight({
+        area: 'Build',
+        summary: 'AI refinement requested but no provider configured',
+        priority: 'Medium',
+        evidence: { additionalContext: { context: 'UATU_AI_REFINE=1 but no provider available' } },
+        rootCause: 'UATU_AI_REFINE=1 set but no AI provider configured',
+        suggestedRemediation: {
+          preferred: 'Configure ANTHROPIC_API_KEY environment variable',
+          alternatives: ['Set UATU_AI_REFINE=0 to disable refinement']
+        }
+      });
+      return result;
+    }
+
+    // Check if we should run AI tests only
+    const aiTestsOnly = process.env.UATU_RUN_AI_TESTS_ONLY === "1";
+    if (aiTestsOnly) {
+      log.info('Running in AI tests only mode');
+    }
+
+    // Copy AI tests to sandbox
+    const copyResult = await copyAiTestsToSandbox(projectPath, sandboxPath);
+    if (copyResult.copied === 0) {
+      log.info('No AI tests found to execute');
+      return result;
+    }
+
+    log.info('AI tests copied to sandbox', {
+      filesCopied: copyResult.copied,
+      toolchains: copyResult.toolchains,
+      useDocker
+    });
+
+    // Determine toolchain order
+    const toolchainOrder = (process.env.UATU_AI_TOOL_ORDER || 'hardhat,foundry,jest')
+      .split(',')
+      .map(t => t.trim())
+      .filter(t => t.length > 0);
+
+    // Pass 1: Run AI tests
+    log.info('Starting AI test pass 1');
+    result.pass1Results = await runAllAiTestPasses(runPath, sandboxPath, "pass1", useDocker, toolchainOrder);
+    
+    const pass1RanCount = result.pass1Results.filter(r => r.ran).length;
+    const pass1SuccessCount = result.pass1Results.filter(r => r.ran && r.ok).length;
+    
+    log.info('AI test pass 1 completed', {
+      toolchainsRan: pass1RanCount,
+      successful: pass1SuccessCount,
+      failed: pass1RanCount - pass1SuccessCount
+    });
+
+    // Check if refinement is enabled and we have failures
+    const shouldRefine = process.env.UATU_AI_REFINE === "1" && hasAiProvider;
+    const hasFailures = result.pass1Results.some(r => r.ran && !r.ok);
+
+    if (shouldRefine && hasFailures) {
+      log.info('Starting AI test refinement');
+      
+      try {
+        // Collect failures from pass 1
+        const failures = await collectAllAiFailures(runPath, sandboxPath);
+        
+        if (failures.length > 0) {
+          log.info(`Collected ${failures.length} AI test failures for refinement`);
+          
+          // Load context for refinement
+          const repoTree = await fs.readFile(path.join(runPath, "../..", "context", "tree.txt"), "utf8").catch(() => "");
+          const inventory = await fs.readJson(path.join(runPath, "inventory.json")).catch(() => ({}));
+          const analysis = await fs.readJson(path.join(runPath, "analysis.json")).catch(() => ({}));
+
+          // Refine with Anthropic API
+          const refinementResult = await refineAiTestsWithAnthropic({
+            runPath,
+            projectPath,
+            sandbox: sandboxPath,
+            repoTree,
+            inventory,
+            analysis,
+            failures
+          });
+
+          result.refinementApplied = refinementResult.count > 0;
+          
+          log.info('AI test refinement completed', {
+            filesRefined: refinementResult.count,
+            summary: refinementResult.summary
+          });
+
+          if (result.refinementApplied) {
+            // Copy refined tests back to sandbox
+            await copyAiTestsToSandbox(projectPath, sandboxPath);
+            
+            // Pass 2: Run refined AI tests
+            log.info('Starting AI test pass 2 with refined tests');
+            result.pass2Results = await runAllAiTestPasses(runPath, sandboxPath, "pass2", useDocker, toolchainOrder);
+            
+            const pass2RanCount = result.pass2Results.filter(r => r.ran).length;
+            const pass2SuccessCount = result.pass2Results.filter(r => r.ran && r.ok).length;
+            
+            log.info('AI test pass 2 completed', {
+              toolchainsRan: pass2RanCount,
+              successful: pass2SuccessCount,
+              failed: pass2RanCount - pass2SuccessCount,
+              improvement: pass2SuccessCount - pass1SuccessCount
+            });
+          }
+        } else {
+          log.info('No failures collected for refinement');
+        }
+        
+      } catch (refinementError: any) {
+        log.error('AI test refinement failed', { error: String(refinementError) });
+        
+        await writeAutoInsights(runPath, {
+          cmd: 'ai-test-refinement',
+          exitCode: 1,
+          stderr: String(refinementError),
+          toolchain
+        });
+        
+        await insights.addInsight({
+          area: 'Build',
+          summary: `AI test refinement failed: ${refinementError.message}`,
+          priority: 'Medium',
+          evidence: { additionalContext: { error: String(refinementError) } },
+          rootCause: 'AI test refinement API call or processing failed',
+          suggestedRemediation: {
+            preferred: 'Check ANTHROPIC_API_KEY and network connectivity',
+            alternatives: ['Review refinement logs for details', 'Try disabling with UATU_AI_REFINE=0']
+          }
+        });
+      }
+    } else if (!shouldRefine) {
+      log.info('AI test refinement disabled (UATU_AI_REFINE=0 or no provider)');
+    } else {
+      log.info('No AI test failures to refine');
+    }
+
+    result.executed = true;
+    
+    // Generate summary insights
+    const totalTests = result.pass1Results.reduce((sum, r) => sum + (r.count || 0), 0);
+    const totalPass2Tests = result.pass2Results.reduce((sum, r) => sum + (r.count || 0), 0);
+    
+    if (totalTests > 0) {
+      await insights.addInsight({
+        area: 'Tests',
+        summary: result.refinementApplied 
+          ? `AI tests executed with refinement: Pass 1 (${totalTests} tests), Pass 2 (${totalPass2Tests} tests)`
+          : `AI tests executed: ${totalTests} tests, no refinement needed`,
+        priority: 'Low',
+        evidence: { 
+          additionalContext: {
+            pass1Tests: totalTests, 
+            pass2Tests: totalPass2Tests, 
+            refinementApplied: result.refinementApplied 
+          }
+        },
+        rootCause: 'AI test execution completed successfully',
+        suggestedRemediation: {
+          preferred: 'Review AI test results and consider expanding test coverage'
+        }
+      });
+    }
+
+    return result;
+
+  } catch (error: any) {
+    log.error('AI test pipeline failed', { error: String(error) });
+    
+    await writeAutoInsights(runPath, {
+      cmd: 'ai-test-pipeline',
+      exitCode: 1,
+      stderr: String(error),
+      toolchain
+    });
+    
+    await insights.addInsight({
+      area: 'Tests',
+      summary: `AI test pipeline failed: ${error.message}`,
+      priority: 'High',
+      evidence: { additionalContext: { error: String(error) } },
+      rootCause: 'AI test pipeline encountered an unexpected error',
+      suggestedRemediation: {
+        preferred: 'Check AI provider configuration and logs',
+        alternatives: ['Review detailed error logs', 'Try disabling AI tests temporarily with UATU_AI_REFINE=0']
+      }
+    });
+    return result;
+  } finally {
+    // Optional: Clean up AI tests from sandbox if not debugging
+    if (process.env.UATU_CLEANUP_AI_TESTS === "1") {
+      await cleanupAiTestsFromSandbox(sandboxPath);
+    }
+  }
 }
