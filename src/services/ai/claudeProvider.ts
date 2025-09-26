@@ -30,6 +30,8 @@ export interface AITestGenerationResult {
 }
 
 export class ClaudeAIProvider {
+  public readonly name = "Claude CLI";
+  public readonly available = true; // Will be checked by provider selector
   private runPath: string;
   private liveLogger: any;
   private autoAccept: boolean;

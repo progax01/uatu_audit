@@ -493,6 +493,73 @@ const detectors: Detector[] = [
     }
     return null;
   },
+
+  // --- Unsupported Node version for Hardhat
+  (i) => {
+    const s = (i.stderr ?? "") + "\n" + (i.stdout ?? "");
+    if ((/not supported by Hardhat/i.test(s) || /Node (\d+) is unsupported by Hardhat/i.test(s)) && /hardhat/.test(i.cmd)) {
+      return {
+        area: "Toolchain",
+        severity: "low",
+        summary: "Unsupported Node version for Hardhat",
+        command: i.cmd,
+        exitCode: i.exitCode ?? undefined,
+        evidence: tail(s),
+        hypothesis: "Project is using Node >= 22; Hardhat expects an LTS (e.g., 18 or 20).",
+        remediation: [
+          "Use Node 18 or 20 in the sandbox (nvm/Volta/Docker).",
+          "Or set `UATU_HARDHAT_COVERAGE=0` to skip coverage."
+        ],
+        impact: "Low",
+      };
+    }
+    return null;
+  },
+
+  // --- Coverage OOM during Hardhat coverage
+  (i) => {
+    const s = (i.stderr ?? "") + "\n" + (i.stdout ?? "");
+    if (/FATAL ERROR: Reached heap limit|JavaScript heap out of memory/i.test(s) && /hardhat.*coverage/i.test(i.cmd)) {
+      return {
+        area: "Coverage",
+        severity: "medium",
+        summary: "Coverage OOM (V8 heap limit reached)",
+        command: i.cmd,
+        exitCode: i.exitCode ?? undefined,
+        evidence: tail(s),
+        hypothesis: "Coverage traversal exceeded memory limits (big repo + ts transforms).",
+        remediation: [
+          "Increase heap: export NODE_OPTIONS='--max-old-space-size=6144' (or 8192) before coverage.",
+          "Pass explicit test file list instead of globbing; exclude heavy dirs.",
+          "Consider running only unit smoke for coverage, or skip coverage for large suites."
+        ],
+        impact: "Medium",
+      };
+    }
+    return null;
+  },
+
+  // --- Network fixtures missing (Linea Sepolia)
+  (i) => {
+    const s = (i.stderr ?? "") + "\n" + (i.stdout ?? "");
+    if (/deployment file not found|MODULE_NOT_FOUND.*lineaSepolia|Setup failed.*Linea Sepolia/i.test(s)) {
+      return {
+        area: "Tests",
+        severity: "low",
+        summary: "Network-coupled tests require fixtures",
+        command: i.cmd,
+        exitCode: i.exitCode ?? undefined,
+        evidence: tail(s),
+        hypothesis: "Integration tests look for Linea Sepolia deployment files absent in sandbox.",
+        remediation: [
+          "Exclude network tests by default: '!test/lineaSepolia/**'",
+          "Or provide fixtures under '.uatu/sandbox/fixtures' and set UATU_INCLUDE_NETWORK_TESTS=1."
+        ],
+        impact: "Low"
+      };
+    }
+    return null;
+  },
 ];
 
 // ---- main

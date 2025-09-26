@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "fs-extra";
+import fg from "fast-glob";
 import { SOP, SOPInputs, SOPResult } from "../types.js";
 import { step, ProgressHook } from "../utils/stepHelper.js";
 import { exec as _exec } from "node:child_process";
@@ -14,6 +15,9 @@ import { writeAutoInsights } from "../services/insightAutoWriter.js";
 import { checkSourceMutation, createSourceSentinel, removeSourceSentinel, shouldEnableHardhatCoverage } from "../services/safetyGuards.js";
 import { createMutationBaseline, verifySourceIntegrity } from "../services/sourceMutationSentry.js";
 import { getClaudeCaps, isClaudeSandboxReady } from "../services/ai/claudeCaps.js";
+import { runPreflightChecks } from "../services/preflightChecker.js";
+import { enforceNodeLTS } from "../services/nodeVersionEnforcer.js";
+import { isDockerAvailable, runNodeInContainer, runFoundryInContainer, ensureDockerImage } from "../services/dockerSandboxRunner.js";
 
 const execp = promisify(_exec);
 const log = logger.child({ sop: 'executeEnhanced' });
@@ -80,6 +84,55 @@ export const executeEnhancedSOP: SOP = {
         framework: toolchain.detectedFramework 
       });
 
+      // SOP-15: Preflight Checks & Environment Setup
+      onProgress?.({ phase: "execute", step: "preflight-checks", pct: 15 });
+      const preflightResults = await runPreflightChecks(sandboxPath, toolchain, runPath);
+      
+      // Log preflight summary
+      log.info("Preflight checks completed", {
+        overall: preflightResults.overall,
+        nodeVersion: preflightResults.summary.nodeVersion,
+        dockerAvailable: preflightResults.summary.dockerAvailable,
+        networkTestsFound: preflightResults.summary.networkTestsFound,
+        coverageWillRun: preflightResults.summary.coverageWillRun,
+        estimatedRuntime: preflightResults.summary.estimatedRuntime
+      });
+
+      // Check if Docker should be used
+      const useDocker = process.env.UATU_USE_DOCKER === '1' && preflightResults.summary.dockerAvailable;
+      const executionMode = useDocker ? 'docker' : 'local';
+      
+      log.info(`Execution mode selected: ${executionMode}`, {
+        dockerAvailable: preflightResults.summary.dockerAvailable,
+        nodeVersion: preflightResults.summary.nodeVersion,
+        toolchain: toolchain.detectedFramework
+      });
+
+      // If using Docker, ensure required images are available
+      if (useDocker) {
+        onProgress?.({ phase: "execute", step: "docker-setup", pct: 20 });
+        
+        if (toolchain.hasFoundry) {
+          await ensureDockerImage('ghcr.io/foundry-rs/foundry:latest');
+        } else {
+          await ensureDockerImage('node:20-bullseye');
+        }
+      }
+
+      // Enforce Node LTS if using local execution and needed
+      if (!useDocker && (toolchain.hasNode || toolchain.hasHardhat)) {
+        onProgress?.({ phase: "execute", step: "node-setup", pct: 25 });
+        const nodeResult = await enforceNodeLTS(runPath, sandboxPath);
+        
+        if (!nodeResult.success) {
+          log.warn("Could not enforce Node LTS", {
+            currentVersion: nodeResult.version,
+            method: nodeResult.method,
+            error: nodeResult.error
+          });
+        }
+      }
+
       // SOP-20: Dependencies Materialization
       if (toolchain.hasNode || toolchain.hasHardhat) {
         onProgress?.({ phase: "execute", step: "deps-install", pct: 30 });
@@ -94,7 +147,7 @@ export const executeEnhancedSOP: SOP = {
 
       // SOP-40: Test Execution
       onProgress?.({ phase: "execute", step: "run-tests", pct: 70 });
-      const testResults = await runTests(sandboxPath, toolchain, insightGenerator);
+      const testResults = await runTests(sandboxPath, toolchain, insightGenerator, runPath, useDocker);
       executionResults.testsExecuted = testResults.executed;
 
       // SOP-70: Coverage Harvest (best effort)
@@ -290,16 +343,53 @@ async function compileProject(sandboxPath: string, toolchain: ToolchainInfo, ins
   }
 }
 
-async function runTests(sandboxPath: string, toolchain: ToolchainInfo, insights: InsightGenerator): Promise<{ executed: boolean, results?: any }> {
-  log.info('Running tests', { framework: toolchain.detectedFramework });
+async function runTests(
+  sandboxPath: string, 
+  toolchain: ToolchainInfo, 
+  insights: InsightGenerator, 
+  runPath: string, 
+  useDocker: boolean = false
+): Promise<{ executed: boolean, results?: any }> {
+  log.info('Running tests', { 
+    framework: toolchain.detectedFramework, 
+    executionMode: useDocker ? 'docker' : 'local' 
+  });
 
   try {
     let testOutput: string;
     
     if (toolchain.hasFoundry) {
-      testOutput = await runCmdLogged(sandboxPath, 'forge', ['test', '-vvv']);
+      if (useDocker) {
+        testOutput = await runFoundryInContainer(runPath, sandboxPath, ['forge test -vvv']);
+      } else {
+        testOutput = await runCmdLogged(sandboxPath, 'forge', ['test', '-vvv']);
+      }
     } else if (toolchain.hasHardhat) {
-      testOutput = await runCmdLogged(sandboxPath, 'npx', ['hardhat', 'test']);
+      // Build test file list, excluding network tests by default
+      const includeNetwork = process.env.UATU_INCLUDE_NETWORK_TESTS === "1";
+      const testGlobs = includeNetwork
+        ? ["test/**/*.ts", "test/**/*.tsx", "test/**/*.js"]
+        : ["test/**/*.ts", "test/**/*.tsx", "test/**/*.js", "!test/lineaSepolia/**"];
+      
+      const testFiles = await fg(testGlobs, { cwd: sandboxPath });
+      
+      if (testFiles.length > 0) {
+        if (useDocker) {
+          const testFileArgs = testFiles.map(f => `"${f}"`).join(' ');
+          const testCommand = `npx hardhat test ${testFileArgs}`;
+          testOutput = await runNodeInContainer(runPath, sandboxPath, [testCommand]);
+        } else {
+          const testArgs = ['hardhat', 'test'];
+          // Add each test file explicitly
+          for (const file of testFiles) {
+            testArgs.push(file);
+          }
+          testOutput = await runCmdLogged(sandboxPath, 'npx', testArgs);
+        }
+      } else {
+        log.info('No test files found after filtering');
+        testOutput = 'No tests to run';
+      }
     } else if (toolchain.hasAnchor) {
       testOutput = await runCmdLogged(sandboxPath, 'anchor', ['test']);
     } else if (toolchain.hasSoroban) {
@@ -357,19 +447,60 @@ async function harvestCoverage(sandboxPath: string, toolchain: ToolchainInfo, in
 
     if (toolchain.hasHardhat && shouldEnableHardhatCoverage() && !isFeatureDisabled(inputs, 'coverage')) {
       try {
-        // Use safe extglob approach for coverage
-        await runCmdLogged(sandboxPath, 'bash', [
-          '-lc', 
-          'shopt -s extglob; npx hardhat coverage --testfiles "test/!(excludeDir)/**/*.ts"'
-        ]);
-        
-        const coverageSummaryPath = path.join(sandboxPath, 'coverage', 'coverage-summary.json');
-        if (await fs.pathExists(coverageSummaryPath)) {
-          coverageData.hardhat = await fs.readJson(coverageSummaryPath);
+        // Determine Node major version inside sandbox
+        let major = NaN;
+        try {
+          const out = await execp('node -p "process.versions.node.split(\'.\')[0]"', { cwd: sandboxPath });
+          major = parseInt((out.stdout || '').trim(), 10);
+        } catch {
+          await writeAutoInsights(path.dirname(sandboxPath), {
+            cmd: 'node -p process.versions.node',
+            exitCode: null,
+            stdout: '',
+            stderr: 'Could not determine Node version in sandbox.',
+            toolchain: { hasHardhat: true }
+          });
+        }
+
+        // Gate: skip coverage if Node is unsupported (>=22)
+        if (Number.isFinite(major) && major >= 22) {
+          await writeAutoInsights(path.dirname(sandboxPath), {
+            cmd: 'npx hardhat coverage',
+            exitCode: null,
+            stdout: '',
+            stderr: `Node ${major} is unsupported by Hardhat; skipping coverage.`,
+            toolchain: { hasHardhat: true }
+          });
+          await fs.writeJson(path.join(sandboxPath, '..', 'coverage.norm.json'), { reason: 'unsupported_node', node: major }, { spaces: 2 });
+        } else {
+          // Memory headroom for V8 heap; default to 6144 MB
+          const heapMb = parseInt(process.env.UATU_NODE_HEAP_MB || '6144', 10);
+
+          // Build test file list excluding network tests by default
+          const includeNetwork = process.env.UATU_INCLUDE_NETWORK_TESTS === "1";
+          const testGlobs = includeNetwork
+            ? ["test/**/*.ts", "test/**/*.tsx", "test/**/*.js"]
+            : ["test/**/*.ts", "test/**/*.tsx", "test/**/*.js", "!test/lineaSepolia/**"];
+          
+          const testFiles = await fg(testGlobs, { cwd: sandboxPath });
+          
+          if (testFiles.length > 0) {
+            // Build command with explicit test files 
+            const testFileArgs = testFiles.map(f => `--testfiles "${f}"`).join(' ');
+            const cmd = `export NODE_OPTIONS="--max-old-space-size=${heapMb}"; npx hardhat coverage ${testFileArgs}`;
+            await runCmdLogged(sandboxPath, 'bash', ['-lc', cmd]);
+          } else {
+            log.info('No test files found for coverage');
+          }
+
+          const coverageSummaryPath = path.join(sandboxPath, 'coverage', 'coverage-summary.json');
+          if (await fs.pathExists(coverageSummaryPath)) {
+            coverageData.hardhat = await fs.readJson(coverageSummaryPath);
+          }
         }
       } catch (coverageError: any) {
         log.debug('Hardhat coverage failed (non-critical)', { error: coverageError });
-        
+
         // Generate auto-insights for coverage failures
         await writeAutoInsights(path.dirname(sandboxPath), {
           cmd: 'npx hardhat coverage',
@@ -378,7 +509,7 @@ async function harvestCoverage(sandboxPath: string, toolchain: ToolchainInfo, in
           stderr: coverageError.stderr || coverageError.message || String(coverageError),
           toolchain
         });
-        
+
         await insights.addCoverageIssue('Hardhat coverage collection failed', { error: String(coverageError) });
       }
     } else if (toolchain.hasHardhat && !shouldEnableHardhatCoverage()) {

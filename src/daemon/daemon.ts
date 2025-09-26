@@ -6,7 +6,7 @@ import fs from "fs-extra";
 import { loadProgress } from "../services/progressService.js";
 import { resolveWorkspace } from "../services/workspaceService.js";
 import { runAll } from "../services/runAll.js";
-import { claimNext, complete, enqueue, recoverStuckJobs } from "../services/jobQueue.js";
+import { claimNext, complete, enqueue, recoverStuckJobs, cleanupJobs } from "../services/jobQueue.js";
 import { getUatuHome, getUserId } from "../constants/paths.js";
 import { logger, createJobLogger } from "../utils/logger.js";
 import { Metrics } from "../services/metrics.js";
@@ -487,6 +487,26 @@ async function handleRequest(req: any, res: any) {
         console.error("Enqueue error:", error);
         res.statusCode = 500;
         res.end("Internal server error");
+        return;
+      }
+    }
+
+    if (req.method === "POST" && parsed.pathname === "/cleanup") {
+      try {
+        const result = await cleanupJobs();
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ 
+          ok: true, 
+          message: `Cleaned up ${result.removed} old jobs`, 
+          removed: result.removed,
+          remaining: result.remaining 
+        }));
+        return;
+      } catch (error) {
+        console.error("Cleanup error:", error);
+        res.statusCode = 500;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ ok: false, error: "Cleanup failed" }));
         return;
       }
     }

@@ -5,6 +5,7 @@ import { step, ProgressHook } from "../utils/stepHelper.js";
 import { ClaudeAIProvider } from "../services/ai/claudeProvider.js";
 import { createLiveLogger } from "../services/liveLogger.js";
 import { suggestTestsWithAnthropic } from "../services/ai/anthropicProvider.js";
+import { selectAIProvider, isAnyAIProviderAvailable } from "../services/ai/aiProviderSelector.js";
 import { TestPlanGenerator } from "../services/testPlanGenerator.js";
 import { SkeletonGenerator } from "../services/skeletonGenerator.js";
 import { DEFAULT_TEST_STYLES } from "../services/testStyles.js";
@@ -100,28 +101,40 @@ export const testgenSOP: SOP = {
 
     await step(onProgress, { phase: "testgen", step: "integration-scenarios", pct: 80 });
 
-        // Enhanced AI test generation with Claude CLI (non-blocking)
+        // Enhanced AI test generation with configurable provider (non-blocking)
         if ((i as any).ai && projectStructure) {
           await step(onProgress, { phase: "testgen", step: "ai-generation", pct: 90 });
 
-          // Run AI generation in the background, don't block the main flow
-          const aiGenerationPromise = (async () => {
-            try {
-              liveLogger.info('Generating AI tests with Claude CLI');
+          // Check if any AI provider is available
+          const hasAIProvider = await isAnyAIProviderAvailable();
+          if (!hasAIProvider) {
+            liveLogger.warn('No AI providers available, skipping AI test generation');
+          } else {
+            // Run AI generation in the background, don't block the main flow
+            const aiGenerationPromise = (async () => {
+              try {
+                liveLogger.info('Starting AI test generation with selected provider');
 
-              const claudeProvider = new ClaudeAIProvider(runPath, true); // Auto-accept mode
+                const aiProvider = await selectAIProvider(runPath, true); // Auto-accept mode
+                
+                if (!aiProvider) {
+                  liveLogger.warn('No AI provider could be initialized');
+                  return;
+                }
 
-              const aiRequest = {
-                projectPath: i.projectPath as string,
-                runPath,
-                contractFiles: projectStructure.mainContracts || [],
-                existingTests: projectStructure.testFiles || [],
-                projectStructure,
-                securityFocus: true,
-                testTypes: ['unit', 'integration'] as ('unit' | 'integration' | 'fuzz' | 'invariant')[]
-              };
+                liveLogger.info(`Using AI provider: ${aiProvider.name}`);
 
-              const aiResult = await claudeProvider.generateTests(aiRequest);
+                const aiRequest = {
+                  projectPath: i.projectPath as string,
+                  runPath,
+                  contractFiles: projectStructure.mainContracts || [],
+                  existingTests: projectStructure.testFiles || [],
+                  projectStructure,
+                  securityFocus: true,
+                  testTypes: ['unit', 'integration'] as ('unit' | 'integration' | 'fuzz' | 'invariant')[]
+                };
+
+                const aiResult = await aiProvider.generateTests(aiRequest);
 
               if (aiResult.success) {
                 liveLogger.info('AI test generation completed', {
@@ -146,7 +159,10 @@ export const testgenSOP: SOP = {
                 liveLogger.warn('AI test generation failed', { errors: aiResult.errors });
               }
 
-              await claudeProvider.close();
+              // Close provider if it has a close method (for backwards compatibility)
+              if (typeof (aiProvider as any).close === 'function') {
+                await (aiProvider as any).close();
+              }
 
             } catch (err: any) {
               liveLogger.error('AI test generation failed', { error: String(err) });
@@ -165,6 +181,7 @@ export const testgenSOP: SOP = {
           aiGenerationPromise.catch(() => {}); // Prevent unhandled rejection
           
           liveLogger.info('AI test generation started in background, continuing with audit');
+          }
         }
 
     await step(onProgress, { phase: "testgen", step: "testgen-complete", pct: 100 });

@@ -90,12 +90,13 @@ export async function enqueue(job: Omit<AuditJob, "id" | "status" | "createdAt">
   return withQueueLock(async () => {
     const q = await load();
 
-    // Idempotent enqueue - check for existing work
+    // Always create a new job - users should be able to re-run audits
     const key = `${job.repo}@${job.branch}@${job.commit ?? "-"}`;
+    
+    // Check if there's an existing job for logging purposes
     const existing = q.jobs.find(j => j.status !== "failed" && j.key === key);
     if (existing) {
-      console.log(`Job already exists for ${key}, returning existing job ${existing.id}`);
-      return existing;
+      console.log(`Previous job exists for ${key} (ID ${existing.id}), but creating new job as requested`);
     }
 
     const newJob: AuditJob = {
@@ -109,6 +110,12 @@ export async function enqueue(job: Omit<AuditJob, "id" | "status" | "createdAt">
     };
     q.jobs.push(newJob);
     await save(q);
+    
+    console.log(`New job created: ID ${newJob.id} for ${key}`);
+    
+    // Optional: Clean up old completed jobs to prevent queue bloat
+    await cleanupOldJobs(q);
+    
     return newJob;
   });
 }
@@ -207,5 +214,65 @@ export async function updateJobNote(jobId: number, note: string) {
   await withQueueLock(async () => {
     const q = await load(); const j = q.jobs.find(x => x.id === jobId); if (!j) return;
     j.note = note; await save(q);
+  });
+}
+
+// Clean up old completed jobs to prevent queue bloat
+async function cleanupOldJobs(q: QueueFile): Promise<void> {
+  const maxCompletedJobs = parseInt(process.env.UATU_MAX_COMPLETED_JOBS || '50');
+  const maxJobAge = parseInt(process.env.UATU_MAX_JOB_AGE_DAYS || '7');
+  
+  if (maxCompletedJobs <= 0 && maxJobAge <= 0) {
+    return; // Cleanup disabled
+  }
+  
+  const now = new Date();
+  const cutoffDate = new Date(now.getTime() - (maxJobAge * 24 * 60 * 60 * 1000));
+  
+  const initialCount = q.jobs.length;
+  
+  // Remove jobs that are too old
+  if (maxJobAge > 0) {
+    q.jobs = q.jobs.filter(job => {
+      if (job.status === 'pending' || job.status === 'running') {
+        return true; // Never remove active jobs
+      }
+      
+      const jobDate = new Date(job.finishedAt || job.createdAt);
+      return jobDate > cutoffDate;
+    });
+  }
+  
+  // Keep only the most recent completed jobs if we have too many
+  if (maxCompletedJobs > 0) {
+    const completedJobs = q.jobs
+      .filter(job => job.status === 'done' || job.status === 'failed')
+      .sort((a, b) => new Date(b.finishedAt || b.createdAt).getTime() - new Date(a.finishedAt || a.createdAt).getTime());
+    
+    const activeJobs = q.jobs.filter(job => job.status === 'pending' || job.status === 'running');
+    const recentCompleted = completedJobs.slice(0, maxCompletedJobs);
+    
+    q.jobs = [...activeJobs, ...recentCompleted];
+  }
+  
+  const finalCount = q.jobs.length;
+  if (finalCount < initialCount) {
+    console.log(`Cleaned up ${initialCount - finalCount} old jobs (${finalCount} remaining)`);
+    await save(q);
+  }
+}
+
+// Public function to manually trigger cleanup
+export async function cleanupJobs(): Promise<{ removed: number; remaining: number }> {
+  return withQueueLock(async () => {
+    const q = await load();
+    const initialCount = q.jobs.length;
+    await cleanupOldJobs(q);
+    const finalCount = q.jobs.length;
+    
+    return {
+      removed: initialCount - finalCount,
+      remaining: finalCount
+    };
   });
 }
