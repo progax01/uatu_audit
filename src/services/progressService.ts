@@ -16,22 +16,75 @@ export type RunProgress = {
   last_event?: string;
 };
 
-async function atomicWrite(file: string, data: unknown) {
-  try {
-    await fs.ensureDir(path.dirname(file));
-    const tmp = `${file}.tmp`;
-    await fs.writeJson(tmp, data, { spaces: 2 });
-    await fs.move(tmp, file, { overwrite: true });
-  } catch (error: any) {
-    console.error('atomicWrite failed:', {
-      file,
-      tmpFile: `${file}.tmp`,
-      error: error.message,
-      code: error.code,
-      errno: error.errno
-    });
-    throw error;
+async function atomicWrite(file: string, data: unknown, maxRetries: number = 3) {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Ensure directory exists before each attempt
+      await fs.ensureDir(path.dirname(file));
+
+      const tmp = `${file}.tmp`;
+
+      // Clean up any existing temp files first
+      try {
+        await fs.remove(tmp);
+      } catch {
+        // Ignore cleanup errors
+      }
+
+      // Write to temp file
+      await fs.writeJson(tmp, data, { spaces: 2 });
+
+      // Verify temp file exists before rename
+      if (!(await fs.pathExists(tmp))) {
+        throw new Error('Temp file creation failed');
+      }
+
+      // Ensure directory still exists (race condition protection)
+      await fs.ensureDir(path.dirname(file));
+
+      // Atomic rename
+      await fs.move(tmp, file, { overwrite: true });
+
+      // Verify final file exists
+      if (!(await fs.pathExists(file))) {
+        throw new Error('Final file creation failed');
+      }
+
+      return; // Success - exit retry loop
+
+    } catch (error: any) {
+      lastError = error;
+
+      // Clean up temp file on error
+      try {
+        await fs.remove(`${file}.tmp`);
+      } catch {
+        // Ignore cleanup errors
+      }
+
+      if (attempt < maxRetries && (error.code === 'ENOENT' || error.code === 'EEXIST')) {
+        // Wait before retry for filesystem race conditions
+        await new Promise(resolve => setTimeout(resolve, 50 * attempt));
+        continue;
+      } else {
+        // Log error details
+        console.error('atomicWrite failed after retries:', {
+          file,
+          tmpFile: `${file}.tmp`,
+          error: error.message,
+          code: error.code,
+          errno: error.errno,
+          attempt,
+          maxRetries
+        });
+        break;
+      }
+    }
   }
+
+  throw lastError || new Error('atomicWrite failed with unknown error');
 }
 
 export function newProgress(project: string, branch: string, timestamp: string): RunProgress {

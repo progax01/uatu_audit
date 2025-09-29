@@ -26,7 +26,7 @@ export interface DockerRunOptions {
 // Predefined container profiles for different ecosystems
 export const CONTAINER_PROFILES: Record<string, DockerProfile> = {
   node: {
-    image: 'node:20-bullseye',
+    image: 'node:20-alpine', // Lightweight Node.js 20
     memory: '8g',
     cpus: '2',
     pidLimit: 1024,
@@ -119,7 +119,7 @@ export async function runInContainer(options: DockerRunOptions): Promise<string>
     '--security-opt', 'no-new-privileges', // Security hardening
     '--cap-drop', 'ALL', // Drop all capabilities
     '--cap-add', 'DAC_OVERRIDE', // Only allow file access override
-    '--network', 'none', // No network access by default
+    '--network', 'bridge', // Enable network for npm installs
     '--cpus', profile.cpus,
     '--memory', profile.memory,
     '--pids-limit', profile.pidLimit.toString(),
@@ -134,7 +134,10 @@ export async function runInContainer(options: DockerRunOptions): Promise<string>
     NODE_OPTIONS: `--max-old-space-size=${heapMb}`,
     npm_config_legacy_peer_deps: 'true',
     npm_config_fund: 'false',
-    npm_config_audit: 'false'
+    npm_config_audit: 'false',
+    // Pass through project-specific environment variables
+    // Provide SEPOLIA_RPC_URL with localhost fallback to prevent hardhat.config.ts errors
+    SEPOLIA_RPC_URL: process.env.SEPOLIA_RPC_URL || 'http://localhost:8545'
   };
 
   for (const [key, value] of Object.entries(envVars)) {
@@ -188,13 +191,16 @@ export async function runNodeInContainer(
   
   // Build a compound command that installs deps and runs the actual commands
   const fullCommand = [
-    'bash', '-lc', 
+    'sh', '-c',
     [
-      'set -e', // Exit on any error
-      'echo "Installing dependencies..."',
-      'if [ -f package-lock.json ]; then npm ci --silent --no-progress; else npm i --silent --no-progress; fi',
-      'echo "Dependencies installed successfully"',
-      ...commands.map(cmd => `echo "Running: ${cmd}" && ${cmd}`)
+      'set -e',
+      'echo "Current directory: $(pwd)"',
+      'echo "Installing hardhat and dependencies..."',
+      'npm install hardhat @nomicfoundation/hardhat-toolbox @nomicfoundation/hardhat-chai-matchers @nomicfoundation/hardhat-ethers @nomicfoundation/hardhat-network-helpers @typechain/ethers-v6 @types/chai chai ethers hardhat-gas-reporter solidity-coverage typechain --save-dev --verbose --legacy-peer-deps',
+      'echo "Verifying hardhat installation..."',
+      'ls -la node_modules/.bin/hardhat',
+      './node_modules/.bin/hardhat --version',
+      ...commands.map(cmd => `echo "Running: ${cmd}" && ${cmd.replace('npx hardhat', './node_modules/.bin/hardhat')}`)
     ].join(' && ')
   ];
 

@@ -18,6 +18,7 @@ import { getClaudeCaps, isClaudeSandboxReady } from "../services/ai/claudeCaps.j
 import { runPreflightChecks } from "../services/preflightChecker.js";
 import { enforceNodeLTS } from "../services/nodeVersionEnforcer.js";
 import { isDockerAvailable, runNodeInContainer, runFoundryInContainer, ensureDockerImage } from "../services/dockerSandboxRunner.js";
+import { executeNodeInDocker } from "../services/dockerSandbox.js";
 import { copyAiTestsToSandbox, cleanupAiTestsFromSandbox } from "../services/ai/aiCopy.js";
 import { runAllAiTestPasses, type AiTestRunResult } from "../services/ai/aiRunners.js";
 import { collectAllAiFailures } from "../services/ai/failureCollectors.js";
@@ -110,7 +111,10 @@ export const executeEnhancedSOP: SOP = {
       log.info(`Execution mode selected: ${executionMode}`, {
         dockerAvailable: preflightResults.summary.dockerAvailable,
         nodeVersion: preflightResults.summary.nodeVersion,
-        toolchain: toolchain.detectedFramework
+        toolchain: toolchain.detectedFramework,
+        UATU_USE_DOCKER: process.env.UATU_USE_DOCKER,
+        UATU_SANDBOX: process.env.UATU_SANDBOX,
+        useDockerCalculation: `${process.env.UATU_USE_DOCKER} === '1' && ${preflightResults.summary.dockerAvailable} = ${useDocker}`
       });
 
       // If using Docker, ensure required images are available
@@ -141,7 +145,7 @@ export const executeEnhancedSOP: SOP = {
       // SOP-20: Dependencies Materialization
       if (toolchain.hasNode || toolchain.hasHardhat) {
         onProgress?.({ phase: "execute", step: "deps-install", pct: 30 });
-        await installNodeDependencies(sandboxPath, insightGenerator);
+        await installNodeDependencies(sandboxPath, insightGenerator, useDocker);
         executionResults.dependenciesInstalled = true;
       }
 
@@ -286,8 +290,27 @@ export const executeEnhancedSOP: SOP = {
   }
 };
 
-async function installNodeDependencies(sandboxPath: string, insights: InsightGenerator): Promise<void> {
-  log.info('Installing Node dependencies', { sandboxPath });
+async function installNodeDependencies(sandboxPath: string, insights: InsightGenerator, useDocker: boolean = false): Promise<void> {
+  log.info('Installing Node dependencies', { sandboxPath, useDocker });
+
+  if (useDocker) {
+    // Use Docker for dependency installation
+    try {
+      const dockerResult = await executeNodeInDocker("install", sandboxPath);
+      log.info('Dependencies installed successfully in Docker', {
+        stdout: dockerResult.stdout.substring(0, 200),
+        stderr: dockerResult.stderr ? dockerResult.stderr.substring(0, 200) : 'none'
+      });
+      return;
+    } catch (dockerError: any) {
+      log.error('Docker dependency installation failed', { error: String(dockerError) });
+      await insights.addDependencyFailure('docker install', dockerError.code || 1, dockerError.message || String(dockerError), 'docker');
+      throw dockerError;
+    }
+  }
+
+  // Local installation (fallback or when Docker not enabled)
+  log.info('Using local dependency installation', { useDocker: false });
 
   const hasPackageLock = await fs.pathExists(path.join(sandboxPath, 'package-lock.json'));
   const hasYarnLock = await fs.pathExists(path.join(sandboxPath, 'yarn.lock'));
@@ -334,8 +357,9 @@ async function compileProject(sandboxPath: string, toolchain: ToolchainInfo, ins
       await runCmdLogged(sandboxPath, 'forge', ['build']);
       log.info('Foundry compilation successful');
     } else if (toolchain.hasHardhat) {
-      await runCmdLogged(sandboxPath, 'npx', ['hardhat', 'compile']);
-      log.info('Hardhat compilation successful');
+      // Force direct hardhat binary usage - no npx fallback
+      await runCmdLogged(sandboxPath, './node_modules/.bin/hardhat', ['compile']);
+      log.info('Hardhat compilation successful (direct binary)');
     } else if (toolchain.hasAnchor) {
       await runCmdLogged(sandboxPath, 'anchor', ['build']);
       log.info('Anchor compilation successful');

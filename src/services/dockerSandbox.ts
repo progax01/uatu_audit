@@ -39,7 +39,7 @@ export async function executeInDocker(
   options: DockerOptions = {}
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   const {
-    image = 'node:18-alpine',
+    image = 'node:20-alpine',
     workDir = '/workspace',
     timeout = 15 * 60 * 1000, // 15 minutes default
     networkMode = 'none',
@@ -64,8 +64,9 @@ export async function executeInDocker(
     '--cap-drop=ALL', // Drop all capabilities
     '--cap-add=DAC_OVERRIDE', // Only add necessary capabilities
     '--user', '1000:1000', // Non-root user
-    '-v', `${sandboxPath}:${workDir}:ro`, // Mount as read-only
+    '-v', `${sandboxPath}:${workDir}:rw`, // Mount as read-write for npm operations
     '-v', `${sandboxPath}/.uatu/temp:${workDir}/.uatu/temp:rw`, // Allow writing to temp dir
+    '--tmpfs', `${workDir}/node_modules:rw,noexec,nosuid,size=1g`, // Writable node_modules in tmpfs
     '-w', workDir,
     image
   ];
@@ -152,14 +153,22 @@ export async function executeNodeInDocker(
   options: DockerOptions = {}
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   const nodeOptions = {
-    image: 'node:18-alpine',
+    image: 'node:20-alpine',
     ...options
   };
 
   let args: string[] = [];
   switch (command) {
     case 'install':
-      args = ['npm', 'install', '--prefer-offline', '--no-audit', '--no-fund'];
+      // Install hardhat and all dependencies explicitly
+      args = [
+        'sh', '-c',
+        'echo "Installing hardhat and dependencies..." && ' +
+        'npm install hardhat @nomicfoundation/hardhat-toolbox @nomicfoundation/hardhat-chai-matchers @nomicfoundation/hardhat-ethers @nomicfoundation/hardhat-network-helpers @typechain/ethers-v6 @types/chai chai ethers hardhat-gas-reporter solidity-coverage typechain --save-dev --verbose --legacy-peer-deps && ' +
+        'echo "Verification: Hardhat binary check..." && ' +
+        'ls -la node_modules/.bin/hardhat && ' +
+        './node_modules/.bin/hardhat --version'
+      ];
       break;
     case 'test':
       args = ['npm', 'test'];

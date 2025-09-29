@@ -22,7 +22,7 @@
   .caps{font-weight:700;letter-spacing:.02em}
   .card{background:var(--card);border:1px solid #24356e;border-radius:16px;padding:16px;margin-top:16px}
   .muted{color:var(--muted)}
-  pre{background:#0b122b;border:1px solid #253469;color:#d7e0ff;border-radius:10px;padding:12px;max-height:260px;overflow:auto}
+  pre{background:#0b122b;border:1px solid #253469;color:#d7e0ff;border-radius:10px;padding:12px;max-height:300px;overflow:auto;font-size:12px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word}
   .pill{display:inline-block;padding:6px 10px;border:1px solid #3551a7;border-radius:20px;margin-right:6px}
 </style>
 </head>
@@ -266,7 +266,32 @@ async function pollLogs(){
   const r = await fetch(`${base()}/logs?project=${encodeURIComponent(state.project)}&branch=${encodeURIComponent(state.branch)}&tail=400`);
   if (!r.ok){ $("logBox").textContent = await r.text(); return; }
   const j = await r.json();
-  $("logBox").textContent = `# Run: ${j.run}\n\n[execute.log]\n${j.execute}\n\n[cli.log]\n${j.cli}`;
+
+  // Format and clean up the CLI logs for better readability
+  let cleanedCli = j.cli || "";
+
+  // Try to parse and format JSON lines for better readability
+  const cliLines = cleanedCli.split('\n');
+  const formattedLines = cliLines.map(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        // Extract key information from JSON logs
+        const timestamp = parsed.timestamp ? new Date(parsed.timestamp).toLocaleTimeString() : '';
+        const level = parsed.level || 'info';
+        const message = parsed.message || parsed.data?.summary || '';
+        const module = parsed.module || '';
+
+        return `[${timestamp}] ${level.toUpperCase()}: ${message} ${module ? `(${module})` : ''}`;
+      } catch (e) {
+        return line; // Return original line if JSON parsing fails
+      }
+    }
+    return line;
+  });
+
+  $("logBox").textContent = `# Run: ${j.run}\n\n[execute.log]\n${j.execute}\n\n[cli.log (formatted)]\n${formattedLines.join('\n')}`;
 }
 
 function downloadReport(format = 'pdf'){
