@@ -1,0 +1,12 @@
+{
+  "name": "hardhat-sample",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "echo building",
+    "compile": "hardhat compile"
+  },
+  "devDependencies": {
+    "hardhat": "^2.9.9"
+  }
+}

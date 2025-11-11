@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  uatu:
+    build: 
+      context: .
+      dockerfile: Dockerfile.new
+    ports:
+      - "9090:9090"
+    volumes:
+      - uatu_data:/root/.uatu
+      # Mount source for development
+      - .:/app
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
+    environment:
+      - NODE_ENV=production
+      - PORT=9090
+    env_file:
+      - .env
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+volumes:
+  uatu_data:
+    name: uatu_data

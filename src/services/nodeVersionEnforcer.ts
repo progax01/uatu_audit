@@ -21,9 +21,9 @@ export async function getNodeVersionInfo(cwd: string = process.cwd()): Promise<N
     const version = versionOutput.trim().replace('v', '');
     const major = parseInt(version.split('.')[0], 10);
     
-    // LTS versions as of 2024: 18.x, 20.x
+    // Support newer versions
     const isLTS = major === 18 || major === 20;
-    const isSupported = major >= 18 && major <= 20;
+    const isSupported = major >= 18; // Allow newer versions
     
     return {
       current: version,

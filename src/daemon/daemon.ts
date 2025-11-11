@@ -28,8 +28,8 @@ export async function startDaemon() {
 
   // Start HTTP server
   const server = createServer(handleRequest);
-  server.listen(PORT, () => {
-    console.log(`📡 HTTP server listening on http://localhost:${PORT}`);
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`📡 HTTP server listening on http://0.0.0.0:${PORT}`);
   });
 
   // Graceful shutdown
@@ -47,7 +47,50 @@ async function handleRequest(req: any, res: any) {
   try {
     // CORS
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS,HEAD");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    // Handle static files
+    if (req.method === "GET") {
+      let filePath = parsed.pathname;
+      if (filePath === "/") filePath = "/index.html";
+      
+      const fullPath = path.join(__dirname, "../..", filePath);
+      if (await fs.pathExists(fullPath) && !fullPath.includes("..")) {
+        const ext = path.extname(fullPath);
+        const contentTypes: Record<string, string> = {
+          ".html": "text/html",
+          ".css": "text/css",
+          ".js": "application/javascript",
+          ".json": "application/json",
+          ".png": "image/png",
+          ".jpg": "image/jpeg",
+          ".gif": "image/gif",
+        };
+        
+        try {
+          const content = await fs.readFile(fullPath);
+          res.setHeader("Content-Type", contentTypes[ext] || "application/octet-stream");
+          res.writeHead(200);
+          res.end(content);
+          return;
+        } catch (err) {
+          logger.error(`Error reading file ${filePath}:`, err);
+        }
+      }
+    }
+
+    // Serve index.html for root path
+    if (parsed.pathname === "/" || parsed.pathname === "/index.html") {
+      const indexPath = path.join(__dirname, "../../index.html");
+      if (await fs.pathExists(indexPath)) {
+        const content = await fs.readFile(indexPath, "utf8");
+        res.setHeader("Content-Type", "text/html");
+        res.writeHead(200);
+        res.end(content);
+        return;
+      }
+    }
     res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Hub-Signature-256");
     if (req.method === "OPTIONS") { res.statusCode = 204; res.end(); return; }
 

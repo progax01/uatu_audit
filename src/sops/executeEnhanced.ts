@@ -18,7 +18,7 @@ import { getClaudeCaps, isClaudeSandboxReady } from "../services/ai/claudeCaps.j
 import { runPreflightChecks } from "../services/preflightChecker.js";
 import { enforceNodeLTS } from "../services/nodeVersionEnforcer.js";
 import { isDockerAvailable, runNodeInContainer, runFoundryInContainer, ensureDockerImage } from "../services/dockerSandboxRunner.js";
-import { executeNodeInDocker } from "../services/dockerSandbox.js";
+import { executeNodeInDocker, executeInDocker } from "../services/dockerSandbox.js";
 import { copyAiTestsToSandbox, cleanupAiTestsFromSandbox } from "../services/ai/aiCopy.js";
 import { runAllAiTestPasses, type AiTestRunResult } from "../services/ai/aiRunners.js";
 import { collectAllAiFailures } from "../services/ai/failureCollectors.js";
@@ -104,9 +104,11 @@ export const executeEnhancedSOP: SOP = {
         estimatedRuntime: preflightResults.summary.estimatedRuntime
       });
 
-      // Check if Docker should be used
-      const useDocker = process.env.UATU_USE_DOCKER === '1' && preflightResults.summary.dockerAvailable;
-      const executionMode = useDocker ? 'docker' : 'local';
+  // Check if Docker should be used. Prefer Docker when available.
+  // Allow forcing via UATU_USE_DOCKER=1; otherwise if dockerAvailable prefer docker.
+  const forceDocker = process.env.UATU_USE_DOCKER === '1';
+  const useDocker = preflightResults.summary.dockerAvailable ? true : forceDocker;
+  const executionMode = useDocker ? 'docker' : 'local';
       
       log.info(`Execution mode selected: ${executionMode}`, {
         dockerAvailable: preflightResults.summary.dockerAvailable,
@@ -118,7 +120,7 @@ export const executeEnhancedSOP: SOP = {
       });
 
       // If using Docker, ensure required images are available
-      if (useDocker) {
+  if (useDocker) {
         onProgress?.({ phase: "execute", step: "docker-setup", pct: 20 });
         
         if (toolchain.hasFoundry) {
@@ -149,9 +151,9 @@ export const executeEnhancedSOP: SOP = {
         executionResults.dependenciesInstalled = true;
       }
 
-      // SOP-30: Compile
+  // SOP-30: Compile
       onProgress?.({ phase: "execute", step: "compile", pct: 50 });
-      const compileSuccess = await compileProject(sandboxPath, toolchain, insightGenerator);
+  const compileSuccess = await compileProject(sandboxPath, toolchain, insightGenerator, useDocker);
       executionResults.compilationSucceeded = compileSuccess;
 
       // SOP-35: AI Test Execution (2-pass refinement)
@@ -322,7 +324,9 @@ async function installNodeDependencies(sandboxPath: string, insights: InsightGen
   } else if (hasYarnLock) {
     installCmd = 'yarn install --frozen-lockfile';
   } else if (hasPackageLock) {
-    installCmd = 'npm ci --silent --no-progress';
+    // Ensure devDependencies (hardhat, tooling) are installed even when NODE_ENV=production
+    // Use npm_config_production=false which is widely supported and works across npm versions
+    installCmd = 'npm_config_production=false npm ci --silent --no-progress';
   } else {
     installCmd = 'npm install --silent --no-progress';
   }
@@ -330,7 +334,7 @@ async function installNodeDependencies(sandboxPath: string, insights: InsightGen
   try {
     await retryOperation(async () => {
       const output = await runCmdLogged(sandboxPath, 'bash', ['-c', installCmd]);
-      log.info('Dependencies installed successfully');
+      log.info('Dependencies installed successfully', { installCmd, output: String(output).substring(0, 200) });
       return output;
     }, 1); // 1 retry for network issues
   } catch (error: any) {
@@ -340,7 +344,7 @@ async function installNodeDependencies(sandboxPath: string, insights: InsightGen
     await writeAutoInsights(path.dirname(sandboxPath), {
       cmd: installCmd,
       exitCode: error.code || 1,
-      stdout: error.stdout || '',
+      stdout: error.stdout || (error.stdout === undefined ? '' : String(error.stdout)),
       stderr: error.stderr || error.message || String(error),
       toolchain: { hasNode: true }
     });
@@ -349,7 +353,7 @@ async function installNodeDependencies(sandboxPath: string, insights: InsightGen
   }
 }
 
-async function compileProject(sandboxPath: string, toolchain: ToolchainInfo, insights: InsightGenerator): Promise<boolean> {
+async function compileProject(sandboxPath: string, toolchain: ToolchainInfo, insights: InsightGenerator, useDocker: boolean = false): Promise<boolean> {
   log.info('Compiling project', { framework: toolchain.detectedFramework });
 
   try {
@@ -357,8 +361,80 @@ async function compileProject(sandboxPath: string, toolchain: ToolchainInfo, ins
       await runCmdLogged(sandboxPath, 'forge', ['build']);
       log.info('Foundry compilation successful');
     } else if (toolchain.hasHardhat) {
-      // Force direct hardhat binary usage - no npx fallback
-      await runCmdLogged(sandboxPath, './node_modules/.bin/hardhat', ['compile']);
+      if (useDocker) {
+        log.info('Compiling Hardhat project inside Docker for deterministic build');
+        try {
+          // Install dependencies and hardhat in docker, then run compile
+          const dockerInstall = await executeNodeInDocker('install', sandboxPath);
+          log.info('Docker install output', { stdout: dockerInstall.stdout?.substring?.(0, 200), stderr: dockerInstall.stderr?.substring?.(0,200) });
+
+          // Run compile inside the container using executeInDocker to execute the hardhat binary
+          const compileResult = await executeInDocker('./node_modules/.bin/hardhat', ['compile'], sandboxPath, { image: 'node:20-alpine', workDir: '/workspace' });
+          log.info('Docker hardhat compile completed', { stdout: compileResult.stdout?.substring?.(0,200), stderr: compileResult.stderr?.substring?.(0,200) });
+        } catch (dockerErr: any) {
+          log.error('Docker-based Hardhat compile failed', { error: String(dockerErr) });
+          // Fall through to local fallback below
+        }
+      }
+
+      // Local fallback: Force direct hardhat binary usage - no npx fallback
+      const hardhatBin = path.join(sandboxPath, 'node_modules', '.bin', 'hardhat');
+      if (!(await fs.pathExists(hardhatBin))) {
+        log.warn('Hardhat binary missing locally, attempting fallback install (no-save)');
+
+        // Read package.json to pick a matching hardhat version when available
+        let explicitVersion: string | undefined;
+        try {
+          const pj = await fs.readJson(path.join(sandboxPath, 'package.json'));
+          explicitVersion = pj?.devDependencies?.hardhat || pj?.dependencies?.hardhat;
+        } catch (pjErr) {
+          // ignore
+        }
+
+        const baseCmd = 'npm_config_production=false npm install --silent --no-progress --no-save';
+        const tryCmds = [] as string[];
+        // prefer exact version if present (e.g. ^2.23.0 -> hardhat@2.23.0)
+        if (explicitVersion) {
+          // strip range chars to create a best-effort concrete version string
+          const ver = String(explicitVersion).replace(/^[^0-9]*/, '').split(' ')[0];
+          if (ver) tryCmds.push(`${baseCmd} hardhat@${ver}`);
+        }
+        // always try generic latest no-save install as fallback
+        tryCmds.push(`${baseCmd} hardhat`);
+
+        let installSucceeded = false;
+        let lastError: any = null;
+        for (const cmd of tryCmds) {
+          try {
+            log.info('Attempting fallback install', { cmd });
+            const out = await runCmdLogged(sandboxPath, 'bash', ['-lc', cmd]);
+            log.info('Fallback install output', { cmd, out: String(out).substring(0, 200) });
+            installSucceeded = true;
+            break;
+          } catch (err: any) {
+            lastError = err;
+            log.warn('Fallback install attempt failed', { cmd, error: String(err) });
+            // small backoff not necessary in sandbox, continue to next candidate
+          }
+        }
+
+        // Final re-check
+        if (!(await fs.pathExists(hardhatBin))) {
+          // write an insight with the captured error for easier debugging
+          await writeAutoInsights(path.dirname(sandboxPath), {
+            cmd: tryCmds.join(' || '),
+            exitCode: lastError?.code || 1,
+            stdout: lastError?.stdout || '',
+            stderr: lastError?.stderr || String(lastError) || 'unknown',
+            toolchain: { hasNode: true }
+          });
+
+          log.error('Hardhat binary not found after install attempts', { lastError });
+          throw new Error('hardhat binary not found after install attempts');
+        }
+      }
+
+      await runCmdLogged(sandboxPath, hardhatBin, ['compile']);
       log.info('Hardhat compilation successful (direct binary)');
     } else if (toolchain.hasAnchor) {
       await runCmdLogged(sandboxPath, 'anchor', ['build']);
