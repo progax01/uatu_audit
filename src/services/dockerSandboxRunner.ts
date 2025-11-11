@@ -198,9 +198,8 @@ export async function runNodeInContainer(
       'echo "Installing hardhat and dependencies..."',
       'npm install hardhat @nomicfoundation/hardhat-toolbox @nomicfoundation/hardhat-chai-matchers @nomicfoundation/hardhat-ethers @nomicfoundation/hardhat-network-helpers @typechain/ethers-v6 @types/chai chai ethers hardhat-gas-reporter solidity-coverage typechain --save-dev --verbose --legacy-peer-deps',
       'echo "Verifying hardhat installation..."',
-      'ls -la node_modules/.bin/hardhat',
-      './node_modules/.bin/hardhat --version',
-      ...commands.map(cmd => `echo "Running: ${cmd}" && ${cmd.replace('npx hardhat', './node_modules/.bin/hardhat')}`)
+      'npx hardhat --version',
+      ...commands.map(cmd => `echo "Running: ${cmd}" && ${cmd}`)
     ].join(' && ')
   ];
 

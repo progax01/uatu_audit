@@ -47,14 +47,21 @@ export async function executeInDocker(
     cpuLimit = '1.0'
   } = options;
 
-  // Ensure sandbox path exists
+  // Ensure sandbox path exists with proper permissions for Docker user 1000:1000
   await fs.ensureDir(sandboxPath);
+
+  // Set permissions to allow Docker container user (1000:1000) to write
+  // This is critical for npm install to create node_modules
+  try {
+    await execAsync(`chmod -R 777 ${sandboxPath}`);
+  } catch (chmodErr) {
+    log.warn('Failed to set sandbox permissions', { error: String(chmodErr) });
+  }
 
   // Build Docker command with security constraints
   const dockerArgs = [
     'run',
     '--rm', // Remove container after execution
-    '--read-only', // Read-only filesystem
     '--tmpfs', '/tmp:rw,noexec,nosuid,size=500m', // Writable tmp with restrictions
     '--tmpfs', '/var/tmp:rw,noexec,nosuid,size=100m',
     `--network=${networkMode}`, // Network isolation
@@ -66,7 +73,6 @@ export async function executeInDocker(
     '--user', '1000:1000', // Non-root user
     '-v', `${sandboxPath}:${workDir}:rw`, // Mount as read-write for npm operations
     '-v', `${sandboxPath}/.uatu/temp:${workDir}/.uatu/temp:rw`, // Allow writing to temp dir
-    '--tmpfs', `${workDir}/node_modules:rw,noexec,nosuid,size=1g`, // Writable node_modules in tmpfs
     '-w', workDir,
     image
   ];
@@ -152,8 +158,10 @@ export async function executeNodeInDocker(
   sandboxPath: string,
   options: DockerOptions = {}
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  // Allow network access during install to download packages
   const nodeOptions = {
     image: 'node:20-alpine',
+    networkMode: command === 'install' ? 'bridge' as const : 'none' as const,
     ...options
   };
 
@@ -165,9 +173,8 @@ export async function executeNodeInDocker(
         'sh', '-c',
         'echo "Installing hardhat and dependencies..." && ' +
         'npm install hardhat @nomicfoundation/hardhat-toolbox @nomicfoundation/hardhat-chai-matchers @nomicfoundation/hardhat-ethers @nomicfoundation/hardhat-network-helpers @typechain/ethers-v6 @types/chai chai ethers hardhat-gas-reporter solidity-coverage typechain --save-dev --verbose --legacy-peer-deps && ' +
-        'echo "Verification: Hardhat binary check..." && ' +
-        'ls -la node_modules/.bin/hardhat && ' +
-        './node_modules/.bin/hardhat --version'
+        'echo "Verification: Hardhat installation check..." && ' +
+        'npx hardhat --version'
       ];
       break;
     case 'test':

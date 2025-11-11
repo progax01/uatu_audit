@@ -104,10 +104,12 @@ export const executeEnhancedSOP: SOP = {
         estimatedRuntime: preflightResults.summary.estimatedRuntime
       });
 
-  // Check if Docker should be used. Prefer Docker when available.
-  // Allow forcing via UATU_USE_DOCKER=1; otherwise if dockerAvailable prefer docker.
-  const forceDocker = process.env.UATU_USE_DOCKER === '1';
-  const useDocker = preflightResults.summary.dockerAvailable ? true : forceDocker;
+  // Check if Docker should be used. Respect explicit UATU_USE_DOCKER setting.
+  // UATU_USE_DOCKER=1 forces Docker, UATU_USE_DOCKER=0 forces local, otherwise auto-detect
+  const useDockerEnv = process.env.UATU_USE_DOCKER;
+  const useDocker = useDockerEnv === '1' ? true :
+                     useDockerEnv === '0' ? false :
+                     preflightResults.summary.dockerAvailable;
   const executionMode = useDocker ? 'docker' : 'local';
       
       log.info(`Execution mode selected: ${executionMode}`, {
@@ -325,10 +327,11 @@ async function installNodeDependencies(sandboxPath: string, insights: InsightGen
     installCmd = 'yarn install --frozen-lockfile';
   } else if (hasPackageLock) {
     // Ensure devDependencies (hardhat, tooling) are installed even when NODE_ENV=production
-    // Use npm_config_production=false which is widely supported and works across npm versions
-    installCmd = 'npm_config_production=false npm ci --silent --no-progress';
+    // Clean node_modules first (npm ci requires clean state), then install
+    // Use test -d to check if directory exists before removing
+    installCmd = 'test -d node_modules && rm -rf node_modules || true; npm_config_production=false npm ci --no-progress';
   } else {
-    installCmd = 'npm install --silent --no-progress';
+    installCmd = 'npm install --no-progress';
   }
 
   try {
@@ -361,26 +364,11 @@ async function compileProject(sandboxPath: string, toolchain: ToolchainInfo, ins
       await runCmdLogged(sandboxPath, 'forge', ['build']);
       log.info('Foundry compilation successful');
     } else if (toolchain.hasHardhat) {
-      if (useDocker) {
-        log.info('Compiling Hardhat project inside Docker for deterministic build');
-        try {
-          // Install dependencies and hardhat in docker, then run compile
-          const dockerInstall = await executeNodeInDocker('install', sandboxPath);
-          log.info('Docker install output', { stdout: dockerInstall.stdout?.substring?.(0, 200), stderr: dockerInstall.stderr?.substring?.(0,200) });
-
-          // Run compile inside the container using executeInDocker to execute the hardhat binary
-          const compileResult = await executeInDocker('./node_modules/.bin/hardhat', ['compile'], sandboxPath, { image: 'node:20-alpine', workDir: '/workspace' });
-          log.info('Docker hardhat compile completed', { stdout: compileResult.stdout?.substring?.(0,200), stderr: compileResult.stderr?.substring?.(0,200) });
-        } catch (dockerErr: any) {
-          log.error('Docker-based Hardhat compile failed', { error: String(dockerErr) });
-          // Fall through to local fallback below
-        }
-      }
-
-      // Local fallback: Force direct hardhat binary usage - no npx fallback
-      const hardhatBin = path.join(sandboxPath, 'node_modules', '.bin', 'hardhat');
-      if (!(await fs.pathExists(hardhatBin))) {
-        log.warn('Hardhat binary missing locally, attempting fallback install (no-save)');
+      // Compile using sandboxPath - packages were already installed by executeNodeInDocker('install')
+      // Check if hardhat package is installed
+      const hardhatPkg = path.join(sandboxPath, 'node_modules', 'hardhat', 'package.json');
+      if (!(await fs.pathExists(hardhatPkg))) {
+        log.warn('Hardhat package missing locally, attempting fallback install (no-save)');
 
         // Read package.json to pick a matching hardhat version when available
         let explicitVersion: string | undefined;
@@ -419,7 +407,7 @@ async function compileProject(sandboxPath: string, toolchain: ToolchainInfo, ins
         }
 
         // Final re-check
-        if (!(await fs.pathExists(hardhatBin))) {
+        if (!(await fs.pathExists(hardhatPkg))) {
           // write an insight with the captured error for easier debugging
           await writeAutoInsights(path.dirname(sandboxPath), {
             cmd: tryCmds.join(' || '),
@@ -429,13 +417,14 @@ async function compileProject(sandboxPath: string, toolchain: ToolchainInfo, ins
             toolchain: { hasNode: true }
           });
 
-          log.error('Hardhat binary not found after install attempts', { lastError });
-          throw new Error('hardhat binary not found after install attempts');
+          log.error('Hardhat package not found after install attempts', { lastError });
+          throw new Error('hardhat package not found after install attempts');
         }
       }
 
-      await runCmdLogged(sandboxPath, hardhatBin, ['compile']);
-      log.info('Hardhat compilation successful (direct binary)');
+      // Use node directly (works without symlinks and without network)
+      await runCmdLogged(sandboxPath, 'node', ['node_modules/hardhat/internal/cli/bootstrap.js', 'compile']);
+      log.info('Hardhat compilation successful (via node)');
     } else if (toolchain.hasAnchor) {
       await runCmdLogged(sandboxPath, 'anchor', ['build']);
       log.info('Anchor compilation successful');
@@ -507,9 +496,10 @@ async function runTests(
           ];
 
       const userList = await fg(userGlobs, { cwd: sandboxPath });
-      
+
       if (userList.length > 0) {
-        const cmd = `npx hardhat test ${userList.map(f => JSON.stringify(f)).join(" ")}`;
+        // Use node directly to avoid npx network issues
+        const cmd = `node node_modules/hardhat/internal/cli/bootstrap.js test ${userList.map(f => JSON.stringify(f)).join(" ")}`;
         if (useDocker) {
           testOutput = await runNodeInContainer(runPath, sandboxPath, [cmd]);
         } else {
@@ -691,8 +681,8 @@ async function runHardhatCoverage(runPath: string, sandbox: string, coverageData
   }
 
   const heap = process.env.UATU_NODE_HEAP_MB || "6144";
-  const args = ["hardhat", "coverage", ...files.flatMap(f => ["--testfiles", f])];
-  const cmd = `export NODE_OPTIONS="--max-old-space-size=${heap}"; npx ${args.map(a => JSON.stringify(a)).join(" ")}`;
+  const args = ["node_modules/hardhat/internal/cli/bootstrap.js", "coverage", ...files.flatMap(f => ["--testfiles", f])];
+  const cmd = `export NODE_OPTIONS="--max-old-space-size=${heap}"; node ${args.map(a => JSON.stringify(a)).join(" ")}`;
 
   try {
     if (process.env.UATU_USE_DOCKER === '1') {

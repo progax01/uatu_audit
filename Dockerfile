@@ -50,11 +50,19 @@ RUN if [ "$BUILD_COMPILE" = "true" ] ; then \
 # Production stage
 FROM node:20-slim
 
-# Install minimal runtime packages
+# Install minimal runtime packages + Docker CLI for docker-compose separation
 RUN apt-get update && apt-get install -y \
     git \
     python3 \
     ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pnpm globally in production image
