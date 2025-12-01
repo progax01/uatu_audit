@@ -188,6 +188,11 @@ interface UatuData {
   artifacts: Record<string, string>;
   logoUrl?: string;
   mascotUrl?: string;
+  // New detailed audit fields
+  contracts_explained?: ContractExplanation[];
+  test_methodology?: TestMethodology | null;
+  user_flows?: UserFlow[];
+  test_results?: TestResult[];
 }
 
 /**
@@ -280,7 +285,12 @@ export async function generateReportFromResults(
     improve: results.recommendations || [],
     artifacts: {},
     logoUrl: logoDataUri || undefined,
-    mascotUrl: undefined
+    mascotUrl: undefined,
+    // New detailed audit fields
+    contracts_explained: results.contracts_explained || [],
+    test_methodology: results.test_methodology || null,
+    user_flows: results.user_flows || [],
+    test_results: results.test_results || []
   };
 
   // Inject UATU_DATA into template

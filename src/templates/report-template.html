@@ -661,6 +661,311 @@
             size: A4;
             margin: 14mm 12mm;
         }
+
+        /* Contract Explanations Styles */
+        .contract-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .contract-card h3 {
+            color: var(--text);
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .contract-purpose {
+            color: var(--muted);
+            font-style: italic;
+            margin-bottom: 16px;
+        }
+
+        .contract-summary {
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+
+        .contract-section-title {
+            font-weight: 600;
+            color: var(--text);
+            margin-top: 20px;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .function-item {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--line);
+        }
+
+        .function-name {
+            font-family: 'Courier New', monospace;
+            color: var(--primary);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .function-desc {
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .function-meta {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .importance-critical {
+            color: var(--critical);
+            font-weight: 600;
+        }
+
+        .importance-high {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        /* Test Methodology Styles */
+        .methodology-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .methodology-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .methodology-card h4 {
+            color: var(--text);
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .methodology-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border: 1px solid var(--line);
+        }
+
+        .methodology-label {
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        /* User Flow Styles */
+        .user-flow {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border-left: 4px solid var(--success);
+        }
+
+        .user-flow.critical {
+            border-left-color: var(--danger);
+        }
+
+        .user-flow h3 {
+            color: var(--text);
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .flow-description {
+            color: var(--muted);
+            margin-bottom: 20px;
+        }
+
+        .flow-steps {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--line);
+        }
+
+        .flow-steps table {
+            width: 100%;
+        }
+
+        .flow-steps th {
+            background: var(--primary);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .flow-steps td {
+            padding: 12px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .flow-steps tr:last-child td {
+            border-bottom: none;
+        }
+
+        .flow-step-number {
+            background: var(--primary);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        /* Test Results Styles */
+        .test-results-container {
+            margin-bottom: 32px;
+        }
+
+        .test-type-section {
+            margin-bottom: 32px;
+        }
+
+        .test-type-section h3 {
+            color: var(--text);
+            font-size: 18px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--line);
+        }
+
+        .test-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            margin-bottom: 20px;
+        }
+
+        .test-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .test-table th {
+            background: var(--card);
+            color: var(--text);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .test-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--line);
+            font-size: 14px;
+        }
+
+        .test-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .test-table tr:hover {
+            background: #fafbfc;
+        }
+
+        .test-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .test-status.pass {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .test-status.fail {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .test-severity {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .test-severity.critical {
+            background: var(--critical);
+            color: white;
+        }
+
+        .test-severity.high {
+            background: var(--danger);
+            color: white;
+        }
+
+        .test-severity.medium {
+            background: var(--warning);
+            color: white;
+        }
+
+        .test-severity.low {
+            background: #fbbf24;
+            color: #78350f;
+        }
+
+        .test-scenario {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .test-summary {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .test-summary-card {
+            background: var(--card);
+            padding: 16px 20px;
+            border-radius: 8px;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .test-summary-label {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .test-summary-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+        }
     </style>
 </head>
 <body>
@@ -751,6 +1056,38 @@
                         <!-- Populated by JavaScript -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Contract Explanations -->
+        <div class="section page-break" id="contractExplanationsSection" style="display:none">
+            <h2 class="section-title">📄 Smart Contracts Explained</h2>
+            <div id="contractExplanations">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Testing Methodology -->
+        <div class="section" id="testMethodologySection" style="display:none">
+            <h2 class="section-title">🧪 Testing Methodology</h2>
+            <div id="testMethodology">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- User Flows -->
+        <div class="section page-break" id="userFlowsSection" style="display:none">
+            <h2 class="section-title">👤 User Flow Analysis</h2>
+            <div id="userFlows">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Test Results -->
+        <div class="section page-break" id="testResultsSection" style="display:none">
+            <h2 class="section-title">✅ Test Execution Results</h2>
+            <div id="testResults">
+                <!-- Populated by JavaScript -->
             </div>
         </div>
 
@@ -969,6 +1306,289 @@
                 document.getElementById('debugSection').style.display = 'block';
                 document.getElementById('debugLogs').textContent = D.logs.slice(-4000);
             }
+
+            // Render new detailed sections
+            renderContractExplanations();
+            renderTestMethodology();
+            renderUserFlows();
+            renderTestResults();
+        }
+
+        // Render Contract Explanations
+        function renderContractExplanations() {
+            const contracts = D.contracts_explained || [];
+            if (contracts.length === 0) return;
+
+            const section = document.getElementById('contractExplanationsSection');
+            const container = document.getElementById('contractExplanations');
+
+            section.style.display = 'block';
+            container.innerHTML = contracts.map(contract => `
+                <div class="contract-card">
+                    <h3>${contract.name}</h3>
+                    <div class="contract-purpose">${contract.purpose}</div>
+                    <div class="contract-summary">${contract.summary}</div>
+
+                    ${contract.key_functions && contract.key_functions.length > 0 ? `
+                        <div class="contract-section-title">🔑 Key Functions</div>
+                        ${contract.key_functions.map(func => `
+                            <div class="function-item">
+                                <div class="function-name">${func.name}</div>
+                                <div class="function-desc">${func.description}</div>
+                                <div class="function-meta">
+                                    <span>Visibility: <strong>${func.visibility}</strong></span>
+                                    ${func.importance ? `<span class="importance-${func.importance.toLowerCase()}">${func.importance} Importance</span>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    ` : ''}
+
+                    ${contract.state_variables && contract.state_variables.length > 0 ? `
+                        <div class="contract-section-title">📊 State Variables</div>
+                        <ul>
+                            ${contract.state_variables.map(v => `<li><code>${v}</code></li>`).join('')}
+                        </ul>
+                    ` : ''}
+
+                    ${contract.dependencies && contract.dependencies.length > 0 ? `
+                        <div class="contract-section-title">📦 Dependencies</div>
+                        <ul>
+                            ${contract.dependencies.map(d => `<li>${d}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Render Test Methodology
+        function renderTestMethodology() {
+            const methodology = D.test_methodology;
+            if (!methodology) return;
+
+            const section = document.getElementById('testMethodologySection');
+            const container = document.getElementById('testMethodology');
+
+            section.style.display = 'block';
+            let html = '';
+
+            // STRIDE Coverage
+            if (methodology.stride_coverage) {
+                html += '<div class="methodology-card"><h4>🛡️ STRIDE Threat Model Coverage</h4>';
+                const stride = methodology.stride_coverage;
+                Object.entries(stride).forEach(([key, value]) => {
+                    if (value) {
+                        html += `<div class="methodology-item">
+                            <div class="methodology-label">${key.replace(/_/g, ' ').toUpperCase()}</div>
+                            <div>${value}</div>
+                        </div>`;
+                    }
+                });
+                html += '</div>';
+            }
+
+            // OWASP Coverage
+            if (methodology.owasp_coverage) {
+                html += '<div class="methodology-card"><h4>🔐 OWASP Top 10 Coverage</h4>';
+                Object.entries(methodology.owasp_coverage).forEach(([key, value]) => {
+                    html += `<div class="methodology-item">
+                        <div class="methodology-label">${key}</div>
+                        <div>${value}</div>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+
+            // Behavioral Coverage
+            if (methodology.behavioral_coverage) {
+                html += '<div class="methodology-card"><h4>🎯 Behavioral Test Coverage</h4>';
+                const behavioral = methodology.behavioral_coverage;
+                Object.entries(behavioral).forEach(([key, value]) => {
+                    if (value) {
+                        html += `<div class="methodology-item">
+                            <div class="methodology-label">${key.replace(/_/g, ' ').toUpperCase()}</div>
+                            <div>${value}</div>
+                        </div>`;
+                    }
+                });
+                html += '</div>';
+            }
+
+            // Rationale
+            if (methodology.rationale) {
+                html += `<div class="methodology-card"><h4>💡 Testing Rationale</h4>
+                    <p>${methodology.rationale}</p>
+                </div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Render User Flows
+        function renderUserFlows() {
+            const flows = D.user_flows || [];
+            if (flows.length === 0) return;
+
+            const section = document.getElementById('userFlowsSection');
+            const container = document.getElementById('userFlows');
+
+            section.style.display = 'block';
+            container.innerHTML = flows.map(flow => `
+                <div class="user-flow ${flow.critical ? 'critical' : ''}">
+                    <h3>${flow.name} ${flow.critical ? '⚠️ CRITICAL' : ''}</h3>
+                    <div class="flow-description">${flow.description}</div>
+
+                    <div class="flow-steps">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Step</th>
+                                    <th>Actor</th>
+                                    <th>Action</th>
+                                    <th>Contract</th>
+                                    <th>State Change</th>
+                                    <th>Result</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${flow.steps.map(step => `
+                                    <tr>
+                                        <td><span class="flow-step-number">${step.step}</span></td>
+                                        <td>${step.actor}</td>
+                                        <td>${step.action}</td>
+                                        <td><code>${step.contract}</code></td>
+                                        <td>${step.state_change}</td>
+                                        <td>${step.result}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    ${flow.integration_points && flow.integration_points.length > 0 ? `
+                        <div style="margin-top: 12px; font-size: 14px; color: var(--muted);">
+                            <strong>Integration Points:</strong> ${flow.integration_points.join(', ')}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Render Test Results
+        function renderTestResults() {
+            const testResults = D.test_results || [];
+            if (testResults.length === 0) return;
+
+            const section = document.getElementById('testResultsSection');
+            const container = document.getElementById('testResults');
+
+            section.style.display = 'block';
+
+            // Calculate summary stats
+            const positiveTests = testResults.filter(t => t.type === 'positive');
+            const negativeTests = testResults.filter(t => t.type === 'negative');
+            const passedTests = testResults.filter(t => t.status === 'PASS');
+            const failedTests = testResults.filter(t => t.status === 'FAIL');
+
+            let html = `
+                <div class="test-summary">
+                    <div class="test-summary-card">
+                        <div class="test-summary-label">Total Tests</div>
+                        <div class="test-summary-value">${testResults.length}</div>
+                    </div>
+                    <div class="test-summary-card">
+                        <div class="test-summary-label">Passed</div>
+                        <div class="test-summary-value" style="color: var(--success)">${passedTests.length}</div>
+                    </div>
+                    <div class="test-summary-card">
+                        <div class="test-summary-label">Failed</div>
+                        <div class="test-summary-value" style="color: var(--danger)">${failedTests.length}</div>
+                    </div>
+                    <div class="test-summary-card">
+                        <div class="test-summary-label">Pass Rate</div>
+                        <div class="test-summary-value">${Math.round(passedTests.length / testResults.length * 100)}%</div>
+                    </div>
+                </div>
+            `;
+
+            // Positive Tests Table
+            if (positiveTests.length > 0) {
+                html += `
+                    <div class="test-type-section">
+                        <h3>✅ Positive Test Cases (Expected to Pass)</h3>
+                        <div class="test-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Test Name</th>
+                                        <th>Scenario</th>
+                                        <th>Contract / Function</th>
+                                        <th>Status</th>
+                                        <th>Severity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${positiveTests.map(test => `
+                                        <tr>
+                                            <td><strong>${test.name}</strong></td>
+                                            <td>
+                                                <div>${test.scenario}</div>
+                                                <div class="test-scenario">Category: ${test.category}</div>
+                                            </td>
+                                            <td>
+                                                <code>${test.contract}</code><br>
+                                                <small>${test.function}</small>
+                                            </td>
+                                            <td><span class="test-status ${test.status.toLowerCase()}">${test.status}</span></td>
+                                            <td>${test.severity ? `<span class="test-severity ${test.severity}">${test.severity}</span>` : '—'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Negative Tests Table
+            if (negativeTests.length > 0) {
+                html += `
+                    <div class="test-type-section">
+                        <h3>❌ Negative Test Cases (Expected to Fail/Revert)</h3>
+                        <div class="test-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Test Name</th>
+                                        <th>Scenario</th>
+                                        <th>Contract / Function</th>
+                                        <th>Status</th>
+                                        <th>Severity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${negativeTests.map(test => `
+                                        <tr>
+                                            <td><strong>${test.name}</strong></td>
+                                            <td>
+                                                <div>${test.scenario}</div>
+                                                <div class="test-scenario">Category: ${test.category}</div>
+                                            </td>
+                                            <td>
+                                                <code>${test.contract}</code><br>
+                                                <small>${test.function}</small>
+                                            </td>
+                                            <td><span class="test-status ${test.status.toLowerCase()}">${test.status}</span></td>
+                                            <td>${test.severity ? `<span class="test-severity ${test.severity}">${test.severity}</span>` : '—'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
         }
 
         // Populate the report when the page loads
