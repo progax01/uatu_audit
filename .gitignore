@@ -3,3 +3,6 @@ dist
 .env
 ~/.uatu
 .uatu/
+.claude/
+*.log
+*.jsonl
