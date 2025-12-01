@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Preserve original color scheme */
+    --bg: #0b1020;
+    --card: #121a33;
+    --line: #2e3a70;
+    --accent: #0a7cff;
+    --muted: #9fb0e3;
+    --text: #eaf0ff;
+  }
+
+  body {
+    @apply bg-uatu-bg text-uatu-text;
+    font-family: ui-sans-serif, system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
+  }
+}
+
+@layer components {
+  /* Custom components */
+  .card {
+    @apply bg-uatu-card border border-uatu-border rounded-uatu p-4;
+  }
+
+  .btn-primary {
+    @apply bg-uatu-accent text-white border border-uatu-accent rounded-uatu-sm px-4 py-2.5 font-medium hover:bg-opacity-90 transition-colors cursor-pointer;
+  }
+
+  .btn-secondary {
+    @apply bg-uatu-input text-uatu-text border border-[#3c59b6] rounded-uatu-sm px-4 py-2.5 hover:bg-opacity-80 transition-colors cursor-pointer;
+  }
+
+  .input {
+    @apply bg-uatu-input text-uatu-text border border-uatu-input-border rounded-uatu-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-uatu-accent focus:border-transparent;
+  }
+
+  .select {
+    @apply bg-uatu-input text-uatu-text border border-uatu-input-border rounded-uatu-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-uatu-accent focus:border-transparent;
+  }
+}

@@ -10,11 +10,22 @@ export async function runCmdLogged(runPath: string, cmd: string, args: string[],
   await fs.ensureFile(log);
   const line = `$ ${[cmd, ...args].join(" ")}\n`;
   await fs.appendFile(log, line, "utf8");
-  
+
   try {
     // Set working directory to runPath if not specified
     const execOptions = { cwd: runPath, ...opts };
-    const { stdout, stderr } = await execAsync(`${cmd} ${args.join(" ")}`, execOptions);
+
+    // Build command string with proper quoting for shell arguments
+    let fullCommand: string;
+    if (cmd === 'bash' && args[0] === '-c' && args.length === 2) {
+      // Special handling for bash -c to properly quote the command
+      fullCommand = `bash -c '${args[1].replace(/'/g, "'\\''")}'`;
+    } else {
+      // For other commands, join args with spaces
+      fullCommand = `${cmd} ${args.join(" ")}`;
+    }
+
+    const { stdout, stderr } = await execAsync(fullCommand, execOptions);
     
     // Log both stdout and stderr separately for debugging
     if (stdout) {

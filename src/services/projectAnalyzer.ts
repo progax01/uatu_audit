@@ -10,6 +10,8 @@ export interface ProjectStructure {
   totalDirs: number;
   ecosystems: string[];
   mainContracts: string[];
+  contractNames: string[];  // Added: List of deployable contract names
+  abstractContracts: string[];  // Added: List of abstract/interface contracts
   testFiles: string[];
   configFiles: string[];
   deploymentFiles: string[];
@@ -48,7 +50,12 @@ export interface DirectoryNode {
 
 const CRITICAL_EXTENSIONS = ['.sol', '.rs', '.ts', '.js', '.json'];
 const TEST_PATTERNS = [
-  /test/i, /spec/i, /__tests__/i, /\.test\./i, /\.spec\./i
+  /\/test\//i,  // Match /test/ directory
+  /\/tests\//i, // Match /tests/ directory
+  /\/spec\//i,  // Match /spec/ directory
+  /__tests__/i, // Match __tests__ directory
+  /\.test\./i,  // Match .test. in filename
+  /\.spec\./i   // Match .spec. in filename
 ];
 const CONFIG_PATTERNS = [
   'package.json', 'hardhat.config', 'foundry.toml', 'Cargo.toml', 
@@ -68,6 +75,8 @@ export async function analyzeProjectStructure(projectPath: string): Promise<Proj
     totalDirs: 0,
     ecosystems: [],
     mainContracts: [],
+    contractNames: [],
+    abstractContracts: [],
     testFiles: [],
     configFiles: [],
     deploymentFiles: [],
@@ -93,10 +102,13 @@ export async function analyzeProjectStructure(projectPath: string): Promise<Proj
   await analyzeTestCoverage(structure);
   await analyzeDependencies(structure);
   await identifySecurityConcerns(structure);
-  
+  await extractContractNames(structure);  // Added: Extract contract names
+
   log.info('Project analysis complete', {
     totalFiles: structure.totalFiles,
     ecosystems: structure.ecosystems,
+    contractNames: structure.contractNames.length,
+    abstractContracts: structure.abstractContracts.length,
     hasTests: structure.testCoverage.hasTests
   });
   
@@ -402,24 +414,83 @@ ${generateRecommendations(structure).map(r => `- ${r}`).join('\n')}
   return summary.trim();
 }
 
+/**
+ * Extract contract names from Solidity files and detect abstract contracts
+ */
+async function extractContractNames(structure: ProjectStructure): Promise<void> {
+  log.debug('Extracting contract names from Solidity files');
+
+  const contractNames: string[] = [];
+  const abstractContracts: string[] = [];
+
+  // Process all main contracts
+  for (const contractFile of structure.mainContracts) {
+    try {
+      const content = await fs.readFile(contractFile, 'utf-8');
+
+      // Extract contract names (matches: contract ContractName, abstract contract Name, interface Name)
+      const contractMatches = content.matchAll(/(?:abstract\s+)?(?:contract|interface|library)\s+(\w+)/g);
+
+      for (const match of contractMatches) {
+        const contractName = match[1];
+
+        // Check if it's abstract or interface
+        const fullMatch = match[0];
+        const isAbstract = /abstract\s+contract/.test(fullMatch);
+        const isInterface = /interface/.test(fullMatch);
+
+        if (isAbstract || isInterface) {
+          abstractContracts.push(contractName);
+          log.debug(`Found abstract/interface contract: ${contractName}`, { file: contractFile });
+        } else {
+          // Check if contract has any function without implementation (making it abstract)
+          const hasUnimplementedFunctions = /function\s+\w+\([^)]*\)\s+(?:external|public)[^{]*;/.test(content);
+
+          if (hasUnimplementedFunctions) {
+            abstractContracts.push(contractName);
+            log.debug(`Found abstract contract (unimplemented functions): ${contractName}`, { file: contractFile });
+          } else {
+            contractNames.push(contractName);
+            log.debug(`Found deployable contract: ${contractName}`, { file: contractFile });
+          }
+        }
+      }
+    } catch (error) {
+      log.warn('Failed to extract contract names from file', {
+        file: contractFile,
+        error: String(error)
+      });
+    }
+  }
+
+  // Remove duplicates
+  structure.contractNames = [...new Set(contractNames)];
+  structure.abstractContracts = [...new Set(abstractContracts)];
+
+  log.info('Contract name extraction complete', {
+    deployableContracts: structure.contractNames.length,
+    abstractContracts: structure.abstractContracts.length
+  });
+}
+
 function generateRecommendations(structure: ProjectStructure): string[] {
   const recommendations = [];
-  
+
   if (!structure.testCoverage.hasTests) {
     recommendations.push('Implement comprehensive test suite');
   }
-  
+
   if (structure.securityConcerns.length > 0) {
     recommendations.push('Address identified security concerns');
   }
-  
+
   if (!structure.dependencies.security.length) {
     recommendations.push('Add security analysis tools (slither, mythril, etc.)');
   }
-  
+
   if (structure.mainContracts.length > structure.testFiles.length) {
     recommendations.push('Increase test coverage for smart contracts');
   }
-  
+
   return recommendations;
 }

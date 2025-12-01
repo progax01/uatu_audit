@@ -1,9 +1,10 @@
 export type SOPName = string;
-export type TestStyle = "behavioral" | "stride";
+export type TestStyle = "behavioral" | "stride" | "owasp";
 
 export interface SOPInputs {
   [key: string]: unknown;
   testStyles?: TestStyle[];  // default: ["behavioral","stride"]
+  jobId?: number;  // For cancellation support
 }
 
 export interface SOPResult {

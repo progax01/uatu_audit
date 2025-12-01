@@ -195,6 +195,8 @@ export async function runNodeInContainer(
     [
       'set -e',
       'echo "Current directory: $(pwd)"',
+      'echo "Checking for package.json..."',
+      '[ ! -f package.json ] && echo "Creating package.json..." && echo \'{"name":"uatu-sandbox","version":"1.0.0","private":true}\' > package.json || echo "package.json exists"',
       'echo "Installing hardhat and dependencies..."',
       'npm install hardhat @nomicfoundation/hardhat-toolbox @nomicfoundation/hardhat-chai-matchers @nomicfoundation/hardhat-ethers @nomicfoundation/hardhat-network-helpers @typechain/ethers-v6 @types/chai chai ethers hardhat-gas-reporter solidity-coverage typechain --save-dev --verbose --legacy-peer-deps',
       'echo "Verifying hardhat installation..."',

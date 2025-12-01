@@ -1,0 +1,747 @@
+# UatuAudit Production Implementation Plan
+
+## Overview
+Production-ready solution for job visibility, user isolation, and dashboard management.
+**Total Effort: 9-15 hours** (Backend: 4-6h, UI: 5-9h)
+
+---
+
+## Phase 1: Backend Quick Wins (1-2 hours)
+
+### 1.1 Progress Update Frequency
+- Call `onProgress()` after each contract completes
+- Detailed step text: `"ai-generation: GameToken (3/9)"`
+- **File:** `src/sops/testgen.ts`
+
+### 1.2 Job-Scoped Log File
+- Write to `{runPath}/job.log`
+- Already isolated per job timestamp
+- **File:** `src/services/jobQueue.ts`
+
+---
+
+## Phase 2: API Layer (2-3 hours)
+
+### 2.1 Job Logs Endpoint
+```
+GET /api/jobs/{id}/logs?offset={bytes}&limit={lines}
+```
+- Returns new lines since offset
+- Response includes `nextOffset` for pagination
+- **File:** `src/daemon/daemon.ts`
+
+### 2.2 Job Progress Endpoint Enhancement
+```
+GET /api/jobs/{id}/progress
+```
+- Return `progress.json` content + `lastUpdated` timestamp
+- **File:** `src/daemon/daemon.ts`
+
+### 2.3 Job History Endpoint
+```
+GET /api/jobs/history
+```
+- Completed/failed jobs for current user
+- **File:** `src/daemon/daemon.ts`
+
+### 2.4 Re-run Endpoint
+```
+POST /api/jobs/{id}/rerun
+```
+- Clone job config and enqueue
+- **Files:** `src/daemon/daemon.ts`, `src/services/jobQueue.ts`
+
+### 2.5 Optional: SSE Endpoint
+```
+GET /api/jobs/{id}/stream
+```
+- Push progress + log updates in real-time
+
+---
+
+## Phase 3: User Isolation & Dashboard (4-6 hours)
+
+### Backend: User-Account Scoped Job Ownership
+
+#### 3.1 Add userId to Job Schema
+```typescript
+// src/services/jobQueue.ts
+interface AuditJob {
+  id: number;
+  userId?: string;    // GitHub user ID from OAuth
+  // ...existing fields
+}
+```
+
+#### 3.2 Store userId from OAuth Session
+
+```typescript
+// src/daemon/daemon.ts
+// After GitHub OAuth callback, extract user.id
+// Store in session alongside accessToken
+```
+
+#### 3.3 Update listJobs Filter
+```typescript
+// src/services/jobQueue.ts
+if (options?.userId) {
+  jobs = jobs.filter(j => j.userId === options.userId);
+}
+```
+
+#### 3.4 API Authorization Checks
+All endpoints verify `job.userId === currentUserId`:
+- `GET /jobs` - Filter by current user
+- `POST /enqueue` - Attach userId to new jobs
+- `DELETE /jobs/:id/cancel` - Verify ownership
+- `POST /jobs/:id/rerun` - Verify ownership
+- `GET /jobs/:id/logs` - Verify ownership
+- Return 403 if accessing another user's job
+
+#### 3.5 getUserId Helper
+```typescript
+async function getUserId(req): Promise<string | null> {
+  const sessionId = getSessionId(req);
+  if (!sessionId) return null;
+  return await loadUserId(sessionId);
+}
+```
+
+### Frontend: Dashboard UI
+
+#### 3.6 Create Dashboard Page
+**File:** `ui/src/pages/Dashboard.tsx`
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  UatuAudit Dashboard                    [+ New Audit]   │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  Active Audits (2)                                      │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ project-alpha / main          67%  3:42         │   │
+│  │ Started 5 min ago            [View] [Cancel]    │   │
+│  └─────────────────────────────────────────────────┘   │
+│                                                         │
+│  Recent Audits                                          │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ nft-marketplace / main    92/100  Grade: A      │   │
+│  │ Completed 2 hours ago     [Report] [Re-run]     │   │
+│  └─────────────────────────────────────────────────┘   │
+│                                                         │
+│  [Load More...]                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 3.7 useJobList Hook
+**File:** `ui/src/hooks/useJobList.ts`
+```typescript
+useJobList({
+  mine: true,  // Filters by userId
+  status: ['pending', 'running'],
+  pollInterval: 3000
+})
+```
+
+#### 3.8 AuditCard Component
+**File:** `ui/src/components/AuditCard.tsx`
+
+**States:**
+| State | Display |
+|-------|---------|
+| Queued | "Waiting in queue (position #3)" |
+| Running | Progress bar + elapsed time + ETA |
+| Completed | Score badge + grade + download buttons |
+| Failed | Error summary + retry button |
+| Cancelled | "Cancelled by user" + re-run option |
+
+#### 3.9 Navigation & Routing
+**File:** `ui/src/App.tsx`
+- Add Dashboard route
+- Add "My Audits" link in header
+
+#### 3.10 Job-Specific Log Fetching
+- Replace container stdout polling with `/api/jobs/{id}/logs`
+- Poll every 2-3 seconds during active job
+- Show only logs for current job ID
+
+#### 3.11 Progress Bar Improvements
+- Display detailed step text: `"GameToken (3/9)"`
+- Add sub-progress within phases
+- Show "last updated X seconds ago" timestamp
+
+#### 3.12 Activity Indicator
+- Spinner/pulse animation when job is active
+- "Claude thinking..." during long operations
+- Heartbeat indicator to prove job isn't stuck
+
+#### 3.13 Console Output Tab
+- Streaming log display with auto-scroll
+- Filter/search capability
+- Color-code by log level (info/warn/error)
+
+#### 3.14 Error Handling
+- Show actionable error messages
+- Retry button for recoverable failures
+
+---
+
+## Phase 4: Polish & Monitoring (2-4 hours)
+
+### 4.1 Estimated Time Remaining
+- Track per-contract duration history
+- Display "~5 min remaining"
+
+### 4.2 Job Cancellation UI
+- Cancel button with confirmation
+- Show "Cancelling..." state
+- Kill associated Claude CLI processes
+
+### 4.3 Mobile/Responsive
+- Ensure progress view works on smaller screens
+
+### 4.4 Activity Heartbeat
+- Timestamp last activity in `progress.json`
+
+### 4.5 Error Aggregation
+- Collect failures in structured format
+- Show actionable error summary in UI
+
+---
+
+## Implementation Order
+
+### Priority 1: Core Visibility (Critical)
+1. Job logs API endpoint + UI fetch
+2. Progress update frequency + detailed steps
+
+### Priority 2: User Isolation (High)
+3. Add userId to jobs (backend)
+4. Filter /jobs by current user
+5. Authorization checks on all endpoints
+
+### Priority 3: Dashboard (Medium)
+6. Create Dashboard page
+7. useJobList hook + AuditCard component
+8. Navigation routing
+
+### Priority 4: Features (Low)
+9. Re-run endpoint + UI
+10. Activity indicators + timestamps
+
+### Priority 5: Polish (Optional)
+11. SSE streaming
+12. Estimated time + cancellation UI
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/services/jobQueue.ts` | Add userId field, update listJobs filter, job-scoped logging |
+| `src/daemon/daemon.ts` | Store/retrieve userId from session, all new API endpoints, authorization checks |
+| `src/sops/testgen.ts` | Progress update frequency |
+| `ui/src/pages/Dashboard.tsx` | New dashboard page with active/history sections |
+| `ui/src/hooks/useJobList.ts` | Fetch and poll jobs for current session |
+| `ui/src/components/AuditCard.tsx` | Reusable card for job display |
+| `ui/src/App.tsx` | Route + navigation to Dashboard |
+
+---
+
+## Migration Strategy
+
+For existing jobs without userId:
+- **Option A:** Jobs without userId are invisible (clean slate) - Recommended
+- **Option B:** Show jobs without userId as "legacy" to all users
+- **Option C:** Manually assign userId based on sessionId mapping
+
+---
+
+## Security Considerations
+
+- **Job access control:** Always verify `job.userId === currentUserId` before returning data, cancelling, re-running, or fetching logs
+- **Report access:** Filter by userId for report endpoints
+- **Admin override:** Optional - Admin users can see all jobs
+
+---
+
+## Effort Summary 
+
+| Phase | Backend | UI | Total |
+|-------|---------|-----|-------|
+| Phase 1 | 1-2h | - | 1-2h |
+| Phase 2 | 2-3h | - | 2-3h |
+| Phase 3 | 1-2h | 4-6h | 5-8h |
+| Phase 4 | 1h | 1-3h | 2-4h |
+| **Total** | **5-8h** | **5-9h** | **10-17h** |
+
+
+
+
+=============================================
+
+Complete Smart Contract Audit Prompt
+System Prompt
+You are an expert smart contract security auditor. You will receive Solidity source code fetched from a blockchain explorer. Perform a complete static audit WITHOUT executing the code.
+
+## Vulnerability Categories (SC:2025)
+
+### Critical
+- **SC01 Access Control** - Unauthorized access to privileged functions (Poly Network - $611M)
+- **SC02 Reentrancy** - Recursive calls before state updates (The DAO - $60M)
+- **SC11 Flash Loan Attacks** - Single-tx price/state manipulation (Euler Finance - $197M)
+- **SC12 Oracle Manipulation** - Price feed exploitation (Mango Markets - $114M)
+
+### High
+- **SC03 Integer Overflow/Underflow** - Math exceeding limits (Beauty Chain - $900M mcap) [Critical if Solidity <0.8]
+- **SC04 Unchecked External Calls** - Unhandled call failures (King of Ether)
+- **SC05 Denial of Service** - Gas limits or state blocking normal operation
+- **SC13 Signature Replay** - Missing nonce/chainId (Wintermute - $20M)
+- **SC14 Storage Collision** - Proxy storage slot conflicts (Audius - $6M)
+- **SC15 Delegatecall Misuse** - Unsafe delegatecall to untrusted contracts
+
+### Medium
+- **SC06 Bad Randomness** - Predictable RNG (Meebits NFT snipe)
+- **SC07 Front-running** - Mempool tx ordering exploitation (Bancor)
+- **SC08 Time Manipulation** - Block timestamp reliance
+- **SC16 Governance Attacks** - Vote manipulation, flash loan governance
+
+### Low
+- **SC09 Short Address Attack** - EVM padding exploitation
+- **SC17 Floating Pragma** - Unlocked compiler version
+- **SC18 Missing Events** - No events for critical state changes
+
+---
+
+## Analysis Requirements
+
+### 1. Contract Summary
+- Purpose and functionality
+- Key modules/features
+- Proxy/upgradeability patterns detected
+- Inheritance chain
+
+### 2. Security Analysis
+
+**Access Control & Privileges**
+- All owner/admin-only functions
+- Hidden mint/burn capabilities
+- Blacklist/whitelist logic
+- Pause/unpause mechanisms
+- Fee modification powers
+- Fund withdrawal/drain capabilities
+- Upgradeability control
+
+**Token-Specific (if ERC20/721/1155)**
+- Hidden fees or tax logic
+- Max tx/wallet limits
+- Trading restrictions or locks
+- Honeypot patterns (can buy, can't sell)
+- Anti-whale/anti-bot mechanisms
+- Liquidity manipulation risks
+
+**DeFi-Specific (if applicable)**
+- Flash loan attack vectors
+- Oracle dependencies and manipulation risks
+- Slippage protection
+- MEV/sandwich attack exposure
+- Cross-contract dependencies
+
+### 3. Code Quality
+- Compiler version (flag <0.8.0 for overflow risks)
+- SPDX license presence
+- Dead code or unused imports
+- Low-level call usage (call, delegatecall, staticcall)
+- Proper error handling
+
+---
+
+## Output Format
+
+### Findings Table
+
+| ID | Severity | Category | Location | Description |
+|----|----------|----------|----------|-------------|
+| 1 | Critical | SC01 | Line X | Description |
+
+### For Each Finding
+- **Location**: File:line or function name
+- **Description**: What the issue is
+- **Impact**: What could happen if exploited
+- **Recommendation**: Specific fix (code snippet if simple)
+
+### Security Score
+
+Calculate: Start at 100, deduct per finding:
+- Critical: -25 points
+- High: -15 points
+- Medium: -5 points
+- Low: -2 points
+- Informational: -0 points
+
+Minimum score: 0
+
+### Final Summary
+- Total findings by severity
+- Top 3 most critical issues
+- Overall risk assessment (Critical/High/Medium/Low/Safe)
+- Deployment recommendation (Safe/Caution/Do Not Deploy)
+
+---
+
+## Rules
+
+1. If proxy detected → analyze both proxy and implementation, check storage collision
+2. If multi-file JSON from explorer → merge and analyze as single codebase
+3. If minified/flattened → still analyze completely
+4. If clearly malicious (honeypot, rugpull patterns) → state explicitly
+5. Flag any function that can drain >10% of contract value
+6. Note all external dependencies and trust assumptions
+7. For Solidity ≥0.8.0, downgrade integer overflow to Informational unless unchecked{} blocks present
+
+Await contract source code. Do not assume or guess anything until code is provided.
+
+
+
+
+
+
+===================================
+Task List
+1. Cancel Audit Functionality
+Implement ability to cancel/stop running audits
+Add cancel button in UI
+Handle graceful shutdown of in-progress audit jobs
+Clean up resources when audit is cancelled
+2. Remove Console Option from UI
+Remove console/logs display from the user interface
+Hide terminal output section
+Remove any console viewing components
+Clean up UI to remove debug/log viewing features
+3. Solidity File Selection UI
+Display list of .sol files from repository
+Allow users to select specific files for audit
+Pass selected files into test generation prompts
+Filter out test files, interfaces, and libraries from selection
+4. Improve Test Generation Prompts
+Update prompts to handle library contracts properly
+Exclude interfaces from test generation
+Focus on testing actual implementations only
+Add logic to skip contracts that shouldn't be tested (libraries, interfaces, abstract contracts)
+5. Flow-Based Test Descriptions in Audit Report
+Add flow-based test descriptions to audit report
+Document multi-step transaction flows tested
+Show user journey/workflow tests in report
+Include flow diagrams or descriptions
+6. Fix Suggestions in Audit Report
+Generate fix suggestions for identified vulnerabilities
+Include remediation steps in report
+Provide code snippets for fixes
+Show before/after examples
+7. Automated Pull Request with Fixes
+Implement "create PR with fixes" feature
+Create fixes on uatu branch
+Generate pull request on GitHub
+Include all fix suggestions from audit report
+Add proper PR description with audit summary
+
+
+
+
+
+
+
+
+
+
+
+PROPOSED FLOW (Simplified Single-Prompt)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         PROPOSED IMPLEMENTATION                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  PHASE 1: Context Preparation (No AI)                                        │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  Bootstrap SOP (Enhanced)                                            │   │
+│  │                                                                      │   │
+│  │  Input: repo, branch, selectedFiles[], testStyles[]                  │   │
+│  │                                                                      │   │
+│  │  Output:                                                             │   │
+│  │   context/                                                           │   │
+│  │   ├── files_structure.md      ← Full project tree + contract code   │   │
+│  │   ├── test_requirements.md    ← Selected files + test styles        │   │
+│  │   ├── milestones.md           ← Empty or previous run status        │   │
+│  │   └── results.json            ← Empty (to be filled by Claude)      │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│         │                                                                    │
+│         ▼                                                                    │
+│  PHASE 2: Single Claude CLI Call                                             │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                                                                      │   │
+│  │  claude --dangerously-skip-permissions \                             │   │
+│  │    -p "MEGA PROMPT" \                                                │   │
+│  │    --allowedTools Read,Write,Bash \                                  │   │
+│  │    --cwd {contextPath}                                               │   │
+│  │                                                                      │   │
+│  │  MEGA PROMPT includes:                                               │   │
+│  │  1. Read context/files_structure.md                                  │   │
+│  │  2. Read context/test_requirements.md                                │   │
+│  │  3. Read context/milestones.md (resume if exists)                    │   │
+│  │  4. Perform ALL analysis + test generation                           │   │
+│  │  5. Write results to context/results.json                            │   │
+│  │  6. Update context/milestones.md with progress                       │   │
+│  │                                                                      │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│         │                                                                    │
+│         ▼                                                                    │
+│  PHASE 3: Report Generation                                                  │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                                                                      │   │
+│  │  Read context/results.json                                           │   │
+│  │  Load templates/report-template.html (pre-designed)                  │   │
+│  │  Inject data → report.html, report.pdf                               │   │
+│  │                                                                      │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  BENEFITS:                                                                   │
+│  - 1 Claude CLI call instead of 15-30+                                      │
+│  - Full context maintained throughout                                        │
+│  - Resumable via milestones.md                                              │
+│  - Cheaper, faster, more reliable                                           │
+│  - Cleaner separation of concerns                                           │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+Changes Required
+Files to CREATE (New)
+File	Purpose
+src/sops/contextBuilder.ts	New SOP to build context files
+src/sops/singlePromptAudit.ts	New SOP for single Claude CLI call
+src/templates/report-template.html	Pre-designed HTML report template
+src/services/contextWriter.ts	Write files_structure.md, test_requirements.md
+Files to MODIFY
+File	Changes
+src/services/runAll.ts	Replace multi-SOP flow with new 3-phase flow
+src/sops/bootstrap.ts	Enhance to generate files_structure.md
+src/services/report/htmlReport.ts	Simplify to inject results.json into template
+Files to REMOVE/DEPRECATE
+File	Reason
+src/sops/testgen.ts	Replaced by single prompt
+src/sops/owaspTestgen.ts	Merged into single prompt
+src/services/ai/claudeProvider.ts	Multiple prompts no longer needed
+src/services/ai/aiRefiner.ts	Refinement handled in single prompt
+src/services/ai/aiRunners.ts	No separate AI test passes
+Context File Specifications
+1. context/files_structure.md
+Created by: Enhanced Bootstrap SOP
+Contains:
+# Project Structure
+
+## Repository Info
+- Repo: {repo_url}
+- Branch: {branch}
+- Cloned at: {timestamp}
+
+## Directory Tree
+src/ ├── contracts/ │ ├── Token.sol │ ├── Staking.sol │ └── Governance.sol ├── test/ │ └── Token.test.js └── hardhat.config.js
+
+## Contract Sources
+
+### contracts/Token.sol
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract Token {
+    mapping(address => uint256) public balances;
+    
+    function transfer(address to, uint256 amount) external {
+        // ... full source code
+    }
+}
+contracts/Staking.sol
+// ... full source code
+Existing Tests
+test/Token.test.js (basic unit tests)
+Dependencies
+hardhat: ^2.19.0
+@openzeppelin/contracts: ^5.0.0
+
+---
+
+### 2. `context/test_requirements.md`
+
+**Created by**: Bootstrap SOP (from user input)  
+**Contains**:
+
+```markdown
+# Test Requirements
+
+## Selected Files for Audit
+1. contracts/Token.sol
+2. contracts/Staking.sol
+3. contracts/Governance.sol
+
+## Test Styles Requested
+- [x] Behavioral (function-level unit tests)
+- [x] STRIDE (threat modeling tests)
+- [x] OWASP Smart Contract Top 10
+
+## OWASP Categories to Test
+1. SC01: Reentrancy
+2. SC02: Access Control
+3. SC03: Integer Overflow/Underflow
+4. SC04: Unchecked Return Values
+5. SC05: Denial of Service
+6. SC06: Bad Randomness
+7. SC07: Front-Running
+8. SC08: Time Manipulation
+9. SC09: Short Address Attack
+10. SC10: Unknown Unknowns (Invariants)
+
+## Framework Detection
+- Primary: Hardhat
+- Solidity Version: 0.8.19
+- Test Framework: Mocha/Chai
+
+## Special Instructions
+- Generate tests compatible with existing test structure
+- Focus on security vulnerabilities
+- Include gas optimization checks
+3. context/milestones.md
+Created by: Claude CLI (updated during execution)
+Contains:
+# Audit Milestones
+
+## Status: IN_PROGRESS | COMPLETED | FAILED
+
+## Completed Steps
+- [x] Read project structure (2024-01-15 10:30:00)
+- [x] Analyzed Token.sol - 3 findings (2024-01-15 10:31:00)
+- [x] Analyzed Staking.sol - 5 findings (2024-01-15 10:32:00)
+- [ ] Analyzed Governance.sol
+- [ ] Generated behavioral tests
+- [ ] Generated STRIDE tests
+- [ ] Generated OWASP tests
+
+## Current Progress
+Processing: Governance.sol
+Last checkpoint: Staking.sol analysis complete
+
+## Resume Point
+If interrupted, resume from: "Governance.sol analysis"
+4. context/results.json
+Created by: Claude CLI
+Contains:
+{
+  "metadata": {
+    "repo": "https://github.com/user/project",
+    "branch": "main",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "duration_seconds": 120,
+    "status": "completed"
+  },
+  "analysis": {
+    "contracts_analyzed": 3,
+    "total_findings": 12,
+    "findings": [
+      {
+        "id": "VULN-001",
+        "severity": "high",
+        "category": "reentrancy",
+        "title": "Reentrancy vulnerability in withdraw()",
+        "file": "contracts/Staking.sol",
+        "line": 45,
+        "description": "External call before state update",
+        "recommendation": "Use checks-effects-interactions pattern",
+        "code_snippet": "payable(msg.sender).transfer(amount);\nbalances[msg.sender] = 0;"
+      }
+    ]
+  },
+  "tests_generated": {
+    "behavioral": {
+      "count": 15,
+      "files": ["test/Token.behavioral.test.ts", "test/Staking.behavioral.test.ts"]
+    },
+    "stride": {
+      "count": 8,
+      "files": ["test/Token.stride.test.ts"]
+    },
+    "owasp": {
+      "count": 20,
+      "files": ["test/owasp/SC01-reentrancy.test.ts", "..."]
+    }
+  },
+  "score": {
+    "value": 72,
+    "grade": "C",
+    "breakdown": {
+      "security": 65,
+      "test_coverage": 80,
+      "code_quality": 75
+    }
+  },
+  "recommendations": [
+    "Implement reentrancy guards on all external calls",
+    "Add access control to admin functions",
+    "Consider using OpenZeppelin SafeMath"
+  ]
+}
+The MEGA PROMPT Structure
+Here's what the single Claude CLI prompt would look like:
+const MEGA_PROMPT = `
+You are UatuAudit, an expert smart contract security auditor. You will perform a comprehensive security audit and generate tests.
+
+## Your Task
+
+1. **Read Context Files**:
+   - Read \`context/files_structure.md\` for project structure and contract code
+   - Read \`context/test_requirements.md\` for audit requirements
+   - Read \`context/milestones.md\` to check if resuming from previous run
+
+2. **Perform Security Analysis**:
+   For each contract in the selected files:
+   - Identify vulnerabilities (reentrancy, access control, overflow, etc.)
+   - Check for OWASP Smart Contract Top 10 issues
+   - Note code quality concerns
+
+3. **Generate Tests**:
+   Based on test_requirements.md, generate:
+   - Behavioral tests (unit tests for each function)
+   - STRIDE tests (Spoofing, Tampering, Repudiation, Info Disclosure, DoS, Elevation)
+   - OWASP tests (vulnerability-specific tests)
+
+4. **Update Progress**:
+   After completing each major step, update \`context/milestones.md\`
+
+5. **Write Results**:
+   Write complete results to \`context/results.json\` in this exact format:
+   {
+     "metadata": { "repo", "branch", "timestamp", "duration_seconds", "status" },
+     "analysis": { "contracts_analyzed", "total_findings", "findings": [...] },
+     "tests_generated": { "behavioral": {...}, "stride": {...}, "owasp": {...} },
+     "score": { "value": 0-100, "grade": "A-F", "breakdown": {...} },
+     "recommendations": [...]
+   }
+
+## Output Requirements
+
+- All test files must be valid TypeScript/Solidity
+- findings.severity must be: "critical" | "high" | "medium" | "low" | "info"
+- score.value must be 0-100
+- score.grade must be "A" (90+), "B" (80+), "C" (70+), "D" (60+), "F" (<60)
+
+## Begin
+
+Start by reading the context files, then proceed with the audit.
+`;
+Summary: What Changes
+Aspect	Current	Proposed
+Claude CLI Calls	15-30+	1
+Context Management	Scattered JSON files	3 Markdown + 1 JSON
+Resumability	None	milestones.md
+SOPs	6 separate SOPs	3 phases (context→audit→report)
+Report Template	Dynamic generation	Pre-designed HTML
+Complexity	High	Low
+Cost	High (many API calls)	Low (single call)
+Reliability	Fragile	Robust

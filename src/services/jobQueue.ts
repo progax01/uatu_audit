@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "fs-extra";
 import { getUatuHome } from "../constants/paths.js";
+import { killSessionByJobId } from "./ai/claudeCLIProvider.js";
 
 export type JobStatus = "pending" | "running" | "done" | "failed";
 export interface AuditJob {
@@ -10,6 +11,7 @@ export interface AuditJob {
   branch: string;
   ai?: boolean;
   testStyles?: string[];
+  selectedFiles?: string[]; // User-selected files to audit (empty = all)
   createdAt: string;
   startedAt?: string;
   finishedAt?: string;
@@ -24,12 +26,41 @@ export interface AuditJob {
   attempts?: number;
   nextRunAt?: string;
   commit?: string;
+  // User authentication for private repos
+  accessToken?: string;
+  // Session isolation
+  sessionId?: string;
+  // User account isolation (GitHub userId for persistent isolation)
+  userId?: string;
 }
 
 interface QueueFile { nextId: number; jobs: AuditJob[]; }
 
 const QDIR = path.join(getUatuHome(), "queue");
 const QPATH = path.join(QDIR, "jobs.json");
+
+// Track cancelled jobs in memory for immediate signal
+const cancelledJobs = new Set<number>();
+
+// Custom error for job cancellation
+export class JobCancelledError extends Error {
+  constructor(public jobId: number) {
+    super(`Job ${jobId} was cancelled by user`);
+    this.name = 'JobCancelledError';
+  }
+}
+
+// Check if a job has been cancelled
+export function isJobCancelled(jobId: number): boolean {
+  return cancelledJobs.has(jobId);
+}
+
+// Check cancellation and throw if cancelled (helper for use in loops)
+export function checkCancellation(jobId: number): void {
+  if (cancelledJobs.has(jobId)) {
+    throw new JobCancelledError(jobId);
+  }
+}
 
 // Simple in-process mutex to serialize queue mutations within this process
 let queueLock: Promise<void> = Promise.resolve();
@@ -217,6 +248,40 @@ export async function updateJobNote(jobId: number, note: string) {
   });
 }
 
+export async function cancelJob(jobId: number): Promise<{ success: boolean; message: string }> {
+  // Add to cancelled set immediately for in-flight jobs to check
+  cancelledJobs.add(jobId);
+
+  return await withQueueLock(async () => {
+    const q = await load();
+    const j = q.jobs.find(x => x.id === jobId);
+    if (!j) {
+      cancelledJobs.delete(jobId);
+      return { success: false, message: 'Job not found' };
+    }
+    if (j.status === 'done' || j.status === 'failed') {
+      cancelledJobs.delete(jobId);
+      return { success: false, message: `Job already ${j.status}` };
+    }
+    j.status = 'failed';
+    j.errorMessage = 'Cancelled by user';
+    j.finishedAt = new Date().toISOString();
+    await save(q);
+
+    // Kill the running Claude CLI process if it exists
+    const killed = killSessionByJobId(jobId);
+    console.log(`Process kill attempt for job ${jobId}: ${killed ? 'success' : 'no active session'}`);
+
+    // Clean up cancelled set after a delay (job should have stopped by then)
+    setTimeout(() => cancelledJobs.delete(jobId), 60000);
+
+    return {
+      success: true,
+      message: killed ? 'Job cancelled and process killed' : 'Job cancelled (no active process)'
+    };
+  });
+}
+
 // Clean up old completed jobs to prevent queue bloat
 async function cleanupOldJobs(q: QueueFile): Promise<void> {
   const maxCompletedJobs = parseInt(process.env.UATU_MAX_COMPLETED_JOBS || '50');
@@ -269,10 +334,46 @@ export async function cleanupJobs(): Promise<{ removed: number; remaining: numbe
     const initialCount = q.jobs.length;
     await cleanupOldJobs(q);
     const finalCount = q.jobs.length;
-    
+
     return {
       removed: initialCount - finalCount,
       remaining: finalCount
     };
   });
+}
+
+// List jobs with optional user/session filtering
+export async function listJobs(options?: { sessionId?: string; userId?: string; status?: JobStatus[]; limit?: number }): Promise<AuditJob[]> {
+  const q = await load();
+  let jobs = q.jobs;
+
+  // Filter by userId if provided (preferred for user isolation)
+  if (options?.userId) {
+    jobs = jobs.filter(j => j.userId === options.userId);
+  }
+  // Fallback to session filtering if no userId
+  else if (options?.sessionId) {
+    jobs = jobs.filter(j => j.sessionId === options.sessionId);
+  }
+
+  // Filter by status if provided
+  if (options?.status && options.status.length > 0) {
+    jobs = jobs.filter(j => options.status!.includes(j.status));
+  }
+
+  // Sort by createdAt descending (newest first)
+  jobs = jobs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Apply limit if provided
+  if (options?.limit && options.limit > 0) {
+    jobs = jobs.slice(0, options.limit);
+  }
+
+  return jobs;
+}
+
+// Get a single job by ID
+export async function getJob(jobId: number): Promise<AuditJob | null> {
+  const q = await load();
+  return q.jobs.find(j => j.id === jobId) || null;
 }

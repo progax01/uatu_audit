@@ -31,7 +31,12 @@ services:
       - "9090:9090"
     volumes:
       # Persistent data storage for audits
-      - uatu_data:/root/.uatu
+      - uatu_data:/home/uatu/.uatu
+      # Mount Claude CLI from host (user's local installation with latest version)
+      - /home/azureuser/.local/share/claude/versions:/home/uatu/.local/share/claude/versions:ro
+      - /home/azureuser/.local/bin/claude:/usr/local/bin/claude:ro
+      # Use host's Claude CLI authentication
+      - /home/azureuser/.claude:/home/uatu/.claude
       # Shared socket for docker-proxy communication (if using proxy)
       # - docker-socket:/var/run/docker.sock:ro
     env_file:
@@ -39,7 +44,7 @@ services:
     environment:
       # Application configuration
       - UATU_PORT=9090
-      - UATU_HOME=/root/.uatu
+      - UATU_HOME=/home/uatu/.uatu
       - UATU_CONCURRENCY=4
 
       # =====================================================================
@@ -58,9 +63,9 @@ services:
       # API version compatibility (docker-dind uses API 1.43)
       - DOCKER_API_VERSION=1.43
 
-      # Use local execution (simpler, faster, no DinD volume issues)
-      - UATU_USE_DOCKER=0
-      - UATU_SANDBOX=local
+      # Use Docker execution for reliable dependency installation
+      - UATU_USE_DOCKER=1
+      - UATU_SANDBOX=docker
 
       # Other configurations from .env
       - UATU_EXECUTE_TIMEOUT_MS=1200000
@@ -200,6 +205,11 @@ volumes:
   # UatuAudit persistent data (workspace, queue, logs)
   uatu_data:
     name: uatu_data
+    driver: local
+
+  # Claude CLI authentication persistence
+  claude_auth:
+    name: uatu_claude_auth
     driver: local
 
   # Docker-in-Docker persistent storage (images, containers, volumes)

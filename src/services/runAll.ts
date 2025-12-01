@@ -3,120 +3,264 @@ import fs from "fs-extra";
 import { cloneOrRefresh } from "./gitService.js";
 import { resolveWorkspace } from "./workspaceService.js";
 import { bootstrapSOP } from "../sops/bootstrap.js";
-import { inventorySOP } from "../sops/inventory.js";
-import { analysisSOP } from "../sops/analysis.js";
-import { testgenSOP } from "../sops/testgen.js";
-import { executeEnhancedSOP } from "../sops/executeEnhanced.js";
-import { writeHtmlReport } from "./report/htmlReport.js";
-import { writeSarif } from "./report/sarif.js";
-import { buildReportDataFromRun } from "./report/reportData.js";
-import { loadBranding } from "./report/branding.js";
+import { singlePromptAuditSOP } from "../sops/singlePromptAudit.js";
+import { writeFilesStructure, writeTestRequirements, writeMilestones, initResultsJson } from "./contextWriter.js";
+import { generateReportFromResults, generateCertificateFromResults } from "./report/simpleReportGenerator.js";
+import { generatePdfFromHtml } from "./pdfGenerator.js";
 import { loadConfig } from "./configService.js";
 import { withRetry, withTimeout } from "../utils/retry.js";
 import { createJobLogger } from "../utils/logger.js";
+import { createJobLogger as createJobFileLogger, closeJobLogger } from "./jobLogger.js";
 import { newProgress, saveProgress, setPhasePct } from "./progressService.js";
 import type { ProgressHook } from "../utils/stepHelper.js";
-import { attachRunTimestamp, updateJobNote, updateJobPct } from "./jobQueue.js";
+import { attachRunTimestamp, updateJobNote, updateJobPct, checkCancellation as checkJobCancellation } from "./jobQueue.js";
 
+// Helper to check cancellation and throw if cancelled
+function checkCancellation(jobId: number | undefined) {
+  if (jobId) {
+    checkJobCancellation(jobId);
+  }
+}
+
+/**
+ * Simplified 3-Phase Audit Pipeline
+ *
+ * Phase 1: Context Preparation (Clone + Bootstrap + Write Context Files)
+ * Phase 2: Single Claude CLI Audit (One mega-prompt does everything)
+ * Phase 3: Report Generation (results.json → HTML/PDF)
+ */
 export async function runAll(params: {
-  repo: string; project: string; branch: string; ai?: boolean; testStyles?: string[]; jobId?: number;
+  repo: string;
+  project: string;
+  branch: string;
+  ai?: boolean;
+  testStyles?: string[];
+  jobId?: number;
+  accessToken?: string;
+  selectedFiles?: string[];
 }) {
-  const { project, branch, repo, ai, testStyles, jobId } = params;
+  const { project, branch, repo, ai, testStyles, jobId, accessToken, selectedFiles } = params;
   const { branchPath, contextPath, sopPath, runsPath } = await resolveWorkspace(project, branch);
-  
-  const log = createJobLogger(jobId, project, branch);
-  log.info('Starting runAll pipeline');
-  
-  await withRetry(() => cloneOrRefresh(repo, branchPath, branch));
 
+  const log = createJobLogger(jobId, project, branch);
+  log.info("Starting simplified 3-phase audit pipeline", { project, branch, repo, ai, testStyles });
+
+  // ============================================================
+  // PHASE 1: Context Preparation
+  // ============================================================
+  log.info("=== PHASE 1: Context Preparation ===");
+
+  // Step 1.1: Clone/Refresh Repository
+  log.info("Step 1.1: Cloning/refreshing repository");
+  checkCancellation(jobId);
+  await withRetry(() => cloneOrRefresh(repo, branchPath, branch, accessToken));
+  log.info("Step 1.1: Repository ready");
+
+  // Step 1.2: Create run directory
   const timestamp = Date.now().toString();
   const runPath = path.join(runsPath, timestamp);
+  log.info("Step 1.2: Creating run directory", { runPath, timestamp });
   await fs.ensureDir(runPath);
-  
-  // Small delay to ensure filesystem is ready
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  // init progress
-  await saveProgress(runPath, newProgress(project, branch, timestamp));
-  if (jobId) await attachRunTimestamp(jobId, timestamp);
+  // Create job-specific file logger for UI streaming
+  const jobFileLog = createJobFileLogger(runPath);
+  jobFileLog.info("Job started", { project, branch, repo, jobId, timestamp });
 
-  const onProgress: ProgressHook = async ({ phase, step, pct }: { phase: any, step: any, pct: any }) => {
+  // Step 1.3: Initialize progress tracking
+  log.info("Step 1.3: Initializing progress tracking");
+  jobFileLog.info("Initializing progress tracking");
+  await saveProgress(runPath, newProgress(project, branch, timestamp));
+  if (jobId) {
+    await attachRunTimestamp(jobId, timestamp);
+    log.info("Step 1.3: Progress initialized", { jobId, timestamp });
+  }
+
+  const onProgress: ProgressHook = async ({ phase, step, pct }: { phase: any; step: any; pct: any }) => {
     await setPhasePct(runPath, phase, pct, step);
     const curr = await fs.readJson(path.join(runPath, "progress.json"));
+    jobFileLog.info(`Progress: ${phase}`, { step, pct, overall: curr.overall_pct });
     if (jobId) {
       await updateJobPct(jobId, curr.overall_pct);
       if (step) await updateJobNote(jobId, `${phase}: ${step}`);
     }
   };
 
-  // SOP order with retries and timeouts
-  const cfg = await loadConfig(branchPath);
-  const aiFlag = typeof ai === "boolean" ? ai : !!cfg.ai;
-  const sopInputs = { projectPath: branchPath, contextPath, runsPath, timestamp, ai: aiFlag, testStyles: (testStyles || ["behavioral", "stride"]) as ("behavioral" | "stride")[] };
-  
-  log.info('Executing bootstrap SOP');
-  await withRetry(() => withTimeout(() => 
-    bootstrapSOP.execute(sopInputs, onProgress), 
-    5 * 60 * 1000, 'Bootstrap SOP timed out'
-  ));
-  
-  log.info('Executing inventory SOP');
-  await withRetry(() => withTimeout(() => 
-    inventorySOP.execute(sopInputs, onProgress), 
-    10 * 60 * 1000, 'Inventory SOP timed out'
-  ));
-  
-  log.info('Executing analysis SOP');
-  const analysisResult = await withRetry(() => withTimeout(() => 
-    analysisSOP.execute(sopInputs, onProgress), 
-    15 * 60 * 1000, 'Analysis SOP timed out'
-  ));
-  
-  log.info('Executing testgen SOP');
-  await withRetry(() => withTimeout(() => 
-    testgenSOP.execute(sopInputs, onProgress), 
-    10 * 60 * 1000, 'Testgen SOP timed out'
-  ));
-  
-  log.info('Executing executeEnhanced SOP');
-  const executeResult = await withRetry(() => withTimeout(() => 
-    executeEnhancedSOP.execute(sopInputs, onProgress), 
-    20 * 60 * 1000, 'Execute SOP timed out'
-  ));
-
-  // report generation
-  log.info('Generating reports v1');
-  const analysis = await fs.readJson(path.join(runPath, "analysis.json")).catch(() => ({ findings: [] }));
-  await writeSarif(runPath, analysis.findings || []);
-
-  // Load branding assets (no fallbacks)
-  const branding = await loadBranding(branchPath);
-  
-  // Build structured report data using the v1 contract
-  const reportData = await buildReportDataFromRun({
-    project, 
-    branch, 
-    branchPath, 
-    runPath, 
+  // Step 1.4: Run Bootstrap SOP (project structure analysis)
+  log.info("Step 1.4: Running Bootstrap SOP");
+  checkCancellation(jobId);
+  const sopInputs = {
+    projectPath: branchPath,
+    contextPath,
+    runsPath,
     timestamp,
-    htmlUrl: `/report?project=${encodeURIComponent(project)}&branch=${encodeURIComponent(branch)}&format=html`,
-    pdfUrl: `/report?project=${encodeURIComponent(project)}&branch=${encodeURIComponent(branch)}&format=pdf`,
+    ai: ai ?? true,
+    testStyles: (testStyles || ["behavioral", "stride"]) as ("behavioral" | "stride" | "owasp")[],
+    jobId
+  };
+
+  await withRetry(() =>
+    withTimeout(
+      () => bootstrapSOP.execute(sopInputs, onProgress),
+      5 * 60 * 1000,
+      "Bootstrap SOP timed out"
+    )
+  );
+  log.info("Step 1.4: Bootstrap SOP completed");
+
+  // Step 1.5: Write context files for single-prompt audit
+  log.info("Step 1.5: Writing context files");
+  checkCancellation(jobId);
+
+  const contextWriterOptions = {
+    projectPath: branchPath,
+    contextPath,
+    selectedFiles,
+    testStyles: (testStyles || ["behavioral", "stride"]) as ("behavioral" | "stride" | "owasp")[],
+    repo,
+    branch
+  };
+
+  await writeFilesStructure(contextWriterOptions);
+  log.info("Step 1.5a: files_structure.md written");
+
+  await writeTestRequirements(contextWriterOptions);
+  log.info("Step 1.5b: test_requirements.md written");
+
+  await writeMilestones(contextPath, "NOT_STARTED");
+  log.info("Step 1.5c: milestones.md written");
+
+  await initResultsJson(contextPath);
+  log.info("Step 1.5d: results.json initialized");
+
+  await onProgress({ phase: "context", step: "context-ready", pct: 100 });
+  log.info("=== PHASE 1 COMPLETE ===");
+
+  // ============================================================
+  // PHASE 2: Single Claude CLI Audit
+  // ============================================================
+  log.info("=== PHASE 2: Single Claude CLI Audit ===");
+  checkCancellation(jobId);
+
+  // Calculate timeout based on project size
+  const projectStructurePath = path.join(contextPath, "project-structure.json");
+  const projectStructure = await fs.readJson(projectStructurePath).catch(() => ({ mainContracts: [] }));
+  const contractCount = projectStructure.mainContracts?.length || 5;
+  const auditTimeoutMs = Math.max(30 * 60 * 1000, contractCount * 6 * 60 * 1000); // 30 min base + 6 min per contract
+
+  log.info("Step 2.1: Starting single-prompt audit", {
+    contractCount,
+    timeoutMinutes: Math.round(auditTimeoutMs / 60000)
   });
 
-  // Generate HTML report v1 (single canonical path)
-  const htmlPath = await writeHtmlReport(runPath, reportData, branding);
+  const auditResult = await withRetry(() =>
+    withTimeout(
+      () => singlePromptAuditSOP.execute(sopInputs, onProgress),
+      auditTimeoutMs,
+      "Single-prompt audit timed out"
+    )
+  );
 
-  // (optional) call puppeteer converter here to write report.pdf
-  // For now, PDF is only available via external puppeteer script
+  if (!auditResult.ok) {
+    log.warn("Single-prompt audit had issues", { errors: auditResult.errors });
+  } else {
+    log.info("Step 2.1: Single-prompt audit completed successfully");
+  }
 
-  log.info('Report v1 generated successfully', { 
-    htmlPath, 
-    score: reportData.score, 
-    grade: reportData.grade,
-    version: (reportData as any).reportVersion,
-    hasLogo: !!branding.logoPath,
-    hasMascot: !!branding.mascotPath
+  // Mark all audit phases as complete
+  await onProgress({ phase: "inventory", step: "inventory-complete", pct: 100 });
+  await onProgress({ phase: "analysis", step: "analysis-complete", pct: 100 });
+  await onProgress({ phase: "testgen", step: "testgen-complete", pct: 100 });
+  log.info("=== PHASE 2 COMPLETE ===");
+
+  // ============================================================
+  // PHASE 3: Report Generation
+  // ============================================================
+  log.info("=== PHASE 3: Report Generation ===");
+  checkCancellation(jobId);
+
+  // Step 3.1: Generate HTML report from results.json
+  log.info("Step 3.1: Generating HTML report");
+  let htmlPath: string;
+  let score = 0;
+  let grade = "F";
+
+  try {
+    // Load logo if available
+    let logoDataUri: string | undefined;
+    const logoPath = path.join(branchPath, ".uatu", "brand", "logo.png");
+    if (await fs.pathExists(logoPath)) {
+      const logoBuffer = await fs.readFile(logoPath);
+      logoDataUri = `data:image/png;base64,${logoBuffer.toString("base64")}`;
+    }
+
+    htmlPath = await generateReportFromResults(contextPath, runPath, logoDataUri);
+    log.info("Step 3.1: HTML report generated", { htmlPath });
+
+    // Generate certificate (dark-themed)
+    try {
+      const certPath = await generateCertificateFromResults(contextPath, runPath);
+      log.info("Step 3.1: Certificate generated", { certPath });
+    } catch (certError: any) {
+      log.warn("Certificate generation failed (non-critical)", { error: String(certError) });
+    }
+
+    // Extract score and grade from results.json
+    const results = await fs.readJson(path.join(contextPath, "results.json")).catch(() => ({}));
+    score = results.score?.value || 0;
+    grade = results.score?.grade || "F";
+
+    // Copy results.json to runPath for persistence
+    await fs.copy(path.join(contextPath, "results.json"), path.join(runPath, "results.json"));
+  } catch (reportError: any) {
+    log.error("HTML report generation failed", { error: String(reportError) });
+
+    // Create a minimal report on failure
+    htmlPath = path.join(runPath, "report.html");
+    await fs.writeFile(
+      htmlPath,
+      `<!DOCTYPE html><html><head><title>Audit Report</title></head><body>
+      <h1>Audit Report</h1>
+      <p>Report generation failed: ${reportError.message}</p>
+      <p>Check context/results.json for raw data.</p>
+      </body></html>`,
+      "utf8"
+    );
+  }
+
+  // Step 3.2: Generate PDF from HTML
+  log.info("Step 3.2: Generating PDF report");
+  checkCancellation(jobId);
+  const pdfPath = path.join(runPath, "report.pdf");
+  const pdfResult = await generatePdfFromHtml(htmlPath, pdfPath);
+
+  if (pdfResult.success) {
+    log.info("Step 3.2: PDF report generated successfully", { pdfPath });
+  } else {
+    log.warn("Step 3.2: PDF generation failed (non-critical)", { error: pdfResult.error });
+  }
+
+  await onProgress({ phase: "execute", step: "report-complete", pct: 100 });
+  log.info("=== PHASE 3 COMPLETE ===");
+
+  // ============================================================
+  // Pipeline Complete
+  // ============================================================
+  log.info("Pipeline completed successfully", {
+    htmlPath,
+    score,
+    grade,
+    totalDuration: Date.now() - parseInt(timestamp)
   });
 
-  return { htmlPath, timestamp, runPath, score: reportData.score, grade: reportData.grade };
+  // Write final status to job log and close
+  jobFileLog.info("Job completed successfully", {
+    score,
+    grade,
+    htmlPath,
+    totalDuration: Date.now() - parseInt(timestamp)
+  });
+  await closeJobLogger(runPath);
+
+  return { htmlPath, timestamp, runPath, score, grade };
 }

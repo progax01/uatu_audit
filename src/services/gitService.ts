@@ -7,7 +7,7 @@ import { recordGitReclone } from "./metrics.js";
 
 const execAsync = promisify(exec);
 
-export async function cloneOrRefresh(repo: string, targetPath: string, branch: string) {
+export async function cloneOrRefresh(repo: string, targetPath: string, branch: string, accessToken?: string) {
   // Early validation to catch bad repo URLs
   if (!repo || typeof repo !== 'string') {
     throw new Error(`Invalid repository URL: ${repo}`);
@@ -89,15 +89,28 @@ export async function cloneOrRefresh(repo: string, targetPath: string, branch: s
   
   if (!(await fs.pathExists(targetPath))) {
     // Clone new repo
-    const tokenFile = path.join(getUatuHome(), "users", getUserId(), "secrets", "github.json");
     let finalUrl = repo;
-    if (await fs.pathExists(tokenFile)) {
+
+    // Use passed accessToken first, then fall back to token file
+    let tok: string | undefined = accessToken;
+    if (!tok) {
+      const tokenFile = path.join(getUatuHome(), "users", getUserId(), "secrets", "github.json");
+      if (await fs.pathExists(tokenFile)) {
+        try {
+          const j = await fs.readJson(tokenFile);
+          tok = j?.token as string | undefined;
+        } catch {}
+      }
+    }
+
+    if (tok) {
       try {
-        const j = await fs.readJson(tokenFile);
-        const tok = j?.token as string | undefined;
-        if (tok) {
-          const u = new URL(repo);
-          if (u.hostname === "github.com") { u.username = "x-access-token"; u.password = tok; finalUrl = u.toString(); }
+        const u = new URL(repo);
+        if (u.hostname === "github.com") {
+          u.username = "x-access-token";
+          u.password = tok;
+          finalUrl = u.toString();
+          console.log(`Using access token for private repo clone`);
         }
       } catch {}
     }

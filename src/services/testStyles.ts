@@ -1,15 +1,20 @@
 import { TestStyle } from "../types.js";
 
 export const STYLES: Record<TestStyle, { id: TestStyle; label: string; description: string }> = {
-  behavioral: { 
-    id: "behavioral", 
+  behavioral: {
+    id: "behavioral",
     label: "Behavioral (Happy/Negative/Sad/Neutral)",
     description: "Tests covering success paths, malicious inputs, unfavorable conditions, and no-op scenarios"
   },
-  stride: { 
-    id: "stride", 
+  stride: {
+    id: "stride",
     label: "STRIDE Threat Modeling",
     description: "Security tests covering Spoofing, Tampering, Repudiation, Info Disclosure, DoS, and Elevation of Privilege"
+  },
+  owasp: {
+    id: "owasp",
+    label: "OWASP SC Top 10",
+    description: "Security tests for Access Control, Reentrancy, Overflow, DoS, Randomness, Front-running, Time Manipulation"
   }
 };
 

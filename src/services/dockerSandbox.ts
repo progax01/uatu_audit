@@ -168,13 +168,15 @@ export async function executeNodeInDocker(
   let args: string[] = [];
   switch (command) {
     case 'install':
-      // Install hardhat and all dependencies explicitly
+      // Install from package.json and rebuild to ensure binaries are linked
       args = [
         'sh', '-c',
-        'echo "Installing hardhat and dependencies..." && ' +
-        'npm install hardhat @nomicfoundation/hardhat-toolbox @nomicfoundation/hardhat-chai-matchers @nomicfoundation/hardhat-ethers @nomicfoundation/hardhat-network-helpers @typechain/ethers-v6 @types/chai chai ethers hardhat-gas-reporter solidity-coverage typechain --save-dev --verbose --legacy-peer-deps && ' +
-        'echo "Verification: Hardhat installation check..." && ' +
-        'npx hardhat --version'
+        'echo "Installing dependencies from package.json..." && ' +
+        'npm install --legacy-peer-deps && ' +
+        'echo "Running npm rebuild to regenerate binary symlinks..." && ' +
+        'npm rebuild && ' +
+        'echo "Verification: Checking hardhat installation..." && ' +
+        '(npx hardhat --version || echo "Hardhat not in this project")'
       ];
       break;
     case 'test':
