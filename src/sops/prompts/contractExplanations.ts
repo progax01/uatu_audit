@@ -8,7 +8,7 @@ export function buildContractExplanationsPrompt(contextPath: string): string {
   return `You are UatuAudit assistant for CONTRACT DOCUMENTATION.
 
 ## YOUR TASK
-Explain each smart contract in detail. Write results to context/contract_explanations.json
+Explain each smart contract in detail. Output results as JSON.
 
 ## STEP 1: Read Context
 
@@ -57,7 +57,7 @@ Identify design patterns used:
 
 ## STEP 3: Write Results
 
-Write to \`${path.join(contextPath, "contract_explanations.json")}\`:
+IMPORTANT: Output ONLY the following JSON (no markdown, no explanations, just the JSON):
 
 \`\`\`json
 {

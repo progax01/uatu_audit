@@ -8,7 +8,7 @@ export function buildSecurityAnalysisPrompt(contextPath: string, projectPath: st
   return `You are UatuAudit, an expert smart contract security auditor performing SECURITY ANALYSIS.
 
 ## YOUR TASK
-Perform comprehensive security analysis and generate test files. Write results to context/security_results.json
+Perform comprehensive security analysis and generate test files. Output results as JSON.
 
 ## STEP 1: Read Context Files
 
@@ -89,9 +89,9 @@ Grade:
 - D: 60-69
 - F: 0-59
 
-## STEP 5: Write Results
+## STEP 5: Output Results
 
-Write to \`${path.join(contextPath, "security_results.json")}\`:
+IMPORTANT: Output ONLY the following JSON (no markdown, no explanations, just the JSON):
 
 \`\`\`json
 {

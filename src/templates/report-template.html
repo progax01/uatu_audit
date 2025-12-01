@@ -176,19 +176,6 @@
             font-weight: 500;
         }
 
-        .coverage-badge {
-            text-align: center;
-        }
-
-        .coverage-badge h3 {
-            font-size: 16px;
-            margin-bottom: 8px;
-        }
-
-        .coverage-stats {
-            font-size: 12px;
-        }
-
         /* Section */
         .section {
             background: var(--card);
@@ -974,8 +961,7 @@
         <header class="header">
             <div class="logo-section">
                 <div class="logo">
-                    <img id="brandLogo" alt="Logo" style="display: none;">
-                    <div id="logoPlaceholder" class="placeholder">LOGO</div>
+                    <img id="brandLogo" alt="UatuAudit Logo">
                 </div>
                 <div class="title">
                     <h1>UatuAudit — Smart Contract Audit Report</h1>
@@ -1001,12 +987,6 @@
                 <h2 id="projectTitle">Project Report</h2>
                 <div class="hero-meta" id="projectMeta">Branch: -- | Run: --</div>
                 <div class="ecosystems" id="ecosystems">
-                    <!-- Populated by JavaScript -->
-                </div>
-            </div>
-            <div class="coverage-badge">
-                <h3>Coverage</h3>
-                <div class="coverage-stats" id="coverageStats">
                     <!-- Populated by JavaScript -->
                 </div>
             </div>
@@ -1148,11 +1128,10 @@
             artifacts: {}
         };
 
-        // assets: if provided, set; otherwise leave empty (no random art)
+        // Set logo from data
         if (D.logoUrl) {
             document.getElementById('brandLogo').src = D.logoUrl;
             document.getElementById('brandLogo').style.display = 'block';
-            document.getElementById('logoPlaceholder').style.display = 'none';
         }
         if (D.mascotUrl) {
             document.getElementById('brandMascot').src = D.mascotUrl;
@@ -1185,14 +1164,6 @@
             ecosystemsEl.innerHTML = (D.ecosystems || []).map(eco => 
                 `<span class="ecosystem-chip">${eco}</span>`
             ).join('');
-
-            // Coverage stats
-            const coverage = D.coverage || {};
-            document.getElementById('coverageStats').innerHTML = `
-                Statements: ${coverage.statements || 0}%<br>
-                Branches: ${coverage.branches || 0}%<br>
-                Functions: ${coverage.functions || 0}%
-            `;
 
             // Severity counts
             const severity = D.severity || {};

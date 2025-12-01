@@ -4,6 +4,7 @@ import { cloneOrRefresh } from "./gitService.js";
 import { resolveWorkspace } from "./workspaceService.js";
 import { bootstrapSOP } from "../sops/bootstrap.js";
 import { singlePromptAuditSOP } from "../sops/singlePromptAudit.js";
+import { executeParallelAudit } from "../sops/parallelAuditExecutor.js";
 import { writeFilesStructure, writeTestRequirements, writeMilestones, initResultsJson } from "./contextWriter.js";
 import { generateReportFromResults, generateCertificateFromResults } from "./report/simpleReportGenerator.js";
 import { generatePdfFromHtml } from "./pdfGenerator.js";
@@ -78,11 +79,16 @@ export async function runAll(params: {
 
   const onProgress: ProgressHook = async ({ phase, step, pct }: { phase: any; step: any; pct: any }) => {
     await setPhasePct(runPath, phase, pct, step);
-    const curr = await fs.readJson(path.join(runPath, "progress.json"));
-    jobFileLog.info(`Progress: ${phase}`, { step, pct, overall: curr.overall_pct });
-    if (jobId) {
-      await updateJobPct(jobId, curr.overall_pct);
-      if (step) await updateJobNote(jobId, `${phase}: ${step}`);
+    try {
+      const curr = await fs.readJson(path.join(runPath, "progress.json"));
+      jobFileLog.info(`Progress: ${phase}`, { step, pct, overall: curr.overall_pct });
+      if (jobId) {
+        await updateJobPct(jobId, curr.overall_pct);
+        if (step) await updateJobNote(jobId, `${phase}: ${step}`);
+      }
+    } catch (error: any) {
+      // Progress file might not exist yet or be in the middle of atomic write
+      jobFileLog.info(`Progress: ${phase}`, { step, pct, note: 'progress file not ready' });
     }
   };
 
@@ -148,23 +154,74 @@ export async function runAll(params: {
   const contractCount = projectStructure.mainContracts?.length || 5;
   const auditTimeoutMs = Math.max(30 * 60 * 1000, contractCount * 6 * 60 * 1000); // 30 min base + 6 min per contract
 
-  log.info("Step 2.1: Starting single-prompt audit", {
-    contractCount,
-    timeoutMinutes: Math.round(auditTimeoutMs / 60000)
-  });
+  // Check if detailed audit mode is enabled
+  const enableDetailedAudit = process.env.ENABLE_DETAILED_AUDIT === "true";
 
-  const auditResult = await withRetry(() =>
-    withTimeout(
-      () => singlePromptAuditSOP.execute(sopInputs, onProgress),
-      auditTimeoutMs,
-      "Single-prompt audit timed out"
-    )
-  );
+  if (enableDetailedAudit) {
+    log.info("Step 2.1: Starting parallel detailed audit", {
+      contractCount,
+      timeoutMinutes: Math.round(auditTimeoutMs / 60000),
+      mode: "DETAILED"
+    });
 
-  if (!auditResult.ok) {
-    log.warn("Single-prompt audit had issues", { errors: auditResult.errors });
+    const parallelResult = await executeParallelAudit({
+      projectPath: branchPath,
+      contextPath,
+      runPath,
+      jobId,
+      onProgress: async (update) => {
+        await onProgress({
+          phase: "audit",
+          step: update.session,
+          pct: update.pct
+        });
+      }
+    });
+
+    if (!parallelResult.success) {
+      log.warn("Parallel detailed audit had issues", { results: parallelResult.results });
+    } else {
+      log.info("Step 2.1: Parallel detailed audit completed successfully");
+    }
+
+    // Write parallel audit results to results.json with metadata
+    const resultsJsonPath = path.join(contextPath, "results.json");
+    const resultsWithMetadata = {
+      metadata: {
+        repo,
+        branch,
+        timestamp: new Date().toISOString(),
+        duration_seconds: Math.round((Date.now() - parseInt(timestamp)) / 1000),
+        status: "completed"
+      },
+      ...parallelResult.combined
+    };
+    await fs.writeJson(resultsJsonPath, resultsWithMetadata, { spaces: 2 });
+    log.info("Step 2.1: Parallel audit results written to results.json", {
+      score: parallelResult.combined?.score?.value,
+      grade: parallelResult.combined?.score?.grade,
+      findings: parallelResult.combined?.analysis?.total_findings
+    });
   } else {
-    log.info("Step 2.1: Single-prompt audit completed successfully");
+    log.info("Step 2.1: Starting single-prompt audit", {
+      contractCount,
+      timeoutMinutes: Math.round(auditTimeoutMs / 60000),
+      mode: "BASIC"
+    });
+
+    const auditResult = await withRetry(() =>
+      withTimeout(
+        () => singlePromptAuditSOP.execute(sopInputs, onProgress),
+        auditTimeoutMs,
+        "Single-prompt audit timed out"
+      )
+    );
+
+    if (!auditResult.ok) {
+      log.warn("Single-prompt audit had issues", { errors: auditResult.errors });
+    } else {
+      log.info("Step 2.1: Single-prompt audit completed successfully");
+    }
   }
 
   // Mark all audit phases as complete
@@ -182,8 +239,12 @@ export async function runAll(params: {
   // Step 3.1: Generate HTML report from results.json
   log.info("Step 3.1: Generating HTML report");
   let htmlPath: string;
-  let score = 0;
-  let grade = "F";
+
+  // Extract score and grade from results.json FIRST (before HTML generation)
+  const results = await fs.readJson(path.join(contextPath, "results.json")).catch(() => ({}));
+  let score = results.score?.value || 0;
+  let grade = results.score?.grade || "F";
+  log.info("Extracted score from results.json", { score, grade });
 
   try {
     // Load logo if available
@@ -204,11 +265,6 @@ export async function runAll(params: {
     } catch (certError: any) {
       log.warn("Certificate generation failed (non-critical)", { error: String(certError) });
     }
-
-    // Extract score and grade from results.json
-    const results = await fs.readJson(path.join(contextPath, "results.json")).catch(() => ({}));
-    score = results.score?.value || 0;
-    grade = results.score?.grade || "F";
 
     // Copy results.json to runPath for persistence
     await fs.copy(path.join(contextPath, "results.json"), path.join(runPath, "results.json"));

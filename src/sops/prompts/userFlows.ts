@@ -8,7 +8,7 @@ export function buildUserFlowsPrompt(contextPath: string): string {
   return `You are UatuAudit assistant for USER FLOW ANALYSIS.
 
 ## YOUR TASK
-Map typical user journeys through the smart contracts. Write results to context/user_flows.json
+Map typical user journeys through the smart contracts. Output results as JSON.
 
 ## STEP 1: Read Context
 
@@ -61,7 +61,7 @@ For each step in the journey:
 
 ## STEP 4: Write Results
 
-Write to \`${path.join(contextPath, "user_flows.json")}\`:
+IMPORTANT: Output ONLY the following JSON (no markdown, no explanations, just the JSON):
 
 \`\`\`json
 {

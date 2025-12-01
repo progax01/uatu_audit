@@ -24,14 +24,12 @@ async function atomicWrite(file: string, data: unknown, maxRetries: number = 3) 
       // Ensure directory exists before each attempt
       await fs.ensureDir(path.dirname(file));
 
-      const tmp = `${file}.tmp`;
-
-      // Clean up any existing temp files first
-      try {
-        await fs.remove(tmp);
-      } catch {
-        // Ignore cleanup errors
+      // Add random delay to reduce race conditions between parallel sessions
+      if (attempt > 1) {
+        await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
       }
+
+      const tmp = `${file}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
 
       // Write to temp file
       await fs.writeJson(tmp, data, { spaces: 2 });
@@ -57,25 +55,29 @@ async function atomicWrite(file: string, data: unknown, maxRetries: number = 3) 
     } catch (error: any) {
       lastError = error;
 
-      // Clean up temp file on error
+      // Clean up any temp files on error (use glob pattern)
       try {
-        await fs.remove(`${file}.tmp`);
+        const tmpFiles = await fs.readdir(path.dirname(file));
+        const tmpPattern = `${path.basename(file)}.tmp.`;
+        for (const f of tmpFiles) {
+          if (f.startsWith(tmpPattern)) {
+            await fs.remove(path.join(path.dirname(file), f)).catch(() => {});
+          }
+        }
       } catch {
         // Ignore cleanup errors
       }
 
-      if (attempt < maxRetries && (error.code === 'ENOENT' || error.code === 'EEXIST')) {
+      if (attempt < maxRetries) {
         // Wait before retry for filesystem race conditions
-        await new Promise(resolve => setTimeout(resolve, 50 * attempt));
+        await new Promise(resolve => setTimeout(resolve, 100 * attempt));
         continue;
       } else {
-        // Log error details
-        console.error('atomicWrite failed after retries:', {
+        // Log warning but don't crash - progress updates are non-critical
+        console.warn('atomicWrite failed after retries (non-fatal):', {
           file,
-          tmpFile: `${file}.tmp`,
           error: error.message,
           code: error.code,
-          errno: error.errno,
           attempt,
           maxRetries
         });
@@ -84,7 +86,8 @@ async function atomicWrite(file: string, data: unknown, maxRetries: number = 3) 
     }
   }
 
-  throw lastError || new Error('atomicWrite failed with unknown error');
+  // Don't throw - progress updates are non-critical
+  console.warn('atomicWrite gave up after all retries');
 }
 
 export function newProgress(project: string, branch: string, timestamp: string): RunProgress {
@@ -109,31 +112,65 @@ function recomputeOverall(phases: PhaseProgress[]): number {
 
 export async function loadProgress(runPath: string): Promise<RunProgress | null> {
   const f = path.join(runPath, "progress.json");
-  if (!(await fs.pathExists(f))) return null;
-  return fs.readJson(f);
+  try {
+    if (!(await fs.pathExists(f))) return null;
+    return await fs.readJson(f);
+  } catch (error: any) {
+    // File might have been deleted/moved between exists check and read (race condition)
+    if (error.code === 'ENOENT') {
+      return null;
+    }
+    console.warn('loadProgress failed:', error.message);
+    return null;
+  }
 }
 
 export async function saveProgress(runPath: string, p: RunProgress) {
   p.overall_pct = recomputeOverall(p.phases);
   p.last_event = p.last_event || undefined;
-  await atomicWrite(path.join(runPath, "progress.json"), p);
+  try {
+    await atomicWrite(path.join(runPath, "progress.json"), p);
+  } catch (error: any) {
+    // Progress updates are non-critical, just log and continue
+    console.warn('saveProgress failed (non-fatal):', error.message);
+  }
   return p;
 }
 
 export async function setPhasePct(runPath: string, phase: PhaseName, pct: number, stepLabel?: string) {
-  const p = (await loadProgress(runPath))!;
-  const idx = p.phases.findIndex(x => x.name === phase);
-  if (idx >= 0) { p.phases[idx].pct = pct; p.phases[idx].step = stepLabel || p.phases[idx].step; }
-  p.last_event = stepLabel ? `${phase}: ${stepLabel} (${pct}%)` : p.last_event;
-  return saveProgress(runPath, p);
+  try {
+    let p = await loadProgress(runPath);
+    if (!p) {
+      // Progress file doesn't exist yet, skip this update
+      console.warn('setPhasePct: progress.json not found, skipping update');
+      return;
+    }
+    const idx = p.phases.findIndex(x => x.name === phase);
+    if (idx >= 0) { p.phases[idx].pct = pct; p.phases[idx].step = stepLabel || p.phases[idx].step; }
+    p.last_event = stepLabel ? `${phase}: ${stepLabel} (${pct}%)` : p.last_event;
+    return saveProgress(runPath, p);
+  } catch (error: any) {
+    // Progress updates are non-critical
+    console.warn('setPhasePct failed (non-fatal):', error.message);
+  }
 }
 
 export async function bumpPhase(runPath: string, phase: PhaseName, deltaPct: number, stepLabel?: string) {
-  const p = (await loadProgress(runPath))!;
-  const idx = p.phases.findIndex(x => x.name === phase);
-  if (idx >= 0) { p.phases[idx].pct = Math.min(100, p.phases[idx].pct + deltaPct); p.phases[idx].step = stepLabel || p.phases[idx].step; }
-  p.last_event = stepLabel ? `${phase}: ${stepLabel} (${p.phases[idx].pct}%)` : p.last_event;
-  return saveProgress(runPath, p);
+  try {
+    let p = await loadProgress(runPath);
+    if (!p) {
+      // Progress file doesn't exist yet, skip this update
+      console.warn('bumpPhase: progress.json not found, skipping update');
+      return;
+    }
+    const idx = p.phases.findIndex(x => x.name === phase);
+    if (idx >= 0) { p.phases[idx].pct = Math.min(100, p.phases[idx].pct + deltaPct); p.phases[idx].step = stepLabel || p.phases[idx].step; }
+    p.last_event = stepLabel ? `${phase}: ${stepLabel} (${p.phases[idx].pct}%)` : p.last_event;
+    return saveProgress(runPath, p);
+  } catch (error: any) {
+    // Progress updates are non-critical
+    console.warn('bumpPhase failed (non-fatal):', error.message);
+  }
 }
 
 

@@ -195,19 +195,20 @@ async function executeSession(options: {
 
     // Execute Claude CLI
     onProgress("executing", 20);
+    const outputPath = path.join(contextPath, session.outputFile);
     const output = await executeClaudeCLI({
       prompt,
       cwd: projectPath,
       timeout: session.timeout,
       sessionId: session.id,
       jobId,
+      outputPath, // Pass the output path so Claude CLI can write results
       onProgress: (pct) => onProgress("executing", 20 + pct * 0.7)
     });
 
     onProgress("processing", 90);
 
     // Read output file
-    const outputPath = path.join(contextPath, session.outputFile);
     let result: any = null;
 
     if (await fs.pathExists(outputPath)) {
@@ -270,9 +271,10 @@ async function executeClaudeCLI(options: {
   timeout: number;
   sessionId: string;
   jobId?: number;
+  outputPath: string;
   onProgress: (pct: number) => void;
 }): Promise<void> {
-  const { prompt, cwd, timeout, sessionId, jobId, onProgress } = options;
+  const { prompt, cwd, timeout, sessionId, jobId, outputPath, onProgress } = options;
 
   return new Promise((resolve, reject) => {
     const args = [
@@ -323,11 +325,40 @@ async function executeClaudeCLI(options: {
       }
     }, 1000);
 
-    proc.on("close", (code) => {
+    proc.on("close", async (code) => {
       clearInterval(checkInterval);
       if (code === 0) {
-        log.info(`Session ${sessionId} Claude CLI exited successfully`);
-        resolve();
+        try {
+          // Parse Claude's response - it should be JSON
+          let jsonOutput;
+          try {
+            // Try to extract JSON from stdout (Claude might include markdown code blocks)
+            const jsonMatch = stdout.match(/```json\s*([\s\S]*?)\s*```/) || stdout.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const jsonStr = jsonMatch[1] || jsonMatch[0];
+              jsonOutput = JSON.parse(jsonStr);
+            } else {
+              // If no JSON found, try parsing entire stdout
+              jsonOutput = JSON.parse(stdout);
+            }
+          } catch (parseError) {
+            log.warn(`Session ${sessionId} output is not valid JSON, saving raw text`, {
+              preview: stdout.slice(0, 200)
+            });
+            jsonOutput = { raw_output: stdout, error: "Could not parse as JSON" };
+          }
+
+          // Write output to file
+          await fs.writeJson(outputPath, jsonOutput, { spaces: 2 });
+          log.info(`Session ${sessionId} Claude CLI exited successfully, output written`, {
+            outputPath,
+            hasData: !!jsonOutput
+          });
+          resolve();
+        } catch (writeError: any) {
+          log.error(`Session ${sessionId} failed to write output`, { error: writeError.message });
+          reject(new Error(`Failed to write output: ${writeError.message}`));
+        }
       } else {
         log.error(`Session ${sessionId} Claude CLI failed`, { code, stderr });
         reject(new Error(`Claude CLI exited with code ${code}: ${stderr}`));

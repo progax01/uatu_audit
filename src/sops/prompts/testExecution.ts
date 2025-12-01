@@ -8,7 +8,7 @@ export function buildTestExecutionPrompt(contextPath: string): string {
   return `You are UatuAudit assistant for TEST EXECUTION.
 
 ## YOUR TASK
-Generate comprehensive tests and document test results. Write results to context/test_execution.json
+Generate comprehensive tests and document test results. Output results as JSON.
 
 ## STEP 1: Read Context
 
@@ -128,7 +128,7 @@ For FAILED tests:
 
 ## STEP 5: Write Results
 
-Write to \`${path.join(contextPath, "test_execution.json")}\`:
+IMPORTANT: Output ONLY the following JSON (no markdown, no explanations, just the JSON):
 
 \`\`\`json
 {
