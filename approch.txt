@@ -89,6 +89,8 @@ if (options?.userId) {
 }
 ```
 
+
+
 #### 3.4 API Authorization Checks
 All endpoints verify `job.userId === currentUserId`:
 - `GET /jobs` - Filter by current user
