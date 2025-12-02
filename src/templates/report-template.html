@@ -661,10 +661,14 @@
         }
 
         .recommendations-list li::before {
-            content: '💡';
+            content: '';
             position: absolute;
             left: 16px;
-            top: 16px;
+            top: 18px;
+            width: 16px;
+            height: 16px;
+            background: var(--severity-medium);
+            border-radius: 50%;
         }
 
         /* Footer */
@@ -700,13 +704,46 @@
             background: #2563eb;
         }
 
-        /* Print Styles */
+        /* Print Styles - Force desktop layout for PDF */
         @media print {
             .no-print { display: none !important; }
-            body { background: white; color: #1a1a1a; }
+            body {
+                background: var(--bg-primary) !important;
+                color: var(--text-primary) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
             .container { max-width: none; padding: 10mm; }
-            .section { background: #f8f9fa; border-color: #e5e7eb; }
-            .certificate-section { background: #f0f4f8; }
+            .section {
+                background: var(--bg-card) !important;
+                border-color: var(--border-color) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .certificate-section {
+                background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            /* Force 3-column layout in PDF */
+            .certificate-grid {
+                grid-template-columns: 1fr auto 1fr !important;
+                gap: 32px !important;
+            }
+            .severity-overview-grid {
+                grid-template-columns: repeat(4, 1fr) !important;
+            }
+            .test-summary-grid {
+                grid-template-columns: repeat(4, 1fr) !important;
+            }
+            .findings-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+            }
+            /* Ensure colors print correctly */
+            .severity-bar, .severity-card-bar-fill, .timeline-bar-fill, .gauge-fill {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
         }
 
         @page {
@@ -714,14 +751,14 @@
             margin: 10mm;
         }
 
-        /* Responsive */
-        @media (max-width: 1024px) {
+        /* Responsive - Only for screen, not print */
+        @media screen and (max-width: 1024px) {
             .certificate-grid { grid-template-columns: 1fr; gap: 24px; }
             .severity-overview-grid { grid-template-columns: repeat(2, 1fr); }
             .test-summary-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
-        @media (max-width: 640px) {
+        @media screen and (max-width: 640px) {
             .severity-overview-grid { grid-template-columns: 1fr; }
             .test-summary-grid { grid-template-columns: 1fr; }
             .findings-grid { grid-template-columns: 1fr; }
@@ -862,7 +899,7 @@
                 <div style="font-size: 12px; color: rgba(255,255,255,0.8);" id="projectNameHeader">Project</div>
                 <h2>Audit Report</h2>
             </div>
-            <button class="print-btn no-print" onclick="window.print()" style="margin-left: auto;">📄 Print / Save PDF</button>
+            <button class="print-btn no-print" onclick="window.print()" style="margin-left: auto;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:6px;"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / Save PDF</button>
         </div>
 
         <!-- Security Findings Overview -->
@@ -883,7 +920,7 @@
 
         <!-- User Flows -->
         <section class="section" id="userFlowsSection" style="display:none">
-            <h2 class="section-title">👤 User Flow Analysis</h2>
+            <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>User Flow Analysis</h2>
             <table class="flows-table">
                 <thead>
                     <tr>
@@ -905,7 +942,7 @@
 
         <!-- Contract Explanations -->
         <section class="section" id="contractsSection" style="display:none">
-            <h2 class="section-title">📄 Smart Contracts Explained</h2>
+            <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Smart Contracts Explained</h2>
             <div id="contractsContainer">
                 <!-- Populated by JS -->
             </div>
@@ -913,7 +950,7 @@
 
         <!-- Test Results -->
         <section class="section" id="testResultsSection" style="display:none">
-            <h2 class="section-title">✅ Test Execution Results</h2>
+            <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Test Execution Results</h2>
             <div class="test-summary-grid" id="testSummaryGrid">
                 <!-- Populated by JS -->
             </div>
@@ -924,7 +961,7 @@
 
         <!-- Audit Timeline -->
         <section class="section">
-            <h2 class="section-title">⏱️ Audit Process Timeline</h2>
+            <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Audit Process Timeline</h2>
             <div class="timeline" id="timeline">
                 <!-- Populated by JS -->
             </div>
@@ -932,7 +969,7 @@
 
         <!-- Recommendations -->
         <section class="section">
-            <h2 class="section-title">💡 Recommendations</h2>
+            <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px;"><path d="M9 18h6M10 22h4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/></svg>Recommendations</h2>
             <ul class="recommendations-list" id="recommendationsList">
                 <!-- Populated by JS -->
             </ul>
@@ -942,7 +979,7 @@
         <footer class="footer">
             <div>© UatuAudit — AI-Powered Smart Contract Security</div>
             <div class="footer-mascot">
-                <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg id="footerMascotSvg" width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="50" cy="50" r="45" stroke="#c9a227" stroke-width="2" fill="#1a2235"/>
                     <circle cx="35" cy="40" r="8" fill="#14b8a6"/>
                     <circle cx="65" cy="40" r="8" fill="#14b8a6"/>
@@ -950,7 +987,7 @@
                     <circle cx="65" cy="40" r="3" fill="#0a0e1a"/>
                     <path d="M35 65 Q50 75 65 65" stroke="#c9a227" stroke-width="3" fill="none" stroke-linecap="round"/>
                 </svg>
-                <img id="footerMascot" src="" alt="Mascot" style="display:none;">
+                <img id="footerMascot" src="" alt="Mascot" style="display:none;height:60px;">
             </div>
         </footer>
     </div>
@@ -1022,6 +1059,7 @@
                 document.getElementById('mascotSvg').style.display = 'none';
                 document.getElementById('footerMascot').src = D.mascotUrl;
                 document.getElementById('footerMascot').style.display = 'block';
+                document.getElementById('footerMascotSvg').style.display = 'none';
             }
 
             // Report Header
@@ -1068,13 +1106,19 @@
                 `The audit identified ${total} total issues across severity levels. AI-generated tests executed: ${testCount} tests. ` +
                 `The project achieved a security score of ${score}/100 (Grade: ${D.grade || 'N/A'}).`;
 
-            // Severity Overview Grid
+            // Severity Overview Grid - Using SVG icons for PDF compatibility
             const severityOverview = document.getElementById('severityOverview');
+            const svgIcons = {
+                critical: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+                high: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>',
+                medium: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+                low: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+            };
             const severityData = [
-                { label: 'Critical', count: severity.critical || 0, class: 'critical', icon: '⚠️' },
-                { label: 'High', count: severity.high || 0, class: 'high', icon: '🔥' },
-                { label: 'Medium', count: severity.medium || 0, class: 'medium', icon: '⚡' },
-                { label: 'Low', count: severity.low || 0, class: 'low', icon: 'ℹ️' }
+                { label: 'Critical', count: severity.critical || 0, class: 'critical', icon: svgIcons.critical },
+                { label: 'High', count: severity.high || 0, class: 'high', icon: svgIcons.high },
+                { label: 'Medium', count: severity.medium || 0, class: 'medium', icon: svgIcons.medium },
+                { label: 'Low', count: severity.low || 0, class: 'low', icon: svgIcons.low }
             ];
             severityOverview.innerHTML = severityData.map(s => `
                 <div class="severity-card">

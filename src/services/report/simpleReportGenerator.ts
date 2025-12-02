@@ -207,6 +207,19 @@ export async function generateReportFromResults(
   runPath: string,
   logoDataUri?: string
 ): Promise<string> {
+  // Load Uatu logo/mascot image (icon_audits.png)
+  const logoCandidates = [
+    path.join(process.cwd(), "src/templates/icon_audits.png"),
+    path.join(process.cwd(), "dist/templates/icon_audits.png"),
+    path.join(process.cwd(), "templates/icon_audits.png")
+  ];
+
+  let uatuLogoDataUri: string | undefined;
+  for (const logoPath of logoCandidates) {
+    uatuLogoDataUri = await imageToDataUri(logoPath);
+    if (uatuLogoDataUri) break;
+  }
+
   // Load results.json
   const resultsPath = path.join(contextPath, "results.json");
   if (!(await fs.pathExists(resultsPath))) {
@@ -329,8 +342,8 @@ export async function generateReportFromResults(
     },
     improve: results.recommendations || [],
     artifacts: {},
-    logoUrl: logoDataUri || undefined,
-    mascotUrl: undefined,
+    logoUrl: logoDataUri || uatuLogoDataUri,
+    mascotUrl: uatuLogoDataUri,
     // New detailed audit fields
     contracts_explained: results.contracts_explained || [],
     test_methodology: results.test_methodology || null,
