@@ -569,81 +569,6 @@
             margin-top: 4px;
         }
 
-        /* Timeline */
-        .timeline {
-            position: relative;
-            padding-left: 28px;
-        }
-
-        .timeline::before {
-            content: '';
-            position: absolute;
-            left: 10px;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: var(--border-color);
-        }
-
-        .timeline-item {
-            position: relative;
-            margin-bottom: 20px;
-        }
-
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            left: -24px;
-            top: 6px;
-            width: 12px;
-            height: 12px;
-            background: var(--border-color);
-            border-radius: 50%;
-            border: 2px solid var(--bg-card);
-        }
-
-        .timeline-item.completed::before {
-            background: var(--severity-positive);
-        }
-
-        .timeline-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-        }
-
-        .timeline-title {
-            font-weight: 600;
-            color: var(--text-primary);
-            font-size: 14px;
-        }
-
-        .timeline-percent {
-            color: var(--accent-gold);
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .timeline-bar {
-            height: 6px;
-            background: var(--bg-primary);
-            border-radius: 3px;
-            overflow: hidden;
-            margin-bottom: 4px;
-        }
-
-        .timeline-bar-fill {
-            height: 100%;
-            background: var(--severity-positive);
-            border-radius: 3px;
-        }
-
-        .timeline-detail {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
         /* Recommendations */
         .recommendations-list {
             list-style: none;
@@ -959,13 +884,6 @@
             </div>
         </section>
 
-        <!-- Audit Timeline -->
-        <section class="section">
-            <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Audit Process Timeline</h2>
-            <div class="timeline" id="timeline">
-                <!-- Populated by JS -->
-            </div>
-        </section>
 
         <!-- Recommendations -->
         <section class="section">
@@ -1044,7 +962,6 @@
             const severity = D.severity || {};
             const score = D.score || 0;
             const findings = D.findings || [];
-            const timeline = D.timeline || [];
             const improve = D.improve || [];
 
             // Logo & Mascot - show custom images if provided, otherwise keep SVG defaults
@@ -1214,21 +1131,6 @@
                     </div>
                 `;
             }
-
-            // Timeline
-            const timelineEl = document.getElementById('timeline');
-            timelineEl.innerHTML = timeline.map(item => `
-                <div class="timeline-item ${item.pct === 100 ? 'completed' : ''}">
-                    <div class="timeline-header">
-                        <span class="timeline-title">${item.label}</span>
-                        <span class="timeline-percent">${item.pct}%</span>
-                    </div>
-                    <div class="timeline-bar">
-                        <div class="timeline-bar-fill" style="width: ${item.pct}%"></div>
-                    </div>
-                    <div class="timeline-detail">${item.detail || ''}</div>
-                </div>
-            `).join('');
 
             // Recommendations
             const recList = document.getElementById('recommendationsList');
