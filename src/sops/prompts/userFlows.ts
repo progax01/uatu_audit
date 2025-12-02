@@ -23,6 +23,10 @@ Analyze the contracts and identify typical user journeys. For each flow:
 - **name**: Flow name (e.g., "Stake Tokens")
 - **description**: What the flow accomplishes (1-2 sentences)
 - **actor**: Who performs this flow (User, Admin, Contract, etc.)
+- **severity**: Risk level of this flow:
+  - "CRITICAL" - High-risk flows involving funds, permissions, or critical state changes
+  - "MODERATE" - Standard flows with some security considerations
+  - "POSITIVE" - Low-risk read-only or positive outcome flows
 
 ### Flow Steps
 For each step in the journey:
@@ -71,6 +75,7 @@ IMPORTANT: Output ONLY the following JSON (no markdown, no explanations, just th
       "name": "Stake Tokens",
       "description": "User stakes tokens to earn rewards over time",
       "actor": "Token Holder",
+      "severity": "CRITICAL",
       "steps": [
         {
           "step": 1,
@@ -117,6 +122,7 @@ IMPORTANT: Output ONLY the following JSON (no markdown, no explanations, just th
       "name": "Unstake and Claim",
       "description": "User unstakes tokens and claims accumulated rewards",
       "actor": "Token Holder",
+      "severity": "CRITICAL",
       "steps": [
         {
           "step": 1,

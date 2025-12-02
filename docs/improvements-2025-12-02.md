@@ -284,5 +284,116 @@ System is now production-ready with:
 
 ---
 
+## UI Update: Dark Theme Report Template v2.0
+
+### Problem 11: Report UI Modernization
+**What happened:** The original report template had a light theme that didn't match modern audit report aesthetics.
+
+**Root cause:** Original template was a basic light-themed HTML template without certificate-style header or dark mode.
+
+**Solution:** Complete redesign of report-template.html with:
+- Dark navy theme (#0a0e1a background)
+- Certificate-style header section with Project Overview, Score Gauge, and Key Findings Summary
+- Gold accent colors for highlights
+- Card-based severity overview with icons
+- Table-based User Flows with severity badges
+- Informational severity level (5th category)
+- Executive Summary section
+- Blue gradient Audit Report header
+- Responsive design for mobile/tablet
+
+**Result:** Professional dark-themed audit report matching modern security audit aesthetics.
+
+**Files changed:**
+- `src/templates/report-template.html` - Complete redesign (~1150 lines)
+
+---
+
+### Problem 12: Missing Informational Severity
+**What happened:** Reports only showed 4 severity levels (Critical, High, Medium, Low).
+
+**Root cause:** No support for "informational" or "info" severity findings.
+
+**Solution:** Added 5th severity level "info" across the system.
+
+**Result:** Reports now show all 5 severity levels with proper counts and bars.
+
+**Files changed:**
+- `src/services/report/simpleReportGenerator.ts` - Added `info` to severity interface and counts
+- `src/templates/report-template.html` - Added info severity bar in Key Findings Summary
+
+---
+
+### Problem 13: User Flows Missing Severity Classification
+**What happened:** User flows didn't indicate risk level, making it hard to prioritize review.
+
+**Root cause:** No severity field in user flow data structure or prompts.
+
+**Solution:** Added severity field to user flows with 3 levels:
+- `CRITICAL` - High-risk flows involving funds, permissions, or critical state changes
+- `MODERATE` - Standard flows with some security considerations
+- `POSITIVE` - Low-risk read-only or positive outcome flows
+
+**Result:** User flows now display severity badges in the table (gold for MODERATE, brown for CRITICAL, green for POSITIVE).
+
+**Files changed:**
+- `src/sops/prompts/userFlows.ts` - Added severity field to prompt and examples
+- `src/services/report/simpleReportGenerator.ts` - Added severity to UserFlow interface
+- `src/templates/report-template.html` - Added severity badges in flows table
+
+---
+
+### Problem 14: Findings Cards Missing Code Snippets
+**What happened:** Security findings only showed title and recommendation, no code context.
+
+**Root cause:** code_snippet field wasn't passed through to the report template.
+
+**Solution:** Added code_snippet support to findings cards with monospace styling.
+
+**Result:** Findings now show relevant code snippets when available.
+
+**Files changed:**
+- `src/services/report/simpleReportGenerator.ts` - Pass code_snippet in findings mapping
+- `src/templates/report-template.html` - Render code snippets in finding cards
+
+---
+
+## UI Update - Files Modified Summary
+
+| File | What Changed | Why |
+|------|-------------|-----|
+| `src/templates/report-template.html` | Complete dark theme redesign | Modern UI matching audit report aesthetics |
+| `src/services/report/simpleReportGenerator.ts` | Added info count, contractsAnalyzed, code_snippet, severity types | Support new UI data requirements |
+| `src/sops/prompts/userFlows.ts` | Added severity field to prompt | Classify user flows by risk level |
+
+**Total UI Update:** 3 files modified, ~1200 lines changed
+
+---
+
+## New Report Structure
+
+### Certificate Section (Top)
+| Component | Description |
+|-----------|-------------|
+| Report Header | Logo + Report ID + Date |
+| Project Overview | Project name, branch, scope |
+| Score Gauge | Circular gauge with gradient fill |
+| Key Findings Summary | 5 severity bars with counts |
+| Executive Summary | AI-generated audit summary |
+
+### Detailed Report (Bottom)
+| Section | Description |
+|---------|-------------|
+| Audit Report Header | Blue gradient banner |
+| Security Findings Overview | 4 severity cards with counts |
+| Key Security Findings | Card-based findings with code snippets |
+| User Flow Analysis | Table with severity badges |
+| Smart Contracts Explained | Contract explanation cards |
+| Test Execution Results | Test summary + pass/fail stats |
+| Audit Timeline | Progress timeline |
+| Recommendations | Improvement suggestions |
+
+---
+
 **Date:** December 2, 2025
-**Status:** ✅ Complete
+**Status:** ✅ Complete (Error Handling + UI Update)

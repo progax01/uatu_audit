@@ -104,6 +104,7 @@ export interface UserFlow {
   id: string;
   name: string;
   description: string;
+  severity?: "CRITICAL" | "MODERATE" | "POSITIVE";
   steps: Array<{
     step: number;
     actor: string;
@@ -163,13 +164,16 @@ interface UatuData {
     high: number;
     medium: number;
     low: number;
+    info: number;
   };
   findings: Array<{
     severity: string;
     title: string;
     file: string;
     rec: string;
+    code_snippet?: string;
   }>;
+  contractsAnalyzed?: number;
   timeline: Array<{
     step: string;
     label: string;
@@ -273,8 +277,9 @@ export async function generateReportFromResults(
   const highCount = breakdown.high_count ?? countBySeverity(results.analysis.findings, "high");
   const mediumCount = breakdown.medium_count ?? countBySeverity(results.analysis.findings, "medium");
   const lowCount = breakdown.low_count ?? countBySeverity(results.analysis.findings, "low");
+  const infoCount = breakdown.info_count ?? countBySeverity(results.analysis.findings, "info");
 
-  // Build UATU_DATA in the format the classic template expects
+  // Build UATU_DATA in the format the new dark-themed template expects
   const uatuData: UatuData = {
     meta: {
       project: projectName,
@@ -293,13 +298,16 @@ export async function generateReportFromResults(
       critical: criticalCount,
       high: highCount,
       medium: mediumCount,
-      low: lowCount
+      low: lowCount,
+      info: infoCount
     },
+    contractsAnalyzed: results.analysis.contracts_analyzed || 0,
     findings: results.analysis.findings.map(f => ({
-      severity: f.severity === "info" ? "low" : f.severity,
+      severity: f.severity,
       title: f.title,
       file: f.file + (f.line ? `:${f.line}` : ""),
-      rec: f.recommendation
+      rec: f.recommendation,
+      code_snippet: f.code_snippet
     })),
     timeline: [
       { step: "bootstrap", label: "Bootstrap", pct: 100, detail: "Completed" },
