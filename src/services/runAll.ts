@@ -11,6 +11,7 @@ import { generatePdfFromHtml } from "./pdfGenerator.js";
 import { loadConfig } from "./configService.js";
 import { withRetry, withTimeout } from "../utils/retry.js";
 import { createJobLogger } from "../utils/logger.js";
+import { ensureClaudeReady } from "../utils/claudeHealthCheck.js";
 import { createJobLogger as createJobFileLogger, closeJobLogger } from "./jobLogger.js";
 import { newProgress, saveProgress, setPhasePct } from "./progressService.js";
 import type { ProgressHook } from "../utils/stepHelper.js";
@@ -148,11 +149,39 @@ export async function runAll(params: {
   log.info("=== PHASE 2: Single Claude CLI Audit ===");
   checkCancellation(jobId);
 
+  // Health check: Ensure Claude CLI is ready before starting audit
+  log.info("Performing Claude CLI health check...");
+  try {
+    await ensureClaudeReady();
+    log.info("Claude CLI health check passed - ready for audit");
+  } catch (healthError: any) {
+    log.error("Claude CLI health check failed", { error: healthError.message });
+    throw healthError; // This will fail the job with a clear error message
+  }
+
   // Calculate timeout based on project size
   const projectStructurePath = path.join(contextPath, "project-structure.json");
   const projectStructure = await fs.readJson(projectStructurePath).catch(() => ({ mainContracts: [] }));
   const contractCount = projectStructure.mainContracts?.length || 5;
   const auditTimeoutMs = Math.max(30 * 60 * 1000, contractCount * 6 * 60 * 1000); // 30 min base + 6 min per contract
+
+  // Calculate dynamic session timeout based on contract count
+  // Base: 15 minutes minimum, plus 30 seconds per contract
+  const baseSessionTimeoutMin = 15;
+  const timePerContractMin = 0.5; // 30 seconds per contract
+  const sessionTimeoutMin = Math.max(
+    baseSessionTimeoutMin,
+    Math.ceil(contractCount * timePerContractMin)
+  );
+  const sessionTimeoutMs = sessionTimeoutMin * 60 * 1000;
+
+  log.info("Calculated dynamic session timeout", {
+    contractCount,
+    baseTimeoutMin: baseSessionTimeoutMin,
+    sessionTimeoutMin,
+    sessionTimeoutMs,
+    formula: `max(${baseSessionTimeoutMin}, ${contractCount} × ${timePerContractMin})`
+  });
 
   // Check if detailed audit mode is enabled
   const enableDetailedAudit = process.env.ENABLE_DETAILED_AUDIT === "true";
@@ -160,7 +189,8 @@ export async function runAll(params: {
   if (enableDetailedAudit) {
     log.info("Step 2.1: Starting parallel detailed audit", {
       contractCount,
-      timeoutMinutes: Math.round(auditTimeoutMs / 60000),
+      overallTimeoutMinutes: Math.round(auditTimeoutMs / 60000),
+      sessionTimeoutMinutes: sessionTimeoutMin,
       mode: "DETAILED"
     });
 
@@ -169,6 +199,7 @@ export async function runAll(params: {
       contextPath,
       runPath,
       jobId,
+      sessionTimeout: sessionTimeoutMs, // Pass dynamic timeout
       onProgress: async (update) => {
         await onProgress({
           phase: "audit",
@@ -229,6 +260,36 @@ export async function runAll(params: {
   await onProgress({ phase: "analysis", step: "analysis-complete", pct: 100 });
   await onProgress({ phase: "testgen", step: "testgen-complete", pct: 100 });
   log.info("=== PHASE 2 COMPLETE ===");
+
+  // Validate audit results before proceeding to report generation
+  log.info("Validating audit results...");
+  const resultsPath = path.join(contextPath, "results.json");
+  if (!(await fs.pathExists(resultsPath))) {
+    throw new Error(
+      "Audit phase failed - results.json not created. " +
+      "Check audit logs for errors."
+    );
+  }
+
+  const auditResults = await fs.readJson(resultsPath);
+  if (!auditResults.score || auditResults.score.value === undefined) {
+    log.error("Audit phase produced invalid results", {
+      resultsStructure: Object.keys(auditResults),
+      score: auditResults.score,
+      hasAnalysis: !!auditResults.analysis
+    });
+    throw new Error(
+      "Audit phase produced invalid results. " +
+      `Results: ${JSON.stringify(auditResults).slice(0, 500)}`
+    );
+  }
+
+  log.info("Audit results validated successfully", {
+    score: auditResults.score.value,
+    grade: auditResults.score.grade,
+    findings: auditResults.analysis?.total_findings || 0,
+    hasMetadata: !!auditResults.metadata
+  });
 
   // ============================================================
   // PHASE 3: Report Generation

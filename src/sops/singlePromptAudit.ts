@@ -235,12 +235,45 @@ export const singlePromptAuditSOP: SOP = {
       });
 
       if (!result.success) {
+        const errorMsg = result.error || "Claude CLI execution failed";
+
         log.error("Claude CLI failed!", {
-          error: result.error,
-          outputPreview: result.output?.substring(0, 1000)
+          error: errorMsg,
+          duration: result.duration,
+          outputPreview: result.output?.substring(0, 1000),
+          promptLength: megaPrompt.length
         });
-        errors.push(result.error || "Claude CLI execution failed");
-        liveLogger.error("Claude CLI failed", { error: result.error });
+
+        // Provide actionable error message based on error type
+        let actionableError = errorMsg;
+        if (errorMsg.includes("Invalid API key") || errorMsg.includes("/login")) {
+          actionableError =
+            "❌ Claude CLI authentication failed.\n" +
+            "Fix options:\n" +
+            "  1. Check ~/.claude/.credentials.json permissions (should be 644)\n" +
+            "  2. Set ANTHROPIC_API_KEY environment variable\n" +
+            "  3. Run 'claude /login' inside container\n" +
+            `Original error: ${errorMsg}`;
+        } else if (errorMsg.includes("timeout") || errorMsg.includes("timed out")) {
+          actionableError =
+            `❌ Claude CLI timed out after ${result.duration}ms.\n` +
+            "Fix options:\n" +
+            "  1. Increase SESSION_TIMEOUT_MIN environment variable\n" +
+            "  2. Reduce number of contracts being analyzed\n" +
+            "  3. Check if Claude API is experiencing issues\n" +
+            `Original error: ${errorMsg}`;
+        } else if (errorMsg.includes("ENOENT") || errorMsg.includes("not found")) {
+          actionableError =
+            "❌ Claude CLI not found or not executable.\n" +
+            "Fix options:\n" +
+            "  1. Install Claude CLI: https://github.com/anthropics/claude-cli\n" +
+            "  2. Check if claude is in PATH: which claude\n" +
+            "  3. Verify docker volume mount for Claude CLI binary\n" +
+            `Original error: ${errorMsg}`;
+        }
+
+        errors.push(actionableError);
+        liveLogger.error("Claude CLI failed", { error: actionableError });
       } else {
         log.info("Claude CLI completed successfully", {
           duration: result.duration,

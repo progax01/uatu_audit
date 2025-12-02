@@ -211,6 +211,37 @@ export async function generateReportFromResults(
 
   const results: AuditResults = await fs.readJson(resultsPath);
 
+  // Validate results structure
+  if (!results.score) {
+    throw new Error(
+      "Invalid results.json - missing 'score' field. " +
+      "Audit may have failed or produced incomplete results. " +
+      `Results structure: ${JSON.stringify(Object.keys(results), null, 2)}`
+    );
+  }
+
+  if (!results.analysis || !results.analysis.findings) {
+    throw new Error(
+      "Invalid results.json - missing 'analysis' or 'findings' fields. " +
+      "Audit did not complete successfully. " +
+      `Available fields: ${JSON.stringify(Object.keys(results), null, 2)}`
+    );
+  }
+
+  if (typeof results.score.value !== 'number') {
+    throw new Error(
+      "Invalid results.json - score.value is not a number. " +
+      `Got: ${JSON.stringify(results.score)}`
+    );
+  }
+
+  if (!results.metadata) {
+    throw new Error(
+      "Invalid results.json - missing 'metadata' field. " +
+      "Required metadata not found in audit results."
+    );
+  }
+
   // Load template (from src/templates or dist/templates depending on build)
   const templateCandidates = [
     path.join(process.cwd(), "src/templates/report-template.html"),
@@ -230,8 +261,14 @@ export async function generateReportFromResults(
   // Extract project name from repo
   const projectName = results.metadata.repo?.split("/").pop()?.replace(".git", "") || "Unknown Project";
 
-  // Calculate counts if not in breakdown
-  const breakdown = results.score.breakdown || {};
+  // Calculate counts if not in breakdown (with safe fallbacks)
+  const breakdown = results.score.breakdown || {
+    critical_count: 0,
+    high_count: 0,
+    medium_count: 0,
+    low_count: 0,
+    info_count: 0
+  };
   const criticalCount = breakdown.critical_count ?? countBySeverity(results.analysis.findings, "critical");
   const highCount = breakdown.high_count ?? countBySeverity(results.analysis.findings, "high");
   const mediumCount = breakdown.medium_count ?? countBySeverity(results.analysis.findings, "medium");

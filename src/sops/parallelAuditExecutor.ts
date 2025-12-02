@@ -29,6 +29,73 @@ interface SessionResult {
 }
 
 /**
+ * Execute a session with retry logic and exponential backoff
+ */
+async function executeSessionWithRetry(
+  options: {
+    session: SessionConfig;
+    projectPath: string;
+    contextPath: string;
+    runPath: string;
+    jobId?: number;
+    onProgress: (status: string, pct: number) => void;
+  },
+  maxRetries: number = 2
+): Promise<SessionResult> {
+  let lastError: any;
+  const { session } = options;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      log.info(`Session ${session.name} - Attempt ${attempt}/${maxRetries}`);
+
+      const result = await executeSession(options);
+
+      if (result.success) {
+        if (attempt > 1) {
+          log.info(`Session ${session.name} succeeded after ${attempt} attempts`);
+        }
+        return result;
+      }
+
+      // Failed but no exception - don't retry if it's a clean failure
+      log.warn(`Session ${session.name} failed cleanly (no exception)`, {
+        error: result.error,
+        attempt
+      });
+      return result;
+
+    } catch (error: any) {
+      lastError = error;
+
+      if (error instanceof JobCancelledError) {
+        throw error; // Don't retry cancellations
+      }
+
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt - 1) * 3000; // 3s, 6s, 12s
+        log.warn(
+          `Session ${session.name} failed (attempt ${attempt}/${maxRetries}), ` +
+          `retrying in ${delay}ms...`,
+          { error: error.message }
+        );
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  // All retries exhausted
+  log.error(`Session ${session.name} failed after ${maxRetries} attempts`);
+  return {
+    id: session.id,
+    name: session.name,
+    success: false,
+    duration: 0,
+    error: lastError?.message || "All retry attempts failed"
+  };
+}
+
+/**
  * Execute multiple Claude CLI sessions in parallel for comprehensive audit
  */
 export async function executeParallelAudit(options: {
@@ -36,9 +103,10 @@ export async function executeParallelAudit(options: {
   contextPath: string;
   runPath: string;
   jobId?: number;
+  sessionTimeout?: number; // Timeout per session in milliseconds (default: 15 min)
   onProgress?: (update: { session: string; status: string; pct: number }) => void;
 }): Promise<{ success: boolean; results: SessionResult[]; combined: any }> {
-  const { projectPath, contextPath, runPath, jobId, onProgress } = options;
+  const { projectPath, contextPath, runPath, jobId, sessionTimeout, onProgress } = options;
 
   log.info("=== PARALLEL AUDIT EXECUTION STARTING ===");
   log.info("Options:", { projectPath, contextPath, runPath, jobId });
@@ -46,10 +114,21 @@ export async function executeParallelAudit(options: {
   // Read feature flag
   const enableDetailed = process.env.ENABLE_DETAILED_AUDIT === "true";
   const maxParallel = parseInt(process.env.PARALLEL_SESSIONS || "4");
-  const sessionTimeoutMin = parseInt(process.env.SESSION_TIMEOUT_MIN || "15");
   const fallbackToBasic = process.env.FALLBACK_TO_BASIC === "true";
 
-  log.info("Feature flags:", { enableDetailed, maxParallel, sessionTimeoutMin, fallbackToBasic });
+  // Use dynamic session timeout if provided, otherwise fall back to env variable
+  const defaultSessionTimeoutMs = parseInt(process.env.SESSION_TIMEOUT_MIN || "15") * 60 * 1000;
+  const sessionTimeoutMs = sessionTimeout || defaultSessionTimeoutMs;
+  const sessionTimeoutMin = Math.round(sessionTimeoutMs / 60000);
+
+  log.info("Feature flags:", {
+    enableDetailed,
+    maxParallel,
+    sessionTimeoutMin,
+    sessionTimeoutMs,
+    dynamicTimeout: !!sessionTimeout,
+    fallbackToBasic
+  });
 
   if (!enableDetailed) {
     log.info("Detailed audit disabled - skipping parallel execution");
@@ -67,7 +146,7 @@ export async function executeParallelAudit(options: {
       name: "Security Analysis",
       promptBuilder: buildSecurityAnalysisPrompt,
       outputFile: "security_results.json",
-      timeout: sessionTimeoutMin * 60 * 1000,
+      timeout: sessionTimeoutMs, // Dynamic timeout based on contract count
       critical: true // Security analysis is critical
     },
     {
@@ -75,7 +154,7 @@ export async function executeParallelAudit(options: {
       name: "Contract Explanations",
       promptBuilder: (ctx, _proj) => buildContractExplanationsPrompt(ctx),
       outputFile: "contract_explanations.json",
-      timeout: sessionTimeoutMin * 60 * 1000,
+      timeout: sessionTimeoutMs, // Dynamic timeout based on contract count
       critical: false // Optional enhancement
     },
     {
@@ -83,7 +162,7 @@ export async function executeParallelAudit(options: {
       name: "User Flow Mapping",
       promptBuilder: (ctx, _proj) => buildUserFlowsPrompt(ctx),
       outputFile: "user_flows.json",
-      timeout: sessionTimeoutMin * 60 * 1000,
+      timeout: sessionTimeoutMs, // Dynamic timeout based on contract count
       critical: false // Optional enhancement
     },
     {
@@ -91,7 +170,7 @@ export async function executeParallelAudit(options: {
       name: "Test Execution",
       promptBuilder: (ctx, _proj) => buildTestExecutionPrompt(ctx),
       outputFile: "test_execution.json",
-      timeout: sessionTimeoutMin * 60 * 1000,
+      timeout: sessionTimeoutMs, // Dynamic timeout based on contract count
       critical: false // Optional enhancement
     }
   ];
@@ -105,7 +184,8 @@ export async function executeParallelAudit(options: {
   for (const session of sessions.slice(0, maxParallel)) {
     log.info(`Queueing session: ${session.name}`);
 
-    const sessionPromise = executeSession({
+    // Use retry wrapper for resilience
+    const sessionPromise = executeSessionWithRetry({
       session,
       projectPath,
       contextPath,
@@ -114,7 +194,7 @@ export async function executeParallelAudit(options: {
       onProgress: (status, pct) => {
         onProgress?.({ session: session.name, status, pct });
       }
-    });
+    }, 2); // 2 retries = 3 total attempts
 
     sessionPromises.push(sessionPromise);
   }
@@ -137,6 +217,24 @@ export async function executeParallelAudit(options: {
     return session?.critical && !r.success;
   });
 
+  // Check if ALL sessions failed
+  const anySuccessful = results.some(r => r.success);
+  const allFailed = results.every(r => !r.success);
+
+  if (allFailed) {
+    log.error("All audit sessions failed - no results generated", {
+      failedSessions: results.map(r => ({ id: r.id, name: r.name, error: r.error }))
+    });
+    return {
+      success: false,
+      results,
+      combined: {
+        error: "All audit sessions failed",
+        details: results.map(r => ({ id: r.id, name: r.name, error: r.error }))
+      }
+    };
+  }
+
   if (criticalFailures.length > 0 && !fallbackToBasic) {
     log.error("Critical session(s) failed", {
       failures: criticalFailures.map(f => f.name)
@@ -152,7 +250,10 @@ export async function executeParallelAudit(options: {
   log.info("Merging session results");
   const combined = await mergeSessionResults(results, contextPath);
 
-  log.info("=== PARALLEL AUDIT EXECUTION COMPLETE ===");
+  log.info("=== PARALLEL AUDIT EXECUTION COMPLETE ===", {
+    successfulSessions: results.filter(r => r.success).length,
+    totalSessions: results.length
+  });
   return {
     success: true,
     results,
@@ -298,17 +399,35 @@ async function executeClaudeCLI(options: {
 
     let stdout = "";
     let stderr = "";
+    let combinedOutput = ""; // Track everything for debugging
 
     proc.stdout.on("data", (data) => {
-      stdout += data.toString();
+      const chunk = data.toString();
+      stdout += chunk;
+      combinedOutput += chunk;
+
       // Update progress based on output
       if (stdout.length > 1000) onProgress(0.3);
       if (stdout.length > 5000) onProgress(0.5);
       if (stdout.length > 10000) onProgress(0.7);
+
+      // Log in real-time for debugging
+      log.debug(`Session ${sessionId} stdout chunk`, {
+        length: chunk.length,
+        preview: chunk.slice(0, 200)
+      });
     });
 
     proc.stderr.on("data", (data) => {
-      stderr += data.toString();
+      const chunk = data.toString();
+      stderr += chunk;
+      combinedOutput += chunk;
+
+      // Log errors immediately for real-time visibility
+      log.warn(`Session ${sessionId} stderr chunk`, {
+        length: chunk.length,
+        content: chunk.slice(0, 500)
+      });
     });
 
     // Cancellation check
@@ -360,8 +479,21 @@ async function executeClaudeCLI(options: {
           reject(new Error(`Failed to write output: ${writeError.message}`));
         }
       } else {
-        log.error(`Session ${sessionId} Claude CLI failed`, { code, stderr });
-        reject(new Error(`Claude CLI exited with code ${code}: ${stderr}`));
+        log.error(`Session ${sessionId} Claude CLI failed`, {
+          exitCode: code,
+          stderrLength: stderr.length,
+          stdoutLength: stdout.length,
+          stderr: stderr || "(empty)",
+          stdoutTail: stdout.slice(-500),
+          combinedOutputTail: combinedOutput.slice(-1000)
+        });
+
+        const errorMessage = stderr || stdout.slice(-500) || "Unknown error";
+        reject(new Error(
+          `Claude CLI exited with code ${code}\n` +
+          `stderr: ${stderr || "(empty)"}\n` +
+          `Last output: ${combinedOutput.slice(-500)}`
+        ));
       }
     });
 
