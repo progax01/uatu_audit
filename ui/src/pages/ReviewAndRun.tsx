@@ -24,6 +24,9 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
   const [logFilter, setLogFilter] = useState('')
   const [logLevel, setLogLevel] = useState<'all' | 'info' | 'warn' | 'error'>('all')
   const consoleRef = useRef<HTMLDivElement>(null)
+  const smoothedRemainingRef = useRef<number | null>(null)
+  const lastProgressRef = useRef<number>(0)
+  const lastDiffRef = useRef<number>(0)
 
   const { progress, logs, jobLogs, isComplete, error, resetProgress } = useAuditProgress(
     repoData.project,
@@ -50,11 +53,36 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
       const secs = diff % 60
       setElapsedTime(`${mins}:${secs.toString().padStart(2, '0')}`)
 
-      // Calculate estimated remaining time based on progress
+      // Calculate estimated remaining time with EMA smoothing
       const currentProgress = progress?.overall_pct || 0
       if (currentProgress > 5 && currentProgress < 100) {
-        const estimatedTotal = (diff / currentProgress) * 100
-        const remaining = Math.max(0, estimatedTotal - diff)
+        // Calculate current rate (progress per second)
+        const progressDelta = currentProgress - lastProgressRef.current
+        const timeDelta = diff - lastDiffRef.current
+
+        // Only update rate when progress changes
+        if (progressDelta > 0 && timeDelta > 0) {
+          const currentRate = progressDelta / timeDelta // progress% per second
+          const remainingProgress = 100 - currentProgress
+          const rawRemaining = remainingProgress / currentRate
+
+          // Apply EMA smoothing (alpha = 0.3 gives more weight to recent values)
+          const alpha = 0.3
+          if (smoothedRemainingRef.current === null) {
+            smoothedRemainingRef.current = rawRemaining
+          } else {
+            smoothedRemainingRef.current = alpha * rawRemaining + (1 - alpha) * smoothedRemainingRef.current
+          }
+
+          lastProgressRef.current = currentProgress
+          lastDiffRef.current = diff
+        }
+
+        // Use smoothed remaining or fallback to linear estimate
+        const remaining = smoothedRemainingRef.current !== null
+          ? Math.max(0, smoothedRemainingRef.current)
+          : Math.max(0, (diff / currentProgress) * (100 - currentProgress))
+
         const remMins = Math.floor(remaining / 60)
         const remSecs = Math.floor(remaining % 60)
         setEstimatedRemaining(`~${remMins}:${remSecs.toString().padStart(2, '0')} remaining`)
@@ -76,6 +104,10 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
     // Reset progress state BEFORE starting new audit to clear any cached data
     resetProgress()
     setIsCancelled(false)
+    // Reset EMA refs for fresh estimation
+    smoothedRemainingRef.current = null
+    lastProgressRef.current = 0
+    lastDiffRef.current = 0
 
     try {
       const body = {
@@ -174,6 +206,10 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
         setElapsedTime('')
         setEstimatedRemaining('')
         setIsCancelled(true)
+        // Reset EMA refs
+        smoothedRemainingRef.current = null
+        lastProgressRef.current = 0
+        lastDiffRef.current = 0
       } else {
         console.error(`[Cancel Audit] Failed to cancel job ${jobId}:`, result.message)
       }
@@ -237,6 +273,10 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
     setEstimatedRemaining('')
     setLogFilter('')
     setLogLevel('all')
+    // Reset EMA refs
+    smoothedRemainingRef.current = null
+    lastProgressRef.current = 0
+    lastDiffRef.current = 0
   }
 
   const formatJobLogs = (logs: Array<{ timestamp: string; level: string; message: string; data?: any }>) => {
