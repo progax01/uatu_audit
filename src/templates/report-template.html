@@ -463,22 +463,36 @@
             background: var(--bg-card-alt);
             border-radius: 8px;
             overflow: hidden;
+            table-layout: fixed;
         }
 
         .flows-table th {
             background: var(--accent-gold-dark);
             color: var(--text-primary);
-            padding: 14px 16px;
+            padding: 14px 12px;
             text-align: left;
             font-weight: 600;
             font-size: 13px;
         }
 
+        /* Column widths */
+        .flows-table th:nth-child(1) { width: 10%; }  /* Flow */
+        .flows-table th:nth-child(2) { width: 9%; }   /* Severity */
+        .flows-table th:nth-child(3) { width: 5%; }   /* Step */
+        .flows-table th:nth-child(4) { width: 8%; }   /* Actor */
+        .flows-table th:nth-child(5) { width: 20%; }  /* Action */
+        .flows-table th:nth-child(6) { width: 12%; }  /* Contract */
+        .flows-table th:nth-child(7) { width: 22%; }  /* State Change */
+        .flows-table th:nth-child(8) { width: 14%; }  /* Result */
+
         .flows-table td {
-            padding: 14px 16px;
+            padding: 14px 12px;
             border-bottom: 1px solid var(--border-color);
             font-size: 13px;
             color: var(--text-secondary);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            vertical-align: top;
         }
 
         .flows-table tr:last-child td {
@@ -668,6 +682,20 @@
             .severity-bar, .severity-card-bar-fill, .timeline-bar-fill, .gauge-fill {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
+            }
+            /* User Flows Table - PDF optimized */
+            .flows-table {
+                table-layout: fixed !important;
+                font-size: 11px !important;
+            }
+            .flows-table th, .flows-table td {
+                padding: 10px 8px !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+            }
+            .flows-table code {
+                font-size: 10px !important;
+                word-break: break-all !important;
             }
         }
 
