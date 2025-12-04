@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle } from 'lucide-react'
 import logo from '../assets/icon_audits.png'
 
 interface ScanContractProps {
@@ -11,6 +11,7 @@ interface ScanContractProps {
 type ScanMode = 'quick' | 'full'
 type Network = 'arbitrum' | 'ethereum' | 'polygon' | 'base' | 'bnb' | 'optimism'
 type ValidationStatus = 'idle' | 'validating' | 'valid' | 'invalid' | 'error'
+type FetchStatus = 'idle' | 'fetching' | 'fetched' | 'error'
 
 const networks: { id: Network; name: string; shortName: string; color: string }[] = [
   { id: 'arbitrum', name: 'Arbitrum', shortName: 'ARB', color: '#28A0F0' },
@@ -27,6 +28,19 @@ interface ContractInfo {
   contractName?: string
   compiler?: string
   explorerUrl?: string
+  isProxy?: boolean
+  implementationAddress?: string
+  implementationName?: string
+}
+
+interface FetchedSource {
+  contractName: string
+  compiler: string
+  files: string[]
+  fileCount: number
+  isProxy: boolean
+  implementationAddress?: string
+  cached: boolean
 }
 
 export default function ScanContract({ onBack, onHomeClick, onStartAudit }: ScanContractProps) {
@@ -34,36 +48,40 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
   const [selectedNetwork, setSelectedNetwork] = useState<Network>('arbitrum')
   const [contractAddress, setContractAddress] = useState('')
   const [validationStatus, setValidationStatus] = useState<ValidationStatus>('idle')
+  const [fetchStatus, setFetchStatus] = useState<FetchStatus>('idle')
   const [contractInfo, setContractInfo] = useState<ContractInfo | null>(null)
+  const [fetchedSource, setFetchedSource] = useState<FetchedSource | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
+
+  // Ref for debounce timeout and abort controller
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // Validate address format
   const isValidAddressFormat = (address: string) => /^0x[a-fA-F0-9]{40}$/.test(address)
 
-  // Validate contract when address changes
-  const handleAddressChange = async (address: string) => {
-    setContractAddress(address)
+  // Debounced validation - validates and fetches source in one call
+  const validateAndFetch = useCallback(async (address: string, network: Network) => {
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    abortControllerRef.current = new AbortController()
+
+    setValidationStatus('validating')
+    setFetchStatus('idle')
     setContractInfo(null)
+    setFetchedSource(null)
     setError(null)
 
-    if (!address) {
-      setValidationStatus('idle')
-      return
-    }
-
-    if (!isValidAddressFormat(address)) {
-      setValidationStatus('idle')
-      return
-    }
-
-    // Validate contract
-    setValidationStatus('validating')
     try {
-      const response = await fetch('/scan/validate', {
+      // Single API call that validates AND fetches source
+      const response = await fetch('/scan/validate-and-fetch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, network: selectedNetwork }),
+        body: JSON.stringify({ address, network }),
+        signal: abortControllerRef.current.signal,
       })
       const data = await response.json()
 
@@ -86,21 +104,105 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
         return
       }
 
-      setContractInfo(data)
+      // Set contract info
+      setContractInfo({
+        isContract: data.isContract,
+        isVerified: data.isVerified,
+        contractName: data.contractName,
+        compiler: data.compiler,
+        explorerUrl: data.explorerUrl,
+        isProxy: data.isProxy,
+        implementationAddress: data.implementationAddress,
+        implementationName: data.implementationName,
+      })
+
+      // Set fetched source info
+      setFetchedSource({
+        contractName: data.contractName,
+        compiler: data.compiler,
+        files: data.files || [],
+        fileCount: data.fileCount || 0,
+        isProxy: data.isProxy || false,
+        implementationAddress: data.implementationAddress,
+        cached: data.cached || false,
+      })
+
       setValidationStatus('valid')
-    } catch (err) {
+      setFetchStatus('fetched')
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return // Request was cancelled, ignore
+      }
       setError('Failed to validate contract')
       setValidationStatus('error')
     }
+  }, [])
+
+  // Handle address input change with debouncing
+  const handleAddressChange = (address: string) => {
+    setContractAddress(address)
+
+    // Clear previous debounce
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+    }
+
+    // Reset state for new input
+    if (!address) {
+      setValidationStatus('idle')
+      setFetchStatus('idle')
+      setContractInfo(null)
+      setFetchedSource(null)
+      setError(null)
+      return
+    }
+
+    if (!isValidAddressFormat(address)) {
+      setValidationStatus('idle')
+      setFetchStatus('idle')
+      setError(null)
+      return
+    }
+
+    // Debounce: wait 500ms before validating
+    debounceRef.current = setTimeout(() => {
+      validateAndFetch(address, selectedNetwork)
+    }, 500)
   }
 
   // Re-validate when network changes
   const handleNetworkChange = (network: Network) => {
     setSelectedNetwork(network)
+
+    // Clear previous state
+    setValidationStatus('idle')
+    setFetchStatus('idle')
+    setContractInfo(null)
+    setFetchedSource(null)
+    setError(null)
+
+    // Re-validate with new network if address is valid
     if (contractAddress && isValidAddressFormat(contractAddress)) {
-      handleAddressChange(contractAddress)
+      // Clear previous debounce
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+      }
+      // Immediate validation on network change
+      validateAndFetch(contractAddress, network)
     }
   }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [])
 
   // Start the scan
   const handleStartScan = async () => {
@@ -288,24 +390,52 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
             </div>
 
             {/* Contract Info */}
-            {contractInfo && validationStatus === 'valid' && (
-              <div className="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-green-400 font-medium">{contractInfo.contractName}</p>
-                    <p className="text-gray-400 text-sm">{contractInfo.compiler}</p>
+            {contractInfo && validationStatus === 'valid' && fetchedSource && (
+              <div className="mt-3 space-y-3">
+                {/* Main contract info */}
+                <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      <p className="text-green-400 font-medium">{contractInfo.contractName}</p>
+                      {fetchedSource.cached && (
+                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Cached</span>
+                      )}
+                    </div>
+                    {contractInfo.explorerUrl && (
+                      <a
+                        href={contractInfo.explorerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#00ffff] hover:underline flex items-center gap-1 text-sm"
+                      >
+                        View on Explorer <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
                   </div>
-                  {contractInfo.explorerUrl && (
-                    <a
-                      href={contractInfo.explorerUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#00ffff] hover:underline flex items-center gap-1 text-sm"
-                    >
-                      View on Explorer <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
+                  <p className="text-gray-400 text-sm">{contractInfo.compiler}</p>
+
+                  {/* Files count */}
+                  <div className="flex items-center gap-2 mt-2 text-gray-400 text-sm">
+                    <FileCode className="w-4 h-4" />
+                    <span>{fetchedSource.fileCount} source file{fetchedSource.fileCount !== 1 ? 's' : ''} fetched</span>
+                  </div>
                 </div>
+
+                {/* Proxy warning */}
+                {contractInfo.isProxy && (
+                  <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                      <span className="text-yellow-400 text-sm font-medium">Proxy Contract Detected</span>
+                    </div>
+                    {contractInfo.implementationAddress && (
+                      <p className="text-gray-400 text-sm mt-1 ml-6">
+                        Implementation: {contractInfo.implementationName || contractInfo.implementationAddress.slice(0, 10) + '...'}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

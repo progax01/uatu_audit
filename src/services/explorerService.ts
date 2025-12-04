@@ -3,6 +3,12 @@
  *
  * Fetches smart contract source code from block explorers using Etherscan V2 API.
  * The V2 API uses a unified endpoint for all chains with chainid parameter.
+ *
+ * Features:
+ * - Source caching to avoid re-fetching
+ * - Proxy contract detection (EIP-1967)
+ * - Rate limit retry logic
+ * - Combined validate-and-fetch endpoint
  */
 
 import { logger } from "../utils/logger.js";
@@ -11,6 +17,14 @@ const log = logger.child({ service: "explorer" });
 
 // Unified V2 API endpoint (works for all chains)
 const ETHERSCAN_V2_API = "https://api.etherscan.io/v2/api";
+
+// Cache for fetched sources (key: network:address)
+const sourceCache = new Map<string, { data: ContractSourceWithMeta; timestamp: number }>();
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+// EIP-1967 storage slots for proxy detection
+const EIP1967_IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+const EIP1967_ADMIN_SLOT = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
 
 // Network configurations
 export const NETWORKS: Record<string, NetworkConfig> = {
@@ -75,6 +89,35 @@ export interface ContractSource {
   sources: Record<string, string>; // filename -> source code
   abi: any[];
   constructorArguments?: string;
+}
+
+// Extended contract source with metadata
+export interface ContractSourceWithMeta extends ContractSource {
+  address: string;
+  network: string;
+  isProxy: boolean;
+  implementationAddress?: string;
+  implementationName?: string;
+  implementationSource?: ContractSource;
+  files: string[];
+  fileCount: number;
+}
+
+// Combined validation and fetch result
+export interface ValidateAndFetchResult {
+  address: string;
+  network: string;
+  isContract: boolean;
+  isVerified: boolean;
+  contractName?: string;
+  compiler?: string;
+  explorerUrl: string;
+  isProxy: boolean;
+  implementationAddress?: string;
+  implementationName?: string;
+  files: string[];
+  fileCount: number;
+  cached: boolean;
 }
 
 // Explorer API response types
@@ -343,4 +386,280 @@ export function getExplorerUrl(address: string, network: string): string {
     return `https://etherscan.io/address/${address}`;
   }
   return `${config.explorerUrl}/address/${address}`;
+}
+
+/**
+ * Retry wrapper with exponential backoff for rate limits
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+
+      // Check if it's a rate limit error
+      const isRateLimit =
+        error.message?.includes("rate limit") ||
+        error.message?.includes("Max rate limit") ||
+        error.message?.includes("too many requests");
+
+      if (isRateLimit && attempt < maxRetries - 1) {
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        log.warn(`Rate limited, retrying in ${delay}ms`, { attempt: attempt + 1, maxRetries });
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError || new Error("Max retries exceeded");
+}
+
+/**
+ * Get cache key for a contract
+ */
+function getCacheKey(address: string, network: string): string {
+  return `${network}:${address.toLowerCase()}`;
+}
+
+/**
+ * Get cached source if available and not expired
+ */
+function getCachedSource(address: string, network: string): ContractSourceWithMeta | null {
+  const key = getCacheKey(address, network);
+  const cached = sourceCache.get(key);
+
+  if (!cached) return null;
+
+  // Check if expired
+  if (Date.now() - cached.timestamp > CACHE_TTL_MS) {
+    sourceCache.delete(key);
+    return null;
+  }
+
+  return cached.data;
+}
+
+/**
+ * Cache a fetched source
+ */
+function setCachedSource(address: string, network: string, data: ContractSourceWithMeta): void {
+  const key = getCacheKey(address, network);
+  sourceCache.set(key, { data, timestamp: Date.now() });
+}
+
+/**
+ * Detect if contract is a proxy and get implementation address
+ * Supports EIP-1967 transparent proxy pattern
+ */
+export async function detectProxy(
+  address: string,
+  network: string
+): Promise<{ isProxy: boolean; implementationAddress?: string }> {
+  const config = NETWORKS[network];
+  if (!config) {
+    return { isProxy: false };
+  }
+
+  const apiKey = getApiKey();
+
+  try {
+    // Read EIP-1967 implementation slot
+    const url = new URL(ETHERSCAN_V2_API);
+    url.searchParams.set("chainid", config.chainId.toString());
+    url.searchParams.set("module", "proxy");
+    url.searchParams.set("action", "eth_getStorageAt");
+    url.searchParams.set("address", address);
+    url.searchParams.set("position", EIP1967_IMPLEMENTATION_SLOT);
+    url.searchParams.set("tag", "latest");
+    if (apiKey) {
+      url.searchParams.set("apikey", apiKey);
+    }
+
+    const response = await fetch(url.toString());
+    const data = (await response.json()) as ExplorerApiResponse;
+
+    if (data.result && data.result !== "0x" && data.result !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+      // Extract address from 32-byte storage slot (last 20 bytes)
+      const implAddress = "0x" + data.result.slice(-40);
+
+      // Validate it's a real address
+      if (isValidAddress(implAddress) && implAddress !== "0x0000000000000000000000000000000000000000") {
+        log.info("Detected EIP-1967 proxy", { proxy: address, implementation: implAddress });
+        return { isProxy: true, implementationAddress: implAddress };
+      }
+    }
+
+    return { isProxy: false };
+  } catch (error) {
+    log.warn("Failed to detect proxy", { address, network, error });
+    return { isProxy: false };
+  }
+}
+
+/**
+ * Combined validate and fetch - single API call flow with caching and proxy detection
+ */
+export async function validateAndFetchContract(
+  address: string,
+  network: string
+): Promise<ValidateAndFetchResult> {
+  if (!isValidAddress(address)) {
+    throw new Error("Invalid address format");
+  }
+
+  const config = NETWORKS[network];
+  if (!config) {
+    throw new Error(`Unsupported network: ${network}`);
+  }
+
+  // Check cache first
+  const cached = getCachedSource(address, network);
+  if (cached) {
+    log.info("Returning cached source", { address, network });
+    return {
+      address,
+      network,
+      isContract: true,
+      isVerified: true,
+      contractName: cached.contractName,
+      compiler: cached.compiler,
+      explorerUrl: getExplorerUrl(address, network),
+      isProxy: cached.isProxy,
+      implementationAddress: cached.implementationAddress,
+      implementationName: cached.implementationName,
+      files: cached.files,
+      fileCount: cached.fileCount,
+      cached: true,
+    };
+  }
+
+  // Check if it's a contract
+  const contractCheck = await withRetry(() => isContract(address, network));
+  if (!contractCheck) {
+    return {
+      address,
+      network,
+      isContract: false,
+      isVerified: false,
+      explorerUrl: getExplorerUrl(address, network),
+      isProxy: false,
+      files: [],
+      fileCount: 0,
+      cached: false,
+    };
+  }
+
+  // Fetch source with retry logic
+  let source: ContractSource;
+  try {
+    source = await withRetry(() => fetchContractSource(address, network));
+  } catch (error: any) {
+    // Source not verified
+    if (error.message?.includes("not verified")) {
+      return {
+        address,
+        network,
+        isContract: true,
+        isVerified: false,
+        explorerUrl: getExplorerUrl(address, network),
+        isProxy: false,
+        files: [],
+        fileCount: 0,
+        cached: false,
+      };
+    }
+    throw error;
+  }
+
+  // Detect proxy
+  const proxyInfo = await detectProxy(address, network);
+
+  // If it's a proxy, fetch implementation source too
+  let implementationSource: ContractSource | undefined;
+  let implementationName: string | undefined;
+
+  if (proxyInfo.isProxy && proxyInfo.implementationAddress) {
+    try {
+      implementationSource = await withRetry(() =>
+        fetchContractSource(proxyInfo.implementationAddress!, network)
+      );
+      implementationName = implementationSource.contractName;
+      log.info("Fetched implementation source", {
+        proxy: address,
+        implementation: proxyInfo.implementationAddress,
+        implementationName,
+      });
+    } catch (error) {
+      log.warn("Failed to fetch implementation source", {
+        proxy: address,
+        implementation: proxyInfo.implementationAddress,
+        error,
+      });
+    }
+  }
+
+  // Combine all files
+  const allFiles = Object.keys(source.sources);
+  if (implementationSource) {
+    allFiles.push(...Object.keys(implementationSource.sources).filter((f) => !allFiles.includes(f)));
+  }
+
+  // Create extended source with metadata
+  const extendedSource: ContractSourceWithMeta = {
+    ...source,
+    address,
+    network,
+    isProxy: proxyInfo.isProxy,
+    implementationAddress: proxyInfo.implementationAddress,
+    implementationName,
+    implementationSource,
+    files: allFiles,
+    fileCount: allFiles.length,
+  };
+
+  // Cache the result
+  setCachedSource(address, network, extendedSource);
+
+  return {
+    address,
+    network,
+    isContract: true,
+    isVerified: true,
+    contractName: source.contractName,
+    compiler: source.compiler,
+    explorerUrl: getExplorerUrl(address, network),
+    isProxy: proxyInfo.isProxy,
+    implementationAddress: proxyInfo.implementationAddress,
+    implementationName,
+    files: allFiles,
+    fileCount: allFiles.length,
+    cached: false,
+  };
+}
+
+/**
+ * Clear source cache (for testing or manual refresh)
+ */
+export function clearSourceCache(): void {
+  sourceCache.clear();
+  log.info("Source cache cleared");
+}
+
+/**
+ * Get cached source for a contract (for enqueue to use without re-fetching)
+ */
+export function getCachedContractSource(
+  address: string,
+  network: string
+): ContractSourceWithMeta | null {
+  return getCachedSource(address, network);
 }

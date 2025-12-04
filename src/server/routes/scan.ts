@@ -10,6 +10,8 @@ import fs from "fs-extra";
 import {
   validateContract,
   fetchContractSource,
+  validateAndFetchContract,
+  getCachedContractSource,
   isValidAddress,
   getExplorerUrl,
   NETWORKS,
@@ -122,6 +124,104 @@ export async function handleScanRoutes(
     }
   }
 
+  // POST /scan/validate-and-fetch - Combined validation and source fetch (optimized)
+  if (req.method === "POST" && parsed.pathname === "/scan/validate-and-fetch") {
+    try {
+      const body = await parseBody(req);
+      const { address, network } = body;
+
+      if (!address) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Address is required" }));
+        return true;
+      }
+
+      if (!network || !NETWORKS[network]) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(
+          JSON.stringify({
+            error: "Invalid network",
+            supportedNetworks: Object.keys(NETWORKS),
+          })
+        );
+        return true;
+      }
+
+      if (!isValidAddress(address)) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Invalid address format. Must be 0x followed by 40 hex characters." }));
+        return true;
+      }
+
+      log.info("Validating and fetching contract", { address, network });
+
+      const result = await validateAndFetchContract(address, network);
+
+      // If validated and verified, save to workspace
+      if (result.isContract && result.isVerified) {
+        const cachedSource = getCachedContractSource(address, network);
+        if (cachedSource) {
+          const workspacePath = await getScanWorkspace(network, address);
+          const contractsPath = path.join(workspacePath, "contracts");
+          await fs.ensureDir(contractsPath);
+
+          // Write all source files (including implementation if proxy)
+          for (const [filename, content] of Object.entries(cachedSource.sources)) {
+            const filePath = path.join(contractsPath, filename);
+            await fs.ensureDir(path.dirname(filePath));
+            await fs.writeFile(filePath, content);
+          }
+
+          // If proxy, also write implementation sources
+          if (cachedSource.implementationSource) {
+            for (const [filename, content] of Object.entries(cachedSource.implementationSource.sources)) {
+              const filePath = path.join(contractsPath, filename);
+              await fs.ensureDir(path.dirname(filePath));
+              await fs.writeFile(filePath, content);
+            }
+          }
+
+          // Write metadata
+          await fs.writeJson(
+            path.join(workspacePath, "metadata.json"),
+            {
+              address,
+              network,
+              contractName: cachedSource.contractName,
+              compiler: cachedSource.compiler,
+              optimization: cachedSource.optimization,
+              runs: cachedSource.runs,
+              evmVersion: cachedSource.evmVersion,
+              licenseType: cachedSource.licenseType,
+              isProxy: cachedSource.isProxy,
+              implementationAddress: cachedSource.implementationAddress,
+              implementationName: cachedSource.implementationName,
+              fetchedAt: new Date().toISOString(),
+              explorerUrl: getExplorerUrl(address, network),
+            },
+            { spaces: 2 }
+          );
+
+          // Write ABI
+          await fs.writeJson(path.join(workspacePath, "abi.json"), cachedSource.abi, { spaces: 2 });
+        }
+      }
+
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(result));
+      return true;
+    } catch (error: any) {
+      log.error("Validate and fetch failed", { error: error.message });
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: error.message || "Validation failed" }));
+      return true;
+    }
+  }
+
   // POST /scan/fetch - Fetch contract source code
   if (req.method === "POST" && parsed.pathname === "/scan/fetch") {
     try {
@@ -202,7 +302,7 @@ export async function handleScanRoutes(
     }
   }
 
-  // POST /scan/enqueue - Queue scan job
+  // POST /scan/enqueue - Queue scan job (uses cached source if available)
   if (req.method === "POST" && parsed.pathname === "/scan/enqueue") {
     try {
       const body = await parseBody(req);
@@ -224,47 +324,101 @@ export async function handleScanRoutes(
 
       log.info("Enqueuing scan job", { address, network, scanMode });
 
-      // First fetch the source if not already fetched
       const workspacePath = await getScanWorkspace(network, address);
       const metadataPath = path.join(workspacePath, "metadata.json");
 
       let contractName = "Contract";
-      if (!(await fs.pathExists(metadataPath))) {
-        // Fetch source first
-        const source = await fetchContractSource(address, network);
-        contractName = source.contractName;
+      let isProxy = false;
 
-        // Save to workspace
-        const contractsPath = path.join(workspacePath, "contracts");
-        await fs.ensureDir(contractsPath);
-
-        for (const [filename, content] of Object.entries(source.sources)) {
-          const filePath = path.join(contractsPath, filename);
-          await fs.ensureDir(path.dirname(filePath));
-          await fs.writeFile(filePath, content);
-        }
-
-        await fs.writeJson(
-          metadataPath,
-          {
-            address,
-            network,
-            contractName: source.contractName,
-            compiler: source.compiler,
-            optimization: source.optimization,
-            runs: source.runs,
-            evmVersion: source.evmVersion,
-            licenseType: source.licenseType,
-            fetchedAt: new Date().toISOString(),
-            explorerUrl: getExplorerUrl(address, network),
-          },
-          { spaces: 2 }
-        );
-
-        await fs.writeJson(path.join(workspacePath, "abi.json"), source.abi, { spaces: 2 });
-      } else {
+      // Check if already saved to workspace
+      if (await fs.pathExists(metadataPath)) {
         const metadata = await fs.readJson(metadataPath);
         contractName = metadata.contractName || "Contract";
+        isProxy = metadata.isProxy || false;
+        log.info("Using existing workspace", { address, contractName });
+      } else {
+        // Try to use cached source first (from validate-and-fetch)
+        const cachedSource = getCachedContractSource(address, network);
+
+        if (cachedSource) {
+          log.info("Using cached source for enqueue", { address, contractName: cachedSource.contractName });
+          contractName = cachedSource.contractName;
+          isProxy = cachedSource.isProxy;
+
+          // Save to workspace
+          const contractsPath = path.join(workspacePath, "contracts");
+          await fs.ensureDir(contractsPath);
+
+          for (const [filename, content] of Object.entries(cachedSource.sources)) {
+            const filePath = path.join(contractsPath, filename);
+            await fs.ensureDir(path.dirname(filePath));
+            await fs.writeFile(filePath, content);
+          }
+
+          // Also write implementation sources if proxy
+          if (cachedSource.implementationSource) {
+            for (const [filename, content] of Object.entries(cachedSource.implementationSource.sources)) {
+              const filePath = path.join(contractsPath, filename);
+              await fs.ensureDir(path.dirname(filePath));
+              await fs.writeFile(filePath, content);
+            }
+          }
+
+          await fs.writeJson(
+            metadataPath,
+            {
+              address,
+              network,
+              contractName: cachedSource.contractName,
+              compiler: cachedSource.compiler,
+              optimization: cachedSource.optimization,
+              runs: cachedSource.runs,
+              evmVersion: cachedSource.evmVersion,
+              licenseType: cachedSource.licenseType,
+              isProxy: cachedSource.isProxy,
+              implementationAddress: cachedSource.implementationAddress,
+              implementationName: cachedSource.implementationName,
+              fetchedAt: new Date().toISOString(),
+              explorerUrl: getExplorerUrl(address, network),
+            },
+            { spaces: 2 }
+          );
+
+          await fs.writeJson(path.join(workspacePath, "abi.json"), cachedSource.abi, { spaces: 2 });
+        } else {
+          // Fallback: fetch fresh (shouldn't happen if validate-and-fetch was called)
+          log.warn("No cached source, fetching fresh", { address });
+          const source = await fetchContractSource(address, network);
+          contractName = source.contractName;
+
+          const contractsPath = path.join(workspacePath, "contracts");
+          await fs.ensureDir(contractsPath);
+
+          for (const [filename, content] of Object.entries(source.sources)) {
+            const filePath = path.join(contractsPath, filename);
+            await fs.ensureDir(path.dirname(filePath));
+            await fs.writeFile(filePath, content);
+          }
+
+          await fs.writeJson(
+            metadataPath,
+            {
+              address,
+              network,
+              contractName: source.contractName,
+              compiler: source.compiler,
+              optimization: source.optimization,
+              runs: source.runs,
+              evmVersion: source.evmVersion,
+              licenseType: source.licenseType,
+              fetchedAt: new Date().toISOString(),
+              explorerUrl: getExplorerUrl(address, network),
+            },
+            { spaces: 2 }
+          );
+
+          await fs.writeJson(path.join(workspacePath, "abi.json"), source.abi, { spaces: 2 });
+        }
       }
 
       // Create project name from contract
@@ -280,7 +434,7 @@ export async function handleScanRoutes(
         testStyles: scanMode === "full" ? ["behavioral", "stride"] : ["behavioral"],
       });
 
-      log.info("Scan job enqueued", { jobId: job.id, projectName });
+      log.info("Scan job enqueued", { jobId: job.id, projectName, isProxy });
 
       res.setHeader("Content-Type", "application/json");
       res.end(
@@ -289,6 +443,7 @@ export async function handleScanRoutes(
           job,
           projectName,
           workspacePath,
+          isProxy,
         })
       );
       return true;
