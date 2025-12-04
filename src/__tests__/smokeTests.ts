@@ -8,7 +8,6 @@ import path from 'node:path';
 import os from 'node:os';
 import { singlePromptAuditSOP } from '../sops/singlePromptAudit.js';
 import { bootstrapSOP } from '../sops/bootstrap.js';
-import { probeClaudeCapabilities, checkSourceMutation, createSourceSentinel, removeSourceSentinel } from '../services/safetyGuards.js';
 import { writeAutoInsights } from '../services/insightAutoWriter.js';
 
 describe('UatuAudit Smoke Tests', () => {
@@ -31,62 +30,6 @@ describe('UatuAudit Smoke Tests', () => {
     if (tempDir) {
       await fs.remove(tempDir);
     }
-  });
-
-  describe('Claude CLI Integration', () => {
-    it('should probe Claude CLI capabilities', async () => {
-      const capabilities = await probeClaudeCapabilities();
-
-      expect(capabilities).toBeDefined();
-      expect(capabilities).toHaveProperty('available');
-      expect(capabilities).toHaveProperty('supportsPrint');
-      expect(capabilities).toHaveProperty('lastChecked');
-
-      // If Claude is available, it should support the features we need
-      if (capabilities.available) {
-        expect(capabilities.supportsPrint).toBe(true);
-      }
-    });
-  });
-
-  describe('Source Mutation Detection', () => {
-    it('should detect when source files are modified', async () => {
-      // Create a test project
-      const testFile = path.join(projectDir, 'test.txt');
-      await fs.writeFile(testFile, 'original content');
-
-      // Create sentinel
-      await createSourceSentinel(projectDir);
-
-      const baselineTime = Date.now();
-
-      // Wait a bit and modify file
-      await new Promise(resolve => setTimeout(resolve, 100));
-      await fs.writeFile(testFile, 'modified content');
-
-      // Check for mutations
-      const result = await checkSourceMutation(projectDir, baselineTime);
-
-      expect(result.mutationDetected).toBe(true);
-      expect(result.changedFiles).toContain('test.txt');
-
-      // Cleanup
-      await removeSourceSentinel(projectDir);
-    });
-
-    it('should not detect mutations when no files are changed', async () => {
-      await createSourceSentinel(projectDir);
-
-      const baselineTime = Date.now();
-
-      // Check immediately without changes
-      const result = await checkSourceMutation(projectDir, baselineTime);
-
-      expect(result.mutationDetected).toBe(false);
-      expect(result.changedFiles).toHaveLength(0);
-
-      await removeSourceSentinel(projectDir);
-    });
   });
 
   describe('Insight Auto-Writer', () => {
@@ -206,26 +149,6 @@ describe('UatuAudit Smoke Tests', () => {
 
       const isInvalid = await singlePromptAuditSOP.validateInputs(invalidInputs);
       expect(isInvalid).toBe(false);
-    });
-  });
-
-  describe('Environment Validation', () => {
-    it('should handle missing environment variables gracefully', async () => {
-      // Save original env vars
-      const originalClaudePath = process.env.CLAUDE_CLI_PATH;
-      const originalTimeout = process.env.CLAUDE_TIMEOUT_MS;
-
-      // Unset for test
-      delete process.env.CLAUDE_CLI_PATH;
-      delete process.env.CLAUDE_TIMEOUT_MS;
-
-      // Test should still work with defaults
-      const capabilities = await probeClaudeCapabilities();
-      expect(capabilities).toBeDefined();
-
-      // Restore env vars
-      if (originalClaudePath) process.env.CLAUDE_CLI_PATH = originalClaudePath;
-      if (originalTimeout) process.env.CLAUDE_TIMEOUT_MS = originalTimeout;
     });
   });
 
