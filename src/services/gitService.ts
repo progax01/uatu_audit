@@ -7,15 +7,71 @@ import { recordGitReclone } from "./metrics.js";
 
 const execAsync = promisify(exec);
 
+/**
+ * Handle scan:// protocol URLs
+ * Format: scan://network/address
+ * Copies contract files from scan workspace to target path
+ */
+async function handleScanProtocol(repo: string, targetPath: string): Promise<boolean> {
+  if (!repo.startsWith("scan://")) {
+    return false;
+  }
+
+  // Parse scan://network/address
+  const scanMatch = repo.match(/^scan:\/\/([^/]+)\/(.+)$/);
+  if (!scanMatch) {
+    throw new Error(`Invalid scan URL format: ${repo}. Expected scan://network/address`);
+  }
+
+  const [, network, address] = scanMatch;
+  const scanWorkspace = path.join(getUatuHome(), "workspace", "scans", network, address.toLowerCase());
+  const contractsPath = path.join(scanWorkspace, "contracts");
+
+  // Check if scan workspace exists
+  if (!(await fs.pathExists(contractsPath))) {
+    throw new Error(`Scan workspace not found: ${contractsPath}. Run validate-and-fetch first.`);
+  }
+
+  // Clear target and copy contracts
+  await fs.ensureDir(targetPath);
+  await fs.emptyDir(targetPath);
+  await fs.copy(contractsPath, targetPath);
+
+  // Copy metadata and ABI if they exist
+  const metadataPath = path.join(scanWorkspace, "metadata.json");
+  const abiPath = path.join(scanWorkspace, "abi.json");
+
+  if (await fs.pathExists(metadataPath)) {
+    await fs.copy(metadataPath, path.join(targetPath, "metadata.json"));
+  }
+  if (await fs.pathExists(abiPath)) {
+    await fs.copy(abiPath, path.join(targetPath, "abi.json"));
+  }
+
+  // Create a marker .git directory to prevent reclone
+  const gitMarker = path.join(targetPath, ".git");
+  await fs.ensureDir(gitMarker);
+  await fs.writeFile(path.join(gitMarker, "HEAD"), `ref: refs/heads/main\n`);
+  await fs.writeFile(path.join(gitMarker, "config"), `[core]\n\trepositoryformatversion = 0\n\tbare = false\n[remote "origin"]\n\turl = ${repo}\n`);
+
+  console.log(`Copied scan workspace for ${network}/${address} to ${targetPath}`);
+  return true;
+}
+
 export async function cloneOrRefresh(repo: string, targetPath: string, branch: string, accessToken?: string) {
   // Early validation to catch bad repo URLs
   if (!repo || typeof repo !== 'string') {
     throw new Error(`Invalid repository URL: ${repo}`);
   }
-  
+
   const trimmed = repo.trim();
   if (!trimmed || trimmed === 'test' || trimmed.length < 5) {
     throw new Error(`Invalid repository URL: "${trimmed}" - must be a valid git URL or owner/repo format`);
+  }
+
+  // Handle scan:// protocol (deployed contracts)
+  if (await handleScanProtocol(trimmed, targetPath)) {
+    return;
   }
   
   const exists = await fs.pathExists(targetPath);
