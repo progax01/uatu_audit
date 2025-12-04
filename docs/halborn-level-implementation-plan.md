@@ -168,25 +168,25 @@ SCOPE DETECTION ALGORITHM:
 │  Commit: 0264b3082a5b080d7e4b04256724255ed60b191a [copy]    │
 │  Branch: main                                               │
 │                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ FILES IN SCOPE                              [Edit]  │   │
-│  ├─────────────────────────────────────────────────────┤   │
-│  │ ✓ contracts/Swapper.sol          (342 LOC)         │   │
-│  │ ✓ contracts/Bridge.sol           (567 LOC)         │   │
-│  │ ✓ contracts/TokenVault.sol       (234 LOC)         │   │
-│  │                                                     │   │
-│  │ Total: 3 files, 1,143 LOC                          │   │
-│  └─────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ FILES IN SCOPE                              [Edit]  │    │
+│  ├─────────────────────────────────────────────────────┤    │
+│  │ ✓ contracts/Swapper.sol          (342 LOC)         │     │
+│  │ ✓ contracts/Bridge.sol           (567 LOC)         │     │
+│  │ ✓ contracts/TokenVault.sol       (234 LOC)         │     │
+│  │                                                    │     │
+│  │ Total: 3 files, 1,143 LOC                          │     │
+│  └─────────────────────────────────────────────────────┘    │
 │                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ OUT OF SCOPE                                        │   │
-│  ├─────────────────────────────────────────────────────┤   │
-│  │ ○ Third-party dependencies (OpenZeppelin, etc.)    │   │
-│  │ ○ Economic/tokenomics attacks                       │   │
-│  │ ○ Frontend/off-chain components                     │   │
-│  │ ○ Test files and mocks                              │   │
-│  │                                         [+ Add more] │   │
-│  └─────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ OUT OF SCOPE                                        │    │
+│  ├─────────────────────────────────────────────────────┤    │
+│  │ ○ Third-party dependencies (OpenZeppelin, etc.)     │    │
+│  │ ○ Economic/tokenomics attacks                       │    │
+│  │ ○ Frontend/off-chain components                     │    │
+│  │ ○ Test files and mocks                              │    │
+│  │                                         [+ Add more]│    │
+│  └─────────────────────────────────────────────────────┘    │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -326,10 +326,10 @@ Be thorough but avoid false positives."
 │  Our security assessment employed a comprehensive           │
 │  multi-layered approach:                                    │
 │                                                             │
-│  ┌─────┐    ┌─────┐    ┌─────┐    ┌─────┐    ┌─────┐      │
-│  │ 1   │───▶│ 2   │───▶│ 3   │───▶│ 4   │───▶│ 5   │      │
-│  │Recon│    │Static│   │Manual│   │Dynamic│  │ Sim │      │
-│  └─────┘    └─────┘    └─────┘    └─────┘    └─────┘      │
+│  ┌─────┐    ┌─────┐    ┌─────┐    ┌─────┐    ┌─────┐        │
+│  │ 1   │───▶│ 2   │───▶│ 3   │───▶│ 4   │───▶│ 5   │        │
+│  │Recon│    │Static│   │Manual│   │Dynamic│  │ Sim │        │
+│  └─────┘    └─────┘    └─────┘    └─────┘    └─────┘        │
 │                                                             │
 │  [Expandable sections for each phase]                       │
 │                                                             │
@@ -568,7 +568,7 @@ Output as JSON matching the Finding interface."
 │  │                                                     │   │
 │  │ [View Details] [View Fix] [Verify]                  │   │
 │  └─────────────────────────────────────────────────────┘   │
-│                                                             │
+│                                                            │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │ UAT-02                                    [MEDIUM]  │   │
 │  │                                          BVSS: 5.00 │   │
@@ -1126,16 +1126,16 @@ TEST CASE FORMAT:
 │ Priority: HIGH                                              │
 ├─────────────────────────────────────────────────────────────┤
 │ OBJECTIVE:                                                  │
-│ Verify that only authorized users can trigger swaps on     │
+│ Verify that only authorized users can trigger swaps on      │
 │ their own behalf                                            │
 ├─────────────────────────────────────────────────────────────┤
 │ PRECONDITIONS:                                              │
-│ 1. User A has approved Swapper for 1000 USDC               │
+│ 1. User A has approved Swapper for 1000 USDC                │
 │ 2. User A has NOT initiated any swap                        │
 │ 3. Attacker B has no special permissions                    │
 ├─────────────────────────────────────────────────────────────┤
 │ TEST STEPS:                                                 │
-│ 1. Attacker B calls swap(UserA, 1000, ...)                 │
+│ 1. Attacker B calls swap(UserA, 1000, ...)                  │
 │ 2. Assert transaction reverts                               │
 │ 3. Assert User A balance unchanged                          │
 ├─────────────────────────────────────────────────────────────┤
@@ -1259,7 +1259,7 @@ RESULT INTERPRETATION MATRIX:
 │  USER FLOW ANALYSIS                                         │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  UF-001: Token Swap Flow                          [PASS ✓] │
+│  UF-001: Token Swap Flow                          [PASS ✓]  │
 │  ─────────────────────────────────────────────────────────  │
 │                                                             │
 │  Step 1: User approves tokens                               │
@@ -1268,7 +1268,7 @@ RESULT INTERPRETATION MATRIX:
 │  ├── Gas: 46,234                                            │
 │  └── Status: ✓ Completed                                    │
 │                                                             │
-│  Step 2: User initiates swap                    [RISK ⚠️]   │
+│  Step 2: User initiates swap                    [RISK ⚠️]    │
 │  ├── Contract: Swapper.sol                                  │
 │  ├── Function: swap()                                       │
 │  ├── Gas: 152,456                                           │
@@ -1344,8 +1344,8 @@ CLARIFICATION TYPE ANALYSIS:
 │ Weight: 100% (Full confidence in response)                  │
 │                                                             │
 │ Example:                                                    │
-│ Q: "How is reentrancy prevented?"                          │
-│ A: "We use ReentrancyGuard, see line 45 of Swapper.sol"    │
+│ Q: "How is reentrancy prevented?"                           │
+│ A: "We use ReentrancyGuard, see line 45 of Swapper.sol"     │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
@@ -1359,9 +1359,9 @@ CLARIFICATION TYPE ANALYSIS:
 │ Weight: 30-50% (Partial confidence)                         │
 │                                                             │
 │ Example:                                                    │
-│ Q: "Who controls the admin key?"                           │
-│ A: "It's a 3-of-5 multisig with team members"              │
-│ (Cannot verify multisig setup without on-chain proof)      │
+│ Q: "Who controls the admin key?"                            │
+│ A: "It's a 3-of-5 multisig with team members"               │
+│ (Cannot verify multisig setup without on-chain proof)       │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
@@ -1375,9 +1375,9 @@ CLARIFICATION TYPE ANALYSIS:
 │ Weight: 70% (Good confidence if reasoning is solid)         │
 │                                                             │
 │ Example:                                                    │
-│ Q: "Why no slippage protection in swap?"                   │
-│ A: "Users set slippage in frontend, we trust input"        │
-│ (Design choice, but may still be risky)                    │
+│ Q: "Why no slippage protection in swap?"                    │
+│ A: "Users set slippage in frontend, we trust input"         │
+│ (Design choice, but may still be risky)                     │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
@@ -1391,8 +1391,8 @@ CLARIFICATION TYPE ANALYSIS:
 │ Weight: N/A (Finding stays, status = ACKNOWLEDGED)          │
 │                                                             │
 │ Example:                                                    │
-│ Q: "Admin can drain all funds, is this intended?"          │
-│ A: "Yes, we need emergency withdrawal capability"          │
+│ Q: "Admin can drain all funds, is this intended?"           │
+│ A: "Yes, we need emergency withdrawal capability"           │
 │ (Acknowledged centralization risk)                          │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -1438,26 +1438,26 @@ SCORE REANALYSIS WORKFLOW:
 │                                                             │
 │  CQ-001: Admin Key Security                    [TRUST_BASED]│
 │  ─────────────────────────────────────────────────────────  │
-│  Question: Who controls the admin key and what safeguards  │
+│  Question: Who controls the admin key and what safeguards   │
 │            are in place?                                    │
 │                                                             │
-│  Response: "Admin key is held in a 3-of-5 multisig with    │
-│            team leads. Signers are geographically          │
+│  Response: "Admin key is held in a 3-of-5 multisig with     │
+│            team leads. Signers are geographically           │
 │            distributed."                                    │
 │                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ VERIFICATION STATUS                                  │   │
-│  ├─────────────────────────────────────────────────────┤   │
-│  │ Type: TRUST_BASED                                   │   │
-│  │ Confidence: 40%                                     │   │
-│  │ Reason: Cannot verify multisig setup on-chain       │   │
-│  │                                                     │   │
-│  │ Impact on Finding UAT-05:                           │   │
-│  │ Original Severity: HIGH                             │   │
-│  │ Revised Severity: MEDIUM                            │   │
-│  │ Reason: Multisig claim reduces single-point-of-     │   │
-│  │         failure risk, but unverified                │   │
-│  └─────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ VERIFICATION STATUS                                 │    │
+│  ├─────────────────────────────────────────────────────┤    │
+│  │ Type: TRUST_BASED                                   │    │
+│  │ Confidence: 40%                                     │    │
+│  │ Reason: Cannot verify multisig setup on-chain       │    │
+│  │                                                     │    │
+│  │ Impact on Finding UAT-05:                           │    │
+│  │ Original Severity: HIGH                             │    │
+│  │ Revised Severity: MEDIUM                            │    │
+│  │ Reason: Multisig claim reduces single-point-of-     │    │
+│  │         failure risk, but unverified                │    │
+│  └─────────────────────────────────────────────────────┘    │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```

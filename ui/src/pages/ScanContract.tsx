@@ -1,14 +1,16 @@
 import { useState } from 'react'
-import { ArrowRight, Home } from 'lucide-react'
+import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
 import logo from '../assets/icon_audits.png'
 
 interface ScanContractProps {
   onBack: () => void
   onHomeClick: () => void
+  onStartAudit: (data: { project: string; branch: string; jobId: number }) => void
 }
 
 type ScanMode = 'quick' | 'full'
 type Network = 'arbitrum' | 'ethereum' | 'polygon' | 'base' | 'bnb' | 'optimism'
+type ValidationStatus = 'idle' | 'validating' | 'valid' | 'invalid' | 'error'
 
 const networks: { id: Network; name: string; shortName: string; color: string }[] = [
   { id: 'arbitrum', name: 'Arbitrum', shortName: 'ARB', color: '#28A0F0' },
@@ -19,17 +21,123 @@ const networks: { id: Network; name: string; shortName: string; color: string }[
   { id: 'optimism', name: 'Optimism', shortName: 'OP', color: '#FF0420' },
 ]
 
-export default function ScanContract({ onBack, onHomeClick }: ScanContractProps) {
+interface ContractInfo {
+  isContract: boolean
+  isVerified: boolean
+  contractName?: string
+  compiler?: string
+  explorerUrl?: string
+}
+
+export default function ScanContract({ onBack, onHomeClick, onStartAudit }: ScanContractProps) {
   const [scanMode, setScanMode] = useState<ScanMode>('quick')
   const [selectedNetwork, setSelectedNetwork] = useState<Network>('arbitrum')
   const [contractAddress, setContractAddress] = useState('')
+  const [validationStatus, setValidationStatus] = useState<ValidationStatus>('idle')
+  const [contractInfo, setContractInfo] = useState<ContractInfo | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isStarting, setIsStarting] = useState(false)
 
-  const handleStartScan = () => {
-    if (!contractAddress) {
-      alert('Please enter a contract address')
+  // Validate address format
+  const isValidAddressFormat = (address: string) => /^0x[a-fA-F0-9]{40}$/.test(address)
+
+  // Validate contract when address changes
+  const handleAddressChange = async (address: string) => {
+    setContractAddress(address)
+    setContractInfo(null)
+    setError(null)
+
+    if (!address) {
+      setValidationStatus('idle')
       return
     }
-    alert(`Starting ${scanMode} scan on ${selectedNetwork} for contract: ${contractAddress}`)
+
+    if (!isValidAddressFormat(address)) {
+      setValidationStatus('idle')
+      return
+    }
+
+    // Validate contract
+    setValidationStatus('validating')
+    try {
+      const response = await fetch('/scan/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, network: selectedNetwork }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Validation failed')
+        setValidationStatus('error')
+        return
+      }
+
+      if (!data.isContract) {
+        setError('Address is not a contract (EOA)')
+        setValidationStatus('invalid')
+        return
+      }
+
+      if (!data.isVerified) {
+        setError('Contract source code not verified on explorer')
+        setValidationStatus('invalid')
+        setContractInfo(data)
+        return
+      }
+
+      setContractInfo(data)
+      setValidationStatus('valid')
+    } catch (err) {
+      setError('Failed to validate contract')
+      setValidationStatus('error')
+    }
+  }
+
+  // Re-validate when network changes
+  const handleNetworkChange = (network: Network) => {
+    setSelectedNetwork(network)
+    if (contractAddress && isValidAddressFormat(contractAddress)) {
+      handleAddressChange(contractAddress)
+    }
+  }
+
+  // Start the scan
+  const handleStartScan = async () => {
+    if (!contractAddress || validationStatus !== 'valid') {
+      return
+    }
+
+    setIsStarting(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/scan/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: contractAddress,
+          network: selectedNetwork,
+          scanMode,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start scan')
+      }
+
+      // Navigate to ReviewAndRun with the job
+      onStartAudit({
+        project: data.projectName,
+        branch: 'main',
+        jobId: data.job.id,
+      })
+    } catch (err: any) {
+      setError(err.message || 'Failed to start scan')
+      setIsStarting(false)
+    }
   }
 
   const selectedNetworkData = networks.find(n => n.id === selectedNetwork)
@@ -68,13 +176,6 @@ export default function ScanContract({ onBack, onHomeClick }: ScanContractProps)
             <img src={logo} alt="UatuAudit Logo" className="w-12 h-12" />
             <span className="text-2xl font-bold text-white tracking-tight">UatuAudit</span>
           </div>
-          {/* <button
-            onClick={onHomeClick}
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-          >
-            <Home className="w-5 h-5" />
-            <span>Home</span>
-          </button> */}
         </div>
       </header>
 
@@ -135,7 +236,7 @@ export default function ScanContract({ onBack, onHomeClick }: ScanContractProps)
               {networks.map((network) => (
                 <button
                   key={network.id}
-                  onClick={() => setSelectedNetwork(network.id)}
+                  onClick={() => handleNetworkChange(network.id)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${
                     selectedNetwork === network.id
                       ? 'border-[#00ffff] bg-[#00ffff]/10 text-white'
@@ -159,27 +260,89 @@ export default function ScanContract({ onBack, onHomeClick }: ScanContractProps)
             <label className="text-gray-400 text-sm font-medium tracking-wide block mb-3">
               CONTRACT ADDRESS
             </label>
-            <input
-              type="text"
-              value={contractAddress}
-              onChange={(e) => setContractAddress(e.target.value)}
-              placeholder="0x1234... paste your contract"
-              className="w-full bg-[#1a1f2e] border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#00ffff] transition-colors font-mono"
-            />
-            <p className="text-gray-500 text-sm mt-2">
-              We run an AI surface scan on the verified source code from the selected chain's explorer.
-            </p>
+            <div className="relative">
+              <input
+                type="text"
+                value={contractAddress}
+                onChange={(e) => handleAddressChange(e.target.value)}
+                placeholder="0x1234... paste your contract"
+                className={`w-full bg-[#1a1f2e] border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none transition-colors font-mono pr-12 ${
+                  validationStatus === 'valid'
+                    ? 'border-green-500 focus:border-green-400'
+                    : validationStatus === 'invalid' || validationStatus === 'error'
+                    ? 'border-red-500 focus:border-red-400'
+                    : 'border-gray-700 focus:border-[#00ffff]'
+                }`}
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                {validationStatus === 'validating' && (
+                  <Loader2 className="w-5 h-5 text-[#00ffff] animate-spin" />
+                )}
+                {validationStatus === 'valid' && (
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                )}
+                {(validationStatus === 'invalid' || validationStatus === 'error') && (
+                  <XCircle className="w-5 h-5 text-red-500" />
+                )}
+              </div>
+            </div>
+
+            {/* Contract Info */}
+            {contractInfo && validationStatus === 'valid' && (
+              <div className="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-400 font-medium">{contractInfo.contractName}</p>
+                    <p className="text-gray-400 text-sm">{contractInfo.compiler}</p>
+                  </div>
+                  {contractInfo.explorerUrl && (
+                    <a
+                      href={contractInfo.explorerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#00ffff] hover:underline flex items-center gap-1 text-sm"
+                    >
+                      View on Explorer <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <p className="text-red-400 text-sm mt-2">{error}</p>
+            )}
+
+            {/* Helper Text */}
+            {!error && validationStatus === 'idle' && (
+              <p className="text-gray-500 text-sm mt-2">
+                We run an AI surface scan on the verified source code from the selected chain's explorer.
+              </p>
+            )}
           </div>
 
           {/* Submit Button */}
           <button
             onClick={handleStartScan}
-            className="w-full relative group"
+            disabled={validationStatus !== 'valid' || isStarting}
+            className={`w-full relative group ${
+              validationStatus !== 'valid' || isStarting ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-[#00ffff]/30 to-[#00e6e6]/30 rounded-xl blur-md group-hover:blur-lg transition-all" />
             <div className="relative bg-gradient-to-r from-[#00ffff]/20 to-[#00e6e6]/20 hover:from-[#00ffff]/30 hover:to-[#00e6e6]/30 border border-[#00ffff]/50 text-[#00ffff] px-8 py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2">
-              Start {scanMode === 'quick' ? 'Quick Scan' : 'Full Audit'}
-              <ArrowRight className="w-5 h-5" />
+              {isStarting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Starting Scan...
+                </>
+              ) : (
+                <>
+                  Start {scanMode === 'quick' ? 'Quick Scan' : 'Full Audit'}
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
             </div>
           </button>
         </div>

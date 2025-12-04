@@ -85,6 +85,16 @@ function App() {
       <ScanContract
         onBack={() => setCurrentStep(0)}
         onHomeClick={() => setCurrentStep(0)}
+        onStartAudit={(data) => {
+          setRepoData(prev => ({
+            ...prev,
+            project: data.project,
+            branch: data.branch,
+            repo: `scan://${data.project}`,
+          }))
+          setJobId(data.jobId)
+          setCurrentStep(3)
+        }}
       />
     )
   }
