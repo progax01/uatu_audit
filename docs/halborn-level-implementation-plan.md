@@ -86,10 +86,10 @@ Format: Paragraph form, no bullet points"
 │  Halborn conducted a security assessment of {project}...    │
 │  [AI-generated summary paragraph]                           │
 │                                                             │
-│  ┌──────────────┬──────────────┬──────────────┐            │
-│  │ Audit Period │ Commit       │ LOC Reviewed │            │
-│  │ Aug 21-22    │ 0264b30      │ 1,247        │            │
-│  └──────────────┴──────────────┴──────────────┘            │
+│  ┌──────────────┬──────────────┬──────────────┐             │
+│  │ Audit Period │ Commit       │ LOC Reviewed │             │
+│  │ Aug 21-22    │ 0264b30      │ 1,247        │             │
+│  └──────────────┴──────────────┴──────────────┘             │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```

@@ -305,6 +305,88 @@ pnpm build
 - Vertical: Increase `UATU_CONCURRENCY` based on available cores
 - Queue-based: Separate enqueuers from workers
 
+## 🏛️ **Codebase Architecture**
+
+### Backend Services (`src/services/`)
+
+| Service | Purpose | Used By |
+|---------|---------|---------|
+| `runAll.ts` | Main 3-phase audit pipeline orchestrator | daemon.ts, bin/uatu.ts |
+| `jobQueue.ts` | Persistent job queue with SQLite, handles enqueue/claim/complete | daemon.ts, singlePromptAudit.ts, parallelAuditExecutor.ts |
+| `progressService.ts` | Real-time progress tracking with weighted phases | daemon.ts, index.ts |
+| `gitService.ts` | Git clone/refresh operations with auth support | runAll.ts |
+| `projectAnalyzer.ts` | Project structure analysis, contract detection | bootstrap.ts |
+| `liveLogger.ts` | Real-time log streaming for UI | bootstrap.ts, singlePromptAudit.ts |
+| `ecosystemDetector.ts` | Detects Foundry/Hardhat/Anchor/Soroban ecosystems | bootstrap.ts |
+| `metrics.ts` | Performance metrics collection | daemon.ts |
+| `jobLogger.ts` | Per-job file logging for debugging | daemon.ts, runAll.ts |
+| `testStyles.ts` | Test style validation (behavioral/stride/owasp) | bin/uatu.ts |
+| `insightAutoWriter.ts` | Auto-generates insights from command outputs | smokeTests.ts |
+| `contextWriter.ts` | Writes context files (files_structure.md, test_requirements.md) | runAll.ts |
+| `pdfGenerator.ts` | HTML to PDF conversion using Puppeteer | runAll.ts |
+| `configService.ts` | Loads .uatu/config.json settings | runAll.ts |
+| `workspaceService.ts` | Resolves workspace paths for projects | daemon.ts, runAll.ts |
+| `ai/claudeCLIProvider.ts` | Claude CLI integration, session management | jobQueue.ts |
+| `report/simpleReportGenerator.ts` | Generates HTML reports from results.json | runAll.ts |
+
+### SOPs (`src/sops/`)
+
+| SOP | Purpose |
+|-----|---------|
+| `bootstrap.ts` | Project initialization, ecosystem detection, context setup |
+| `singlePromptAudit.ts` | Single Claude CLI call for complete audit |
+| `parallelAuditExecutor.ts` | Parallel multi-session audit for large projects |
+
+### Frontend (`ui/src/`)
+
+**Pages:**
+| Page | Purpose |
+|------|---------|
+| `AuditSetup.tsx` | Repository selection, branch picker, file selector |
+| `ReviewAndRun.tsx` | Audit execution with live progress tracking |
+| `Reports.tsx` | List of completed audit reports |
+| `ReportDetail.tsx` | Individual report viewer with PDF download |
+| `Settings.tsx` | Application settings |
+
+**Hooks:**
+| Hook | Purpose |
+|------|---------|
+| `useLocalStorage.ts` | Persistent state management |
+| `useAudit.ts` | Audit state and operations |
+| `useToast.ts` | Toast notifications |
+
+### Utilities (`src/utils/`)
+
+| Utility | Purpose |
+|---------|---------|
+| `logger.ts` | Structured logging with pino |
+| `retry.ts` | Retry and timeout wrappers |
+| `stepHelper.ts` | Progress step management |
+| `claudeHealthCheck.ts` | Claude CLI availability check |
+
+### Templates (`src/templates/`)
+
+| Template | Purpose |
+|----------|---------|
+| `report-template.html` | HTML report template with dark theme |
+| `certificate-template.html` | Audit certificate template |
+| `sop-prompt.txt` | Main Claude CLI audit prompt |
+
+### Server (`src/server/`)
+
+| File | Purpose |
+|------|---------|
+| `app.ts` | HTTP server setup, request routing, CORS |
+| `worker.ts` | Background job processor |
+| `routes/auth.ts` | GitHub OAuth routes (/auth/*) |
+| `routes/github.ts` | GitHub API routes (/github/*) |
+| `routes/jobs.ts` | Job management routes (/jobs, /enqueue, /progress) |
+| `routes/reports.ts` | Report routes (/report, /certificate) |
+| `routes/health.ts` | Health & metrics routes (/healthz, /metrics) |
+| `routes/scan.ts` | Deployed contract scan routes (/scan/*) |
+
+---
+
 ## 🤝 **Contributing**
 
 1. Fork the repository

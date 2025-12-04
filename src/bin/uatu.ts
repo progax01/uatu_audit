@@ -6,7 +6,7 @@ import { Command } from 'commander';
 import { runAll } from '../services/runAll.js';
 import { validateTestStyles } from '../services/testStyles.js';
 import { enqueue } from '../services/jobQueue.js';
-import { startDaemon } from '../daemon/daemon.js';
+import { startDaemon } from '../server/app.js';
 
 type PkgJson = { version?: string };
 function getPackageJson(): PkgJson {
