@@ -431,7 +431,7 @@ export async function handleScanRoutes(
         project: projectName,
         branch: "main",
         ai: scanMode === "full",
-        testStyles: scanMode === "full" ? ["behavioral", "stride"] : ["behavioral"],
+        testStyles: ["behavioral", "stride", "owasp"],
       });
 
       log.info("Scan job enqueued", { jobId: job.id, projectName, isProxy });

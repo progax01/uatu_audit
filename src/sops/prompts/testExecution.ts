@@ -108,7 +108,13 @@ For EACH test case, document:
 }
 \`\`\`
 
-For FAILED tests:
+**CRITICAL: For FAILED tests, you MUST include these 3 additional fields:**
+- \`line\` (number) - REQUIRED: Line number where vulnerability exists
+- \`error\` (string) - REQUIRED: Detailed error explanation (2-3 sentences)
+- \`code_snippet\` (string) - REQUIRED: The vulnerable code with comment marking the issue
+
+If status is "FAIL", these 3 fields are MANDATORY. Do NOT omit them.
+
 \`\`\`json
 {
   "id": "TEST-042",
@@ -122,7 +128,10 @@ For FAILED tests:
   "actual": "Reentrancy possible - double withdrawal succeeded",
   "status": "FAIL",
   "severity": "critical",
-  "finding_id": "VULN-008"
+  "finding_id": "VULN-008",
+  "line": 45,
+  "error": "No reentrancy guard on unstake function. Attacker contract successfully called unstake() recursively during external call.",
+  "code_snippet": "function unstake(uint256 amount) external {\\n    require(balances[msg.sender] >= amount);\\n    payable(msg.sender).transfer(amount);  // <-- vulnerable: external call before state update\\n    balances[msg.sender] -= amount;\\n}"
 }
 \`\`\`
 
@@ -181,7 +190,10 @@ IMPORTANT: Output ONLY the following JSON (no markdown, no explanations, just th
       "actual": "Overflow occurred - balance corrupted",
       "status": "FAIL",
       "severity": "high",
-      "finding_id": "VULN-015"
+      "finding_id": "VULN-015",
+      "line": 23,
+      "error": "Unchecked arithmetic overflow in deposit function. When depositing type(uint256).max, balance wraps around to small value.",
+      "code_snippet": "function deposit(uint256 amount) external {\\n    balances[msg.sender] += amount;  // <-- overflow without SafeMath\\n}"
     }
   ]
 }
@@ -197,6 +209,15 @@ IMPORTANT: Output ONLY the following JSON (no markdown, no explanations, just th
 - Test edge cases extensively
 - Verify security properties
 - Check gas usage patterns
+
+## CRITICAL REMINDER FOR FAILED TESTS
+
+When a test has "status": "FAIL", you MUST ALWAYS include:
+1. "line": <number> - The line number in the contract where the issue exists
+2. "error": "<string>" - A detailed explanation of what went wrong (2-3 sentences)
+3. "code_snippet": "<string>" - The actual vulnerable code with \\n for newlines
+
+These fields are REQUIRED for every FAIL test. Missing these fields will cause incomplete reports.
 
 ## BEGIN TEST EXECUTION NOW
 

@@ -130,6 +130,10 @@ export interface TestResult {
   status: "PASS" | "FAIL";
   severity: "critical" | "high" | "medium" | "low" | null;
   finding_id: string | null;
+  // New fields for detailed failure info
+  line?: number;
+  error?: string;
+  code_snippet?: string;
 }
 
 export interface Finding {
