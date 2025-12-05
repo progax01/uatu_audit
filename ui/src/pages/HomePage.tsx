@@ -263,11 +263,16 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
 
           {/* Right Side - Robot Mascot */}
           <div className="hidden lg:flex items-center justify-center relative">
-            {/* Subtle glow effect behind robot */}
-            <div className="absolute w-[400px] h-[400px] bg-[#0F3F62]/5 rounded-full blur-3xl" />
+            {/* Glow effects behind robot for blending */}
+            <div className="absolute w-[500px] h-[500px] bg-gradient-to-br from-[#a8d8ea]/30 via-[#6bb7d4]/20 to-transparent rounded-full blur-3xl" />
+            <div className="absolute w-[350px] h-[350px] bg-[#7fc8dc]/25 rounded-full blur-2xl" />
 
             {/* Robot Mascot Image */}
-            <img src={mascot} alt="Uatu Mascot" className="relative w-[400px] h-auto" />
+            <img
+              src={mascot}
+              alt="Uatu Mascot"
+              className="relative w-[500px] h-auto drop-shadow-2xl"
+            />
           </div>
         </div>
 
