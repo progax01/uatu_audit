@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle } from 'lucide-react'
 import logo from '../assets/logo.svg'
+import mascot from '../assets/letf-mascot.png'
 
 // GitHub Icon SVG Component
 function GithubIcon({ className }: { className?: string }) {
@@ -48,112 +49,6 @@ interface FetchedSource {
   isProxy: boolean
   implementationAddress?: string
   cached: boolean
-}
-
-// Robot Mascot SVG Component - Cute 3D style
-function RobotMascot() {
-  return (
-    <svg viewBox="0 0 320 300" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Definitions for gradients */}
-      <defs>
-        <linearGradient id="bodyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#a8d8ea" />
-          <stop offset="100%" stopColor="#6bb7d4" />
-        </linearGradient>
-        <linearGradient id="headGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#c5e8f2" />
-          <stop offset="100%" stopColor="#7fc8dc" />
-        </linearGradient>
-        <linearGradient id="visorGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#1a3a5c" />
-          <stop offset="100%" stopColor="#0d1f33" />
-        </linearGradient>
-        <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#b8e6f2" />
-          <stop offset="100%" stopColor="#7dd3e8" />
-        </linearGradient>
-        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-          <feMerge>
-            <feMergeNode in="coloredBlur"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-      </defs>
-
-      {/* Feet shadow */}
-      <ellipse cx="200" cy="285" rx="55" ry="10" fill="#4a9bb8" opacity="0.2"/>
-
-      {/* Robot Legs */}
-      <ellipse cx="170" cy="265" rx="22" ry="28" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
-      <ellipse cx="230" cy="265" rx="22" ry="28" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
-
-      {/* Robot Body */}
-      <ellipse cx="200" cy="190" rx="55" ry="65" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
-
-      {/* Robot Arms */}
-      <ellipse cx="130" cy="185" rx="18" ry="38" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
-      <ellipse cx="270" cy="185" rx="18" ry="38" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
-
-      {/* Body logo/emblem */}
-      <ellipse cx="200" cy="180" rx="28" ry="32" fill="#e8f6fa" stroke="#4a9bb8" strokeWidth="2"/>
-      {/* Uatu symbol on body */}
-      <path d="M182 172 Q200 195 218 172" stroke="#4a9bb8" strokeWidth="3" fill="none" strokeLinecap="round"/>
-      <circle cx="188" cy="176" r="3" fill="#4a9bb8"/>
-      <circle cx="212" cy="176" r="3" fill="#4a9bb8"/>
-
-      {/* Robot Head - positioned to connect with body */}
-      <g transform="translate(130, 5)">
-        {/* Head outer ring/helmet */}
-        <ellipse cx="70" cy="70" rx="68" ry="65" fill="url(#headGradient)" stroke="#4a9bb8" strokeWidth="3"/>
-        {/* Helmet rim */}
-        <ellipse cx="70" cy="70" rx="60" ry="57" fill="none" stroke="#ffffff" strokeWidth="2" opacity="0.5"/>
-
-        {/* Visor/Face screen */}
-        <ellipse cx="70" cy="72" rx="48" ry="45" fill="url(#visorGradient)" stroke="#1a3a5c" strokeWidth="2"/>
-
-        {/* Glowing U symbol - Uatu eyes */}
-        <g filter="url(#glow)">
-          <path d="M42 52 Q42 88 70 100 Q98 88 98 52"
-                stroke="#00e5ff" strokeWidth="7" fill="none" strokeLinecap="round"/>
-          <path d="M42 52 Q42 88 70 100 Q98 88 98 52"
-                stroke="#ffffff" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.7"/>
-        </g>
-
-        {/* Ear pieces */}
-        <ellipse cx="5" cy="70" rx="14" ry="22" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
-        <ellipse cx="135" cy="70" rx="14" ry="22" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
-        {/* Ear highlights */}
-        <ellipse cx="5" cy="64" rx="7" ry="11" fill="#ffffff" opacity="0.3"/>
-        <ellipse cx="135" cy="64" rx="7" ry="11" fill="#ffffff" opacity="0.3"/>
-      </g>
-
-      {/* Shield - positioned to overlap with robot */}
-      <g transform="translate(10, 95)">
-        {/* Shield shape */}
-        <path d="M55 5 L100 22 L100 72 Q77 108 55 108 Q33 108 10 72 L10 22 Z"
-              fill="url(#shieldGradient)" stroke="#2d6a82" strokeWidth="3"/>
-        {/* Shield inner border */}
-        <path d="M55 15 L90 28 L90 65 Q72 95 55 95 Q38 95 20 65 L20 28 Z"
-              fill="none" stroke="#2d6a82" strokeWidth="2" opacity="0.5"/>
-        {/* Bug icon on shield */}
-        <ellipse cx="55" cy="58" rx="20" ry="25" fill="none" stroke="#1a4a5e" strokeWidth="2.5"/>
-        <circle cx="55" cy="46" r="12" fill="none" stroke="#1a4a5e" strokeWidth="2.5"/>
-        {/* Bug legs */}
-        <line x1="35" y1="52" x2="23" y2="43" stroke="#1a4a5e" strokeWidth="2.5" strokeLinecap="round"/>
-        <line x1="75" y1="52" x2="87" y2="43" stroke="#1a4a5e" strokeWidth="2.5" strokeLinecap="round"/>
-        <line x1="32" y1="66" x2="20" y2="66" stroke="#1a4a5e" strokeWidth="2.5" strokeLinecap="round"/>
-        <line x1="78" y1="66" x2="90" y2="66" stroke="#1a4a5e" strokeWidth="2.5" strokeLinecap="round"/>
-        <line x1="35" y1="80" x2="25" y2="90" stroke="#1a4a5e" strokeWidth="2.5" strokeLinecap="round"/>
-        <line x1="75" y1="80" x2="85" y2="90" stroke="#1a4a5e" strokeWidth="2.5" strokeLinecap="round"/>
-        {/* Bug center line */}
-        <line x1="55" y1="34" x2="55" y2="83" stroke="#1a4a5e" strokeWidth="2" strokeLinecap="round"/>
-      </g>
-
-      {/* Highlights/Reflections on head */}
-      <ellipse cx="175" cy="40" rx="18" ry="12" fill="#ffffff" opacity="0.4"/>
-    </svg>
-  )
 }
 
 export default function HomePage({ onGetStarted, onScanContract, onStartAudit }: HomePageProps) {
@@ -371,10 +266,8 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
             {/* Subtle glow effect behind robot */}
             <div className="absolute w-[400px] h-[400px] bg-[#0F3F62]/5 rounded-full blur-3xl" />
 
-            {/* Robot with integrated Shield */}
-            <div className="relative w-[360px] h-auto">
-              <RobotMascot />
-            </div>
+            {/* Robot Mascot Image */}
+            <img src={mascot} alt="Uatu Mascot" className="relative w-[400px] h-auto" />
           </div>
         </div>
 
