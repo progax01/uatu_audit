@@ -251,12 +251,12 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-8">
           {/* Left Side - Text Content */}
           <div className="py-4">
-            <h1 className="text-4xl lg:text-5xl font-bold text-[#0F3F62] leading-tight mb-4">
+            <h1 className="text-5xl lg:text-6xl font-bold text-[#0F3F62] leading-tight mb-6">
               Secure Your Smart {" "}
               Contracts with
               <span className="text-[#0F3F62] ml-2">AI-Driven Audits</span>
             </h1>
-            <p className="text-lg text-gray-600 max-w-xl leading-relaxed">
+            <p className="text-xl text-gray-600 max-w-xl leading-relaxed">
               Leverage our advanced engine to safeguard your Web3 assets with rigorous vulnerability analysis.
             </p>
           </div>
@@ -271,7 +271,7 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
             <img
               src={mascot}
               alt="Uatu Mascot"
-              className="relative w-[380px] h-auto drop-shadow-2xl"
+              className="relative w-[500px] h-auto drop-shadow-2xl"
             />
           </div>
         </div>
