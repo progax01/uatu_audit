@@ -246,17 +246,17 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
       </header>
 
       {/* Main Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-8 py-20">
+      <div className="relative z-10 max-w-7xl mx-auto px-8 py-8">
         {/* Row 1: Hero Text (Left) + Robot Mascot (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-20">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-8">
           {/* Left Side - Text Content */}
-          <div className="py-8">
-            <h1 className="text-5xl lg:text-6xl font-bold text-[#0F3F62] leading-tight mb-8">
+          <div className="py-4">
+            <h1 className="text-4xl lg:text-5xl font-bold text-[#0F3F62] leading-tight mb-4">
               Secure Your Smart {" "}
               Contracts with
               <span className="text-[#0F3F62] ml-2">AI-Driven Audits</span>
             </h1>
-            <p className="text-xl lg:text-2xl text-gray-600 max-w-xl leading-relaxed">
+            <p className="text-lg text-gray-600 max-w-xl leading-relaxed">
               Leverage our advanced engine to safeguard your Web3 assets with rigorous vulnerability analysis.
             </p>
           </div>
@@ -264,21 +264,21 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
           {/* Right Side - Robot Mascot */}
           <div className="hidden lg:flex items-center justify-center relative">
             {/* Glow effects behind robot for blending */}
-            <div className="absolute w-[500px] h-[500px] bg-gradient-to-br from-[#a8d8ea]/30 via-[#6bb7d4]/20 to-transparent rounded-full blur-3xl" />
-            <div className="absolute w-[350px] h-[350px] bg-[#7fc8dc]/25 rounded-full blur-2xl" />
+            <div className="absolute w-[400px] h-[400px] bg-gradient-to-br from-[#a8d8ea]/30 via-[#6bb7d4]/20 to-transparent rounded-full blur-3xl" />
+            <div className="absolute w-[280px] h-[280px] bg-[#7fc8dc]/25 rounded-full blur-2xl" />
 
             {/* Robot Mascot Image */}
             <img
               src={mascot}
               alt="Uatu Mascot"
-              className="relative w-[500px] h-auto drop-shadow-2xl"
+              className="relative w-[380px] h-auto drop-shadow-2xl"
             />
           </div>
         </div>
 
         {/* Row 2: Centered Action Card */}
         <div className="flex justify-center">
-          <div className="bg-white border -mt-10 border-gray-200 rounded-2xl p-6 backdrop-blur-sm w-full max-w-3xl shadow-xl shadow-gray-200/50">
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 backdrop-blur-sm w-full max-w-3xl shadow-xl shadow-gray-200/50">
               {/* Tabs */}
               <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
                 <button
