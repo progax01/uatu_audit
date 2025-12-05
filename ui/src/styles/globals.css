@@ -1,21 +1,13 @@
+@import './theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* Preserve original color scheme */
-    --bg: #0b1020;
-    --card: #121a33;
-    --line: #2e3a70;
-    --accent: #0a7cff;
-    --muted: #9fb0e3;
-    --text: #eaf0ff;
-  }
-
   body {
-    @apply bg-uatu-bg text-uatu-text;
-    font-family: ui-sans-serif, system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
+    @apply bg-white text-gray-900;
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
   }
 }
 

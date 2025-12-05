@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle } from 'lucide-react'
-import logo from '../assets/icon_audits.png'
+import logo from '../assets/logo.svg'
 
 interface ScanContractProps {
   onBack: () => void
@@ -245,15 +245,15 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
   const selectedNetworkData = networks.find(n => n.id === selectedNetwork)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a0f1f] via-[#0d1426] to-[#0a0f1f] relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white relative overflow-hidden">
       {/* Tech Grid Background */}
-      <div className="absolute inset-0 opacity-20 pointer-events-none">
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div
           className="w-full h-full"
           style={{
             backgroundImage: `
-              linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px)
+              linear-gradient(rgba(15, 63, 98, 0.03) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(15, 63, 98, 0.03) 1px, transparent 1px)
             `,
             backgroundSize: '50px 50px'
           }}
@@ -269,15 +269,14 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
       <FloatingIcon shortName="OP" color="#FF0420" position="bottom-32 right-24" />
 
       {/* Header */}
-      <header className="relative z-10 border-b border-[#00ffff]/20 bg-[#0a0f1f]/80 backdrop-blur-sm">
+      <header className="relative z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div
-            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+          <button
             onClick={onHomeClick}
+            className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0"
           >
-            <img src={logo} alt="UatuAudit Logo" className="w-12 h-12" />
-            <span className="text-2xl font-bold text-white tracking-tight">UatuAudit</span>
-          </div>
+            <img src={logo} alt="Uatu Logo" className="h-10" />
+          </button>
         </div>
       </header>
 
@@ -285,29 +284,29 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
       <div className="relative z-10 max-w-4xl mx-auto px-6 py-16">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <p className="text-[#00ffff] text-sm tracking-widest mb-4">UATU · AI SUPER-AUDIT</p>
-          <h1 className="text-5xl font-bold text-white mb-4">
+          <p className="text-[#0F3F62] text-sm tracking-widest mb-4 font-medium">UATU · AI SUPER-AUDIT</p>
+          <h1 className="text-5xl font-bold text-[#0F3F62] mb-4">
             Audit your smart contracts
             <br />
-            with <span className="text-[#00ffff]">AI Super-Intelligence</span> .
+            with <span className="text-[#1a5a8a]">AI Super-Intelligence</span> .
           </h1>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
             Deep reasoning engine that detects vulnerabilities, economic flaws, access-control issues
             and gas inefficiencies — long before mainnet.
           </p>
         </div>
 
         {/* Main Card */}
-        <div className="bg-[#0d1426]/90 border border-gray-800 rounded-2xl p-8 backdrop-blur-sm">
+        <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-xl">
           {/* Scan Mode Toggle & Badge */}
           <div className="flex items-center justify-between mb-8">
-            <div className="flex bg-[#1a1f2e] rounded-lg p-1">
+            <div className="flex bg-gray-100 rounded-lg p-1">
               <button
                 onClick={() => setScanMode('quick')}
                 className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
                   scanMode === 'quick'
-                    ? 'bg-[#0d1426] text-white shadow-lg'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-white text-[#0F3F62] shadow-lg'
+                    : 'text-gray-500 hover:text-[#0F3F62]'
                 }`}
               >
                 Quick Scan
@@ -316,8 +315,8 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
                 onClick={() => setScanMode('full')}
                 className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
                   scanMode === 'full'
-                    ? 'bg-[#0d1426] text-white shadow-lg'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-white text-[#0F3F62] shadow-lg'
+                    : 'text-gray-500 hover:text-[#0F3F62]'
                 }`}
               >
                 Full Audit
@@ -329,7 +328,7 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
           {/* Network Selector */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <label className="text-gray-400 text-sm font-medium tracking-wide">NETWORK</label>
+              <label className="text-gray-600 text-sm font-medium tracking-wide">NETWORK</label>
               <span className="text-gray-500 text-sm">
                 Verified contracts · {selectedNetworkData?.name} (Mainnet)
               </span>
@@ -341,8 +340,8 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
                   onClick={() => handleNetworkChange(network.id)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${
                     selectedNetwork === network.id
-                      ? 'border-[#00ffff] bg-[#00ffff]/10 text-white'
-                      : 'border-gray-700 bg-transparent text-gray-400 hover:border-gray-500'
+                      ? 'border-[#0F3F62] bg-[#0F3F62]/10 text-[#0F3F62]'
+                      : 'border-gray-300 bg-transparent text-gray-600 hover:border-gray-400'
                   }`}
                 >
                   <span
@@ -359,7 +358,7 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
 
           {/* Contract Address Input */}
           <div className="mb-6">
-            <label className="text-gray-400 text-sm font-medium tracking-wide block mb-3">
+            <label className="text-gray-600 text-sm font-medium tracking-wide block mb-3">
               CONTRACT ADDRESS
             </label>
             <div className="relative">
@@ -368,17 +367,17 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
                 value={contractAddress}
                 onChange={(e) => handleAddressChange(e.target.value)}
                 placeholder="0x1234... paste your contract"
-                className={`w-full bg-[#1a1f2e] border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none transition-colors font-mono pr-12 ${
+                className={`w-full bg-gray-50 border rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none transition-colors font-mono pr-12 ${
                   validationStatus === 'valid'
                     ? 'border-green-500 focus:border-green-400'
                     : validationStatus === 'invalid' || validationStatus === 'error'
                     ? 'border-red-500 focus:border-red-400'
-                    : 'border-gray-700 focus:border-[#00ffff]'
+                    : 'border-gray-300 focus:border-[#0F3F62]'
                 }`}
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
                 {validationStatus === 'validating' && (
-                  <Loader2 className="w-5 h-5 text-[#00ffff] animate-spin" />
+                  <Loader2 className="w-5 h-5 text-[#0F3F62] animate-spin" />
                 )}
                 {validationStatus === 'valid' && (
                   <CheckCircle className="w-5 h-5 text-green-500" />
@@ -393,13 +392,13 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
             {contractInfo && validationStatus === 'valid' && fetchedSource && (
               <div className="mt-3 space-y-3">
                 {/* Main contract info */}
-                <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-5 h-5 text-green-500" />
-                      <p className="text-green-400 font-medium">{contractInfo.contractName}</p>
+                      <p className="text-green-600 font-medium">{contractInfo.contractName}</p>
                       {fetchedSource.cached && (
-                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Cached</span>
+                        <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">Cached</span>
                       )}
                     </div>
                     {contractInfo.explorerUrl && (
@@ -407,16 +406,16 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
                         href={contractInfo.explorerUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[#00ffff] hover:underline flex items-center gap-1 text-sm"
+                        className="text-[#0F3F62] hover:underline flex items-center gap-1 text-sm"
                       >
                         View on Explorer <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
                   </div>
-                  <p className="text-gray-400 text-sm">{contractInfo.compiler}</p>
+                  <p className="text-gray-500 text-sm">{contractInfo.compiler}</p>
 
                   {/* Files count */}
-                  <div className="flex items-center gap-2 mt-2 text-gray-400 text-sm">
+                  <div className="flex items-center gap-2 mt-2 text-gray-500 text-sm">
                     <FileCode className="w-4 h-4" />
                     <span>{fetchedSource.fileCount} source file{fetchedSource.fileCount !== 1 ? 's' : ''} fetched</span>
                   </div>
@@ -424,13 +423,13 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
 
                 {/* Proxy warning */}
                 {contractInfo.isProxy && (
-                  <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                      <span className="text-yellow-400 text-sm font-medium">Proxy Contract Detected</span>
+                      <span className="text-yellow-600 text-sm font-medium">Proxy Contract Detected</span>
                     </div>
                     {contractInfo.implementationAddress && (
-                      <p className="text-gray-400 text-sm mt-1 ml-6">
+                      <p className="text-gray-500 text-sm mt-1 ml-6">
                         Implementation: {contractInfo.implementationName || contractInfo.implementationAddress.slice(0, 10) + '...'}
                       </p>
                     )}
@@ -441,7 +440,7 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
 
             {/* Error Message */}
             {error && (
-              <p className="text-red-400 text-sm mt-2">{error}</p>
+              <p className="text-red-500 text-sm mt-2">{error}</p>
             )}
 
             {/* Helper Text */}
@@ -460,8 +459,8 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
               validationStatus !== 'valid' || isStarting ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-[#00ffff]/30 to-[#00e6e6]/30 rounded-xl blur-md group-hover:blur-lg transition-all" />
-            <div className="relative bg-gradient-to-r from-[#00ffff]/20 to-[#00e6e6]/20 hover:from-[#00ffff]/30 hover:to-[#00e6e6]/30 border border-[#00ffff]/50 text-[#00ffff] px-8 py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0F3F62]/20 to-[#1a5a8a]/20 rounded-xl blur-md group-hover:blur-lg transition-all" />
+            <div className="relative bg-[#0F3F62] hover:bg-[#1a5a8a] text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#0F3F62]/30">
               {isStarting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -479,8 +478,8 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
 
         {/* Footer - Trusted Ecosystems */}
         <div className="mt-16 text-center">
-          <p className="text-gray-600 text-sm tracking-widest mb-6">TRUSTED ACROSS EVM ECOSYSTEMS</p>
-          <div className="flex items-center justify-center gap-8 text-gray-500">
+          <p className="text-gray-500 text-sm tracking-widest mb-6">TRUSTED ACROSS EVM ECOSYSTEMS</p>
+          <div className="flex items-center justify-center gap-8 text-gray-400">
             {networks.map((network) => (
               <span key={network.id} className="text-sm font-medium tracking-wide">
                 {network.name.toUpperCase()}

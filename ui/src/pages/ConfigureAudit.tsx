@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Check, ChevronLeft } from 'lucide-react'
-import logo from '../assets/icon_audits.png'
+import logo from '../assets/logo.svg'
 import FileSelector from '../components/FileSelector'
 
 interface ConfigureAuditProps {
@@ -89,15 +89,15 @@ export default function ConfigureAudit({ onNext, onBack, onHomeClick, repoData, 
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a0f1f] via-[#0d1426] to-[#0a0f1f] relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white relative overflow-hidden">
       {/* Tech Grid Background */}
-      <div className="absolute inset-0 opacity-20 pointer-events-none">
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div
           className="w-full h-full"
           style={{
             backgroundImage: `
-              linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px)
+              linear-gradient(rgba(15, 63, 98, 0.03) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(15, 63, 98, 0.03) 1px, transparent 1px)
             `,
             backgroundSize: '50px 50px'
           }}
@@ -105,14 +105,13 @@ export default function ConfigureAudit({ onNext, onBack, onHomeClick, repoData, 
       </div>
 
       {/* Header */}
-      <header className="relative z-10 border-b border-[#00ffff]/20 bg-[#0a0f1f]/80 backdrop-blur-sm">
+      <header className="relative z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <button
             onClick={onHomeClick}
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0"
+            className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0"
           >
-            <img src={logo} alt="UatuAudit Logo" className="w-12 h-12" />
-            <span className="text-2xl font-bold text-white tracking-tight">UatuAudit</span>
+            <img src={logo} alt="Uatu Logo" className="h-10" />
           </button>
         </div>
       </header>
@@ -122,8 +121,8 @@ export default function ConfigureAudit({ onNext, onBack, onHomeClick, repoData, 
         <div className="flex gap-4 mb-16">
           {/* Step 1 - Completed */}
           <div className="flex-1">
-            <div className="border border-green-500/50 bg-[#0a0f1f]/60 backdrop-blur-sm rounded-lg px-6 py-4">
-              <div className="text-green-400 font-semibold text-lg flex items-center gap-2">
+            <div className="border border-green-200 bg-green-50 backdrop-blur-sm rounded-lg px-6 py-4">
+              <div className="text-green-600 font-semibold text-lg flex items-center gap-2">
                 <Check className="w-5 h-5" />
                 Step 1: Connect Source
               </div>
@@ -133,45 +132,45 @@ export default function ConfigureAudit({ onNext, onBack, onHomeClick, repoData, 
           {/* Step 2 - Active */}
           <div className="flex-1">
             <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-[#00ffff]/20 to-[#00ffff]/10 rounded-lg blur-sm group-hover:blur-md transition-all" />
-              <div className="relative border-2 border-[#00ffff] bg-[#0a0f1f]/80 backdrop-blur-sm rounded-lg px-6 py-4 shadow-lg shadow-[#00ffff]/20">
-                <div className="text-[#00ffff] font-semibold text-lg">Step 2: Configure Audit</div>
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0F3F62]/10 to-[#0F3F62]/5 rounded-lg blur-sm group-hover:blur-md transition-all" />
+              <div className="relative border-2 border-[#0F3F62] bg-white backdrop-blur-sm rounded-lg px-6 py-4 shadow-lg shadow-[#0F3F62]/10">
+                <div className="text-[#0F3F62] font-semibold text-lg">Step 2: Configure Audit</div>
               </div>
             </div>
           </div>
 
           {/* Step 3 - Inactive */}
           <div className="flex-1">
-            <div className="border border-gray-700/50 bg-[#1a1f2e]/50 backdrop-blur-sm rounded-lg px-6 py-4">
-              <div className="text-gray-500 font-semibold text-lg">Step 3: Review & Run</div>
+            <div className="border border-gray-200 bg-gray-50 backdrop-blur-sm rounded-lg px-6 py-4">
+              <div className="text-gray-400 font-semibold text-lg">Step 3: Review & Run</div>
             </div>
           </div>
         </div>
 
         {/* Main Content Card */}
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#00ffff]/10 via-[#0099ff]/5 to-[#00ffff]/10 rounded-2xl blur-xl" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0F3F62]/5 via-[#0F3F62]/3 to-[#0F3F62]/5 rounded-2xl blur-xl" />
 
-          <div className="relative border border-[#00ffff]/30 bg-[#0d1426]/90 backdrop-blur-xl rounded-2xl p-12 shadow-2xl">
+          <div className="relative border border-gray-200 bg-white backdrop-blur-xl rounded-2xl p-12 shadow-xl">
             {/* Main Heading */}
-            <h1 className="text-5xl font-bold text-white mb-12 tracking-tight">
+            <h1 className="text-5xl font-bold text-[#0F3F62] mb-12 tracking-tight">
               Configure Audit Parameters
             </h1>
 
             {/* Project Info Summary */}
-            <div className="mb-10 p-6 bg-[#0a0f1f]/60 rounded-xl border border-[#00ffff]/20">
+            <div className="mb-10 p-6 bg-gray-50 rounded-xl border border-gray-200">
               <div className="grid grid-cols-3 gap-6">
                 <div>
-                  <p className="text-gray-400 text-sm mb-2">Project</p>
-                  <p className="text-white font-semibold text-lg">{repoData.project}</p>
+                  <p className="text-gray-500 text-sm mb-2">Project</p>
+                  <p className="text-[#0F3F62] font-semibold text-lg">{repoData.project}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm mb-2">Branch</p>
-                  <p className="text-white font-semibold text-lg">{repoData.branch}</p>
+                  <p className="text-gray-500 text-sm mb-2">Branch</p>
+                  <p className="text-[#0F3F62] font-semibold text-lg">{repoData.branch}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm mb-2">Repository</p>
-                  <p className="text-white font-semibold text-lg truncate" title={repoData.repo}>
+                  <p className="text-gray-500 text-sm mb-2">Repository</p>
+                  <p className="text-[#0F3F62] font-semibold text-lg truncate" title={repoData.repo}>
                     {repoData.repo.split('/').slice(-1)[0].replace('.git', '')}
                   </p>
                 </div>
@@ -190,7 +189,7 @@ export default function ConfigureAudit({ onNext, onBack, onHomeClick, repoData, 
 
             {/* Type / Language Selection */}
             <div className="mb-10">
-              <h2 className="text-2xl font-bold text-white mb-6">Select Ecosystem / Language</h2>
+              <h2 className="text-2xl font-bold text-[#0F3F62] mb-6">Select Ecosystem / Language</h2>
               <div className="grid grid-cols-2 gap-4">
                 {ecosystems.map((eco) => (
                   <button
@@ -199,18 +198,18 @@ export default function ConfigureAudit({ onNext, onBack, onHomeClick, repoData, 
                     className={`
                       relative p-6 rounded-xl border-2 transition-all text-left
                       ${selectedEcosystems.has(eco.id)
-                        ? 'border-[#00ffff] bg-[#00ffff]/10 shadow-lg shadow-[#00ffff]/20'
-                        : 'border-gray-700/50 bg-[#0a0f1f]/40 hover:border-gray-600'
+                        ? 'border-[#0F3F62] bg-[#0F3F62]/5 shadow-lg shadow-[#0F3F62]/10'
+                        : 'border-gray-200 bg-gray-50 hover:border-gray-300'
                       }
                     `}
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="text-white font-semibold text-lg">{eco.label}</h3>
+                      <h3 className="text-[#0F3F62] font-semibold text-lg">{eco.label}</h3>
                       {selectedEcosystems.has(eco.id) && (
-                        <Check className="w-6 h-6 text-[#00ffff]" />
+                        <Check className="w-6 h-6 text-[#0F3F62]" />
                       )}
                     </div>
-                    <p className="text-gray-400 text-sm">{eco.description}</p>
+                    <p className="text-gray-500 text-sm">{eco.description}</p>
                   </button>
                 ))}
               </div>
@@ -218,7 +217,7 @@ export default function ConfigureAudit({ onNext, onBack, onHomeClick, repoData, 
 
             {/* Test Strategy Selection */}
             <div className="mb-10">
-              <h2 className="text-2xl font-bold text-white mb-6">Test Generation Strategy</h2>
+              <h2 className="text-2xl font-bold text-[#0F3F62] mb-6">Test Generation Strategy</h2>
               <div className="grid grid-cols-2 gap-4">
                 {testStyles.map((style) => (
                   <button
@@ -227,28 +226,28 @@ export default function ConfigureAudit({ onNext, onBack, onHomeClick, repoData, 
                     className={`
                       relative p-6 rounded-xl border-2 transition-all text-left
                       ${selectedTestStyles.has(style.id)
-                        ? 'border-[#00ffff] bg-[#00ffff]/10 shadow-lg shadow-[#00ffff]/20'
-                        : 'border-gray-700/50 bg-[#0a0f1f]/40 hover:border-gray-600'
+                        ? 'border-[#0F3F62] bg-[#0F3F62]/5 shadow-lg shadow-[#0F3F62]/10'
+                        : 'border-gray-200 bg-gray-50 hover:border-gray-300'
                       }
                     `}
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="text-white font-semibold text-lg">{style.label}</h3>
+                      <h3 className="text-[#0F3F62] font-semibold text-lg">{style.label}</h3>
                       {selectedTestStyles.has(style.id) && (
-                        <Check className="w-6 h-6 text-[#00ffff]" />
+                        <Check className="w-6 h-6 text-[#0F3F62]" />
                       )}
                     </div>
-                    <p className="text-gray-400 text-sm">{style.description}</p>
+                    <p className="text-gray-500 text-sm">{style.description}</p>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Navigation Buttons */}
-            <div className="flex items-center justify-between pt-6 border-t border-gray-700/30">
+            <div className="flex items-center justify-between pt-6 border-t border-gray-200">
               <button
                 onClick={onBack}
-                className="flex items-center gap-2 px-6 py-3 rounded-lg border border-gray-600 text-gray-300 hover:text-white hover:border-gray-500 transition-all"
+                className="flex items-center gap-2 px-6 py-3 rounded-lg border border-gray-300 text-gray-600 hover:text-[#0F3F62] hover:border-[#0F3F62] transition-all"
               >
                 <ChevronLeft className="w-5 h-5" />
                 Back
@@ -256,7 +255,7 @@ export default function ConfigureAudit({ onNext, onBack, onHomeClick, repoData, 
 
               <button
                 onClick={handleNext}
-                className="relative px-8 py-3 rounded-lg font-semibold text-lg transition-all duration-200 bg-[#00ffff] text-[#0a0f1f] hover:bg-[#00e6e6] shadow-lg shadow-[#00ffff]/30 hover:shadow-[#00ffff]/50"
+                className="relative px-8 py-3 rounded-lg font-semibold text-lg transition-all duration-200 bg-[#0F3F62] text-white hover:bg-[#1a5a8a] shadow-lg shadow-[#0F3F62]/30 hover:shadow-[#0F3F62]/50"
               >
                 Next: Review & Run
               </button>

@@ -1,0 +1,74 @@
+/* Uatu Light Theme - Consistent across all pages */
+
+:root {
+  /* Primary Colors */
+  --uatu-primary: #0F3F62;
+  --uatu-primary-light: #1a5a8a;
+  --uatu-primary-dark: #0a2d47;
+
+  /* Background Colors */
+  --uatu-bg: #ffffff;
+  --uatu-bg-secondary: #f8fafc;
+  --uatu-bg-tertiary: #f1f5f9;
+
+  /* Card & Surface Colors */
+  --uatu-card: #ffffff;
+  --uatu-card-hover: #f8fafc;
+
+  /* Border Colors */
+  --uatu-border: #e2e8f0;
+  --uatu-border-light: #f1f5f9;
+  --uatu-border-focus: #0F3F62;
+
+  /* Text Colors */
+  --uatu-text: #1e293b;
+  --uatu-text-secondary: #64748b;
+  --uatu-text-muted: #94a3b8;
+  --uatu-text-inverse: #ffffff;
+
+  /* Accent Colors */
+  --uatu-accent: #0F3F62;
+  --uatu-accent-light: #1a5a8a;
+  --uatu-accent-bg: rgba(15, 63, 98, 0.1);
+
+  /* Status Colors */
+  --uatu-success: #10b981;
+  --uatu-success-bg: #ecfdf5;
+  --uatu-error: #ef4444;
+  --uatu-error-bg: #fef2f2;
+  --uatu-warning: #f59e0b;
+  --uatu-warning-bg: #fffbeb;
+  --uatu-info: #3b82f6;
+  --uatu-info-bg: #eff6ff;
+
+  /* Shadow */
+  --uatu-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --uatu-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --uatu-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --uatu-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+
+  /* Border Radius */
+  --uatu-radius-sm: 8px;
+  --uatu-radius: 12px;
+  --uatu-radius-lg: 16px;
+  --uatu-radius-xl: 24px;
+
+  /* Font Family */
+  --uatu-font: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+/* Apply theme to body */
+body {
+  font-family: var(--uatu-font);
+  background-color: var(--uatu-bg);
+  color: var(--uatu-text);
+}
+
+/* Utility classes using CSS variables */
+.bg-theme { background-color: var(--uatu-bg); }
+.bg-theme-secondary { background-color: var(--uatu-bg-secondary); }
+.bg-theme-card { background-color: var(--uatu-card); }
+.text-theme { color: var(--uatu-text); }
+.text-theme-secondary { color: var(--uatu-text-secondary); }
+.text-theme-muted { color: var(--uatu-text-muted); }
+.border-theme { border-color: var(--uatu-border); }
