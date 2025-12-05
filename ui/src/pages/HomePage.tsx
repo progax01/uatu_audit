@@ -21,12 +21,12 @@ type TabType = 'github' | 'quickscan'
 type Network = 'arbitrum' | 'ethereum' | 'polygon' | 'bnb' | 'optimism'
 type ValidationStatus = 'idle' | 'validating' | 'valid' | 'invalid' | 'error'
 
-const networks: { id: Network; name: string; icon: string; color: string }[] = [
-  { id: 'arbitrum', name: 'Arbitrum', icon: '/chains/arbitrum.svg', color: '#28A0F0' },
-  { id: 'ethereum', name: 'Ethereum', icon: '/chains/ethereum.svg', color: '#627EEA' },
-  { id: 'polygon', name: 'Polygon', icon: '/chains/polygon.svg', color: '#8247E5' },
-  { id: 'bnb', name: 'BNB', icon: '/chains/bnb.svg', color: '#F3BA2F' },
-  { id: 'optimism', name: 'Optimism', icon: '/chains/optimism.svg', color: '#FF0420' },
+const networks: { id: Network; name: string; color: string }[] = [
+  { id: 'arbitrum', name: 'Arbitrum', color: '#28A0F0' },
+  { id: 'ethereum', name: 'Ethereum', color: '#627EEA' },
+  { id: 'polygon', name: 'Polygon', color: '#8247E5' },
+  { id: 'bnb', name: 'BNB', color: '#F3BA2F' },
+  { id: 'optimism', name: 'Optimism', color: '#FF0420' },
 ]
 
 interface ContractInfo {
@@ -50,69 +50,108 @@ interface FetchedSource {
   cached: boolean
 }
 
-// Robot Mascot SVG Component
+// Robot Mascot SVG Component - Cute 3D style
 function RobotMascot() {
   return (
-    <svg viewBox="0 0 200 220" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Robot Head */}
-      <ellipse cx="100" cy="70" rx="55" ry="50" fill="#1a2744" stroke="#00ffff" strokeWidth="2"/>
+    <svg viewBox="0 0 320 300" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Definitions for gradients */}
+      <defs>
+        <linearGradient id="bodyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#a8d8ea" />
+          <stop offset="100%" stopColor="#6bb7d4" />
+        </linearGradient>
+        <linearGradient id="headGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#c5e8f2" />
+          <stop offset="100%" stopColor="#7fc8dc" />
+        </linearGradient>
+        <linearGradient id="visorGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#1a3a5c" />
+          <stop offset="100%" stopColor="#0d1f33" />
+        </linearGradient>
+        <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#b8e6f2" />
+          <stop offset="100%" stopColor="#7dd3e8" />
+        </linearGradient>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
 
-      {/* Helmet/Visor */}
-      <path d="M50 70 Q50 30 100 30 Q150 30 150 70 Q150 90 100 90 Q50 90 50 70" fill="#0d1426" stroke="#00ffff" strokeWidth="2"/>
+      {/* Feet shadow */}
+      <ellipse cx="200" cy="285" rx="55" ry="10" fill="#4a9bb8" opacity="0.2"/>
 
-      {/* Face Screen */}
-      <ellipse cx="100" cy="65" rx="35" ry="25" fill="#0a0f1f"/>
+      {/* Robot Legs */}
+      <ellipse cx="170" cy="265" rx="22" ry="28" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
+      <ellipse cx="230" cy="265" rx="22" ry="28" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
 
-      {/* Eyes - Uatu Symbol */}
-      <path d="M85 60 Q100 50 115 60" stroke="#00ffff" strokeWidth="3" fill="none" strokeLinecap="round"/>
-      <path d="M85 70 Q100 80 115 70" stroke="#00ffff" strokeWidth="3" fill="none" strokeLinecap="round"/>
+      {/* Robot Body */}
+      <ellipse cx="200" cy="190" rx="55" ry="65" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
 
-      {/* Antenna */}
-      <line x1="100" y1="20" x2="100" y2="5" stroke="#00ffff" strokeWidth="2"/>
-      <circle cx="100" cy="5" r="4" fill="#00ffff"/>
+      {/* Robot Arms */}
+      <ellipse cx="130" cy="185" rx="18" ry="38" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
+      <ellipse cx="270" cy="185" rx="18" ry="38" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
 
-      {/* Headphones */}
-      <ellipse cx="45" cy="70" rx="12" ry="18" fill="#1a2744" stroke="#3b5998" strokeWidth="2"/>
-      <ellipse cx="155" cy="70" rx="12" ry="18" fill="#1a2744" stroke="#3b5998" strokeWidth="2"/>
+      {/* Body logo/emblem */}
+      <ellipse cx="200" cy="180" rx="28" ry="32" fill="#e8f6fa" stroke="#4a9bb8" strokeWidth="2"/>
+      {/* Uatu symbol on body */}
+      <path d="M182 172 Q200 195 218 172" stroke="#4a9bb8" strokeWidth="3" fill="none" strokeLinecap="round"/>
+      <circle cx="188" cy="176" r="3" fill="#4a9bb8"/>
+      <circle cx="212" cy="176" r="3" fill="#4a9bb8"/>
 
-      {/* Body */}
-      <path d="M60 120 L60 170 Q60 190 80 190 L120 190 Q140 190 140 170 L140 120 Q140 100 100 100 Q60 100 60 120" fill="#1a2744" stroke="#00ffff" strokeWidth="2"/>
+      {/* Robot Head - positioned to connect with body */}
+      <g transform="translate(130, 5)">
+        {/* Head outer ring/helmet */}
+        <ellipse cx="70" cy="70" rx="68" ry="65" fill="url(#headGradient)" stroke="#4a9bb8" strokeWidth="3"/>
+        {/* Helmet rim */}
+        <ellipse cx="70" cy="70" rx="60" ry="57" fill="none" stroke="#ffffff" strokeWidth="2" opacity="0.5"/>
 
-      {/* Shield on body */}
-      <path d="M80 130 L100 125 L120 130 L120 155 Q100 170 80 155 Z" fill="#0d1426" stroke="#00ffff" strokeWidth="2"/>
+        {/* Visor/Face screen */}
+        <ellipse cx="70" cy="72" rx="48" ry="45" fill="url(#visorGradient)" stroke="#1a3a5c" strokeWidth="2"/>
 
-      {/* Bug icon on shield */}
-      <circle cx="100" cy="145" r="8" stroke="#00ffff" strokeWidth="1.5" fill="none"/>
-      <line x1="100" y1="137" x2="100" y2="153" stroke="#00ffff" strokeWidth="1.5"/>
-      <line x1="92" y1="142" x2="108" y2="142" stroke="#00ffff" strokeWidth="1.5"/>
-      <line x1="92" y1="148" x2="108" y2="148" stroke="#00ffff" strokeWidth="1.5"/>
+        {/* Glowing U symbol - Uatu eyes */}
+        <g filter="url(#glow)">
+          <path d="M42 52 Q42 88 70 100 Q98 88 98 52"
+                stroke="#00e5ff" strokeWidth="7" fill="none" strokeLinecap="round"/>
+          <path d="M42 52 Q42 88 70 100 Q98 88 98 52"
+                stroke="#ffffff" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.7"/>
+        </g>
 
-      {/* Arms */}
-      <ellipse cx="45" cy="140" rx="12" ry="25" fill="#1a2744" stroke="#3b5998" strokeWidth="2"/>
-      <ellipse cx="155" cy="140" rx="12" ry="25" fill="#1a2744" stroke="#3b5998" strokeWidth="2"/>
+        {/* Ear pieces */}
+        <ellipse cx="5" cy="70" rx="14" ry="22" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
+        <ellipse cx="135" cy="70" rx="14" ry="22" fill="url(#bodyGradient)" stroke="#4a9bb8" strokeWidth="2"/>
+        {/* Ear highlights */}
+        <ellipse cx="5" cy="64" rx="7" ry="11" fill="#ffffff" opacity="0.3"/>
+        <ellipse cx="135" cy="64" rx="7" ry="11" fill="#ffffff" opacity="0.3"/>
+      </g>
 
-      {/* Jetpack flames */}
-      <path d="M75 190 Q70 210 75 220 Q80 210 75 190" fill="#00ffff" opacity="0.6"/>
-      <path d="M100 190 Q95 215 100 225 Q105 215 100 190" fill="#00ffff" opacity="0.8"/>
-      <path d="M125 190 Q130 210 125 220 Q120 210 125 190" fill="#00ffff" opacity="0.6"/>
-    </svg>
-  )
-}
+      {/* Shield - positioned to overlap with robot */}
+      <g transform="translate(10, 95)">
+        {/* Shield shape */}
+        <path d="M55 5 L100 22 L100 72 Q77 108 55 108 Q33 108 10 72 L10 22 Z"
+              fill="url(#shieldGradient)" stroke="#2d6a82" strokeWidth="3"/>
+        {/* Shield inner border */}
+        <path d="M55 15 L90 28 L90 65 Q72 95 55 95 Q38 95 20 65 L20 28 Z"
+              fill="none" stroke="#2d6a82" strokeWidth="2" opacity="0.5"/>
+        {/* Bug icon on shield */}
+        <ellipse cx="55" cy="58" rx="20" ry="25" fill="none" stroke="#1a4a5e" strokeWidth="2.5"/>
+        <circle cx="55" cy="46" r="12" fill="none" stroke="#1a4a5e" strokeWidth="2.5"/>
+        {/* Bug legs */}
+        <line x1="35" y1="52" x2="23" y2="43" stroke="#1a4a5e" strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="75" y1="52" x2="87" y2="43" stroke="#1a4a5e" strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="32" y1="66" x2="20" y2="66" stroke="#1a4a5e" strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="78" y1="66" x2="90" y2="66" stroke="#1a4a5e" strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="35" y1="80" x2="25" y2="90" stroke="#1a4a5e" strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="75" y1="80" x2="85" y2="90" stroke="#1a4a5e" strokeWidth="2.5" strokeLinecap="round"/>
+        {/* Bug center line */}
+        <line x1="55" y1="34" x2="55" y2="83" stroke="#1a4a5e" strokeWidth="2" strokeLinecap="round"/>
+      </g>
 
-// Shield with Bug Icon
-function ShieldIcon() {
-  return (
-    <svg viewBox="0 0 80 100" className="w-20 h-24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M40 5 L75 20 L75 55 Q75 85 40 95 Q5 85 5 55 L5 20 Z" fill="#0d1426" stroke="#00ffff" strokeWidth="2"/>
-      <circle cx="40" cy="50" r="18" stroke="#00ffff" strokeWidth="2" fill="none"/>
-      <line x1="40" y1="32" x2="40" y2="68" stroke="#00ffff" strokeWidth="2"/>
-      <line x1="22" y1="45" x2="58" y2="45" stroke="#00ffff" strokeWidth="2"/>
-      <line x1="22" y1="55" x2="58" y2="55" stroke="#00ffff" strokeWidth="2"/>
-      {/* Bug legs */}
-      <line x1="28" y1="38" x2="22" y2="32" stroke="#00ffff" strokeWidth="1.5"/>
-      <line x1="52" y1="38" x2="58" y2="32" stroke="#00ffff" strokeWidth="1.5"/>
-      <line x1="28" y1="62" x2="22" y2="68" stroke="#00ffff" strokeWidth="1.5"/>
-      <line x1="52" y1="62" x2="58" y2="68" stroke="#00ffff" strokeWidth="1.5"/>
+      {/* Highlights/Reflections on head */}
+      <ellipse cx="175" cy="40" rx="18" ry="12" fill="#ffffff" opacity="0.4"/>
     </svg>
   )
 }
@@ -313,23 +352,39 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
       </header>
 
       {/* Main Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div className="relative z-10 max-w-7xl mx-auto px-8 py-20">
+        {/* Row 1: Hero Text (Left) + Robot Mascot (Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-20">
           {/* Left Side - Text Content */}
-          <div>
-            <h1 className="text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
-              Secure Your Smart
-              <br />
+          <div className="py-8">
+            <h1 className="text-5xl lg:text-6xl font-bold text-white leading-tight mb-8">
+              Secure Your Smart {" "}
+              {/* <br /> */}
               Contracts with
-              <br />
-              <span className="text-[#00ffff]">AI-Driven Audits</span>
+              {/* <br /> */}
+              <span className="text-[#00ffff] ml-2">AI-Driven Audits</span>
             </h1>
-            <p className="text-xl text-gray-400 mb-10 max-w-lg">
+            <p className="text-xl lg:text-2xl text-gray-400 max-w-xl leading-relaxed">
               Leverage our advanced engine to safeguard your Web3 assets with rigorous vulnerability analysis.
             </p>
+          </div>
 
-            {/* Main Action Card */}
-            <div className="bg-[#0d1426]/90 border border-gray-800 rounded-2xl p-6 backdrop-blur-sm max-w-xl">
+          {/* Right Side - Robot Mascot */}
+          <div className="hidden lg:flex items-center justify-center relative">
+            {/* Glow effect behind robot */}
+            <div className="absolute w-[500px] h-[500px] bg-[#00ffff]/15 rounded-full blur-3xl" />
+            <div className="absolute w-[300px] h-[300px] bg-[#00e5ff]/20 rounded-full blur-2xl" />
+
+            {/* Robot with integrated Shield */}
+            <div className="relative w-[360px] h-auto">
+              <RobotMascot />
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: Centered Action Card */}
+        <div className="flex justify-center">
+          <div className="bg-[#0d1426]/90 border -mt-10 border-gray-800 rounded-2xl p-4 backdrop-blur-sm w-full max-w-3xl shadow-2xl shadow-[#00ffff]/5">
               {/* Tabs */}
               <div className="flex mb-6 bg-[#1a1f2e] rounded-lg p-1">
                 <button
@@ -485,26 +540,6 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
                   </button>
                 </div>
               )}
-            </div>
-          </div>
-
-          {/* Right Side - Robot Mascot */}
-          <div className="hidden lg:flex items-center justify-center relative">
-            {/* Glow effect behind robot */}
-            <div className="absolute w-80 h-80 bg-[#00ffff]/10 rounded-full blur-3xl" />
-
-            {/* Robot and Shield */}
-            <div className="relative flex items-center gap-4">
-              {/* Shield */}
-              <div className="absolute -left-8 top-1/2 -translate-y-1/2 z-10">
-                <ShieldIcon />
-              </div>
-
-              {/* Robot */}
-              <div className="w-72 h-80">
-                <RobotMascot />
-              </div>
-            </div>
           </div>
         </div>
       </div>
