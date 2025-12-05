@@ -39,7 +39,22 @@ function App() {
 
   // HomePage - Landing page (step 0)
   if (currentStep === 0) {
-    return <HomePage onGetStarted={() => setCurrentStep(1)} onScanContract={handleScanContract} />
+    return (
+      <HomePage
+        onGetStarted={() => setCurrentStep(1)}
+        onScanContract={handleScanContract}
+        onStartAudit={(data) => {
+          setRepoData(prev => ({
+            ...prev,
+            project: data.project,
+            branch: data.branch,
+            repo: `scan://${data.project}`,
+          }))
+          setJobId(data.jobId)
+          setCurrentStep(3)
+        }}
+      />
+    )
   }
 
   // ConnectSource has its own full-page layout, render it separately
