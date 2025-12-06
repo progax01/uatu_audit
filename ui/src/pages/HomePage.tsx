@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle } from 'lucide-react'
+import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle, Search, Brain, Radio } from 'lucide-react'
 import mascot from '../assets/letf-mascot.png'
 
 // GitHub Icon SVG Component
@@ -220,7 +220,7 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
   }, [])
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
+    <div className="min-h-screen bg-white relative">
       {/* Tech Grid Background */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div
@@ -236,7 +236,7 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
       </div>
 
       {/* Header */}
-      <header className="relative z-10 border-b border-gray-200 bg-white backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center cursor-pointer hover:opacity-80 transition-opacity">
             <img src="/logo.svg" alt="Uatu Logo" className="h-10" />
@@ -429,6 +429,99 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
                   </button>
                 </div>
               )}
+          </div>
+        </div>
+
+        {/* Row 3: How Uatu Protects Section */}
+        <div className="mt-16 mb-8 bg-[#F0F7FA] rounded-3xl p-8">
+          {/* Section Header */}
+          <div className="text-center mb-10">
+            <h2 className="text-4xl font-bold text-[#0F3F62] mb-4">
+              How Uatu protects your smart contracts
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Start with a quick contract check, upgrade to a full AI-driven audit, and keep production deployments monitored with smart alerts.
+            </p>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="flex justify-center mb-10">
+            <div className="flex w-full max-w-2xl h-2 rounded-full overflow-hidden">
+              <div className="flex-1 bg-[#0F3F62]" />
+              <div className="flex-1 bg-[#3B82A0]" />
+              <div className="flex-1 bg-[#5DC4B8]" />
+            </div>
+          </div>
+
+          {/* Feature Cards */}
+          <div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Step 1: Quick Scan */}
+              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                <div className="w-14 h-14 bg-gradient-to-br from-[#7DD3E8] to-[#5BC4D4] rounded-2xl flex items-center justify-center mb-4">
+                  <Search className="w-7 h-7 text-[#0F3F62]" />
+                </div>
+                <div className="text-sm text-gray-500 mb-1">Step 1</div>
+                <h3 className="text-xl font-bold text-[#0F3F62] mb-3">Quick Scan</h3>
+                <p className="text-gray-600 text-sm mb-4">
+                  Paste any verified contract address to get a fast AI snapshot of risk before you commit time or budget to a full audit.
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#5DC4B8] mt-1">•</span>
+                    <span>Supports Ethereum, Arbitrum, Polygon, BNB & more.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#5DC4B8] mt-1">•</span>
+                    <span>Highlights obvious vulnerabilities and misconfigurations</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Step 2: Deep AI Audit */}
+              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                <div className="w-14 h-14 bg-gradient-to-br from-[#C4B5E8] to-[#A89BD4] rounded-2xl flex items-center justify-center mb-4">
+                  <Brain className="w-7 h-7 text-[#0F3F62]" />
+                </div>
+                <div className="text-sm text-gray-500 mb-1">Step 2</div>
+                <h3 className="text-xl font-bold text-[#0F3F62] mb-3">Deep AI Audit</h3>
+                <p className="text-gray-600 text-sm mb-4">
+                  Connect your GitHub repo to let Uatu reason across the entire codebase, not just a single deployed contract.
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#A89BD4] mt-1">•</span>
+                    <span>Line-by-line review of core contracts, libraries and upgrades</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#A89BD4] mt-1">•</span>
+                    <span>Detects access-control issues and protocol logic bugs</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Step 3: Continuous Monitoring */}
+              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                <div className="w-14 h-14 bg-gradient-to-br from-[#7DD3E8] to-[#5DC4B8] rounded-2xl flex items-center justify-center mb-4">
+                  <Radio className="w-7 h-7 text-[#0F3F62]" />
+                </div>
+                <div className="text-sm text-gray-500 mb-1">Step 3</div>
+                <h3 className="text-xl font-bold text-[#0F3F62] mb-3">Continuous Monitoring</h3>
+                <p className="text-gray-600 text-sm mb-4">
+                  After deployment: keep Uatu watching your contracts and alerting you whenever sensitive events fire on-chain.
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#5DC4B8] mt-1">•</span>
+                    <span>Notify on admin calls, upgrades, pause/unpause actions and more</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#5DC4B8] mt-1">•</span>
+                    <span>Close to email, Slack / Discord, or custom webhooks.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
