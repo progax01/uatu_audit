@@ -271,7 +271,7 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
             <img
               src={mascot}
               alt="Uatu Mascot"
-              className="relative w-[500px] bg-blend-multiply h-auto rounded-[50px]"
+              className="relative w-[500px] h-auto mix-blend-multiply"
             />
           </div>
         </div>
