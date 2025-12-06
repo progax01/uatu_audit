@@ -221,7 +221,7 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white relative overflow-hidden">
+    <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Tech Grid Background */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div
@@ -237,7 +237,7 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
       </div>
 
       {/* Header */}
-      <header className="relative z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
+      <header className="relative z-10 border-b border-gray-200 bg-white backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center cursor-pointer hover:opacity-80 transition-opacity">
             <img src={logo} alt="Uatu Logo" className="h-10" />
@@ -271,7 +271,7 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
             <img
               src={mascot}
               alt="Uatu Mascot"
-              className="relative w-[500px] h-auto drop-shadow-2xl"
+              className="relative w-[500px] bg-blend-multiply h-auto rounded-[50px]"
             />
           </div>
         </div>
