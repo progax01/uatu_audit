@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle } from 'lucide-react'
-import logo from '../assets/logo.svg'
 import mascot from '../assets/letf-mascot.png'
 
 // GitHub Icon SVG Component
@@ -240,7 +239,7 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
       <header className="relative z-10 border-b border-gray-200 bg-white backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center cursor-pointer hover:opacity-80 transition-opacity">
-            <img src={logo} alt="Uatu Logo" className="h-10" />
+            <img src="/logo.svg" alt="Uatu Logo" className="h-10" />
           </div>
         </div>
       </header>
@@ -262,16 +261,12 @@ export default function HomePage({ onGetStarted, onScanContract, onStartAudit }:
           </div>
 
           {/* Right Side - Robot Mascot */}
-          <div className="hidden lg:flex items-center justify-center relative">
-            {/* Glow effects behind robot for blending */}
-            <div className="absolute w-[400px] h-[400px] bg-gradient-to-br from-[#a8d8ea]/30 via-[#6bb7d4]/20 to-transparent rounded-full blur-3xl" />
-            <div className="absolute w-[280px] h-[280px] bg-[#7fc8dc]/25 rounded-full blur-2xl" />
-
-            {/* Robot Mascot Image */}
+          <div className="hidden lg:flex items-center justify-center">
             <img
               src={mascot}
               alt="Uatu Mascot"
-              className="relative w-[500px] h-auto mix-blend-multiply"
+              className="w-[420px] h-auto"
+              style={{ filter: 'drop-shadow(0 10px 30px rgba(15, 63, 98, 0.15))' }}
             />
           </div>
         </div>
