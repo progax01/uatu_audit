@@ -78,6 +78,32 @@ async function handleRequest(req: any, res: any) {
       }
     }
 
+    // Serve static files from dist-ui root (logo.svg, vite.svg, etc.)
+    if (req.method === "GET") {
+      const staticPath = path.join(__dirname, "../../dist-ui", parsed.pathname);
+      if (await fs.pathExists(staticPath)) {
+        const stats = await fs.stat(staticPath);
+        if (stats.isFile()) {
+          const ext = path.extname(staticPath).toLowerCase();
+          const contentType =
+            ext === ".svg"
+              ? "image/svg+xml"
+              : ext === ".png"
+                ? "image/png"
+                : ext === ".jpg" || ext === ".jpeg"
+                  ? "image/jpeg"
+                  : ext === ".ico"
+                    ? "image/x-icon"
+                    : "application/octet-stream";
+          res.setHeader("Content-Type", contentType);
+          res.setHeader("Cache-Control", "public, max-age=31536000");
+          const content = await fs.readFile(staticPath);
+          res.end(content);
+          return;
+        }
+      }
+    }
+
     // Route to specific handlers
     if (await handleHealthRoutes(req, res, parsed, PORT, CONCURRENCY)) return;
     if (await handleAuthRoutes(req, res, parsed, PORT)) return;
