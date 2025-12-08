@@ -224,6 +224,19 @@ export async function generateReportFromResults(
     if (uatuLogoDataUri) break;
   }
 
+  // Load gold mascot (uatu-mascot.png - same as certificate badge)
+  const mascotCandidates = [
+    path.join(process.cwd(), "src/templates/uatu-mascot.png"),
+    path.join(process.cwd(), "dist/templates/uatu-mascot.png"),
+    path.join(process.cwd(), "templates/uatu-mascot.png")
+  ];
+
+  let mascotDataUri: string | undefined;
+  for (const mascotPath of mascotCandidates) {
+    mascotDataUri = await imageToDataUri(mascotPath);
+    if (mascotDataUri) break;
+  }
+
   // Load results.json
   const resultsPath = path.join(contextPath, "results.json");
   if (!(await fs.pathExists(resultsPath))) {
@@ -347,7 +360,7 @@ export async function generateReportFromResults(
     improve: results.recommendations || [],
     artifacts: {},
     logoUrl: logoDataUri || uatuLogoDataUri,
-    mascotUrl: uatuLogoDataUri,
+    mascotUrl: mascotDataUri,
     // New detailed audit fields
     contracts_explained: results.contracts_explained || [],
     test_methodology: results.test_methodology || null,
