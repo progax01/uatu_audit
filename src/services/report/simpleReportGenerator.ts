@@ -211,11 +211,11 @@ export async function generateReportFromResults(
   runPath: string,
   logoDataUri?: string
 ): Promise<string> {
-  // Load Uatu logo/mascot image (icon_audits.png)
+  // Load Uatu logo (audit logo.svg - same as certificate)
   const logoCandidates = [
-    path.join(process.cwd(), "src/templates/icon_audits.png"),
-    path.join(process.cwd(), "dist/templates/icon_audits.png"),
-    path.join(process.cwd(), "templates/icon_audits.png")
+    path.join(process.cwd(), "src/templates/audit logo.svg"),
+    path.join(process.cwd(), "dist/templates/audit logo.svg"),
+    path.join(process.cwd(), "templates/audit logo.svg")
   ];
 
   let uatuLogoDataUri: string | undefined;
