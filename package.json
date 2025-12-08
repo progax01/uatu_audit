@@ -62,7 +62,7 @@
     "node-pty": "^1.0.0",
     "puppeteer": "^24.22.3",
     "simple-git": "^3.28.0",
-    "strip-ansi": "^7.1.2",
+    "strip-ansi": "^6.0.1",
     "uuid": "^13.0.0",
     "winston": "^3.17.0",
     "zod": "^4.1.11"

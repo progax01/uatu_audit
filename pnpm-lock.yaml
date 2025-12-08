@@ -45,8 +45,8 @@ importers:
         specifier: ^3.28.0
         version: 3.28.0
       strip-ansi:
-        specifier: ^7.1.2
-        version: 7.1.2
+        specifier: ^6.0.1
+        version: 6.0.1
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
