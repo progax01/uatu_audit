@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuditProgress } from '../hooks/useAuditProgress'
 import { Check, ChevronLeft, Play, FileText, Download, Loader2, XCircle, Search, RefreshCw } from 'lucide-react'
-import logo from '../assets/logo.svg'
 
 interface ReviewAndRunProps {
   onBack: () => void
@@ -343,7 +342,7 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
             onClick={onHomeClick}
             className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0"
           >
-            <img src={logo} alt="Uatu Logo" className="h-10" />
+            <img src="/logo.svg" alt="Uatu Logo" className="h-10" />
           </button>
         </div>
       </header>
