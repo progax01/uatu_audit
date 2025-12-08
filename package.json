@@ -21,11 +21,7 @@
     "runbook": "scripts/runbook.sh",
     "daemon": "node dist/bin/uatu.js daemon",
     "run:sample": "node dist/bin/uatu.js run --repo https://github.com/Uniswap/v2-core.git --project uniswap-v2 --branch master --test-styles behavioral,stride",
-    "report:lint": "scripts/check-regressions.sh",
-    "docker:start": "sudo docker compose down && sudo docker compose build --no-cache && sudo docker compose up -d",
-    "docker:stop": "sudo docker compose down",
-    "docker:restart": "sudo docker compose restart uatu",
-    "docker:logs": "sudo docker compose logs -f uatu"
+    "report:lint": "scripts/check-regressions.sh"
   },
   "keywords": [],
   "author": "",
@@ -52,7 +48,6 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.63.1",
     "@types/node-fetch": "^2.6.13",
-    "@types/uuid": "^11.0.0",
     "commander": "^14.0.1",
     "dotenv": "^17.2.2",
     "fast-glob": "^3.3.3",
@@ -63,7 +58,7 @@
     "puppeteer": "^24.22.3",
     "simple-git": "^3.28.0",
     "strip-ansi": "^6.0.1",
-    "uuid": "^9.0.1",
+    "uuid": "^13.0.0",
     "winston": "^3.17.0",
     "zod": "^4.1.11"
   }

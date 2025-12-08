@@ -268,7 +268,6 @@ export const singlePromptAuditSOP: SOP = {
             "Fix options:\n" +
             "  1. Install Claude CLI: https://github.com/anthropics/claude-cli\n" +
             "  2. Check if claude is in PATH: which claude\n" +
-            "  3. Verify docker volume mount for Claude CLI binary\n" +
             `Original error: ${errorMsg}`;
         }
 

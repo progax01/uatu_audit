@@ -3,7 +3,7 @@ import fs from "fs-extra";
 
 export type UatuConfig = {
   ai?: boolean;
-  sandbox?: "local" | "docker";
+  sandbox?: "local";
   timeouts?: { executeMs?: number };
   coverage?: { foundry?: boolean; hardhat?: boolean; node?: boolean };
 };

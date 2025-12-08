@@ -507,7 +507,7 @@ const detectors: Detector[] = [
         evidence: tail(s),
         hypothesis: "Project is using Node >= 22; Hardhat expects an LTS (e.g., 18 or 20).",
         remediation: [
-          "Use Node 18 or 20 in the sandbox (nvm/Volta/Docker).",
+          "Use Node 18 or 20 (nvm/Volta).",
           "Or set `UATU_HARDHAT_COVERAGE=0` to skip coverage."
         ],
         impact: "Low",

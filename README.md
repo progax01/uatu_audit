@@ -6,7 +6,6 @@ UatuAudit transforms ad-hoc smart contract audits into **standardized, repeatabl
 
 - **Multi-Ecosystem Support**: Solidity, Anchor/Soroban, Node.js detection and analysis
 - **GitHub OAuth Integration**: Secure access to private repositories
-- **Docker Sandbox Execution**: Isolated test execution for security
 - **Live Progress Tracking**: Real-time updates with weighted progress calculation
 - **Professional Reports**: PDF and SARIF export with coverage metrics
 - **Web UI**: Single-page timeline interface for complete audit workflow
@@ -19,7 +18,6 @@ UatuAudit transforms ad-hoc smart contract audits into **standardized, repeatabl
 
 - Node.js 18+ (recommended: 20 LTS)
 - pnpm package manager
-- (Optional) Docker for sandbox execution
 - (Optional) Toolchains for target ecosystems:
   - Foundry (`forge`) for Solidity
   - Hardhat/npm for Node.js projects
@@ -60,7 +58,6 @@ GITHUB_OAUTH_CALLBACK=http://localhost:9090/auth/github/callback
 ANTHROPIC_API_KEY=your_anthropic_key_here
 
 # Optional: Security & Performance
-UATU_SANDBOX=docker                # Enable Docker sandbox (default: local)
 UATU_EXECUTE_TIMEOUT_MS=900000    # 15 minutes
 UATU_COVERAGE_ENABLED=true
 ```

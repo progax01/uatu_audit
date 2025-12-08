@@ -212,12 +212,6 @@ The built UI (`dist-ui/`) is a static site. Deploy to:
 
 Configure the API base URL via environment variable if needed.
 
-### Docker Integration
-To serve the new UI from the Docker container:
-1. Build the UI: `npm run build:ui`
-2. Update `daemon.ts` to serve from `dist-ui/` instead of `index.html`
-3. Rebuild Docker image
-
 ## Future Enhancements
 
 - [ ] Toast notifications for actions

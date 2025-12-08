@@ -11,7 +11,7 @@ export const logger = winston.createLogger({
   transports: [
     new winston.transports.File({ filename: 'error.log', level: 'error' }),
     new winston.transports.File({ filename: 'combined.log' }),
-    // Console transport with JSON format for Docker logs visibility
+    // Console transport with JSON format for logs visibility
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.timestamp(),

@@ -186,8 +186,7 @@ export async function ensureClaudeReady(): Promise<void> {
       `❌ Claude CLI is not available: ${health.error}\n\n` +
       'Fix options:\n' +
       '  1. Install Claude CLI: https://github.com/anthropics/claude-cli\n' +
-      '  2. Verify it\'s in PATH: which claude\n' +
-      '  3. Check docker volume mount for Claude CLI binary'
+      '  2. Verify it\'s in PATH: which claude'
     );
   }
 
@@ -198,8 +197,7 @@ export async function ensureClaudeReady(): Promise<void> {
       '  1. Run "claude /login" to authenticate\n' +
       '  2. Set ANTHROPIC_API_KEY environment variable\n' +
       '  3. Check ~/.claude/.credentials.json permissions:\n' +
-      '     chmod 644 ~/.claude/.credentials.json\n' +
-      '  4. Verify docker volume mount for ~/.claude directory'
+      '     chmod 644 ~/.claude/.credentials.json'
     );
   }
 
