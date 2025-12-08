@@ -1,8 +1,8 @@
 module.exports = {
   apps: [{
     name: 'uatu-audit',
-    script: 'pnpm',
-    args: 'run daemon',
+    script: 'dist/bin/uatu.js',
+    args: 'daemon',
     cwd: '/home/azureuser/UatuAudit',
     instances: 1,
     autorestart: true,
