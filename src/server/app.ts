@@ -25,6 +25,14 @@ async function handleRequest(req: any, res: any) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const parsed = { pathname: url.pathname, query: Object.fromEntries(url.searchParams) };
 
+  // Log all incoming requests
+  logger.info('HTTP Request', {
+    method: req.method,
+    path: parsed.pathname,
+    query: parsed.query,
+    userAgent: req.headers['user-agent']
+  });
+
   try {
     // CORS headers
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -113,10 +121,16 @@ async function handleRequest(req: any, res: any) {
     if (await handleScanRoutes(req, res, parsed)) return;
 
     // Default 404
+    logger.warn('404 Not Found', { path: parsed.pathname, method: req.method });
     res.statusCode = 404;
     res.end("Not found");
   } catch (error) {
-    console.error("Request error:", error);
+    logger.error("Request error", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      path: parsed.pathname,
+      method: req.method
+    });
     res.statusCode = 500;
     res.end("Internal server error");
   }
@@ -130,22 +144,24 @@ export async function startDaemon() {
   logger.info("Performing crash recovery...");
   await recoverStuckJobs();
 
-  console.log(`🚀 Starting Uatu daemon on port ${PORT} with ${CONCURRENCY} workers`);
+  logger.info(`Starting Uatu daemon`, { port: PORT, concurrency: CONCURRENCY });
 
   // Start worker pool
   for (let i = 0; i < CONCURRENCY; i++) {
     startWorker(i);
+    logger.info(`Started worker ${i}`, { workerId: i });
   }
 
   // Start HTTP server
   const server = createServer(handleRequest);
   server.listen(PORT, "0.0.0.0", () => {
-    console.log(`📡 HTTP server listening on http://0.0.0.0:${PORT}`);
+    logger.info(`HTTP server listening`, { host: '0.0.0.0', port: PORT });
+    logger.info(`Server ready at http://0.0.0.0:${PORT}`);
   });
 
   // Graceful shutdown
   process.on("SIGINT", () => {
-    console.log("\n🛑 Shutting down daemon...");
+    logger.info("Shutting down daemon...");
     server.close();
     process.exit(0);
   });

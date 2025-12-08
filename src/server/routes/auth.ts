@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "fs-extra";
 import { getUatuHome } from "../../constants/paths.js";
+import { logger } from "../../utils/logger.js";
 
 // In-memory session store (maps session ID to user tokens and userId)
 const sessions = new Map<string, { token: string; userId?: string; createdAt: number }>();
@@ -92,13 +93,16 @@ export async function handleAuthRoutes(
 
   // GET /auth/github/login
   if (req.method === "GET" && parsed.pathname === "/auth/github/login") {
+    logger.info("GitHub OAuth login initiated");
     if (!GH_CLIENT_ID) {
+      logger.error("GitHub OAuth login failed: GITHUB_CLIENT_ID not set");
       res.statusCode = 500;
       res.end("GITHUB_CLIENT_ID not set");
       return true;
     }
     const scope = encodeURIComponent("repo read:org admin:repo_hook");
     const redirect = `https://github.com/login/oauth/authorize?client_id=${GH_CLIENT_ID}&redirect_uri=${encodeURIComponent(GH_CALLBACK)}&scope=${scope}`;
+    logger.info("Redirecting to GitHub OAuth", { redirect });
     res.statusCode = 302;
     res.setHeader("Location", redirect);
     res.end();
@@ -107,13 +111,16 @@ export async function handleAuthRoutes(
 
   // GET /auth/github/callback
   if (req.method === "GET" && parsed.pathname === "/auth/github/callback") {
+    logger.info("GitHub OAuth callback received", { query: parsed.query });
     try {
       const code = parsed.query.code;
       if (!code) {
+        logger.error("GitHub OAuth callback failed: missing code");
         res.statusCode = 400;
         res.end("missing code");
         return true;
       }
+      logger.info("Exchanging OAuth code for access token");
       const r = await fetch("https://github.com/login/oauth/access_token", {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -126,21 +133,29 @@ export async function handleAuthRoutes(
       });
       const t: any = await r.json();
       if (!t.access_token) {
+        logger.error("GitHub OAuth token exchange failed", { response: t });
         res.statusCode = 400;
         res.end(JSON.stringify(t));
         return true;
       }
 
+      logger.info("GitHub OAuth token received successfully");
+
       // Fetch GitHub user to get userId
       let userId: string | undefined;
       try {
+        logger.info("Fetching GitHub user information");
         const userResp = await fetch("https://api.github.com/user", {
           headers: { Authorization: `Bearer ${t.access_token}`, "User-Agent": "UatuAudit" },
         });
         const userData: any = await userResp.json();
         userId = userData.id ? String(userData.id) : undefined;
+        logger.info("GitHub user fetched successfully", { userId, login: userData.login });
       } catch (e) {
-        console.error("Failed to fetch GitHub user:", e);
+        logger.error("Failed to fetch GitHub user", {
+          error: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined
+        });
       }
 
       // Create new session for this user
@@ -148,11 +163,17 @@ export async function handleAuthRoutes(
       await saveToken(sessionId, t.access_token, userId);
       setSessionCookie(res, sessionId);
 
+      logger.info("Session created successfully", { sessionId, userId });
+
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.end(
         `<script>window.opener||window.opener;window.location='/'</script><p>GitHub auth ok. You can close this tab and return to the test UI.</p>`
       );
     } catch (e: any) {
+      logger.error("GitHub OAuth callback error", {
+        error: e?.message || String(e),
+        stack: e?.stack
+      });
       res.statusCode = 500;
       res.end(String(e?.message || e));
     }
@@ -192,8 +213,12 @@ export async function handleAuthRoutes(
         });
         const userData: any = await userResp.json();
         userId = userData.id ? String(userData.id) : undefined;
+        logger.info("GitHub user fetched (alias callback)", { userId, login: userData.login });
       } catch (e) {
-        console.error("Failed to fetch GitHub user:", e);
+        logger.error("Failed to fetch GitHub user (alias callback)", {
+          error: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined
+        });
       }
 
       const sessionId = uuidv4();
