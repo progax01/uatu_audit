@@ -641,7 +641,8 @@ export class MilestoneExecutor {
       inputs.projectContext = this.context.projectContext;
       const m2State = this.states.get(2);
       if (m2State?.outputs) {
-        inputs.staticFindings = m2State.outputs.findings;
+        // Handle both structured findings and raw output from M2
+        inputs.staticFindings = m2State.outputs.findings || m2State.outputs.raw_output || m2State.outputs;
       }
     }
 
@@ -651,14 +652,20 @@ export class MilestoneExecutor {
       const m3State = this.states.get(3);
       const findings: any[] = [];
 
+      // Handle both structured findings and raw output
       if (m2State?.outputs?.findings) {
         findings.push(...m2State.outputs.findings);
-      }
-      if (m3State?.outputs?.findings) {
-        findings.push(...m3State.outputs.findings);
+      } else if (m2State?.outputs?.raw_output) {
+        findings.push({ source: 'milestone_2', content: m2State.outputs.raw_output });
       }
 
-      inputs.findings = findings;
+      if (m3State?.outputs?.findings) {
+        findings.push(...m3State.outputs.findings);
+      } else if (m3State?.outputs?.raw_output) {
+        findings.push({ source: 'milestone_3', content: m3State.outputs.raw_output });
+      }
+
+      inputs.findings = findings.length > 0 ? findings : m2State?.outputs || m3State?.outputs || [];
     }
 
     // M5: Needs all findings and test artifacts
@@ -668,14 +675,20 @@ export class MilestoneExecutor {
       const m4State = this.states.get(4);
       const allFindings: any[] = [];
 
+      // Handle both structured findings and raw output
       if (m2State?.outputs?.findings) {
         allFindings.push(...m2State.outputs.findings);
-      }
-      if (m3State?.outputs?.findings) {
-        allFindings.push(...m3State.outputs.findings);
+      } else if (m2State?.outputs?.raw_output) {
+        allFindings.push({ source: 'milestone_2', content: m2State.outputs.raw_output });
       }
 
-      inputs.allFindings = allFindings;
+      if (m3State?.outputs?.findings) {
+        allFindings.push(...m3State.outputs.findings);
+      } else if (m3State?.outputs?.raw_output) {
+        allFindings.push({ source: 'milestone_3', content: m3State.outputs.raw_output });
+      }
+
+      inputs.allFindings = allFindings.length > 0 ? allFindings : [m2State?.outputs, m3State?.outputs].filter(Boolean);
       if (m4State?.outputs?.tooling_artifacts) {
         inputs.testArtifacts = m4State.outputs.tooling_artifacts;
       }
