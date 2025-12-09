@@ -636,8 +636,9 @@ export class MilestoneExecutor {
       }
     }
 
-    // M3: Needs static findings from M2
+    // M3: Needs project context and static findings from M2
     if (milestoneNumber === 3) {
+      inputs.projectContext = this.context.projectContext;
       const m2State = this.states.get(2);
       if (m2State?.outputs) {
         inputs.staticFindings = m2State.outputs.findings;
