@@ -22,8 +22,8 @@ export async function writeFilesStructure(options: ContextWriterOptions): Promis
   const tree = await buildDirectoryTree(projectPath);
 
   // Find and read contract files
-  const solidityFiles = await fg(["**/*.sol", "!**/node_modules/**", "!**/.git/**", "!**/.uatu/**"], { cwd: projectPath });
-  const rustFiles = await fg(["**/*.rs", "!**/target/**", "!**/.git/**", "!**/node_modules/**"], { cwd: projectPath });
+  const solidityFiles = await fg(["**/*.sol", "!**/node_modules/**", "!**/.git/**", "!**/.uatu/**", "!**/runs/**"], { cwd: projectPath });
+  const rustFiles = await fg(["**/*.rs", "!**/target/**", "!**/.git/**", "!**/node_modules/**", "!**/runs/**"], { cwd: projectPath });
 
   // Read contract sources
   const contractSources: { path: string; content: string }[] = [];
@@ -272,7 +272,7 @@ export async function initResultsJson(contextPath: string): Promise<string> {
 // Helper functions
 
 async function buildDirectoryTree(projectPath: string, maxDepth: number = 4): Promise<string> {
-  const files = await fg(["**/*", "!**/node_modules/**", "!**/.git/**", "!**/target/**", "!**/.uatu/**"], {
+  const files = await fg(["**/*", "!**/node_modules/**", "!**/.git/**", "!**/target/**", "!**/.uatu/**", "!**/runs/**"], {
     cwd: projectPath,
     onlyFiles: false,
     deep: maxDepth,
