@@ -1,0 +1,55 @@
+{
+  "$schema": "./manifest-schema.json",
+  "version": "1.0.0",
+  "methodologies": {
+    "reentrancy": {
+      "currentVersion": "1.0.0",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "file": "reentrancy.md",
+          "date": "2025-12-09",
+          "author": "UatuAudit Team",
+          "changelog": "Initial methodology for reentrancy detection covering classic, cross-function, read-only, cross-contract, and delegatecall reentrancy"
+        }
+      ]
+    },
+    "oracle-manipulation": {
+      "currentVersion": "1.0.0",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "file": "oracle-manipulation.md",
+          "date": "2025-12-09",
+          "author": "UatuAudit Team",
+          "changelog": "Initial methodology for oracle manipulation covering flash loan attacks, TWAP manipulation, Chainlink misuse, and read-only reentrancy in oracles"
+        }
+      ]
+    },
+    "access-control": {
+      "currentVersion": "1.0.0",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "file": "access-control.md",
+          "date": "2025-12-09",
+          "author": "UatuAudit Team",
+          "changelog": "Initial methodology for access control vulnerabilities covering missing modifiers, tx.origin issues, unprotected initializers, RBAC problems, and centralization risks"
+        }
+      ]
+    },
+    "injection": {
+      "currentVersion": "1.0.0",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "file": "injection.md",
+          "date": "2025-12-09",
+          "author": "UatuAudit Team",
+          "changelog": "Initial methodology for injection attacks covering SQL, NoSQL, Command, LDAP, and ORM injection patterns"
+        }
+      ]
+    }
+  },
+  "auditHistory": []
+}
