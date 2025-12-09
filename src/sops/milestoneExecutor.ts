@@ -183,32 +183,50 @@ export class MilestoneExecutor {
     }
 
     // Validate inputs
+    log.info(`📋 Validating inputs for Milestone ${milestoneNumber}:`);
+    log.info(`   Required: ${config.requiredInputs.join(', ')}`);
+    log.info(`   Provided: ${Object.keys(inputs).join(', ') || 'none'}`);
+
     for (const requiredInput of config.requiredInputs) {
       if (!inputs[requiredInput] && !state.inputs[requiredInput]) {
         const error = `Missing required input: ${requiredInput}`;
-        log.error(error);
+        log.error(`❌ ${error}`);
+        log.error(`   Available in state: ${Object.keys(state.inputs).join(', ') || 'none'}`);
         state.status = 'failed';
         state.error = error;
         await this.saveState();
         return { success: false, state, error };
       }
+      const inputValue = inputs[requiredInput] || state.inputs[requiredInput];
+      const preview = typeof inputValue === 'string'
+        ? `${inputValue.length} chars`
+        : typeof inputValue;
+      log.info(`   ✓ ${requiredInput}: ${preview}`);
     }
 
     // Update state
+    log.info(`\n🔄 Updating milestone state to 'in_progress'`);
     state.status = 'in_progress';
     state.inputs = { ...state.inputs, ...inputs };
     state.startTime = new Date();
     await this.saveState();
+    log.info(`   State saved at: ${state.startTime.toISOString()}`);
 
     try {
       // Build prompt with appropriate layers
+      log.info(`\n🔨 Building milestone query...`);
       const dynamicQuery = await this.buildMilestoneQuery(milestoneNumber, inputs);
+      log.info(`   Query built: ${dynamicQuery.length} chars`);
 
       // Determine methodologies to load
+      log.info(`\n🧬 Determining methodologies for Milestone ${milestoneNumber}...`);
       const methodologies = this.determineMilestoneMethodologies(milestoneNumber);
+      log.info(`   Selected methodologies: ${methodologies.join(', ')}`);
 
       // Setup prompt cache layers
+      log.info(`\n📦 Setting up prompt cache layers...`);
       await this.setupPromptCache(methodologies);
+      log.info(`   Prompt cache ready`);
 
       // Build full prompt
       const validDomains: DomainType[] = ['web3', 'backend', 'frontend'];
@@ -216,17 +234,25 @@ export class MilestoneExecutor {
         ? (this.context.domain as DomainType)
         : undefined;
 
+      log.info(`\n🏗️  Building full prompt with caching...`);
+      log.info(`   Domain: ${domain || 'auto-detect'}`);
+      log.info(`   Methodologies: ${methodologies.length}`);
+      log.info(`   Milestone: ${milestoneNumber}`);
+
       const fullPrompt = await this.promptCache.buildPrompt(dynamicQuery, {
         domain,
         methodologies,
         milestone: milestoneNumber
       });
 
-      log.info(`📤 Sending prompt to Claude (${fullPrompt.length} chars)`);
-      log.debug(`Methodologies loaded: ${methodologies.join(', ')}`);
+      log.info(`\n📤 Sending prompt to Claude:`);
+      log.info(`   Total size: ${fullPrompt.length} chars`);
+      log.info(`   Timeout: ${config.timeout / 1000}s`);
+      log.info(`   Job ID: ${this.context.jobId}`);
 
       // Execute via Claude CLI with timeout
       const startTime = Date.now();
+      log.info(`\n⏳ Executing Claude CLI...`);
       const output = await executeClaude(fullPrompt, {
         timeout: config.timeout,
         jobId: parseInt(this.context.jobId) || undefined,
@@ -234,29 +260,49 @@ export class MilestoneExecutor {
       });
       const executionTime = Date.now() - startTime;
 
-      log.info(`✅ Claude execution completed in ${(executionTime / 1000).toFixed(1)}s`);
+      log.info(`\n✅ Claude execution completed:`);
+      log.info(`   Duration: ${(executionTime / 1000).toFixed(1)}s`);
+      log.info(`   Output size: ${output.length} chars`);
 
       // Parse output
+      log.info(`\n🔍 Parsing Claude output...`);
       const parsedOutput = this.parseOutput(output, milestoneNumber);
+      log.info(`   Parsed output keys: ${Object.keys(parsedOutput).join(', ')}`);
+
+      // Log output details based on milestone
+      if (parsedOutput.findings) {
+        log.info(`   Findings extracted: ${Array.isArray(parsedOutput.findings) ? parsedOutput.findings.length : 'N/A'}`);
+      }
+      if (parsedOutput.files_analyzed) {
+        log.info(`   Files analyzed: ${parsedOutput.files_analyzed}`);
+      }
+      if (parsedOutput.score) {
+        log.info(`   Score: ${parsedOutput.score.value} (${parsedOutput.score.grade})`);
+      }
 
       // Update state
+      log.info(`\n💾 Updating milestone state to 'completed'`);
       state.status = 'completed';
       state.outputs = parsedOutput;
       state.endTime = new Date();
       state.duration = Math.round(executionTime / 1000);
       await this.saveState();
+      log.info(`   State saved with outputs`);
 
       // Record methodology usage
+      log.info(`\n📊 Recording methodology usage...`);
       await this.versionManager.recordAuditUsage(
         this.context.jobId,
         methodologies,
         this.context.domain,
         milestoneNumber
       );
+      log.info(`   Usage recorded for ${methodologies.length} methodologies`);
 
       log.info(`\n✅ Milestone ${milestoneNumber} completed successfully`);
       log.info(`   Duration: ${state.duration}s`);
-      log.info(`   Output keys: ${Object.keys(parsedOutput).join(', ')}\n`);
+      log.info(`   Output keys: ${Object.keys(parsedOutput).join(', ')}`);
+      log.info(`   Status: ${state.status}\n`);
 
       return { success: true, state, output: parsedOutput };
     } catch (error: any) {

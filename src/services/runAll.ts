@@ -196,21 +196,35 @@ export async function runAll(params: {
     });
 
     // Load project context (flattened source code)
+    log.info("\n📂 Loading project context (flattened source code)...");
     const filesStructurePath = path.join(contextPath, "files_structure.md");
+    log.info(`   Context path: ${filesStructurePath}`);
     let projectContext: string | undefined;
 
     try {
       if (await fs.pathExists(filesStructurePath)) {
+        log.info(`   ✓ File exists, reading...`);
         projectContext = await fs.readFile(filesStructurePath, 'utf-8');
-        log.info(`Loaded project context: ${projectContext.length} chars`);
+        log.info(`   ✅ Loaded project context: ${projectContext.length} chars`);
+
+        // Log first 200 chars as preview
+        const preview = projectContext.substring(0, 200).replace(/\n/g, ' ');
+        log.info(`   Preview: ${preview}...`);
       } else {
-        log.warn('files_structure.md not found, proceeding without project context');
+        log.warn('   ⚠️  files_structure.md not found, proceeding without project context');
       }
     } catch (error: any) {
-      log.warn(`Failed to load project context: ${error.message}`);
+      log.warn(`   ❌ Failed to load project context: ${error.message}`);
     }
 
     // Initialize Milestone Executor
+    log.info("\n🎯 Initializing Milestone Executor:");
+    log.info(`   Job ID: ${jobId?.toString() || 'unknown'}`);
+    log.info(`   Project path: ${branchPath}`);
+    log.info(`   Project context: ${projectContext ? `${projectContext.length} chars` : 'none'}`);
+    log.info(`   Domain: auto-detect`);
+    log.info(`   Audit depth: standard`);
+
     const milestoneExecutor = new MilestoneExecutor({
       jobId: jobId?.toString() || 'unknown',
       projectPath: branchPath,
@@ -218,6 +232,8 @@ export async function runAll(params: {
       domain: undefined, // auto-detect
       auditDepth: 'standard'
     });
+
+    log.info(`   ✅ MilestoneExecutor initialized`);
 
     try {
       // Execute all 5 milestones
