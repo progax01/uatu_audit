@@ -195,10 +195,28 @@ export async function runAll(params: {
       mode: "MILESTONE_FRAMEWORK"
     });
 
+    // Load project context (flattened source code)
+    const filesStructurePath = path.join(contextPath, "files_structure.md");
+    let projectContext: string | undefined;
+
+    try {
+      if (await fs.pathExists(filesStructurePath)) {
+        projectContext = await fs.readFile(filesStructurePath, 'utf-8');
+        log.info(`Loaded project context: ${projectContext.length} chars`);
+      } else {
+        log.warn('files_structure.md not found, proceeding without project context');
+      }
+    } catch (error: any) {
+      log.warn(`Failed to load project context: ${error.message}`);
+    }
+
     // Initialize Milestone Executor
     const milestoneExecutor = new MilestoneExecutor({
       jobId: jobId?.toString() || 'unknown',
-      projectPath: branchPath
+      projectPath: branchPath,
+      projectContext,
+      domain: undefined, // auto-detect
+      auditDepth: 'standard'
     });
 
     try {
