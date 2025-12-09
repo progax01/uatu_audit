@@ -5,6 +5,7 @@ import { resolveWorkspace } from "./workspaceService.js";
 import { bootstrapSOP } from "../sops/bootstrap.js";
 import { singlePromptAuditSOP } from "../sops/singlePromptAudit.js";
 import { executeParallelAudit } from "../sops/parallelAuditExecutor.js";
+import { MilestoneExecutor } from "../sops/milestoneExecutor.js";
 import { writeFilesStructure, writeTestRequirements, writeMilestones, initResultsJson } from "./contextWriter.js";
 import { generateReportFromResults, generateCertificateFromResults } from "./report/simpleReportGenerator.js";
 import { generatePdfFromHtml } from "./pdfGenerator.js";
@@ -183,10 +184,67 @@ export async function runAll(params: {
     formula: `max(${baseSessionTimeoutMin}, ${contractCount} × ${timePerContractMin})`
   });
 
-  // Check if detailed audit mode is enabled
+  // Check if milestone-based Deep Intelligence Framework is enabled
+  const enableMilestoneFramework = process.env.ENABLE_MILESTONE_FRAMEWORK === "true";
   const enableDetailedAudit = process.env.ENABLE_DETAILED_AUDIT === "true";
 
-  if (enableDetailedAudit) {
+  if (enableMilestoneFramework) {
+    log.info("Step 2.1: Starting Deep Intelligence Framework (5-Milestone Pipeline)", {
+      contractCount,
+      overallTimeoutMinutes: Math.round(auditTimeoutMs / 60000),
+      mode: "MILESTONE_FRAMEWORK"
+    });
+
+    // Initialize Milestone Executor
+    const milestoneExecutor = new MilestoneExecutor({
+      jobId: jobId?.toString() || 'unknown',
+      projectPath: branchPath
+    });
+
+    try {
+      // Execute all 5 milestones
+      const success = await milestoneExecutor.executeAll();
+
+      if (!success) {
+        log.error("Deep Intelligence Framework execution failed");
+        throw new Error("Milestone execution failed");
+      }
+
+      log.info("Step 2.1: Deep Intelligence Framework completed successfully");
+
+      // Get the final report from Milestone 5 outputs
+      const milestone5State = milestoneExecutor.getMilestoneState(5);
+      const unifiedReport = milestone5State?.outputs?.audit_report;
+
+      if (unifiedReport) {
+        // Write to results.json
+        const resultsJsonPath = path.join(contextPath, "results.json");
+        const resultsWithMetadata = {
+          metadata: {
+            repo,
+            branch,
+            timestamp: new Date().toISOString(),
+            duration_seconds: Math.round((Date.now() - parseInt(timestamp)) / 1000),
+            status: "completed",
+            framework: "deep-intelligence-v1",
+            milestones_completed: 5
+          },
+          ...unifiedReport
+        };
+        await fs.writeJson(resultsJsonPath, resultsWithMetadata, { spaces: 2 });
+        log.info("Step 2.1: Deep Intelligence Framework results written to results.json", {
+          score: unifiedReport.score?.value,
+          grade: unifiedReport.score?.grade,
+          totalFindings: unifiedReport.findings?.summary?.total
+        });
+      } else {
+        log.warn("No unified report found in Milestone 5 outputs");
+      }
+    } catch (error: any) {
+      log.error("Deep Intelligence Framework execution failed", { error: error.message });
+      throw error;
+    }
+  } else if (enableDetailedAudit) {
     log.info("Step 2.1: Starting parallel detailed audit", {
       contractCount,
       overallTimeoutMinutes: Math.round(auditTimeoutMs / 60000),
