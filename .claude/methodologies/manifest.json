@@ -51,5 +51,116 @@
       ]
     }
   },
-  "auditHistory": []
+  "auditHistory": [
+    {
+      "jobId": "15",
+      "timestamp": "2025-12-09T11:18:19.230Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "15",
+      "timestamp": "2025-12-09T11:23:38.339Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "16",
+      "timestamp": "2025-12-09T11:41:05.071Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "16",
+      "timestamp": "2025-12-09T11:44:46.397Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "17",
+      "timestamp": "2025-12-09T11:49:32.138Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "17",
+      "timestamp": "2025-12-09T11:52:53.547Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "17",
+      "timestamp": "2025-12-09T11:56:05.190Z",
+      "methodologies": {
+        "reentrancy": "1.0.0",
+        "oracle-manipulation": "1.0.0",
+        "access-control": "1.0.0",
+        "injection": "1.0.0"
+      },
+      "milestone": 3
+    },
+    {
+      "jobId": "17",
+      "timestamp": "2025-12-09T12:01:36.946Z",
+      "methodologies": {},
+      "milestone": 4
+    },
+    {
+      "jobId": "17",
+      "timestamp": "2025-12-09T12:04:27.471Z",
+      "methodologies": {},
+      "milestone": 5
+    },
+    {
+      "jobId": "20",
+      "timestamp": "2025-12-09T12:19:27.782Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "20",
+      "timestamp": "2025-12-09T12:23:12.167Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "21",
+      "timestamp": "2025-12-09T12:38:04.291Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "21",
+      "timestamp": "2025-12-09T12:43:54.541Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "21",
+      "timestamp": "2025-12-09T12:49:13.498Z",
+      "methodologies": {
+        "reentrancy": "1.0.0",
+        "oracle-manipulation": "1.0.0",
+        "access-control": "1.0.0",
+        "injection": "1.0.0"
+      },
+      "milestone": 3
+    },
+    {
+      "jobId": "21",
+      "timestamp": "2025-12-09T12:56:22.707Z",
+      "methodologies": {},
+      "milestone": 4
+    }
+  ]
 }
