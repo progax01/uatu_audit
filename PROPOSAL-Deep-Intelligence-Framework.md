@@ -27,9 +27,10 @@ This document outlines a comprehensive proposal to upgrade UatuAudit from its cu
 3. [What Should Change](#3-what-should-change)
 4. [Best Approach to Implement](#4-best-approach-to-implement)
 5. [Effects on Current Code](#5-effects-on-current-code)
-6. [Benefits of Proposal](#6-benefits-of-proposal)
-7. [Implementation Priority](#7-implementation-priority)
-8. [Appendix: Prompt Templates](#appendix-prompt-templates)
+6. [Frontend Architecture Changes](#6-frontend-architecture-changes)
+7. [Benefits of Proposal](#7-benefits-of-proposal)
+8. [Implementation Priority](#8-implementation-priority)
+9. [Appendix: Prompt Templates](#appendix-prompt-templates)
 
 ---
 
@@ -630,9 +631,288 @@ describe('Login Security', () => {
 
 ---
 
-## 6. Benefits of Proposal
+## 6. Frontend Architecture Changes
 
-### 6.1 Cost Efficiency
+### 6.1 Current Frontend State
+
+**Location:** `ui/src/`
+
+| Page | Current Function |
+|------|------------------|
+| `HomePage.tsx` | Landing page with mascot, OAuth button |
+| `ConnectSource.tsx` | GitHub OAuth, repo/branch selection |
+| `ConfigureAudit.tsx` | File selector, test style selection |
+| `ReviewAndRun.tsx` | Live progress tracking (3 phases) |
+| `ScanContract.tsx` | Deployed contract scanner |
+
+**Current Progress Model:**
+- 5 weighted phases: bootstrap(10%) → inventory(20%) → analysis(35%) → testgen(15%) → execute(20%)
+- Single progress bar with phase labels
+- Basic log streaming
+
+### 6.2 Required Frontend Changes
+
+#### 6.2.1 New UI Components Needed
+
+| Component | Purpose |
+|-----------|---------|
+| `MilestoneTracker.tsx` | 5-milestone visual stepper (replaces phase bar) |
+| `AgentStatusPanel.tsx` | Show which domain agent(s) are active |
+| `CoTReasoningView.tsx` | Expandable Chain-of-Thought reasoning display |
+| `TestArtifactsPanel.tsx` | Display/download generated test files |
+| `DomainSelector.tsx` | Manual override for domain agent selection |
+| `FindingSeverityChart.tsx` | Enhanced severity breakdown visualization |
+| `ReasoningAccordion.tsx` | Collapsible reasoning steps per finding |
+
+#### 6.2.2 Page Changes
+
+**`ConfigureAudit.tsx` Changes:**
+
+| Current | Proposed |
+|---------|----------|
+| Test style selection only | Add **Domain Selection** (Auto-detect / Web3 / Backend / Frontend / Multi) |
+| Single file selector | Add **Audit Depth** selector (Quick / Standard / Deep) |
+| - | Add **Methodology Toggles** (enable/disable specific checks) |
+
+```
+New UI Elements:
+┌─────────────────────────────────────────────────┐
+│ Audit Configuration                              │
+├─────────────────────────────────────────────────┤
+│ Domain: [Auto-detect ▼] [Web3] [Backend] [Frontend] │
+│                                                  │
+│ Depth:  ○ Quick (M1+M2)                         │
+│         ● Standard (M1-M4)                      │
+│         ○ Deep (M1-M5 + CoT)                    │
+│                                                  │
+│ Methodologies:                                   │
+│   ☑ Reentrancy Detection                        │
+│   ☑ Oracle Manipulation                         │
+│   ☑ Access Control                              │
+│   ☐ Gas Optimization (optional)                 │
+└─────────────────────────────────────────────────┘
+```
+
+**`ReviewAndRun.tsx` Changes:**
+
+| Current | Proposed |
+|---------|----------|
+| Single progress bar | **5-Milestone Stepper** with status icons |
+| Phase labels | **Active Agent Indicator** (Web3/Backend/Frontend) |
+| Basic logs | **Structured Log Sections** per milestone |
+| - | **Live CoT Reasoning** stream |
+| - | **Partial Results Preview** (findings as they're discovered) |
+
+```
+New UI Layout:
+┌─────────────────────────────────────────────────────────┐
+│ Audit Progress                                          │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  [✓] Context  [✓] Static  [●] Logic  [ ] Tests  [ ] Final │
+│       100%        100%       45%        0%         0%    │
+│                                                          │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ Active Agent: Web3 (EVM & Solidity Auditor)         │ │
+│ │ Current Task: Analyzing cross-contract dependencies │ │
+│ └─────────────────────────────────────────────────────┘ │
+│                                                          │
+│ Live Findings (3 found so far):                         │
+│ ├─ 🔴 CRITICAL: Reentrancy in withdraw()               │
+│ ├─ 🟠 HIGH: Unchecked return value                     │
+│ └─ 🟡 MEDIUM: Missing zero-address check               │
+│                                                          │
+│ ▼ Chain-of-Thought Reasoning                            │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ Step: Tracing withdraw() call graph                 │ │
+│ │ Observation: External call before state update      │ │
+│ │ Hypothesis: Classic reentrancy pattern              │ │
+│ │ Validation: No reentrancy guard present             │ │
+│ │ Conclusion: CRITICAL vulnerability confirmed        │ │
+│ └─────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Report View Changes:**
+
+| Current | Proposed |
+|---------|----------|
+| Findings table | Add **Reasoning Expandable** per finding |
+| - | Add **Test Artifacts Section** with download buttons |
+| - | Add **Agent Attribution** (which agent found what) |
+| Static severity chart | **Interactive Severity Breakdown** with drill-down |
+
+```
+New Report Sections:
+┌─────────────────────────────────────────────────────────┐
+│ Finding: Reentrancy Vulnerability                       │
+├─────────────────────────────────────────────────────────┤
+│ Severity: CRITICAL    Agent: Web3    File: Vault.sol:45│
+│                                                          │
+│ Description: ...                                         │
+│                                                          │
+│ ▼ How We Found This (Chain-of-Thought)                  │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ 1. Mapped call graph: withdraw() → token.transfer() │ │
+│ │ 2. Observed: state update AFTER external call       │ │
+│ │ 3. Hypothesis: attacker can re-enter during transfer│ │
+│ │ 4. Validated: no reentrancy guard modifier          │ │
+│ └─────────────────────────────────────────────────────┘ │
+│                                                          │
+│ ▼ Proof-of-Concept Test                                 │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ 📄 VaultExploit.t.sol                    [Download] │ │
+│ │ ```solidity                                         │ │
+│ │ function testReentrancyExploit() public {           │ │
+│ │   vm.startPrank(attacker);                          │ │
+│ │   attacker.attack();                                │ │
+│ │   assertEq(address(vault).balance, 0);              │ │
+│ │ }                                                   │ │
+│ │ ```                                                 │ │
+│ │ Run: forge test --match-test testReentrancyExploit  │ │
+│ └─────────────────────────────────────────────────────┘ │
+│                                                          │
+│ Recommendation: Add ReentrancyGuard modifier            │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 6.2.3 New API Endpoints Required
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /progress/milestones` | Get detailed milestone status (not just phases) |
+| `GET /progress/agents` | Get active agent information |
+| `GET /progress/reasoning` | Stream CoT reasoning in real-time |
+| `GET /progress/findings` | Get partial findings as they're discovered |
+| `GET /artifacts/:jobId` | Download generated test files |
+| `POST /audit/configure` | Set domain, depth, methodology options |
+
+#### 6.2.4 State Management Changes
+
+**New State Shape:**
+
+```typescript
+interface AuditProgress {
+  // Current
+  overall_pct: number;
+  phases: PhaseProgress[];
+
+  // NEW
+  milestones: MilestoneProgress[];
+  activeAgent: 'web3' | 'backend' | 'frontend' | null;
+  reasoning: CoTStep[];
+  partialFindings: Finding[];
+  artifacts: TestArtifact[];
+}
+
+interface MilestoneProgress {
+  id: 1 | 2 | 3 | 4 | 5;
+  name: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  pct: number;
+  startTime?: string;
+  endTime?: string;
+  agent?: string;
+}
+
+interface CoTStep {
+  timestamp: string;
+  step: string;
+  observation: string;
+  hypothesis: string;
+  validation: string;
+  conclusion: string;
+  relatedFinding?: string;
+}
+
+interface TestArtifact {
+  type: 'foundry' | 'k6' | 'cypress' | 'curl';
+  filename: string;
+  content: string;
+  relatedFinding: string;
+}
+```
+
+#### 6.2.5 New Hooks Required
+
+| Hook | Purpose |
+|------|---------|
+| `useMilestoneProgress()` | Subscribe to milestone updates |
+| `useActiveAgent()` | Track which agent is currently running |
+| `useCoTStream()` | Real-time CoT reasoning subscription |
+| `usePartialFindings()` | Get findings as they're discovered |
+| `useTestArtifacts()` | Manage generated test files |
+
+### 6.3 UI/UX Improvements
+
+#### Visual Design Updates
+
+| Element | Current | Proposed |
+|---------|---------|----------|
+| Progress | Single bar | 5-step milestone stepper with icons |
+| Status | Text labels | Animated agent avatars |
+| Findings | Table only | Cards with expandable reasoning |
+| Tests | Description text | Code blocks with syntax highlighting + download |
+| Logs | Plain text stream | Structured, filterable by milestone/agent |
+
+#### User Flow Changes
+
+```
+Current Flow:
+Connect → Configure → Run → Wait → Report
+
+Proposed Flow:
+Connect → Configure (Domain + Depth + Methods) → Run →
+  → Live Milestones (with partial results) →
+  → Report (with reasoning + artifacts)
+```
+
+### 6.4 Frontend File Changes Summary
+
+#### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `ui/src/pages/ConfigureAudit.tsx` | Add domain selector, depth selector, methodology toggles |
+| `ui/src/pages/ReviewAndRun.tsx` | Replace phase bar with milestone stepper, add agent panel, CoT viewer |
+| `ui/src/hooks/useAuditProgress.ts` | Add milestone, agent, reasoning state |
+| `ui/src/App.tsx` | Add routes for new pages if needed |
+
+#### New Files to Create
+
+| File | Purpose |
+|------|---------|
+| `ui/src/components/MilestoneTracker.tsx` | 5-step visual progress stepper |
+| `ui/src/components/AgentStatusPanel.tsx` | Active agent display |
+| `ui/src/components/CoTReasoningView.tsx` | Chain-of-thought reasoning display |
+| `ui/src/components/TestArtifactsPanel.tsx` | Test file display/download |
+| `ui/src/components/FindingCard.tsx` | Enhanced finding display with reasoning |
+| `ui/src/components/DomainSelector.tsx` | Domain selection chips |
+| `ui/src/components/DepthSelector.tsx` | Audit depth radio buttons |
+| `ui/src/components/MethodologyToggles.tsx` | Methodology checkboxes |
+| `ui/src/hooks/useMilestoneProgress.ts` | Milestone progress hook |
+| `ui/src/hooks/useCoTStream.ts` | Real-time reasoning hook |
+| `ui/src/hooks/useTestArtifacts.ts` | Test artifacts management |
+| `ui/src/types/audit.ts` | New TypeScript interfaces |
+
+### 6.5 Report Template Changes
+
+**File:** `src/templates/report-template.html`
+
+| Section | Current | Proposed |
+|---------|---------|----------|
+| Header | Basic metadata | Add agent attribution, milestone summary |
+| Findings | Simple table | Cards with expandable CoT reasoning |
+| Score | Static gauge | Interactive breakdown chart |
+| Tests | Text descriptions | Code blocks + copy/download buttons |
+| - | - | NEW: Reasoning timeline visualization |
+| - | - | NEW: Test artifacts download section |
+
+---
+
+## 7. Benefits of Proposal
+
+### 7.1 Cost Efficiency
 
 | Benefit | Quantified Impact |
 |---------|-------------------|
@@ -654,7 +934,7 @@ Proposed:
 Savings: 72% cost reduction
 ```
 
-### 6.2 Audit Quality
+### 7.2 Audit Quality
 
 | Benefit | Impact |
 |---------|--------|
@@ -674,7 +954,7 @@ Savings: 72% cost reduction
 - Redux State Manipulation attacks
 - React Query Cache Poisoning
 
-### 6.3 Developer Experience
+### 7.3 Developer Experience
 
 | Benefit | Impact |
 |---------|--------|
@@ -684,7 +964,7 @@ Savings: 72% cost reduction
 | **Unified Schema** | Consistent JSON enables CI/CD integration |
 | **Better Reports** | Include reasoning, test results, remediation code |
 
-### 6.4 Scalability
+### 7.4 Scalability
 
 | Benefit | Impact |
 |---------|--------|
@@ -693,7 +973,7 @@ Savings: 72% cost reduction
 | **Methodology Reuse** | Add new patterns without changing core |
 | **Enterprise Ready** | Persistent state, job queue, resume support |
 
-### 6.5 Maintainability
+### 7.5 Maintainability
 
 | Benefit | Impact |
 |---------|--------|
@@ -704,7 +984,7 @@ Savings: 72% cost reduction
 
 ---
 
-## 7. Implementation Priority
+## 8. Implementation Priority
 
 ### Priority Matrix
 
