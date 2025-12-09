@@ -69,7 +69,7 @@ export class Web3Agent implements DomainAgent {
       // Execute via Claude
       const output = await executeClaude(fullPrompt, {
         timeout: 1800000, // 30 minutes
-        jobId: context.jobId,
+        jobId: parseInt(context.jobId) || undefined,
         cwd: context.projectPath
       });
 

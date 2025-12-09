@@ -94,7 +94,7 @@ export class EncryptionService {
       ciphertext += cipher.final('hex');
 
       // Get authentication tag
-      const tag = cipher.getAuthTag();
+      const tag = (cipher as any).getAuthTag();
 
       log.info('Data encrypted successfully');
 
@@ -130,7 +130,7 @@ export class EncryptionService {
         key,
         iv
       );
-      decipher.setAuthTag(tag);
+      (decipher as any).setAuthTag(tag);
 
       // Decrypt data
       let plaintext = decipher.update(encryptedData.ciphertext, 'hex', 'utf8');

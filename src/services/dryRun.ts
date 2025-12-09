@@ -142,12 +142,10 @@ export class DryRunService {
    * Get agent name for domain
    */
   private getAgentName(domain: DomainType): string {
-    const names: Record<DomainType, string> = {
+    const names: Partial<Record<DomainType, string>> & Record<string, string> = {
       web3: 'Web3 Agent (EVM & Solidity)',
       backend: 'Backend Agent (API & Server)',
-      frontend: 'Frontend Agent (Client-Side)',
-      mobile: 'Mobile Agent',
-      infrastructure: 'Infrastructure Agent'
+      frontend: 'Frontend Agent (Client-Side)'
     };
     return names[domain] || domain;
   }

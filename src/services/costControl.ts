@@ -96,7 +96,7 @@ export class CostControlService {
    * Calculate cost from token usage
    */
   calculateCost(tokens: TokenUsage, model: string = 'claude-3-5-sonnet-20241022'): CostEstimate {
-    const pricing = PRICING[model] || PRICING['claude-3-5-sonnet-20241022'];
+    const pricing = (PRICING as Record<string, typeof PRICING['claude-3-5-sonnet-20241022']>)[model] || PRICING['claude-3-5-sonnet-20241022'];
 
     const input_cost = tokens.input_tokens * pricing.input;
     const output_cost = tokens.output_tokens * pricing.output;
@@ -218,7 +218,7 @@ export class CostControlService {
     model: string = 'claude-3-5-sonnet-20241022',
     cacheHitRate: number = 0.8 // Assume 80% cache hit with 4-layer caching
   ): CostEstimate {
-    const pricing = PRICING[model] || PRICING['claude-3-5-sonnet-20241022'];
+    const pricing = (PRICING as Record<string, typeof PRICING['claude-3-5-sonnet-20241022']>)[model] || PRICING['claude-3-5-sonnet-20241022'];
 
     // Estimate tokens (roughly 4 chars per token)
     const inputTokens = Math.ceil(promptLength / 4);
@@ -301,7 +301,7 @@ export class CostControlService {
       actual_cost += record.cost.total_cost;
 
       // Calculate what it would cost without caching
-      const pricing = PRICING[record.model] || PRICING['claude-3-5-sonnet-20241022'];
+      const pricing = (PRICING as Record<string, typeof PRICING['claude-3-5-sonnet-20241022']>)[record.model] || PRICING['claude-3-5-sonnet-20241022'];
       const cache_read_tokens = record.tokens.cache_read_tokens || 0;
 
       // Cache reads would be full-price input without caching

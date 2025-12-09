@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { executeClaude } from '../services/ai/claudeCLIProvider';
 import { getPromptCacheManager } from '../services/promptCache';
 import { getMethodologyVersionManager } from '../services/methodologyVersionManager';
+import type { DomainType } from '../agents/types';
 
 const log = logger.child({ service: 'milestone-executor' });
 
@@ -210,8 +211,13 @@ export class MilestoneExecutor {
       await this.setupPromptCache(methodologies);
 
       // Build full prompt
+      const validDomains: DomainType[] = ['web3', 'backend', 'frontend'];
+      const domain = this.context.domain && validDomains.includes(this.context.domain as any)
+        ? (this.context.domain as DomainType)
+        : undefined;
+
       const fullPrompt = await this.promptCache.buildPrompt(dynamicQuery, {
-        domain: this.context.domain,
+        domain,
         methodologies,
         milestone: milestoneNumber
       });
@@ -223,7 +229,7 @@ export class MilestoneExecutor {
       const startTime = Date.now();
       const output = await executeClaude(fullPrompt, {
         timeout: config.timeout,
-        jobId: this.context.jobId,
+        jobId: parseInt(this.context.jobId) || undefined,
         cwd: this.context.projectPath
       });
       const executionTime = Date.now() - startTime;

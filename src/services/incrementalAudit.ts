@@ -353,20 +353,10 @@ export class IncrementalAuditEngine {
       audit_report: {
         metadata: {
           ...baseReport.audit_report.metadata,
-          audit_type: 'incremental',
-          base_audit_id: baseReport.audit_report.metadata.job_id,
-          incremental_stats: {
-            files_analyzed: plan.changedFiles.length + plan.newFiles.length,
-            files_skipped: plan.unchangedFiles.length,
-            files_deleted: plan.deletedFiles.length
-          },
-          completed_at: new Date().toISOString()
+          timestamp: new Date().toISOString()
         },
         executive_summary: {
-          ...baseReport.audit_report.executive_summary,
-          overview: `Incremental audit re-analyzed ${
-            plan.changedFiles.length + plan.newFiles.length
-          } changed/new files and merged with previous audit results.`
+          ...baseReport.audit_report.executive_summary
         },
         findings: {
           summary: {
@@ -377,7 +367,8 @@ export class IncrementalAuditEngine {
               medium: bySeverity.medium.length,
               low: bySeverity.low.length,
               info: bySeverity.info.length
-            }
+            },
+            by_category: baseReport.audit_report.findings.summary.by_category
           },
           critical: bySeverity.critical,
           high: bySeverity.high,
@@ -409,7 +400,17 @@ export class IncrementalAuditEngine {
     const grade =
       value >= 90 ? 'A' : value >= 80 ? 'B' : value >= 70 ? 'C' : value >= 60 ? 'D' : 'F';
 
-    return { value, grade };
+    return {
+      value,
+      grade: grade as 'A' | 'B' | 'C' | 'D' | 'F',
+      breakdown: {
+        critical: bySeverity.critical.length,
+        high: bySeverity.high.length,
+        medium: bySeverity.medium.length,
+        low: bySeverity.low.length,
+        info: bySeverity.info.length
+      }
+    };
   }
 
   /**

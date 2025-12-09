@@ -62,7 +62,7 @@ export class FrontendAgent implements DomainAgent {
 
       const output = await executeClaude(fullPrompt, {
         timeout: 1800000,
-        jobId: context.jobId,
+        jobId: parseInt(context.jobId) || undefined,
         cwd: context.projectPath
       });
 

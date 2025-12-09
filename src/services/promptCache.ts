@@ -70,10 +70,15 @@ export class PromptCacheManager {
 
     // Find .claude directory (check current dir and parent)
     const cwd = process.cwd();
-    if (fs.access(path.join(cwd, '.claude')).then(() => true).catch(() => false)) {
+    try {
+      const fs_sync = require('fs');
+      if (fs_sync.existsSync(path.join(cwd, '.claude'))) {
+        this.claudeDir = path.join(cwd, '.claude');
+      } else {
+        this.claudeDir = path.join(cwd, '..', '.claude');
+      }
+    } catch {
       this.claudeDir = path.join(cwd, '.claude');
-    } else {
-      this.claudeDir = path.join(cwd, '..', '.claude');
     }
   }
 
