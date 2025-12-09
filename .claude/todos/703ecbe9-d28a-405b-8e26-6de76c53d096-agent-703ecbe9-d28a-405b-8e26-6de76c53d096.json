@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Enhance AI prompt with modern Hardhat/ethers syntax rules",
+    "status": "completed",
+    "activeForm": "Enhancing AI prompt with modern syntax rules"
+  },
+  {
+    "content": "Build and deploy the updated prompt",
+    "status": "completed",
+    "activeForm": "Building and deploying"
+  },
+  {
+    "content": "Clear old AI tests to force regeneration",
+    "status": "completed",
+    "activeForm": "Clearing old AI tests"
+  },
+  {
+    "content": "Test AI generation with the improved prompt",
+    "status": "in_progress",
+    "activeForm": "Testing AI generation"
+  }
+]

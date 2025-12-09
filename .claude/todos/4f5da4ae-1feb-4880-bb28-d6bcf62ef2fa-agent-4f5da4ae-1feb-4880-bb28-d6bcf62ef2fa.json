@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Fix Claude CLI dynamic path detection to use 'which claude' instead of environment variable",
+    "status": "completed",
+    "activeForm": "Fixing Claude CLI dynamic path detection"
+  },
+  {
+    "content": "Test the path detection works correctly in Docker container",
+    "status": "completed",
+    "activeForm": "Testing path detection in Docker"
+  },
+  {
+    "content": "Install Claude CLI or configure AI provider",
+    "status": "in_progress",
+    "activeForm": "Installing Claude CLI or configuring AI"
+  },
+  {
+    "content": "Fix Hardhat installation issues in sandbox",
+    "status": "pending",
+    "activeForm": "Fixing Hardhat installation issues"
+  }
+]

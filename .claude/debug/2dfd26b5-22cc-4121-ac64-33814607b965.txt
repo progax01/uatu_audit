@@ -1,0 +1,1484 @@
+2025-11-19T11:26:08.622Z [ERROR] Failed to save config with lock: Error: ENOENT: no such file or directory, lstat '/home/uatu/.claude.json'
+2025-11-19T11:26:08.624Z [DEBUG] Writing to temp file: /home/uatu/.claude.json.tmp.30.1763551568624
+2025-11-19T11:26:08.624Z [DEBUG] Setting permissions for new file: 600
+2025-11-19T11:26:08.630Z [DEBUG] Temp file written successfully, size: 103 bytes
+2025-11-19T11:26:08.630Z [DEBUG] Renaming /home/uatu/.claude.json.tmp.30.1763551568624 to /home/uatu/.claude.json
+2025-11-19T11:26:08.630Z [DEBUG] File /home/uatu/.claude.json written atomically
+2025-11-19T11:26:08.630Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2025-11-19T11:26:08.630Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2025-11-19T11:26:08.631Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2025-11-19T11:26:08.631Z [DEBUG] [LSP SERVER MANAGER] initialize() called
+2025-11-19T11:26:08.631Z [DEBUG] [LSP SERVER MANAGER] Calling getAllLspServers()
+2025-11-19T11:26:08.638Z [DEBUG] Writing to temp file: /home/uatu/.claude.json.tmp.30.1763551568638
+2025-11-19T11:26:08.638Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T11:26:08.642Z [DEBUG] Temp file written successfully, size: 183 bytes
+2025-11-19T11:26:08.642Z [DEBUG] Applied original permissions to temp file
+2025-11-19T11:26:08.642Z [DEBUG] Renaming /home/uatu/.claude.json.tmp.30.1763551568638 to /home/uatu/.claude.json
+2025-11-19T11:26:08.642Z [DEBUG] File /home/uatu/.claude.json written atomically
+2025-11-19T11:26:08.649Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:08.651Z [DEBUG] Writing to temp file: /home/uatu/.claude.json.tmp.30.1763551568651
+2025-11-19T11:26:08.651Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T11:26:08.654Z [DEBUG] Temp file written successfully, size: 220 bytes
+2025-11-19T11:26:08.654Z [DEBUG] Applied original permissions to temp file
+2025-11-19T11:26:08.654Z [DEBUG] Renaming /home/uatu/.claude.json.tmp.30.1763551568651 to /home/uatu/.claude.json
+2025-11-19T11:26:08.654Z [DEBUG] File /home/uatu/.claude.json written atomically
+2025-11-19T11:26:08.661Z [DEBUG] Found 0 plugins (0 enabled, 0 disabled)
+2025-11-19T11:26:08.662Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:08.663Z [DEBUG] Total LSP servers loaded: 0
+2025-11-19T11:26:08.673Z [DEBUG] [LSP SERVER MANAGER] getAllLspServers returned 0 server(s)
+2025-11-19T11:26:08.673Z [DEBUG] LSP manager initialized with 0 servers
+2025-11-19T11:26:08.712Z [DEBUG] LSP server manager initialized successfully
+2025-11-19T11:26:08.713Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2025-11-19T11:26:08.747Z [DEBUG] Loading skills from directories: managed=/etc/claude-code/.claude/skills, user=/home/uatu/.claude/skills, project=/app/.claude/skills
+2025-11-19T11:26:08.748Z [DEBUG] >>>>> getPluginSkills CALLED <<<<<
+2025-11-19T11:26:08.801Z [DEBUG] Creating shell snapshot for bash (/bin/bash)
+2025-11-19T11:26:08.801Z [DEBUG] Looking for shell config file: /home/uatu/.bashrc
+2025-11-19T11:26:08.802Z [DEBUG] Snapshots directory: /home/uatu/.claude/shell-snapshots
+2025-11-19T11:26:08.803Z [DEBUG] Creating snapshot at: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh
+2025-11-19T11:26:08.803Z [DEBUG] Shell binary exists: true
+2025-11-19T11:26:08.803Z [DEBUG] Execution timeout: 10000ms
+2025-11-19T11:26:08.807Z [DEBUG] Writing to temp file: /home/uatu/.claude/todos/2dfd26b5-22cc-4121-ac64-33814607b965-agent-2dfd26b5-22cc-4121-ac64-33814607b965.json.tmp.30.1763551568807
+2025-11-19T11:26:08.807Z [DEBUG] Failed to write file atomically: Error: EACCES: permission denied, open '/home/uatu/.claude/todos/2dfd26b5-22cc-4121-ac64-33814607b965-agent-2dfd26b5-22cc-4121-ac64-33814607b965.json.tmp.30.1763551568807'
+2025-11-19T11:26:08.807Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/todos/2dfd26b5-22cc-4121-ac64-33814607b965-agent-2dfd26b5-22cc-4121-ac64-33814607b965.json.tmp.30.1763551568807'
+    at Module.openSync (node:fs:574:18)
+    at Object.writeFileSync (file:///usr/local/bin/claude:9:781)
+    at zM (file:///usr/local/bin/claude:4085:592)
+    at x62 (file:///usr/local/bin/claude:1797:3362)
+    at rGA (file:///usr/local/bin/claude:1797:2805)
+    at bI1 (file:///usr/local/bin/claude:4349:5776)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async UJ1.<anonymous> (file:///usr/local/bin/claude:4366:2311)
+    at async UJ1.parseAsync (file:///usr/local/bin/claude:24:4156)
+    at async cy3 (file:///usr/local/bin/claude:4411:1624)
+2025-11-19T11:26:08.808Z [DEBUG] Falling back to non-atomic write for /home/uatu/.claude/todos/2dfd26b5-22cc-4121-ac64-33814607b965-agent-2dfd26b5-22cc-4121-ac64-33814607b965.json
+2025-11-19T11:26:08.808Z [DEBUG] Non-atomic write also failed: Error: EACCES: permission denied, open '/home/uatu/.claude/todos/2dfd26b5-22cc-4121-ac64-33814607b965-agent-2dfd26b5-22cc-4121-ac64-33814607b965.json'
+2025-11-19T11:26:08.808Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/todos/2dfd26b5-22cc-4121-ac64-33814607b965-agent-2dfd26b5-22cc-4121-ac64-33814607b965.json'
+    at Module.openSync (node:fs:574:18)
+    at Object.writeFileSync (file:///usr/local/bin/claude:9:781)
+    at zM (file:///usr/local/bin/claude:4085:1181)
+    at x62 (file:///usr/local/bin/claude:1797:3362)
+    at rGA (file:///usr/local/bin/claude:1797:2805)
+    at bI1 (file:///usr/local/bin/claude:4349:5776)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async UJ1.<anonymous> (file:///usr/local/bin/claude:4366:2311)
+    at async UJ1.parseAsync (file:///usr/local/bin/claude:24:4156)
+    at async cy3 (file:///usr/local/bin/claude:4411:1624)
+2025-11-19T11:26:08.810Z [DEBUG] getPluginSkills: Processing 0 enabled plugins
+2025-11-19T11:26:08.810Z [DEBUG] Total plugin skills loaded: 0
+2025-11-19T11:26:08.810Z [DEBUG] Total plugin commands loaded: 0
+2025-11-19T11:26:08.810Z [DEBUG] Registered 0 hooks from 0 plugins
+2025-11-19T11:26:08.824Z [DEBUG] Loaded 0 unique skills (managed: 0, user: 0, project: 0, duplicates removed: 0)
+2025-11-19T11:26:08.825Z [DEBUG] getSkillsIfEnabled returning: 0 skill dir commands, 0 plugin skills
+2025-11-19T11:26:08.825Z [DEBUG] Total plugin agents loaded: 0
+2025-11-19T11:26:08.848Z [DEBUG] Getting matching hook commands for SessionStart with query: startup
+2025-11-19T11:26:08.848Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T11:26:08.848Z [DEBUG] Matched 0 unique hooks for query "startup" (0 before deduplication)
+2025-11-19T11:26:08.857Z [DEBUG] Total plugin output styles loaded: 0
+2025-11-19T11:26:08.859Z [DEBUG] rg error (signal=undefined, code=ENOENT, stderr: ), 0 results
+2025-11-19T11:26:08.859Z [ERROR] Error: Error: spawn /usr/local/bin/vendor/ripgrep/x64-linux/rg ENOENT
+    at ChildProcess._handle.onexit (node:internal/child_process:285:19)
+    at onErrorNT (node:internal/child_process:483:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)
+2025-11-19T11:26:08.870Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:08.871Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:08.909Z [DEBUG] Slash commands included in SlashCommand tool:
+2025-11-19T11:26:08.910Z [DEBUG] Skills and commands included in Skill tool:
+2025-11-19T11:26:08.917Z [ERROR] Error: Error: Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted
+    at YT.validateHeaders (file:///usr/local/bin/claude:778:1008)
+    at YT.buildHeaders (file:///usr/local/bin/claude:778:8501)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YT.buildRequest (file:///usr/local/bin/claude:778:7559)
+    at async YT.makeRequest (file:///usr/local/bin/claude:778:3387)
+    at async file:///usr/local/bin/claude:1729:2699
+    at async file:///usr/local/bin/claude:1729:2197
+    at async Ez5 (file:///usr/local/bin/claude:1728:2364)
+    at async f92 (file:///usr/local/bin/claude:1729:2130)
+    at async ZMA (file:///usr/local/bin/claude:2102:97)
+2025-11-19T11:26:08.922Z [DEBUG] Getting matching hook commands for SubagentStart with query: Explore
+2025-11-19T11:26:08.922Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T11:26:08.922Z [DEBUG] Matched 0 unique hooks for query "Explore" (0 before deduplication)
+2025-11-19T11:26:08.925Z [DEBUG] Getting matching hook commands for SubagentStart with query: Plan
+2025-11-19T11:26:08.925Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T11:26:08.925Z [DEBUG] Matched 0 unique hooks for query "Plan" (0 before deduplication)
+2025-11-19T11:26:08.929Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-11-19T11:26:08.929Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-11-19T11:26:08.930Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-11-19T11:26:08.930Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-11-19T11:26:08.932Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-11-19T11:26:08.932Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T11:26:08.932Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-11-19T11:26:08.934Z [DEBUG] Shell snapshot creation failed: Command failed: /bin/bash -c -l SNAPSHOT_FILE=/home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh
+      source "/home/uatu/.bashrc" < /dev/null
+
+      # First, create/clear the snapshot file
+      echo "# Snapshot file" >| "$SNAPSHOT_FILE"
+
+      # When this file is sourced, we first unalias to avoid conflicts
+      # This is necessary because aliases get "frozen" inside function definitions at definition time,
+      # which can cause unexpected behavior when functions use commands that conflict with aliases
+      echo "# Unset all aliases to avoid conflicts with functions" >> "$SNAPSHOT_FILE"
+      echo "unalias -a 2>/dev/null || true" >> "$SNAPSHOT_FILE"
+
+      
+      echo "# Functions" >> "$SNAPSHOT_FILE"
+
+      # Force autoload all functions first
+      declare -f > /dev/null 2>&1
+
+      # Now get user function names - filter system ones and give the rest to eval in b64 encoding
+      declare -F | cut -d' ' -f3 | grep -vE '^(_|__)' | while read func; do
+        # Encode the function to base64, preserving all special characters
+        encoded_func=$(declare -f "$func" | base64 )
+        # Write the function definition to the snapshot
+        echo "eval \"\$(echo '$encoded_func' | base64 -d)\" > /dev/null 2>&1" >> "$SNAPSHOT_FILE"
+      done
+    
+      echo "# Shell Options" >> "$SNAPSHOT_FILE"
+      shopt -p | head -n 1000 >> "$SNAPSHOT_FILE"
+      set -o | grep "on" | awk '{print "set -o " $1}' | head -n 1000 >> "$SNAPSHOT_FILE"
+      echo "shopt -s expand_aliases" >> "$SNAPSHOT_FILE"
+    
+      echo "# Aliases" >> "$SNAPSHOT_FILE"
+      # Filter out winpty aliases on Windows to avoid "stdin is not a tty" errors
+      # Git Bash automatically creates aliases like "alias node='winpty node.exe'" for
+      # programs that need Win32 Console in mintty, but winpty fails when there's no TTY
+      if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        alias | grep -v "='winpty " | sed 's/^alias //g' | sed 's/^/alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"
+      else
+        alias | sed 's/^alias //g' | sed 's/^/alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"
+      fi
+  
+
+      
+      # Check for rg availability
+      echo "# Check for rg availability" >> "$SNAPSHOT_FILE"
+      echo "if ! command -v rg >/dev/null 2>&1; then" >> "$SNAPSHOT_FILE"
+      echo '  alias rg='"'/usr/local/bin/vendor/ripgrep/x64-linux/rg'" >> "$SNAPSHOT_FILE"
+      echo "fi" >> "$SNAPSHOT_FILE"
+  
+
+      # Add PATH to the file
+      echo "export PATH=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin" >> "$SNAPSHOT_FILE"
+  
+
+      # Exit silently on success, only report errors
+      if [ ! -f "$SNAPSHOT_FILE" ]; then
+        echo "Error: Snapshot file was not created at $SNAPSHOT_FILE" >&2
+        exit 1
+      fi
+    
+/bin/bash: line 5: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 10: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 11: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 14: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 27: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 28: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 29: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 30: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 32: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 39: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 45: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 46: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 47: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 48: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 52: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+Error: Snapshot file was not created at /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh
+2025-11-19T11:26:08.934Z [DEBUG] Error details:
+2025-11-19T11:26:08.934Z [DEBUG] - Error code: 1
+2025-11-19T11:26:08.934Z [DEBUG] - Error signal: null
+2025-11-19T11:26:08.934Z [DEBUG] - Error killed: false
+2025-11-19T11:26:08.934Z [DEBUG] - Shell path: /bin/bash
+2025-11-19T11:26:08.934Z [DEBUG] - Config file: /home/uatu/.bashrc
+2025-11-19T11:26:08.934Z [DEBUG] - Config file exists: true
+2025-11-19T11:26:08.934Z [DEBUG] - Working directory: /app
+2025-11-19T11:26:08.934Z [DEBUG] - Claude home: /home/uatu/.claude
+2025-11-19T11:26:08.934Z [DEBUG] Full snapshot script:
+SNAPSHOT_FILE=/home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh
+      source "/home/uatu/.bashrc" < /dev/null
+
+      # First, create/clear the snapshot file
+      echo "# Snapshot file" >| "$SNAPSHOT_FILE"
+
+      # When this file is sourced, we first unalias to avoid conflicts
+      # This is necessary because aliases get "frozen" inside function definitions at definition time,
+      # which can cause unexpected behavior when functions use commands that conflict with aliases
+      echo "# Unset all aliases to avoid conflicts with functions" >> "$SNAPSHOT_FILE"
+      echo "unalias -a 2>/dev/null || true" >> "$SNAPSHOT_FILE"
+
+      
+      echo "# Functions" >> "$SNAPSHOT_FILE"
+
+      # Force autoload all functions first
+      declare -f > /dev/null 2>&1
+
+      # Now get user function names - filter system ones and give the rest to eval in b64 encoding
+      declare -F | cut -d' ' -f3 | grep -vE '^(_|__)' | while read func; do
+        # Encode the function to base64, preserving all special characters
+        encoded_func=$(declare -f "$func" | base64 )
+        # Write the function definition to the snapshot
+        echo "eval \"\$(echo '$encoded_func' | base64 -d)\" > /dev/null 2>&1" >> "$SNAPSHOT_FILE"
+      done
+    
+      echo "# Shell Options" >> "$SNAPSHOT_FILE"
+      shopt -p | head -n 1000 >> "$SNAPSHOT_FILE"
+      set -o | grep "on" | awk '{print "set -o " $1}' | head -n 1000 >> "$SNAPSHOT_FILE"
+      echo "shopt -s expand_aliases" >> "$SNAPSHOT_FILE"
+    
+      echo "# Aliases" >> "$SNAPSHOT_FILE"
+      # Filter out winpty aliases on Windows to avoid "stdin is not a tty" errors
+      # Git Bash automatically creates aliases like "alias node='winpty node.exe'" for
+      # programs that need Win32 Console in mintty, but winpty fails when there's no TTY
+      if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        alias | grep -v "='winpty " | sed 's/^alias //g' | sed 's/^/alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"
+      else
+        alias | sed 's/^alias //g' | sed 's/^/alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"
+      fi
+  
+
+      
+      # Check for rg availability
+      echo "# Check for rg availability" >> "$SNAPSHOT_FILE"
+      echo "if ! command -v rg >/dev/null 2>&1; then" >> "$SNAPSHOT_FILE"
+      echo '  alias rg='"'/usr/local/bin/vendor/ripgrep/x64-linux/rg'" >> "$SNAPSHOT_FILE"
+      echo "fi" >> "$SNAPSHOT_FILE"
+  
+
+      # Add PATH to the file
+      echo "export PATH=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin" >> "$SNAPSHOT_FILE"
+  
+
+      # Exit silently on success, only report errors
+      if [ ! -f "$SNAPSHOT_FILE" ]; then
+        echo "Error: Snapshot file was not created at $SNAPSHOT_FILE" >&2
+        exit 1
+      fi
+2025-11-19T11:26:08.934Z [DEBUG] No stdout output captured
+2025-11-19T11:26:08.934Z [DEBUG] stderr output (1792 chars): /bin/bash: line 5: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 10: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 11: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 14: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 27: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 28: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 29: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 30: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 32: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 39: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 45: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 46: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 47: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 48: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 52: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+Error: Snapshot file was not created at /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh
+2025-11-19T11:26:08.935Z [ERROR] Error: Error: Failed to create shell snapshot: Command failed: /bin/bash -c -l SNAPSHOT_FILE=/home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh
+      source "/home/uatu/.bashrc" < /dev/null
+
+      # First, create/clear the snapshot file
+      echo "# Snapshot file" >| "$SNAPSHOT_FILE"
+
+      # When this file is sourced, we first unalias to avoid conflicts
+      # This is necessary because aliases get "frozen" inside function definitions at definition time,
+      # which can cause unexpected behavior when functions use commands that conflict with aliases
+      echo "# Unset all aliases to avoid conflicts with functions" >> "$SNAPSHOT_FILE"
+      echo "unalias -a 2>/dev/null || true" >> "$SNAPSHOT_FILE"
+
+      
+      echo "# Functions" >> "$SNAPSHOT_FILE"
+
+      # Force autoload all functions first
+      declare -f > /dev/null 2>&1
+
+      # Now get user function names - filter system ones and give the rest to eval in b64 encoding
+      declare -F | cut -d' ' -f3 | grep -vE '^(_|__)' | while read func; do
+        # Encode the function to base64, preserving all special characters
+        encoded_func=$(declare -f "$func" | base64 )
+        # Write the function definition to the snapshot
+        echo "eval \"\$(echo '$encoded_func' | base64 -d)\" > /dev/null 2>&1" >> "$SNAPSHOT_FILE"
+      done
+    
+      echo "# Shell Options" >> "$SNAPSHOT_FILE"
+      shopt -p | head -n 1000 >> "$SNAPSHOT_FILE"
+      set -o | grep "on" | awk '{print "set -o " $1}' | head -n 1000 >> "$SNAPSHOT_FILE"
+      echo "shopt -s expand_aliases" >> "$SNAPSHOT_FILE"
+    
+      echo "# Aliases" >> "$SNAPSHOT_FILE"
+      # Filter out winpty aliases on Windows to avoid "stdin is not a tty" errors
+      # Git Bash automatically creates aliases like "alias node='winpty node.exe'" for
+      # programs that need Win32 Console in mintty, but winpty fails when there's no TTY
+      if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        alias | grep -v "='winpty " | sed 's/^alias //g' | sed 's/^/alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"
+      else
+        alias | sed 's/^alias //g' | sed 's/^/alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"
+      fi
+  
+
+      
+      # Check for rg availability
+      echo "# Check for rg availability" >> "$SNAPSHOT_FILE"
+      echo "if ! command -v rg >/dev/null 2>&1; then" >> "$SNAPSHOT_FILE"
+      echo '  alias rg='"'/usr/local/bin/vendor/ripgrep/x64-linux/rg'" >> "$SNAPSHOT_FILE"
+      echo "fi" >> "$SNAPSHOT_FILE"
+  
+
+      # Add PATH to the file
+      echo "export PATH=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin" >> "$SNAPSHOT_FILE"
+  
+
+      # Exit silently on success, only report errors
+      if [ ! -f "$SNAPSHOT_FILE" ]; then
+        echo "Error: Snapshot file was not created at $SNAPSHOT_FILE" >&2
+        exit 1
+      fi
+    
+/bin/bash: line 5: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 10: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 11: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 14: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 27: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 28: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 29: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 30: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 32: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 39: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 45: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 46: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 47: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 48: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+/bin/bash: line 52: /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh: Permission denied
+Error: Snapshot file was not created at /home/uatu/.claude/shell-snapshots/snapshot-bash-1763551568801-w3mvdw.sh
+
+    at file:///usr/local/bin/claude:1683:133
+    at ChildProcess.exithandler (node:child_process:430:5)
+    at ChildProcess.emit (node:events:524:28)
+    at ChildProcess.emit (node:domain:489:12)
+    at maybeClose (node:internal/child_process:1104:16)
+    at Socket.<anonymous> (node:internal/child_process:456:11)
+    at Socket.emit (node:events:524:28)
+    at Socket.emit (node:domain:489:12)
+    at Pipe.<anonymous> (node:net:343:12)
+2025-11-19T11:26:08.935Z [DEBUG] Ripgrep first use test: FAILED (mode=builtin, path=/usr/local/bin/vendor/ripgrep/x64-linux/rg)
+2025-11-19T11:26:09.195Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.cached.evaluations.2c851510ce'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at NS0._writeToCache (file:///usr/local/bin/claude:70:28884)
+    at file:///usr/local/bin/claude:70:31214
+    at Bj0._capture (file:///usr/local/bin/claude:70:31534)
+    at Q.<computed> [as _writeToCache] (file:///usr/local/bin/claude:70:31197)
+    at NS0.<anonymous> (file:///usr/local/bin/claude:70:28453)
+    at Generator.next (<anonymous>)
+    at J (file:///usr/local/bin/claude:70:26162)
+2025-11-19T11:26:09.196Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.last_modified_time.evaluations'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at NS0._runLocalStorageCacheEviction (file:///usr/local/bin/claude:70:29182)
+    at file:///usr/local/bin/claude:70:31214
+    at Bj0._capture (file:///usr/local/bin/claude:70:31534)
+    at Q.<computed> [as _runLocalStorageCacheEviction] (file:///usr/local/bin/claude:70:31197)
+    at NS0._writeToCache (file:///usr/local/bin/claude:70:28918)
+    at file:///usr/local/bin/claude:70:31214
+2025-11-19T11:26:09.200Z [DEBUG] Writing to temp file: /home/uatu/.claude.json.tmp.30.1763551569200
+2025-11-19T11:26:09.200Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T11:26:09.210Z [DEBUG] Temp file written successfully, size: 302 bytes
+2025-11-19T11:26:09.210Z [DEBUG] Applied original permissions to temp file
+2025-11-19T11:26:09.210Z [DEBUG] Renaming /home/uatu/.claude.json.tmp.30.1763551569200 to /home/uatu/.claude.json
+2025-11-19T11:26:09.210Z [DEBUG] File /home/uatu/.claude.json written atomically
+2025-11-19T11:26:09.212Z [DEBUG] Writing to temp file: /home/uatu/.claude.json.tmp.30.1763551569212
+2025-11-19T11:26:09.212Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T11:26:09.219Z [DEBUG] Temp file written successfully, size: 332 bytes
+2025-11-19T11:26:09.219Z [DEBUG] Applied original permissions to temp file
+2025-11-19T11:26:09.219Z [DEBUG] Renaming /home/uatu/.claude.json.tmp.30.1763551569212 to /home/uatu/.claude.json
+2025-11-19T11:26:09.219Z [DEBUG] File /home/uatu/.claude.json written atomically
+2025-11-19T11:26:09.220Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.221Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.221Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.222Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.222Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.223Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.223Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.224Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.224Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.225Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.225Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.226Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.227Z [DEBUG] Writing to temp file: /home/uatu/.claude.json.tmp.30.1763551569227
+2025-11-19T11:26:09.228Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T11:26:09.232Z [DEBUG] Temp file written successfully, size: 361 bytes
+2025-11-19T11:26:09.232Z [DEBUG] Applied original permissions to temp file
+2025-11-19T11:26:09.232Z [DEBUG] Renaming /home/uatu/.claude.json.tmp.30.1763551569227 to /home/uatu/.claude.json
+2025-11-19T11:26:09.232Z [DEBUG] File /home/uatu/.claude.json written atomically
+2025-11-19T11:26:09.233Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.233Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.234Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.234Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.237Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.237Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.237Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.237Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.238Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.238Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.238Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.239Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.239Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.239Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.240Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.240Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.241Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.241Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.241Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.241Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.255Z [DEBUG] Skills and commands included in Skill tool:
+2025-11-19T11:26:09.255Z [DEBUG] Slash commands included in SlashCommand tool:
+2025-11-19T11:26:09.329Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.329Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.329Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.330Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.330Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.331Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.332Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.332Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.332Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.333Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.333Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.333Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.333Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.333Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.334Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.335Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.336Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.336Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.337Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.339Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.340Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.345Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.349Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.349Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.349Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.349Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.349Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.350Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.356Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.356Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.398Z [ERROR] Error streaming, falling back to non-streaming mode: Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted
+2025-11-19T11:26:09.398Z [ERROR] Error streaming, falling back to non-streaming mode: Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted
+2025-11-19T11:26:09.399Z [ERROR] Error streaming, falling back to non-streaming mode: Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted
+2025-11-19T11:26:09.400Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.400Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.401Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.401Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.401Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.401Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.402Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.403Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.404Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.407Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.407Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.411Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.413Z [ERROR] Error in non-streaming fallback: Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted
+2025-11-19T11:26:09.414Z [ERROR] Error: Error: Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted
+    at YT.validateHeaders (file:///usr/local/bin/claude:778:1008)
+    at YT.buildHeaders (file:///usr/local/bin/claude:778:8501)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YT.buildRequest (file:///usr/local/bin/claude:778:7559)
+    at async YT.makeRequest (file:///usr/local/bin/claude:778:3387)
+    at async Z21.model (file:///usr/local/bin/claude:3752:14623)
+    at async Z21 (file:///usr/local/bin/claude:1965:39801)
+    at async hF9 (file:///usr/local/bin/claude:3752:14777)
+    at async file:///usr/local/bin/claude:3752:7954
+    at async ar1 (file:///usr/local/bin/claude:1729:1972)
+2025-11-19T11:26:09.415Z [ERROR] Error in non-streaming fallback: Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted
+2025-11-19T11:26:09.415Z [ERROR] Error: Error: Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted
+    at YT.validateHeaders (file:///usr/local/bin/claude:778:1008)
+    at YT.buildHeaders (file:///usr/local/bin/claude:778:8501)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YT.buildRequest (file:///usr/local/bin/claude:778:7559)
+    at async YT.makeRequest (file:///usr/local/bin/claude:778:3387)
+    at async Z21.model (file:///usr/local/bin/claude:3752:14623)
+    at async Z21 (file:///usr/local/bin/claude:1965:39801)
+    at async hF9 (file:///usr/local/bin/claude:3752:14777)
+    at async file:///usr/local/bin/claude:3752:7954
+    at async ar1 (file:///usr/local/bin/claude:1729:1972)
+2025-11-19T11:26:09.416Z [ERROR] Error in non-streaming fallback: Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted
+2025-11-19T11:26:09.416Z [ERROR] Error: Error: Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted
+    at YT.validateHeaders (file:///usr/local/bin/claude:778:1008)
+    at YT.buildHeaders (file:///usr/local/bin/claude:778:8501)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YT.buildRequest (file:///usr/local/bin/claude:778:7559)
+    at async YT.makeRequest (file:///usr/local/bin/claude:778:3387)
+    at async Z21.model (file:///usr/local/bin/claude:3752:14623)
+    at async Z21 (file:///usr/local/bin/claude:1965:39801)
+    at async hF9 (file:///usr/local/bin/claude:3752:14777)
+    at async file:///usr/local/bin/claude:3752:7954
+    at async ar1 (file:///usr/local/bin/claude:1729:1972)
+2025-11-19T11:26:09.417Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.417Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.418Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.418Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.418Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.433Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.435Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.435Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.436Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.436Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.444Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.447Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.451Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-11-19T11:26:09.451Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T11:26:09.451Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-11-19T11:26:09.451Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-11-19T11:26:09.451Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T11:26:09.451Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-11-19T11:26:09.463Z [DEBUG] Failed to record sidechain transcript: Error: EACCES: permission denied, mkdir '/home/uatu/.claude/projects/-app'
+2025-11-19T11:26:09.464Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.464Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.466Z [DEBUG] Failed to record sidechain transcript: Error: EACCES: permission denied, mkdir '/home/uatu/.claude/projects/-app'
+2025-11-19T11:26:09.467Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at Dh9 (file:///usr/local/bin/claude:70:47413)
+    at zS0._getInternalRequestArgs (file:///usr/local/bin/claude:70:47185)
+2025-11-19T11:26:09.467Z [ERROR] Error: Error: EACCES: permission denied, open '/home/uatu/.claude/statsig/statsig.session_id.2656274335'
+    at writeFileSync (node:fs:2368:20)
+    at bV1.setItem (file:///usr/local/bin/claude:70:75734)
+    at Object.setItem (file:///usr/local/bin/claude:70:15692)
+    at lb9 (file:///usr/local/bin/claude:70:15999)
+    at tf9 (file:///usr/local/bin/claude:70:40649)
+    at sf9 (file:///usr/local/bin/claude:70:40079)
+    at Object.get (file:///usr/local/bin/claude:70:39676)
+    at Object.get (file:///usr/local/bin/claude:70:39572)
+    at zS0.<anonymous> (file:///usr/local/bin/claude:70:45483)
+    at Generator.next (<anonymous>)
+2025-11-19T11:26:09.471Z [DEBUG] Getting matching hook commands for SessionEnd with query: other
+2025-11-19T11:26:09.471Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T11:26:09.471Z [DEBUG] Matched 0 unique hooks for query "other" (0 before deduplication)
+2025-11-19T11:26:09.473Z [DEBUG] LSP server manager shut down successfully
+2025-11-19T11:26:09.473Z [DEBUG] BigQuery metrics exporter flush complete
+2025-11-19T11:26:09.473Z [DEBUG] BigQuery metrics exporter flush complete
+2025-11-19T11:26:09.473Z [DEBUG] BigQuery metrics exporter shutdown complete

@@ -1,0 +1,88 @@
+[DEBUG] [Query.streamInput] Starting to process input stream
+[DEBUG] [Query.streamInput] this.sdkMcpTransports.size = 0
+[DEBUG] [Query.streamInput] Finished processing 0 messages from input stream
+[DEBUG] [Query.streamInput] About to check MCP servers. this.sdkMcpTransports.size = 0
+[DEBUG] [Query.streamInput] Entering Promise.race to wait for result
+[DEBUG] [Query.streamInput] Starting to process input stream
+[DEBUG] [Query.streamInput] this.sdkMcpTransports.size = 0
+[DEBUG] [Query.streamInput] Timed out waiting for first result, closing input stream
+[DEBUG] [Query] Calling transport.endInput() to close stdin to CLI process
+[DEBUG] [Query.streamInput] Processing message 1: user
+[DEBUG] [Query.streamInput] Processing message 2: user
+[DEBUG] [Query.streamInput] Processing message 3: user
+[DEBUG] [Query.streamInput] Processing message 4: user
+[DEBUG] [Query.streamInput] Processing message 5: user
+[DEBUG] [Query.streamInput] Processing message 6: user
+[DEBUG] [Query.streamInput] Processing message 7: user
+[DEBUG] [Query.streamInput] Processing message 8: user
+[DEBUG] [Query.streamInput] Processing message 9: user
+[DEBUG] [Query.streamInput] Processing message 10: user
+[DEBUG] [Query.streamInput] Processing message 11: user
+[DEBUG] [Query.streamInput] Processing message 12: user
+[DEBUG] [Query.streamInput] Processing message 13: user
+[DEBUG] [Query.streamInput] Processing message 14: user
+[DEBUG] [Query.streamInput] Processing message 15: user
+[DEBUG] [Query.streamInput] Processing message 16: user
+[DEBUG] [Query.streamInput] Processing message 17: user
+[DEBUG] [Query.streamInput] Processing message 18: user
+[DEBUG] [Query.streamInput] Processing message 19: user
+[DEBUG] [Query.streamInput] Processing message 20: user
+[DEBUG] [Query.streamInput] Processing message 21: user
+[DEBUG] [Query.streamInput] Processing message 22: user
+[DEBUG] [Query.streamInput] Processing message 23: user
+[DEBUG] [Query.streamInput] Processing message 24: user
+[DEBUG] [Query.streamInput] Processing message 25: user
+[DEBUG] [Query.streamInput] Processing message 26: user
+[DEBUG] [Query.streamInput] Processing message 27: user
+[DEBUG] [Query.streamInput] Processing message 28: user
+[DEBUG] [Query.streamInput] Processing message 29: user
+[DEBUG] [Query.streamInput] Processing message 30: user
+[DEBUG] [Query.streamInput] Processing message 31: user
+[DEBUG] [Query.streamInput] Processing message 32: user
+[DEBUG] [Query.streamInput] Processing message 33: user
+[DEBUG] [Query.streamInput] Processing message 34: user
+[DEBUG] [Query.streamInput] Processing message 35: user
+[DEBUG] [Query.streamInput] Processing message 36: user
+[DEBUG] [Query.streamInput] Processing message 37: user
+[DEBUG] [Query.streamInput] Processing message 38: user
+[DEBUG] [Query.streamInput] Processing message 39: user
+[DEBUG] [Query.streamInput] Processing message 40: user
+[DEBUG] [Query.streamInput] Processing message 41: user
+[DEBUG] [Query.streamInput] Processing message 42: user
+[DEBUG] [Query.streamInput] Processing message 43: user
+[DEBUG] [Query.streamInput] Processing message 44: user
+[DEBUG] [Query.streamInput] Processing message 45: user
+[DEBUG] [Query.streamInput] Processing message 46: user
+[DEBUG] [Query.streamInput] Processing message 47: user
+[DEBUG] [Query.streamInput] Processing message 48: user
+[DEBUG] [Query.streamInput] Processing message 49: user
+[DEBUG] [Query.streamInput] Processing message 50: user
+[DEBUG] [Query.streamInput] Processing message 51: user
+[DEBUG] [Query.streamInput] Processing message 52: user
+[DEBUG] [Query.streamInput] Processing message 53: user
+[DEBUG] [Query.streamInput] Processing message 54: user
+[DEBUG] [Query.streamInput] Finished processing 54 messages from input stream
+[DEBUG] [Query.streamInput] About to check MCP servers. this.sdkMcpTransports.size = 0
+[DEBUG] [Query.streamInput] Entering Promise.race to wait for result
+[DEBUG] [Query.streamInput] Received first result, closing input stream
+[DEBUG] [Query] Calling transport.endInput() to close stdin to CLI process
+[DEBUG] [Query.streamInput] Starting to process input stream
+[DEBUG] [Query.streamInput] this.sdkMcpTransports.size = 0
+[DEBUG] [Query.streamInput] Processing message 1: user
+[DEBUG] [Query.streamInput] Processing message 2: user
+[DEBUG] [Query.streamInput] Processing message 3: user
+[DEBUG] [Query.streamInput] Processing message 4: user
+[DEBUG] [Query.streamInput] Processing message 5: user
+[DEBUG] [Query.streamInput] Processing message 6: user
+[DEBUG] [Query.streamInput] Processing message 7: user
+[DEBUG] [Query.streamInput] Processing message 8: user
+[DEBUG] [Query.streamInput] Processing message 9: user
+[DEBUG] [Query.streamInput] Processing message 10: user
+[DEBUG] [Query.streamInput] Processing message 11: user
+[DEBUG] [Query.streamInput] Processing message 12: user
+[DEBUG] [Query.streamInput] Processing message 13: user
+[DEBUG] [Query.streamInput] Processing message 14: user
+[DEBUG] [Query.streamInput] Processing message 15: user
+[DEBUG] [Query.streamInput] Processing message 16: user
+[DEBUG] [Query.streamInput] Processing message 17: user
+[DEBUG] [Query.streamInput] Processing message 18: user

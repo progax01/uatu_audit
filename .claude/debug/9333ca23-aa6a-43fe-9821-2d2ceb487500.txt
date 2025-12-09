@@ -1,0 +1,435 @@
+2025-11-19T08:16:18.892Z [DEBUG] Watching for changes in setting files /home/azureuser/UatuAudit/.claude/settings.local.json...
+2025-11-19T08:16:18.905Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2025-11-19T08:16:18.905Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2025-11-19T08:16:18.905Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2025-11-19T08:16:18.905Z [DEBUG] [LSP SERVER MANAGER] initialize() called
+2025-11-19T08:16:18.905Z [DEBUG] [LSP SERVER MANAGER] Calling getAllLspServers()
+2025-11-19T08:16:18.945Z [DEBUG] Applying permission update: Adding 74 allow rule(s) to destination 'localSettings': ["Bash(chmod:*)","Bash(rm:*)","Bash(nslookup:*)","Bash(sudo apt update:*)","Bash(sudo apt install:*)","Bash(sudo systemctl status:*)","Bash(sudo mkdir:*)","Bash(sudo chown:*)","Bash(docker:*)","Bash(docker-compose:*)","Bash(curl:*)","Bash(sudo sh:*)","Bash(sudo usermod:*)","Bash(newgrp docker:*)","Bash(sudo ./init-letsencrypt.sh:*)","Bash(sed:*)","Bash(sudo bash:*)","Bash(sudo rm:*)","Bash(sudo docker compose:*)","Bash(sudo docker ps:*)","Bash(sudo ln:*)","Bash(sudo nginx:*)","Bash(sudo systemctl reload:*)","Bash(sudo certbot:*)","Bash(sudo docker logs:*)","Bash(docker-compose ps:*)","Bash(docker compose:*)","Bash(sudo docker exec:*)","Bash(sudo docker system:*)","Bash(tee:*)","Bash(sudo docker images:*)","Bash(npm run build:*)","Bash(pnpm run build:*)","Bash(sudo docker run --rm node:20-alpine sh -c \"npm install hardhat --silent && cat node_modules/.bin/hardhat | head -20\")","Bash(cat:*)","Bash(npm install:*)","Bash(npx tailwindcss:*)","Bash(npm run dev:ui:*)","Bash(pnpm install:*)","Bash(sudo npm install:*)","Bash(npm run build:ui:*)","Bash(npm uninstall:*)","Bash(pkill:*)","Bash(npm run docker:restart:*)","Bash(npm run docker:stop:*)","Bash(npm run docker:start:*)","Bash(pnpm add:*)","Bash(xargs sudo docker exec uatu-app tail -200)","Bash(xargs:*)","Bash(sudo docker cp:*)","Bash(node dist/cli.js run:*)","Bash(node dist/bin/uatu.js run:*)","Bash(git clone:*)","Bash(git config:*)","Bash(/tmp/LandRegistry-report.html)","Bash(pdftotext:*)","Bash(sudo docker restart:*)","Bash(/home/azureuser/TribesByAstrixTest-WORKING-report.pdf)","Bash(sudo docker build:*)","Bash(node -e:*)","Bash(jq:*)","Bash(git init:*)","Bash(git add:*)","Bash(git commit:*)","Bash(timeout 120 sudo docker exec:*)","Bash(sudo docker inspect:*)","Bash(find:*)","Bash(node /tmp/test-deps.js:*)","Bash(netstat:*)","Bash(ss:*)","Bash(bash)","Bash(~/.bashrc)","Bash(source ~/.bashrc)","Bash(~/.local/bin/claude:*)"]
+2025-11-19T08:16:18.946Z [DEBUG] Found 0 plugins (0 enabled, 0 disabled)
+2025-11-19T08:16:18.947Z [DEBUG] Total LSP servers loaded: 0
+2025-11-19T08:16:18.948Z [DEBUG] [LSP SERVER MANAGER] getAllLspServers returned 0 server(s)
+2025-11-19T08:16:18.948Z [DEBUG] LSP manager initialized with 0 servers
+2025-11-19T08:16:18.949Z [DEBUG] LSP server manager initialized successfully
+2025-11-19T08:16:18.949Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2025-11-19T08:16:18.971Z [DEBUG] Loading skills from directories: managed=/etc/claude-code/.claude/skills, user=/home/azureuser/.claude/skills, project=/home/azureuser/UatuAudit/.claude/skills
+2025-11-19T08:16:18.971Z [DEBUG] >>>>> getPluginSkills CALLED <<<<<
+2025-11-19T08:16:18.971Z [DEBUG] Passes: Using fresh cached eligibility data
+2025-11-19T08:16:18.992Z [DEBUG] Creating shell snapshot for bash (/bin/bash)
+2025-11-19T08:16:18.992Z [DEBUG] Looking for shell config file: /home/azureuser/.bashrc
+2025-11-19T08:16:18.992Z [DEBUG] Snapshots directory: /home/azureuser/.claude/shell-snapshots
+2025-11-19T08:16:18.993Z [DEBUG] Creating snapshot at: /home/azureuser/.claude/shell-snapshots/snapshot-bash-1763540178992-31nl49.sh
+2025-11-19T08:16:18.993Z [DEBUG] Shell binary exists: true
+2025-11-19T08:16:18.993Z [DEBUG] Execution timeout: 10000ms
+2025-11-19T08:16:18.995Z [DEBUG] Writing to temp file: /home/azureuser/.claude/todos/9333ca23-aa6a-43fe-9821-2d2ceb487500-agent-9333ca23-aa6a-43fe-9821-2d2ceb487500.json.tmp.3139058.1763540178995
+2025-11-19T08:16:19.000Z [DEBUG] Temp file written successfully, size: 2 bytes
+2025-11-19T08:16:19.000Z [DEBUG] Renaming /home/azureuser/.claude/todos/9333ca23-aa6a-43fe-9821-2d2ceb487500-agent-9333ca23-aa6a-43fe-9821-2d2ceb487500.json.tmp.3139058.1763540178995 to /home/azureuser/.claude/todos/9333ca23-aa6a-43fe-9821-2d2ceb487500-agent-9333ca23-aa6a-43fe-9821-2d2ceb487500.json
+2025-11-19T08:16:19.000Z [DEBUG] File /home/azureuser/.claude/todos/9333ca23-aa6a-43fe-9821-2d2ceb487500-agent-9333ca23-aa6a-43fe-9821-2d2ceb487500.json written atomically
+2025-11-19T08:16:19.013Z [DEBUG] getPluginSkills: Processing 0 enabled plugins
+2025-11-19T08:16:19.013Z [DEBUG] Total plugin skills loaded: 0
+2025-11-19T08:16:19.013Z [DEBUG] Total plugin commands loaded: 0
+2025-11-19T08:16:19.014Z [DEBUG] Registered 0 hooks from 0 plugins
+2025-11-19T08:16:19.020Z [DEBUG] Loaded 0 unique skills (managed: 0, user: 0, project: 0, duplicates removed: 0)
+2025-11-19T08:16:19.024Z [DEBUG] getSkillsIfEnabled returning: 0 skill dir commands, 0 plugin skills
+2025-11-19T08:16:19.026Z [DEBUG] Total plugin agents loaded: 0
+2025-11-19T08:16:19.061Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540179061
+2025-11-19T08:16:19.061Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:16:19.069Z [DEBUG] Temp file written successfully, size: 1725 bytes
+2025-11-19T08:16:19.069Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:16:19.069Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540179061 to /home/azureuser/.claude.json
+2025-11-19T08:16:19.069Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:16:19.079Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540179079
+2025-11-19T08:16:19.079Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:16:19.085Z [DEBUG] Temp file written successfully, size: 1725 bytes
+2025-11-19T08:16:19.085Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:16:19.085Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540179079 to /home/azureuser/.claude.json
+2025-11-19T08:16:19.085Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:16:19.289Z [DEBUG] Acquired lock on running version: /home/azureuser/.local/share/claude/versions/2.0.46
+2025-11-19T08:16:19.302Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540179302
+2025-11-19T08:16:19.302Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:16:19.309Z [DEBUG] Temp file written successfully, size: 40695 bytes
+2025-11-19T08:16:19.309Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:16:19.309Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540179302 to /home/azureuser/.claude.json
+2025-11-19T08:16:19.309Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:16:19.588Z [DEBUG] Metrics opt-out API response: enabled=true, vcsLinking=false
+2025-11-19T08:16:19.602Z [DEBUG] Shell snapshot created successfully (3306 bytes)
+2025-11-19T08:16:20.485Z [DEBUG] Ripgrep first use test: PASSED (mode=builtin, path=/home/azureuser/.local/share/claude/versions/2.0.46)
+2025-11-19T08:16:24.503Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540184503
+2025-11-19T08:16:24.503Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:16:24.508Z [DEBUG] Temp file written successfully, size: 40695 bytes
+2025-11-19T08:16:24.509Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:16:24.509Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540184503 to /home/azureuser/.claude.json
+2025-11-19T08:16:24.509Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:16:24.510Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540184510
+2025-11-19T08:16:24.510Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:16:24.516Z [DEBUG] Temp file written successfully, size: 40695 bytes
+2025-11-19T08:16:24.516Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:16:24.516Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540184510 to /home/azureuser/.claude.json
+2025-11-19T08:16:24.516Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:16:58.324Z [DEBUG] Telemetry flushed successfully
+2025-11-19T08:16:58.326Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540218326
+2025-11-19T08:16:58.326Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:16:58.330Z [DEBUG] Temp file written successfully, size: 40695 bytes
+2025-11-19T08:16:58.330Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:16:58.330Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540218326 to /home/azureuser/.claude.json
+2025-11-19T08:16:58.330Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:16:58.332Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540218332
+2025-11-19T08:16:58.332Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:16:58.339Z [DEBUG] Temp file written successfully, size: 40415 bytes
+2025-11-19T08:16:58.339Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:16:58.339Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540218332 to /home/azureuser/.claude.json
+2025-11-19T08:16:58.339Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:16:58.686Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540218686
+2025-11-19T08:16:58.686Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:16:58.691Z [DEBUG] Temp file written successfully, size: 40695 bytes
+2025-11-19T08:16:58.691Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:16:58.691Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540218686 to /home/azureuser/.claude.json
+2025-11-19T08:16:58.691Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:16:59.129Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540219129
+2025-11-19T08:16:59.130Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:16:59.134Z [DEBUG] Temp file written successfully, size: 40824 bytes
+2025-11-19T08:16:59.135Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:16:59.135Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540219129 to /home/azureuser/.claude.json
+2025-11-19T08:16:59.135Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:16:59.529Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540219529
+2025-11-19T08:16:59.529Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:16:59.533Z [DEBUG] Temp file written successfully, size: 40885 bytes
+2025-11-19T08:16:59.534Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:16:59.534Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540219529 to /home/azureuser/.claude.json
+2025-11-19T08:16:59.534Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:16:59.538Z [DEBUG] Skipping Notification:auth_success hook execution - workspace trust not accepted
+2025-11-19T08:17:10.392Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540230392
+2025-11-19T08:17:10.393Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:10.400Z [DEBUG] Temp file written successfully, size: 40992 bytes
+2025-11-19T08:17:10.400Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:10.400Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540230392 to /home/azureuser/.claude.json
+2025-11-19T08:17:10.401Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:25.320Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540245320
+2025-11-19T08:17:25.320Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:25.329Z [DEBUG] Temp file written successfully, size: 41063 bytes
+2025-11-19T08:17:25.329Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:25.329Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540245320 to /home/azureuser/.claude.json
+2025-11-19T08:17:25.329Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:28.343Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540248343
+2025-11-19T08:17:28.343Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:28.348Z [DEBUG] Temp file written successfully, size: 41062 bytes
+2025-11-19T08:17:28.348Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:28.348Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540248343 to /home/azureuser/.claude.json
+2025-11-19T08:17:28.348Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:29.583Z [DEBUG] Passes: Using fresh cached eligibility data
+2025-11-19T08:17:29.598Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540249598
+2025-11-19T08:17:29.598Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:29.604Z [DEBUG] Temp file written successfully, size: 41082 bytes
+2025-11-19T08:17:29.604Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:29.605Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540249598 to /home/azureuser/.claude.json
+2025-11-19T08:17:29.605Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:29.608Z [DEBUG] Getting matching hook commands for SessionStart with query: startup
+2025-11-19T08:17:29.608Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T08:17:29.609Z [DEBUG] Matched 0 unique hooks for query "startup" (0 before deduplication)
+2025-11-19T08:17:29.619Z [DEBUG] Skills and commands included in Skill tool:
+2025-11-19T08:17:29.619Z [DEBUG] Slash commands included in SlashCommand tool:
+2025-11-19T08:17:29.652Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540249652
+2025-11-19T08:17:29.652Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:29.658Z [DEBUG] Temp file written successfully, size: 41118 bytes
+2025-11-19T08:17:29.658Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:29.658Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540249652 to /home/azureuser/.claude.json
+2025-11-19T08:17:29.658Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:29.660Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540249660
+2025-11-19T08:17:29.660Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:29.664Z [DEBUG] Temp file written successfully, size: 41118 bytes
+2025-11-19T08:17:29.664Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:29.664Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540249660 to /home/azureuser/.claude.json
+2025-11-19T08:17:29.664Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:29.668Z [DEBUG] performStartupChecks called
+2025-11-19T08:17:29.668Z [DEBUG] Starting background plugin installations
+2025-11-19T08:17:29.668Z [DEBUG] performBackgroundPluginInstallations called
+2025-11-19T08:17:29.695Z [DEBUG] AutoUpdaterWrapper: Installation type: native
+2025-11-19T08:17:29.746Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540249746
+2025-11-19T08:17:29.746Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:29.751Z [DEBUG] Temp file written successfully, size: 41223 bytes
+2025-11-19T08:17:29.751Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:29.751Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540249746 to /home/azureuser/.claude.json
+2025-11-19T08:17:29.751Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:29.771Z [DEBUG] Setting installation status: 0 marketplaces, 0 installable plugins, 0 uninstallable plugins
+2025-11-19T08:17:29.791Z [DEBUG] Loaded plugins - Enabled: 0, Disabled: 0, Commands: 0, Agents: 0, Errors: 0
+2025-11-19T08:17:29.886Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-11-19T08:17:29.886Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-11-19T08:17:29.892Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-11-19T08:17:29.892Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-11-19T08:17:29.913Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540249913
+2025-11-19T08:17:29.913Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:29.918Z [DEBUG] Temp file written successfully, size: 41252 bytes
+2025-11-19T08:17:29.918Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:29.918Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540249913 to /home/azureuser/.claude.json
+2025-11-19T08:17:29.918Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:29.958Z [DEBUG] MCP server "ide": Starting connection with timeout of 30000ms
+2025-11-19T08:17:29.959Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-11-19T08:17:29.959Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T08:17:29.959Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-11-19T08:17:29.967Z [DEBUG] FileHistory: Added snapshot for b6bdd1bd-b8b0-431d-9557-315b38dac81b, tracking 0 files
+2025-11-19T08:17:30.024Z [DEBUG] Total plugin output styles loaded: 0
+2025-11-19T08:17:30.026Z [DEBUG] Summarizing all 25 messages (~5829 tokens)
+2025-11-19T08:17:30.051Z [DEBUG] Getting matching hook commands for SubagentStart with query: Explore
+2025-11-19T08:17:30.051Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T08:17:30.051Z [DEBUG] Matched 0 unique hooks for query "Explore" (0 before deduplication)
+2025-11-19T08:17:30.060Z [DEBUG] Getting matching hook commands for SubagentStart with query: Plan
+2025-11-19T08:17:30.060Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T08:17:30.060Z [DEBUG] Matched 0 unique hooks for query "Plan" (0 before deduplication)
+2025-11-19T08:17:30.092Z [DEBUG] Skills and commands included in Skill tool:
+2025-11-19T08:17:30.092Z [DEBUG] Slash commands included in SlashCommand tool:
+2025-11-19T08:17:30.103Z [ERROR] Error: Error: console.error: The model 'claude-3-7-sonnet-latest' is deprecated and will reach end-of-life on February 19th, 2026
+Please migrate to a newer model. Visit https://docs.anthropic.com/en/docs/resources/model-deprecations for more information.
+
+    at <anonymous> (/$bunfs/root/claude:217:8315)
+    at <anonymous> (/$bunfs/root/claude:97:2503)
+    at value (native:173:22)
+    at warn (native:243:9)
+    at create (/$bunfs/root/claude:722:8273)
+    at _createMessage (/$bunfs/root/claude:393:2969)
+    at _createMessage (/$bunfs/root/claude:393:3239)
+    at _run (/$bunfs/root/claude:393:2543)
+    at createMessage (/$bunfs/root/claude:393:2421)
+    at <anonymous> (/$bunfs/root/claude:3851:10102)
+2025-11-19T08:17:30.140Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540250140
+2025-11-19T08:17:30.140Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:30.146Z [DEBUG] Temp file written successfully, size: 41252 bytes
+2025-11-19T08:17:30.146Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:30.146Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540250140 to /home/azureuser/.claude.json
+2025-11-19T08:17:30.146Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:30.168Z [DEBUG] MCP server "ide": Successfully connected to ws-ide server in 217ms
+2025-11-19T08:17:30.168Z [DEBUG] MCP server "ide": Connection established with capabilities: {"hasTools":true,"hasPrompts":false,"hasResources":false,"serverVersion":{"name":"Claude Code VSCode MCP","version":"2.0.44"}}
+2025-11-19T08:17:30.377Z [DEBUG] Checking for native installer update to version 2.0.46
+2025-11-19T08:17:30.819Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:30.940Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:31.075Z [DEBUG] Summarizing all 9 messages (~4332 tokens)
+2025-11-19T08:17:31.772Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540251772
+2025-11-19T08:17:31.772Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:31.777Z [DEBUG] Temp file written successfully, size: 41280 bytes
+2025-11-19T08:17:31.777Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:31.777Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540251772 to /home/azureuser/.claude.json
+2025-11-19T08:17:31.777Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:32.255Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:32.330Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:32.339Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:32.566Z [DEBUG] Summarizing all 2 messages (~0 tokens)
+2025-11-19T08:17:33.112Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2025-11-19T08:17:33.112Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T08:17:33.112Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-11-19T08:17:33.161Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540253161
+2025-11-19T08:17:33.162Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:33.167Z [DEBUG] Temp file written successfully, size: 41329 bytes
+2025-11-19T08:17:33.167Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:33.167Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540253161 to /home/azureuser/.claude.json
+2025-11-19T08:17:33.167Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:33.492Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:35.057Z [DEBUG] Summarizing last 155 of 167 messages (~133271 tokens)
+2025-11-19T08:17:35.089Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-11-19T08:17:35.089Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T08:17:35.089Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-11-19T08:17:35.319Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-11-19T08:17:35.319Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T08:17:35.319Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-11-19T08:17:36.925Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:37.264Z [DEBUG] Summarizing all 165 messages (~126835 tokens)
+2025-11-19T08:17:37.397Z [ERROR] Error: Error: NON-FATAL: Lock acquisition failed for /home/azureuser/.local/share/claude/versions/2.0.46 (expected in multi-process scenarios)
+    at mVD (/$bunfs/root/claude:2530:1516)
+    at PMA (/$bunfs/root/claude:2528:12595)
+    at async il1 (/$bunfs/root/claude:2528:13801)
+    at async Ob (/$bunfs/root/claude:2530:236)
+    at async <anonymous> (/$bunfs/root/claude:2530:12383)
+    at processTicksAndRejections (native:7:39)
+2025-11-19T08:17:39.019Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:39.297Z [DEBUG] Summarizing all 110 messages (~119657 tokens)
+2025-11-19T08:17:40.155Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:40.380Z [DEBUG] Summarizing all 124 messages (~121616 tokens)
+2025-11-19T08:17:41.291Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:41.588Z [DEBUG] Summarizing all 131 messages (~123655 tokens)
+2025-11-19T08:17:42.566Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:42.889Z [DEBUG] Summarizing all 290 messages (~137008 tokens)
+2025-11-19T08:17:44.466Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:44.668Z [DEBUG] Summarizing all 356 messages (~125863 tokens)
+2025-11-19T08:17:44.768Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-11-19T08:17:44.768Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-11-19T08:17:44.783Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-11-19T08:17:44.783Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-11-19T08:17:44.853Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-11-19T08:17:44.853Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T08:17:44.853Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-11-19T08:17:44.854Z [DEBUG] FileHistory: Making snapshot for message 97ab81ff-eb08-4604-8edd-7a4bb0c00b55
+2025-11-19T08:17:44.854Z [DEBUG] FileHistory: Added snapshot for 97ab81ff-eb08-4604-8edd-7a4bb0c00b55, tracking 0 files
+2025-11-19T08:17:44.907Z [DEBUG] MCP server "ide": Calling MCP tool: closeAllDiffTabs
+2025-11-19T08:17:44.953Z [DEBUG] Skills and commands included in Skill tool:
+2025-11-19T08:17:44.953Z [DEBUG] Slash commands included in SlashCommand tool:
+2025-11-19T08:17:44.964Z [ERROR] Error: Error: console.error: The model 'claude-3-7-sonnet-latest' is deprecated and will reach end-of-life on February 19th, 2026
+Please migrate to a newer model. Visit https://docs.anthropic.com/en/docs/resources/model-deprecations for more information.
+
+    at <anonymous> (/$bunfs/root/claude:217:8315)
+    at <anonymous> (/$bunfs/root/claude:97:2503)
+    at value (native:173:22)
+    at warn (native:243:9)
+    at create (/$bunfs/root/claude:722:8273)
+    at _createMessage (/$bunfs/root/claude:393:2969)
+    at _createMessage (/$bunfs/root/claude:393:3239)
+    at _run (/$bunfs/root/claude:393:2543)
+    at createMessage (/$bunfs/root/claude:393:2421)
+    at <anonymous> (/$bunfs/root/claude:3851:10102)
+2025-11-19T08:17:44.969Z [DEBUG] MCP server "ide": Tool 'closeAllDiffTabs' completed successfully in 62ms
+2025-11-19T08:17:45.681Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:46.127Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:46.366Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:46.480Z [DEBUG] Summarizing all 211 messages (~128853 tokens)
+2025-11-19T08:17:47.448Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2025-11-19T08:17:47.448Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T08:17:47.448Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-11-19T08:17:47.474Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540267474
+2025-11-19T08:17:47.474Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:47.479Z [DEBUG] Temp file written successfully, size: 41367 bytes
+2025-11-19T08:17:47.479Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:47.479Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540267474 to /home/azureuser/.claude.json
+2025-11-19T08:17:47.479Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:47.484Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540267484
+2025-11-19T08:17:47.484Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:47.489Z [DEBUG] Temp file written successfully, size: 41367 bytes
+2025-11-19T08:17:47.489Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:47.489Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540267484 to /home/azureuser/.claude.json
+2025-11-19T08:17:47.489Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:47.525Z [DEBUG] MCP server "ide": Calling MCP tool: getDiagnostics
+2025-11-19T08:17:47.526Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-11-19T08:17:47.526Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-11-19T08:17:47.535Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-11-19T08:17:47.535Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-11-19T08:17:47.549Z [DEBUG] MCP server "ide": Tool 'getDiagnostics' completed successfully in 24ms
+2025-11-19T08:17:47.577Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-11-19T08:17:47.577Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T08:17:47.577Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-11-19T08:17:47.578Z [DEBUG] FileHistory: Making snapshot for message 28a216e9-8062-44c6-982c-d77b2f8ca354
+2025-11-19T08:17:47.578Z [DEBUG] FileHistory: Added snapshot for 28a216e9-8062-44c6-982c-d77b2f8ca354, tracking 0 files
+2025-11-19T08:17:47.610Z [DEBUG] MCP server "ide": Calling MCP tool: closeAllDiffTabs
+2025-11-19T08:17:47.633Z [DEBUG] MCP server "ide": Tool 'closeAllDiffTabs' completed successfully in 23ms
+2025-11-19T08:17:47.657Z [DEBUG] Skills and commands included in Skill tool:
+2025-11-19T08:17:47.657Z [DEBUG] Slash commands included in SlashCommand tool:
+2025-11-19T08:17:47.667Z [ERROR] Error: Error: console.error: The model 'claude-3-7-sonnet-latest' is deprecated and will reach end-of-life on February 19th, 2026
+Please migrate to a newer model. Visit https://docs.anthropic.com/en/docs/resources/model-deprecations for more information.
+
+    at <anonymous> (/$bunfs/root/claude:217:8315)
+    at <anonymous> (/$bunfs/root/claude:97:2503)
+    at value (native:173:22)
+    at warn (native:243:9)
+    at create (/$bunfs/root/claude:722:8273)
+    at _createMessage (/$bunfs/root/claude:393:2969)
+    at _createMessage (/$bunfs/root/claude:393:3239)
+    at _run (/$bunfs/root/claude:393:2543)
+    at createMessage (/$bunfs/root/claude:393:2421)
+    at <anonymous> (/$bunfs/root/claude:3851:10102)
+2025-11-19T08:17:48.050Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:48.307Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:48.477Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:48.553Z [DEBUG] Summarizing all 154 messages (~116174 tokens)
+2025-11-19T08:17:49.734Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2025-11-19T08:17:49.734Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T08:17:49.734Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-11-19T08:17:49.755Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540269755
+2025-11-19T08:17:49.755Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:49.759Z [DEBUG] Temp file written successfully, size: 41392 bytes
+2025-11-19T08:17:49.759Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:49.759Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540269755 to /home/azureuser/.claude.json
+2025-11-19T08:17:49.759Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:49.765Z [DEBUG] Writing to temp file: /home/azureuser/.claude.json.tmp.3139058.1763540269765
+2025-11-19T08:17:49.765Z [DEBUG] Preserving file permissions: 100600
+2025-11-19T08:17:49.769Z [DEBUG] Temp file written successfully, size: 41392 bytes
+2025-11-19T08:17:49.769Z [DEBUG] Applied original permissions to temp file
+2025-11-19T08:17:49.769Z [DEBUG] Renaming /home/azureuser/.claude.json.tmp.3139058.1763540269765 to /home/azureuser/.claude.json
+2025-11-19T08:17:49.769Z [DEBUG] File /home/azureuser/.claude.json written atomically
+2025-11-19T08:17:50.019Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:50.277Z [DEBUG] Summarizing all 213 messages (~124005 tokens)
+2025-11-19T08:17:51.852Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:52.168Z [DEBUG] Summarizing all 489 messages (~146338 tokens)
+2025-11-19T08:17:54.986Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:55.484Z [DEBUG] Summarizing all 305 messages (~118462 tokens)
+2025-11-19T08:17:56.640Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:56.895Z [DEBUG] Summarizing last 327 of 375 messages (~149758 tokens)
+2025-11-19T08:17:58.554Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:17:58.833Z [DEBUG] Summarizing last 326 of 352 messages (~146702 tokens)
+2025-11-19T08:18:00.196Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:00.528Z [DEBUG] Summarizing all 35 messages (~13595 tokens)
+2025-11-19T08:18:01.451Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:01.801Z [DEBUG] Summarizing last 434 of 441 messages (~149811 tokens)
+2025-11-19T08:18:03.163Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:03.430Z [DEBUG] Summarizing all 213 messages (~133555 tokens)
+2025-11-19T08:18:04.636Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:04.907Z [DEBUG] Summarizing all 162 messages (~129969 tokens)
+2025-11-19T08:18:06.002Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:06.326Z [DEBUG] Summarizing all 133 messages (~143581 tokens)
+2025-11-19T08:18:08.172Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:08.474Z [DEBUG] Summarizing all 86 messages (~120869 tokens)
+2025-11-19T08:18:10.312Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:10.693Z [DEBUG] Summarizing all 78 messages (~124600 tokens)
+2025-11-19T08:18:11.683Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:12.018Z [DEBUG] Summarizing all 126 messages (~131740 tokens)
+2025-11-19T08:18:13.545Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:13.950Z [DEBUG] Summarizing all 75 messages (~132976 tokens)
+2025-11-19T08:18:15.661Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:15.940Z [DEBUG] Summarizing all 74 messages (~123550 tokens)
+2025-11-19T08:18:17.791Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:18.113Z [DEBUG] Summarizing all 52 messages (~109997 tokens)
+2025-11-19T08:18:19.777Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:20.156Z [DEBUG] Summarizing last 172 of 212 messages (~148823 tokens)
+2025-11-19T08:18:21.990Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:22.225Z [DEBUG] Summarizing all 124 messages (~98997 tokens)
+2025-11-19T08:18:23.840Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:24.043Z [DEBUG] Summarizing last 234 of 291 messages (~147358 tokens)
+2025-11-19T08:18:25.793Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:25.972Z [DEBUG] Summarizing all 157 messages (~110050 tokens)
+2025-11-19T08:18:27.331Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:27.606Z [DEBUG] Summarizing all 233 messages (~127060 tokens)
+2025-11-19T08:18:29.330Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:29.705Z [DEBUG] Summarizing all 247 messages (~128824 tokens)
+2025-11-19T08:18:31.213Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:31.613Z [DEBUG] Summarizing all 161 messages (~117667 tokens)
+2025-11-19T08:18:33.247Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:33.481Z [DEBUG] Summarizing all 281 messages (~123567 tokens)
+2025-11-19T08:18:34.525Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:34.877Z [DEBUG] Summarizing last 348 of 387 messages (~149764 tokens)
+2025-11-19T08:18:36.942Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:37.209Z [DEBUG] Summarizing all 219 messages (~73646 tokens)
+2025-11-19T08:18:39.211Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:39.386Z [DEBUG] Summarizing last 295 of 346 messages (~148009 tokens)
+2025-11-19T08:18:40.409Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:40.706Z [DEBUG] Summarizing all 135 messages (~130657 tokens)
+2025-11-19T08:18:42.217Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:42.443Z [DEBUG] Summarizing all 106 messages (~133823 tokens)
+2025-11-19T08:18:43.416Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:43.685Z [DEBUG] Summarizing all 72 messages (~83169 tokens)
+2025-11-19T08:18:44.755Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:45.123Z [DEBUG] Summarizing all 27 messages (~25086 tokens)
+2025-11-19T08:18:47.570Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:47.984Z [DEBUG] Summarizing all 137 messages (~35978 tokens)
+2025-11-19T08:18:48.696Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:18:48.975Z [DEBUG] Summarizing all 213 messages (~75214 tokens)
+2025-11-19T08:18:49.751Z [DEBUG] Getting matching hook commands for Notification with query: idle_prompt
+2025-11-19T08:18:49.751Z [DEBUG] Found 0 hook matchers in settings
+2025-11-19T08:18:49.751Z [DEBUG] Matched 0 unique hooks for query "idle_prompt" (0 before deduplication)
+2025-11-19T08:18:50.137Z [DEBUG] Stream started - received first chunk
+2025-11-19T08:47:30.248Z [DEBUG] Checking for native installer update to version 2.0.46
+2025-11-19T08:47:37.248Z [ERROR] Error: Error: NON-FATAL: Lock acquisition failed for /home/azureuser/.local/share/claude/versions/2.0.46 (expected in multi-process scenarios)
+    at mVD (/$bunfs/root/claude:2530:1516)
+    at PMA (/$bunfs/root/claude:2528:12595)
+    at async il1 (/$bunfs/root/claude:2528:13801)
+    at async Ob (/$bunfs/root/claude:2530:236)
+    at async <anonymous> (/$bunfs/root/claude:2530:12383)
+    at processTicksAndRejections (native:7:39)
+2025-11-19T09:17:31.110Z [DEBUG] Checking for native installer update to version 2.0.46
+2025-11-19T09:17:38.117Z [ERROR] Error: Error: NON-FATAL: Lock acquisition failed for /home/azureuser/.local/share/claude/versions/2.0.46 (expected in multi-process scenarios)
+    at mVD (/$bunfs/root/claude:2530:1516)
+    at PMA (/$bunfs/root/claude:2528:12595)
+    at async il1 (/$bunfs/root/claude:2528:13801)
+    at async Ob (/$bunfs/root/claude:2530:236)
+    at async <anonymous> (/$bunfs/root/claude:2530:12383)
+    at processTicksAndRejections (native:7:39)
+2025-11-19T09:47:30.277Z [DEBUG] Checking for native installer update to version 2.0.46
+2025-11-19T09:47:37.281Z [ERROR] Error: Error: NON-FATAL: Lock acquisition failed for /home/azureuser/.local/share/claude/versions/2.0.46 (expected in multi-process scenarios)
+    at mVD (/$bunfs/root/claude:2530:1516)
+    at PMA (/$bunfs/root/claude:2528:12595)
+    at async il1 (/$bunfs/root/claude:2528:13801)
+    at async Ob (/$bunfs/root/claude:2530:236)
+    at async <anonymous> (/$bunfs/root/claude:2530:12383)
+    at processTicksAndRejections (native:7:39)

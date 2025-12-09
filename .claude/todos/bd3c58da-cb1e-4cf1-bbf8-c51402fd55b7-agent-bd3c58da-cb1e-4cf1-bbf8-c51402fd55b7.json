@@ -1,0 +1,12 @@
+[
+  {
+    "content": "Install Docker",
+    "status": "completed",
+    "activeForm": "Installing Docker"
+  },
+  {
+    "content": "Run init-letsencrypt script",
+    "status": "in_progress",
+    "activeForm": "Running init-letsencrypt script"
+  }
+]

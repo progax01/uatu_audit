@@ -1,0 +1,6 @@
+2025-11-19T10:10:24.612Z [DEBUG] Watching for changes in setting files /home/azureuser/UatuAudit/.claude/settings.local.json...
+2025-11-19T10:10:24.674Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2025-11-19T10:10:24.674Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2025-11-19T10:10:24.674Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2025-11-19T10:10:24.675Z [DEBUG] [LSP SERVER MANAGER] initialize() called
+2025-11-19T10:10:24.675Z [DEBUG] [LSP SERVER MANAGER] Calling getAllLspServers()

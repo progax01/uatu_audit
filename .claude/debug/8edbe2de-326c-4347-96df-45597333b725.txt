@@ -1,0 +1,68 @@
+2025-11-17T06:25:32.579Z [DEBUG] [Query.streamInput] Starting to process input stream
+2025-11-17T06:25:32.580Z [DEBUG] [Query.streamInput] this.sdkMcpTransports.size = 0
+2025-11-17T06:25:32.581Z [DEBUG] [Query.streamInput] Finished processing 0 messages from input stream
+2025-11-17T06:25:32.581Z [DEBUG] [Query.streamInput] About to check MCP servers. this.sdkMcpTransports.size = 0
+2025-11-17T06:25:32.581Z [DEBUG] [Query.streamInput] Entering Promise.race to wait for result
+2025-11-17T06:25:43.061Z [DEBUG] [Query.streamInput] Starting to process input stream
+2025-11-17T06:25:43.062Z [DEBUG] [Query.streamInput] this.sdkMcpTransports.size = 1
+2025-11-17T06:25:43.281Z [DEBUG] [Query.streamInput] Starting to process input stream
+2025-11-17T06:25:43.281Z [DEBUG] [Query.streamInput] this.sdkMcpTransports.size = 0
+2025-11-17T06:25:43.281Z [DEBUG] [Query.streamInput] Finished processing 0 messages from input stream
+2025-11-17T06:25:43.281Z [DEBUG] [Query.streamInput] About to check MCP servers. this.sdkMcpTransports.size = 0
+2025-11-17T06:25:43.281Z [DEBUG] [Query.streamInput] Entering Promise.race to wait for result
+2025-11-17T06:25:43.393Z [DEBUG] [Query.streamInput] Starting to process input stream
+2025-11-17T06:25:43.393Z [DEBUG] [Query.streamInput] this.sdkMcpTransports.size = 1
+2025-11-17T06:25:44.559Z [DEBUG] [Query.streamInput] Finished processing 0 messages from input stream
+2025-11-17T06:25:44.560Z [DEBUG] [Query.streamInput] About to check MCP servers. this.sdkMcpTransports.size = 1
+2025-11-17T06:25:44.560Z [DEBUG] [Query.streamInput] Entering Promise.race to wait for result
+2025-11-17T06:26:32.582Z [DEBUG] [Query.streamInput] Timed out waiting for first result, closing input stream
+2025-11-17T06:26:32.582Z [DEBUG] [Query] Calling transport.endInput() to close stdin to CLI process
+2025-11-17T06:26:43.282Z [DEBUG] [Query.streamInput] Timed out waiting for first result, closing input stream
+2025-11-17T06:26:43.282Z [DEBUG] [Query] Calling transport.endInput() to close stdin to CLI process
+2025-11-17T06:26:44.559Z [DEBUG] [Query.streamInput] Timed out waiting for first result, closing input stream
+2025-11-17T06:26:44.559Z [DEBUG] [Query] Calling transport.endInput() to close stdin to CLI process
+2025-11-17T06:29:40.466Z [DEBUG] [Query.streamInput] Processing message 1: user
+2025-11-17T06:30:10.818Z [DEBUG] [Query.streamInput] Processing message 2: user
+2025-11-17T06:56:38.671Z [DEBUG] [Query.streamInput] Processing message 3: user
+2025-11-17T07:07:15.013Z [DEBUG] [Query.streamInput] Processing message 4: user
+2025-11-17T07:08:35.600Z [DEBUG] [Query.streamInput] Processing message 5: user
+2025-11-17T07:13:11.893Z [DEBUG] [Query.streamInput] Processing message 6: user
+2025-11-17T07:16:49.020Z [DEBUG] [Query.streamInput] Processing message 7: user
+2025-11-17T07:20:20.699Z [DEBUG] [Query.streamInput] Processing message 8: user
+2025-11-17T07:33:05.125Z [DEBUG] [Query.streamInput] Processing message 9: user
+2025-11-17T07:36:00.557Z [DEBUG] [Query.streamInput] Processing message 10: user
+2025-11-17T07:54:08.856Z [DEBUG] [Query.streamInput] Processing message 11: user
+2025-11-17T07:56:40.981Z [DEBUG] [Query.streamInput] Processing message 12: user
+2025-11-17T08:11:56.198Z [DEBUG] [Query.streamInput] Processing message 13: user
+2025-11-17T08:22:41.096Z [DEBUG] [Query.streamInput] Processing message 14: user
+2025-11-17T08:24:25.313Z [DEBUG] [Query.streamInput] Processing message 15: user
+2025-11-17T08:30:12.604Z [DEBUG] [Query.streamInput] Processing message 16: user
+2025-11-17T08:39:41.451Z [DEBUG] [Query.streamInput] Processing message 17: user
+2025-11-17T08:40:59.744Z [DEBUG] [Query.streamInput] Processing message 18: user
+2025-11-17T08:51:30.030Z [DEBUG] [Query.streamInput] Processing message 19: user
+2025-11-17T08:53:42.616Z [DEBUG] [Query.streamInput] Processing message 20: user
+2025-11-17T09:11:40.414Z [DEBUG] [Query.streamInput] Processing message 21: user
+2025-11-17T09:12:50.329Z [DEBUG] [Query.streamInput] Processing message 22: user
+2025-11-17T10:22:48.177Z [DEBUG] [Query.streamInput] Processing message 23: user
+2025-11-17T10:29:42.101Z [DEBUG] [Query.streamInput] Processing message 24: user
+2025-11-17T10:32:00.440Z [DEBUG] [Query.streamInput] Processing message 25: user
+2025-11-17T10:40:37.657Z [DEBUG] [Query.streamInput] Processing message 26: user
+2025-11-17T10:42:21.799Z [DEBUG] [Query.streamInput] Processing message 27: user
+2025-11-17T11:01:14.600Z [DEBUG] [Query.streamInput] Processing message 28: user
+2025-11-17T11:38:33.100Z [DEBUG] [Query.streamInput] Processing message 29: user
+2025-11-17T11:39:04.464Z [DEBUG] [Query.streamInput] Processing message 30: user
+2025-11-17T11:46:16.311Z [DEBUG] [Query.streamInput] Processing message 31: user
+2025-11-17T11:52:01.706Z [DEBUG] [Query.streamInput] Processing message 32: user
+2025-11-17T11:55:13.012Z [DEBUG] [Query.streamInput] Processing message 33: user
+2025-11-17T11:56:31.616Z [DEBUG] [Query.streamInput] Processing message 34: user
+2025-11-17T12:04:19.641Z [DEBUG] [Query.streamInput] Processing message 35: user
+2025-11-17T12:08:31.678Z [DEBUG] [Query.streamInput] Processing message 36: user
+2025-11-17T12:16:06.463Z [DEBUG] [Query.streamInput] Processing message 37: user
+2025-11-17T12:18:17.102Z [DEBUG] [Query.streamInput] Processing message 38: user
+2025-11-17T12:30:16.268Z [DEBUG] [Query.streamInput] Processing message 39: user
+2025-11-17T12:36:42.475Z [DEBUG] [Query.streamInput] Processing message 40: user
+2025-11-17T12:45:26.044Z [DEBUG] [Query.streamInput] Processing message 41: user
+2025-11-17T12:58:58.522Z [DEBUG] [Query.streamInput] Processing message 42: user
+2025-11-17T13:02:31.781Z [DEBUG] [Query.streamInput] Processing message 43: user
+2025-11-17T13:04:52.088Z [DEBUG] [Query.streamInput] Processing message 44: user
+2025-11-17T13:15:06.207Z [DEBUG] [Query.streamInput] Processing message 45: user
