@@ -14,7 +14,7 @@ const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_CONCURRENT_LIMIT = 5;
 const DEFAULT_COLS = 140;
 const DEFAULT_ROWS = 40;
-const MAX_PROMPT_LENGTH = 300000; // Increased to 300K to support milestone framework with full context
+const MAX_PROMPT_LENGTH = 500000; // Increased to 500K to support larger codebases
 const GRACEFUL_SHUTDOWN_DELAY = 5000;
 
 // Active process tracking
