@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "fs-extra";
+import { adaptResults, validateUnifiedResults, getFormatInfo } from "./resultsAdapter.js";
 
 // Certificate data format for the new dark-themed template
 interface CertificateData {
@@ -243,36 +244,29 @@ export async function generateReportFromResults(
     throw new Error("results.json not found in context path");
   }
 
-  const results: AuditResults = await fs.readJson(resultsPath);
+  // Load raw results
+  const rawResults = await fs.readJson(resultsPath);
 
-  // Validate results structure
-  if (!results.score) {
-    throw new Error(
-      "Invalid results.json - missing 'score' field. " +
-      "Audit may have failed or produced incomplete results. " +
-      `Results structure: ${JSON.stringify(Object.keys(results), null, 2)}`
-    );
-  }
+  // Log format info for debugging
+  const formatInfo = getFormatInfo(rawResults);
+  console.log('[ReportGenerator] Results format detected:', formatInfo);
 
-  if (!results.analysis || !results.analysis.findings) {
+  // Adapt results to unified format (supports both old and new formats)
+  let results: AuditResults;
+  try {
+    results = adaptResults(rawResults) as AuditResults;
+    validateUnifiedResults(results);
+    console.log('[ReportGenerator] Results adaptation successful', {
+      format: formatInfo.format,
+      totalFindings: results.analysis.total_findings,
+      score: results.score.value
+    });
+  } catch (error: any) {
+    console.error('[ReportGenerator] Results adaptation failed:', error.message);
     throw new Error(
-      "Invalid results.json - missing 'analysis' or 'findings' fields. " +
-      "Audit did not complete successfully. " +
-      `Available fields: ${JSON.stringify(Object.keys(results), null, 2)}`
-    );
-  }
-
-  if (typeof results.score.value !== 'number') {
-    throw new Error(
-      "Invalid results.json - score.value is not a number. " +
-      `Got: ${JSON.stringify(results.score)}`
-    );
-  }
-
-  if (!results.metadata) {
-    throw new Error(
-      "Invalid results.json - missing 'metadata' field. " +
-      "Required metadata not found in audit results."
+      `Failed to adapt results.json: ${error.message}\n\n` +
+      `Format info: ${JSON.stringify(formatInfo, null, 2)}\n` +
+      `Available fields: ${JSON.stringify(Object.keys(rawResults), null, 2)}`
     );
   }
 
