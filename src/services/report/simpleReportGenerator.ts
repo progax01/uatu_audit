@@ -330,7 +330,9 @@ export async function generateReportFromResults(
       severity: f.severity,
       title: f.title,
       file: f.file + (f.line ? `:${f.line}` : ""),
-      rec: f.recommendation,
+      rec: typeof f.recommendation === 'object'
+        ? ((f.recommendation as any).text || (f.recommendation as any).description || JSON.stringify(f.recommendation))
+        : (f.recommendation || 'Review recommended'),
       code_snippet: f.code_snippet
     })),
     timeline: [

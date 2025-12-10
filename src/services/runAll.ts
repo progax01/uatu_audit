@@ -26,6 +26,49 @@ function checkCancellation(jobId: number | undefined) {
 }
 
 /**
+ * Calculate security score based on findings
+ * Formula: 100 - (critical×25 + high×10 + medium×3 + low×1)
+ * Score is always between 0-100
+ */
+function calculateScoreFromFindings(findings: any[]): { value: number; grade: string; breakdown: Record<string, number> } {
+  const breakdown = {
+    critical_count: 0,
+    high_count: 0,
+    medium_count: 0,
+    low_count: 0,
+    info_count: 0
+  };
+
+  // Count findings by severity
+  for (const finding of findings || []) {
+    const severity = (finding.severity || '').toLowerCase();
+    if (severity === 'critical') breakdown.critical_count++;
+    else if (severity === 'high') breakdown.high_count++;
+    else if (severity === 'medium') breakdown.medium_count++;
+    else if (severity === 'low') breakdown.low_count++;
+    else if (severity === 'info' || severity === 'informational') breakdown.info_count++;
+  }
+
+  // Calculate score: 100 - (critical×25 + high×10 + medium×3 + low×1)
+  const deductions =
+    breakdown.critical_count * 25 +
+    breakdown.high_count * 10 +
+    breakdown.medium_count * 3 +
+    breakdown.low_count * 1;
+
+  const value = Math.max(0, Math.min(100, 100 - deductions));
+
+  // Determine grade
+  const grade =
+    value >= 90 ? 'A' :
+    value >= 80 ? 'B' :
+    value >= 70 ? 'C' :
+    value >= 60 ? 'D' : 'F';
+
+  return { value, grade, breakdown };
+}
+
+/**
  * Simplified 3-Phase Audit Pipeline
  *
  * Phase 1: Context Preparation (Clone + Bootstrap + Write Context Files)
@@ -363,23 +406,53 @@ export async function runAll(params: {
     );
   }
 
-  const auditResults = await fs.readJson(resultsPath);
-  if (!auditResults.score || auditResults.score.value === undefined) {
-    log.error("Audit phase produced invalid results", {
-      resultsStructure: Object.keys(auditResults),
-      score: auditResults.score,
-      hasAnalysis: !!auditResults.analysis
+  let auditResults = await fs.readJson(resultsPath);
+
+  // Extract findings from various possible locations
+  let findings: any[] = [];
+  if (auditResults.analysis?.findings && Array.isArray(auditResults.analysis.findings)) {
+    findings = auditResults.analysis.findings;
+  } else if (auditResults.findings && typeof auditResults.findings === 'object') {
+    // Milestone format: findings grouped by severity
+    findings = [
+      ...(auditResults.findings.critical || []),
+      ...(auditResults.findings.high || []),
+      ...(auditResults.findings.medium || []),
+      ...(auditResults.findings.low || []),
+      ...(auditResults.findings.info || [])
+    ];
+  }
+
+  // Always recalculate score based on actual findings to ensure consistency
+  const calculatedScore = calculateScoreFromFindings(findings);
+  log.info("Score calculated from findings", {
+    findingsCount: findings.length,
+    calculatedScore: calculatedScore.value,
+    calculatedGrade: calculatedScore.grade,
+    breakdown: calculatedScore.breakdown,
+    originalScore: auditResults.score?.value
+  });
+
+  // Use calculated score if original is missing, invalid, or inconsistent
+  if (!auditResults.score || auditResults.score.value === undefined ||
+      (findings.length === 0 && auditResults.score.value < 100) ||
+      (findings.length > 0 && auditResults.score.value === 100)) {
+    log.warn("Score appears invalid or inconsistent, using calculated score", {
+      originalScore: auditResults.score?.value,
+      calculatedScore: calculatedScore.value,
+      findingsCount: findings.length
     });
-    throw new Error(
-      "Audit phase produced invalid results. " +
-      `Results: ${JSON.stringify(auditResults).slice(0, 500)}`
-    );
+    auditResults.score = calculatedScore;
+
+    // Update the results.json with corrected score
+    await fs.writeJson(resultsPath, auditResults, { spaces: 2 });
+    log.info("Updated results.json with corrected score");
   }
 
   log.info("Audit results validated successfully", {
     score: auditResults.score.value,
     grade: auditResults.score.grade,
-    findings: auditResults.analysis?.total_findings || 0,
+    findings: findings.length,
     hasMetadata: !!auditResults.metadata
   });
 

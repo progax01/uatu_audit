@@ -1239,7 +1239,7 @@
                     <div class="finding-title">${f.title}</div>
                     <div class="finding-location">Location: ${f.file || 'N/A'}</div>
                     ${f.code_snippet ? `<div class="finding-code">${f.code_snippet}</div>` : ''}
-                    <div class="finding-recommendation"><strong>Recommendations:</strong> ${f.rec || f.recommendation || 'Review recommended'}</div>
+                    <div class="finding-recommendation"><strong>Recommendations:</strong> ${typeof f.rec === 'object' ? (f.rec.text || f.rec.description || JSON.stringify(f.rec)) : (typeof f.recommendation === 'object' ? (f.recommendation.text || f.recommendation.description || JSON.stringify(f.recommendation)) : (f.rec || f.recommendation || 'Review recommended'))}</div>
                 </div>
             `).join('');
 
