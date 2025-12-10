@@ -161,6 +161,94 @@
       "timestamp": "2025-12-09T12:56:22.707Z",
       "methodologies": {},
       "milestone": 4
+    },
+    {
+      "jobId": "22",
+      "timestamp": "2025-12-10T06:39:08.113Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "22",
+      "timestamp": "2025-12-10T06:44:33.015Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "23",
+      "timestamp": "2025-12-10T07:32:54.286Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "23",
+      "timestamp": "2025-12-10T07:37:37.676Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "23",
+      "timestamp": "2025-12-10T07:42:58.379Z",
+      "methodologies": {
+        "reentrancy": "1.0.0",
+        "oracle-manipulation": "1.0.0",
+        "access-control": "1.0.0",
+        "injection": "1.0.0"
+      },
+      "milestone": 3
+    },
+    {
+      "jobId": "23",
+      "timestamp": "2025-12-10T07:48:20.461Z",
+      "methodologies": {},
+      "milestone": 4
+    },
+    {
+      "jobId": "23",
+      "timestamp": "2025-12-10T08:02:33.139Z",
+      "methodologies": {},
+      "milestone": 5
+    },
+    {
+      "jobId": "24",
+      "timestamp": "2025-12-10T08:45:32.626Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "24",
+      "timestamp": "2025-12-10T08:49:56.812Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "24",
+      "timestamp": "2025-12-10T08:58:59.462Z",
+      "methodologies": {
+        "reentrancy": "1.0.0",
+        "oracle-manipulation": "1.0.0",
+        "access-control": "1.0.0",
+        "injection": "1.0.0"
+      },
+      "milestone": 3
+    },
+    {
+      "jobId": "24",
+      "timestamp": "2025-12-10T09:02:24.534Z",
+      "methodologies": {},
+      "milestone": 4
+    },
+    {
+      "jobId": "24",
+      "timestamp": "2025-12-10T09:06:22.130Z",
+      "methodologies": {},
+      "milestone": 5
     }
   ]
 }

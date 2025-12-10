@@ -8,8 +8,8 @@ export async function handleReportRoutes(
   res: any,
   parsed: { pathname: string; query: any }
 ): Promise<boolean> {
-  // GET /report?project=&branch=&format=pdf|html
-  if (req.method === "GET" && parsed.pathname === "/report") {
+  // GET/HEAD /report?project=&branch=&format=pdf|html
+  if ((req.method === "GET" || req.method === "HEAD") && parsed.pathname === "/report") {
     const project = String(parsed.query.project || "");
     const branch = String(parsed.query.branch || "");
     const format = String(parsed.query.format || "html");
@@ -83,8 +83,8 @@ export async function handleReportRoutes(
     }
   }
 
-  // GET /certificate?project=&branch=
-  if (req.method === "GET" && parsed.pathname === "/certificate") {
+  // GET/HEAD /certificate?project=&branch=
+  if ((req.method === "GET" || req.method === "HEAD") && parsed.pathname === "/certificate") {
     const project = String(parsed.query.project || "");
     const branch = String(parsed.query.branch || "");
 
