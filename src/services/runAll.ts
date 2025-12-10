@@ -433,21 +433,18 @@ export async function runAll(params: {
     originalScore: auditResults.score?.value
   });
 
-  // Use calculated score if original is missing, invalid, or inconsistent
-  if (!auditResults.score || auditResults.score.value === undefined ||
-      (findings.length === 0 && auditResults.score.value < 100) ||
-      (findings.length > 0 && auditResults.score.value === 100)) {
-    log.warn("Score appears invalid or inconsistent, using calculated score", {
-      originalScore: auditResults.score?.value,
-      calculatedScore: calculatedScore.value,
-      findingsCount: findings.length
-    });
-    auditResults.score = calculatedScore;
+  // ALWAYS use the calculated score to ensure consistency
+  // The AI-generated score is often incorrect (e.g., 0 or 50 regardless of findings)
+  const originalScore = auditResults.score?.value;
+  auditResults.score = calculatedScore;
 
-    // Update the results.json with corrected score
-    await fs.writeJson(resultsPath, auditResults, { spaces: 2 });
-    log.info("Updated results.json with corrected score");
-  }
+  // Update the results.json with corrected score
+  await fs.writeJson(resultsPath, auditResults, { spaces: 2 });
+  log.info("Updated results.json with calculated score", {
+    originalScore,
+    newScore: calculatedScore.value,
+    newGrade: calculatedScore.grade
+  });
 
   log.info("Audit results validated successfully", {
     score: auditResults.score.value,
