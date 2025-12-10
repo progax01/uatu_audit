@@ -329,7 +329,7 @@ export async function generateReportFromResults(
     findings: results.analysis.findings.map(f => ({
       severity: f.severity,
       title: f.title,
-      file: f.file + (f.line ? `:${f.line}` : ""),
+      file: (f.file || 'N/A') + (f.line ? `:${f.line}` : ""),
       rec: typeof f.recommendation === 'object'
         ? ((f.recommendation as any).text || (f.recommendation as any).description || JSON.stringify(f.recommendation))
         : (f.recommendation || 'Review recommended'),
@@ -511,7 +511,7 @@ export async function generateCertificateFromResults(
     findings: results.analysis.findings.map(f => ({
       severity: f.severity,
       title: f.title,
-      file: f.file + (f.line ? `:${f.line}` : ""),
+      file: (f.file || 'N/A') + (f.line ? `:${f.line}` : ""),
       recommendation: f.recommendation
     })),
     recommendations: results.recommendations || [],

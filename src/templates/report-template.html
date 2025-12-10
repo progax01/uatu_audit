@@ -6,26 +6,27 @@
     <title>UatuAudit Report v2.0.0</title>
     <style>
         :root {
-            --bg-primary: #0a0e1a;
-            --bg-secondary: #111827;
-            --bg-card: #1a2235;
-            --bg-card-alt: #0f1525;
-            --border-color: #2a3548;
-            --text-primary: #ffffff;
-            --text-secondary: #94a3b8;
+            /* Light/White Theme */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-card-alt: #f1f5f9;
+            --border-color: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
             --text-muted: #64748b;
-            --accent-gold: #c9a227;
+            --accent-gold: #b8860b;
             --accent-gold-dark: #8b6914;
-            --accent-blue: #3b82f6;
-            --accent-teal: #14b8a6;
+            --accent-blue: #2563eb;
+            --accent-teal: #0d9488;
             --severity-critical: #dc2626;
-            --severity-high: #ef4444;
-            --severity-medium: #f59e0b;
-            --severity-low: #eab308;
+            --severity-high: #ea580c;
+            --severity-medium: #d97706;
+            --severity-low: #ca8a04;
             --severity-info: #6b7280;
-            --severity-positive: #22c55e;
-            --gradient-start: #1e3a5f;
-            --gradient-end: #0d1f33;
+            --severity-positive: #16a34a;
+            --gradient-start: #e0f2fe;
+            --gradient-end: #f0f9ff;
         }
 
         * {
@@ -1234,10 +1235,10 @@
             findingsGrid.innerHTML = findings.slice(0, 8).map(f => `
                 <div class="finding-card">
                     <div class="finding-card-header">
-                        <span class="finding-badge ${f.severity}">${f.severity}</span>
+                        <span class="finding-badge ${(f.severity || 'info').toLowerCase()}">${(f.severity || 'INFO').toUpperCase()}</span>
                     </div>
-                    <div class="finding-title">${f.title}</div>
-                    <div class="finding-location">Location: ${f.file || 'N/A'}</div>
+                    <div class="finding-title">${f.title || 'Untitled Finding'}</div>
+                    <div class="finding-location">Location: ${f.file && f.file !== 'undefined' ? f.file : 'N/A'}</div>
                     ${f.code_snippet ? `<div class="finding-code">${f.code_snippet}</div>` : ''}
                     <div class="finding-recommendation"><strong>Recommendations:</strong> ${typeof f.rec === 'object' ? (f.rec.text || f.rec.description || JSON.stringify(f.rec)) : (typeof f.recommendation === 'object' ? (f.recommendation.text || f.recommendation.description || JSON.stringify(f.recommendation)) : (f.rec || f.recommendation || 'Review recommended'))}</div>
                 </div>
