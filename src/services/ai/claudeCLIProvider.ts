@@ -1,6 +1,9 @@
 import * as pty from 'node-pty';
 import stripAnsi from 'strip-ansi';
 import { execSync } from 'child_process';
+import { writeFileSync, unlinkSync, mkdtempSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import { logger } from '../../utils/logger';
 
 const log = logger.child({ service: 'claude-cli-provider' });
@@ -154,6 +157,52 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Create temporary file with prompt content
+ * Returns the file path
+ */
+function createTempPromptFile(prompt: string, sessionId: string): string {
+  try {
+    // Create temp directory for this session
+    const tempDir = mkdtempSync(join(tmpdir(), `claude-prompt-${sessionId}-`));
+    const tempFile = join(tempDir, 'prompt.txt');
+
+    // Write prompt to file
+    writeFileSync(tempFile, prompt, 'utf8');
+
+    log.debug(`[${sessionId}] Created temp prompt file: ${tempFile} (${prompt.length} bytes)`);
+    return tempFile;
+  } catch (error: any) {
+    log.error(`[${sessionId}] Failed to create temp prompt file: ${error.message}`);
+    throw new CLIError(
+      `Failed to create temporary file: ${error.message}`,
+      'PROCESS_ERROR'
+    );
+  }
+}
+
+/**
+ * Cleanup temporary file
+ */
+function cleanupTempFile(filePath: string, sessionId: string): void {
+  try {
+    if (filePath) {
+      unlinkSync(filePath);
+      // Also try to remove the directory (will only succeed if empty)
+      try {
+        const dir = join(filePath, '..');
+        execSync(`rmdir "${dir}"`, { stdio: 'pipe' });
+      } catch {
+        // Ignore if directory removal fails
+      }
+      log.debug(`[${sessionId}] Cleaned up temp file: ${filePath}`);
+    }
+  } catch (error: any) {
+    log.warn(`[${sessionId}] Failed to cleanup temp file ${filePath}: ${error.message}`);
+    // Don't throw - cleanup failure should not fail the operation
+  }
+}
+
+/**
  * Parse exit code to error type
  */
 function parseExitCode(exitCode: number): CLIResponse['errorType'] {
@@ -218,6 +267,14 @@ async function executeClaudeOnce(
 
   const sessionId = generateSessionId();
   const startTime = Date.now();
+  let tempPromptFile: string | null = null;
+
+  // Create temporary file for prompt to avoid "Argument list too long" error
+  try {
+    tempPromptFile = createTempPromptFile(prompt, sessionId);
+  } catch (error) {
+    throw error; // Re-throw temp file creation errors
+  }
 
   // Build CLI arguments
   // Note: --dangerously-skip-permissions cannot be used with root privileges
@@ -232,17 +289,19 @@ async function executeClaudeOnce(
   // Add custom flags
   args.push(...flags);
 
-  // Add prompt
-  args.push(prompt);
+  // NO LONGER ADDING PROMPT AS ARGUMENT - using stdin instead
+  // args.push(prompt); // OLD WAY - causes "Argument list too long"
 
   log.info(`[${sessionId}] === STARTING CLAUDE CLI EXECUTION ===`);
   log.info(`[${sessionId}] CLI Path: ${getCLIPath()}`);
   log.info(`[${sessionId}] Working Directory: ${cwd}`);
   log.info(`[${sessionId}] Timeout: ${timeout}ms (${Math.round(timeout/1000)}s)`);
   log.info(`[${sessionId}] Prompt Length: ${prompt.length} chars`);
+  log.info(`[${sessionId}] Temp File: ${tempPromptFile}`);
   log.info(`[${sessionId}] Model: ${model || 'default'}`);
   log.info(`[${sessionId}] Flags: ${flags.join(' ')}`);
-  log.debug(`[${sessionId}] Executing Claude CLI: ${getCLIPath()} ${args.slice(0, 2).join(' ')} [prompt]`);
+  log.info(`[${sessionId}] Method: STDIN (file-based context passing)`);
+  log.debug(`[${sessionId}] Executing Claude CLI: cat ${tempPromptFile} | ${getCLIPath()} ${args.join(' ')}`);
 
   return new Promise<string>((resolve, reject) => {
     let output = '';
@@ -263,6 +322,9 @@ async function executeClaudeOnce(
       if (ptySession) {
         await killProcessGracefully(ptySession, sessionId);
       }
+      if (tempPromptFile) {
+        cleanupTempFile(tempPromptFile, sessionId);
+      }
       reject(new CLIError(
         `Claude CLI execution timed out after ${timeout}ms`,
         'TIMEOUT'
@@ -282,14 +344,18 @@ async function executeClaudeOnce(
         USER: process.env.USER || 'uatu'
       };
 
-      ptySession = pty.spawn(getCLIPath(), args, {
+      // Use shell to pipe file content to Claude CLI via stdin
+      // This avoids "Argument list too long" error
+      const shellCommand = `cat "${tempPromptFile}" | ${getCLIPath()} ${args.join(' ')}`;
+
+      ptySession = pty.spawn('/bin/bash', ['-c', shellCommand], {
         name: 'dumb',
         cols,
         rows,
         cwd,
         env
       });
-      log.info(`[${sessionId}] PTY process spawned successfully`);
+      log.info(`[${sessionId}] PTY process spawned successfully (using stdin from temp file)`);
 
       // Track session
       activeSessions.set(sessionId, ptySession);
@@ -318,6 +384,9 @@ async function executeClaudeOnce(
           log.warn(`[${sessionId}] Last output preview: ${output.slice(-200)}`);
           if (ptySession) {
             await killProcessGracefully(ptySession, sessionId);
+          }
+          if (tempPromptFile) {
+            cleanupTempFile(tempPromptFile, sessionId);
           }
           reject(new CLIError(
             `Claude CLI execution timed out after ${timeout}ms of inactivity`,
@@ -351,6 +420,11 @@ async function executeClaudeOnce(
         log.info(`[${sessionId}] Data Chunks: ${dataChunksReceived}`);
         log.info(`[${sessionId}] Raw Output Length: ${output.length} chars`);
 
+        // Cleanup temp file
+        if (tempPromptFile) {
+          cleanupTempFile(tempPromptFile, sessionId);
+        }
+
         if (exitCode === 0) {
           const cleanOutput = sanitizeOutput(output);
           log.info(`[${sessionId}] Clean Output Length: ${cleanOutput.length} chars`);
@@ -383,6 +457,11 @@ async function executeClaudeOnce(
     } catch (error: any) {
       clearTimeout(timeoutId);
       activeSessions.delete(sessionId);
+
+      // Cleanup temp file
+      if (tempPromptFile) {
+        cleanupTempFile(tempPromptFile, sessionId);
+      }
 
       log.error(`[${sessionId}] Spawn error: ${error.message}`);
       reject(new CLIError(
