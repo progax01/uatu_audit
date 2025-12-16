@@ -2,7 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { logger } from '../utils/logger';
 import { executeClaude } from '../services/ai/claudeCLIProvider';
-import { getPromptCacheManager } from '../services/promptCache';
+import { PromptCacheManager } from '../services/promptCache';
 import { getMethodologyVersionManager } from '../services/methodologyVersionManager';
 import type { DomainType } from '../agents/types';
 
@@ -138,7 +138,9 @@ export class MilestoneExecutor {
   constructor(context: AuditContext) {
     this.context = context;
     this.states = new Map();
-    this.promptCache = getPromptCacheManager();
+    // Create NEW cache instance per job for isolation (no singleton)
+    // This prevents context leakage between concurrent audits
+    this.promptCache = new PromptCacheManager();
     this.versionManager = getMethodologyVersionManager();
 
     // Initialize state file path
