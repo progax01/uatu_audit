@@ -1119,6 +1119,134 @@ cat /tmp/claude-prompt-*/prompt.txt | head -50
 
 ---
 
+## 🛡️ ERROR DETECTION: JSON Output Format & Session-Based Retry
+
+### **Problem: "Execution error" Not Detected**
+
+Before this fix, Claude CLI could return "Execution error" as text with exit code 0, which was treated as success:
+
+```
+Claude CLI → returns "Execution error" as text
+Exit code: 0 (success)
+Code → stores "Execution error" as output ❌
+Milestone → marked "completed" ❌
+Score → 100% (A grade) ❌ WRONG!
+```
+
+### **Solution: JSON Output Format**
+
+Now using `--output-format json` to get structured response:
+
+```bash
+# Old way (text output)
+claude -p "prompt..."
+
+# New way (JSON output)
+claude -p --output-format json "prompt..."
+```
+
+### **JSON Response Structure**
+
+```json
+{
+  "type": "result",
+  "is_error": false,           // KEY FIELD - error detection!
+  "session_id": "uuid-here",   // For session resume
+  "result": "actual output",   // Clean result text
+  "usage": {
+    "input_tokens": 2,
+    "output_tokens": 5422
+  },
+  "total_cost_usd": 0.1809
+}
+```
+
+### **New Log Output**
+
+```
+[claude-xxx] === JSON RESPONSE PARSED ===
+[claude-xxx] Claude Session ID: abc-123-def
+[claude-xxx] is_error: false
+[claude-xxx] Result length: 20568 chars
+[claude-xxx] Tokens: 2 in / 5422 out
+[claude-xxx] Cost: $0.1809
+```
+
+### **Error Detection Flow**
+
+```javascript
+if (jsonResponse.is_error) {
+  // ERROR DETECTED - throw exception with session_id
+  throw new CLIError(
+    `Claude CLI reported error: ${jsonResponse.result}`,
+    'EXECUTION_ERROR',
+    exitCode,
+    jsonResponse.result,
+    jsonResponse.session_id  // For retry
+  );
+}
+```
+
+### **Session-Based Retry**
+
+When error occurs with session_id:
+
+```bash
+# First attempt fails with error
+claude -p --output-format json "full 200KB prompt"
+→ Error with session_id: abc-123
+
+# Retry using session resume (efficient!)
+claude --resume abc-123 -p --output-format json "Complete the task"
+→ No need to resend full prompt!
+```
+
+### **Retry Flow**
+
+```
+Attempt 1: Full prompt execution
+  ↓ Error with session_id
+  ↓ Save session_id
+  ↓ Wait (exponential backoff)
+Attempt 2: Resume session with follow-up prompt
+  ↓ Much faster, uses existing context
+  ↓ Success or fail
+Attempt 3: Resume again if needed
+```
+
+### **File Changed**
+
+- `src/services/ai/claudeCLIProvider.ts`
+  - Added `--output-format json` to CLI args
+  - Parse JSON response in exit handler
+  - Check `is_error` field
+  - Extract `session_id` for retry
+  - Added `resumeClaudeSession()` function
+  - Updated `executeWithRetry()` for session-based retry
+
+### **Before vs After**
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Error Detection | Exit code only | `is_error` field |
+| Retry Method | Full prompt | Session resume |
+| Token Usage | Unknown | Logged |
+| Cost Tracking | None | `$0.1809` logged |
+| Session ID | Not captured | Logged & saved |
+
+### **Test Results (Job 40)**
+
+```
+✅ Milestone 1: is_error: false, Result: 20568 chars
+✅ Milestone 2: is_error: false, Result: 35620 chars
+✅ Milestone 3: is_error: false
+✅ Milestone 4: is_error: false
+✅ Milestone 5: is_error: false
+Pipeline completed: score: 0, grade: F (19 findings)
+```
+
+---
+
 ## ✅ COMPLETE! Every Single Log Point Documented
 
 **Total Execution:** GitHub → 130 Log Points → Final Report
