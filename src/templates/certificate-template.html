@@ -624,51 +624,51 @@
                     <div class="finding-row">
                         <div class="finding-left">
                             <span class="finding-label critical">Critical</span>
-                            <span class="finding-count" id="criticalCount">(0)</span>
                         </div>
                         <div class="finding-bar-container">
                             <div class="finding-bar critical" id="criticalBar" style="width: 0%"></div>
                         </div>
+                        <span class="finding-value critical" id="criticalValue">(0)</span>
                     </div>
 
                     <div class="finding-row">
                         <div class="finding-left">
                             <span class="finding-label high">High</span>
-                            <span class="finding-count" id="highCount">(0)</span>
                         </div>
                         <div class="finding-bar-container">
                             <div class="finding-bar high" id="highBar" style="width: 0%"></div>
                         </div>
+                        <span class="finding-value high" id="highValue">(0)</span>
                     </div>
 
                     <div class="finding-row">
                         <div class="finding-left">
                             <span class="finding-label medium">Medium</span>
-                            <span class="finding-count" id="mediumCount">(0)</span>
                         </div>
                         <div class="finding-bar-container">
                             <div class="finding-bar medium" id="mediumBar" style="width: 0%"></div>
                         </div>
+                        <span class="finding-value medium" id="mediumValue">(0)</span>
                     </div>
 
                     <div class="finding-row">
                         <div class="finding-left">
                             <span class="finding-label low">Low</span>
-                            <span class="finding-count" id="lowCount">(0)</span>
                         </div>
                         <div class="finding-bar-container">
                             <div class="finding-bar low" id="lowBar" style="width: 0%"></div>
                         </div>
+                        <span class="finding-value low" id="lowValue">(0)</span>
                     </div>
 
                     <div class="finding-row">
                         <div class="finding-left">
                             <span class="finding-label info">Informational</span>
-                            <span class="finding-count" id="infoCount">(0)</span>
                         </div>
                         <div class="finding-bar-container">
                             <div class="finding-bar info" id="infoBar" style="width: 0%"></div>
                         </div>
+                        <span class="finding-value info" id="infoValue">(0)</span>
                     </div>
                 </div>
             </div>
@@ -757,7 +757,7 @@
             const maxCount = Math.max(total, 1);
 
             const updateFinding = (id, count, barId) => {
-                document.getElementById(id + 'Count').textContent = `(${count})`;
+                document.getElementById(id + 'Value').textContent = `(${count})`;
                 const barWidth = total > 0 ? (count / maxCount) * 100 : 0;
                 document.getElementById(barId).style.width = barWidth + '%';
             };
