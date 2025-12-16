@@ -434,7 +434,8 @@ export async function generateCertificateFromResults(
     throw new Error("results.json not found in context path");
   }
 
-  const results: AuditResults = await fs.readJson(resultsPath);
+  const rawResults = await fs.readJson(resultsPath);
+  const results = adaptResults(rawResults) as AuditResults;
 
   // Load certificate template
   const templateCandidates = [
