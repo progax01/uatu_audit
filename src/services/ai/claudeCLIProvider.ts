@@ -44,6 +44,25 @@ export interface CLIResponse {
   stderr?: string;
   executionTime?: number;
   attempts?: number;
+  sessionId?: string;  // Claude CLI session ID for resume
+}
+
+// Claude CLI JSON output format
+interface ClaudeJSONResponse {
+  type: string;
+  subtype?: string;
+  result: string;
+  is_error: boolean;
+  session_id: string;
+  uuid?: string;
+  duration_ms?: number;
+  duration_api_ms?: number;
+  num_turns?: number;
+  total_cost_usd?: number;
+  usage?: {
+    input_tokens: number;
+    output_tokens: number;
+  };
 }
 
 // Error types
@@ -52,7 +71,8 @@ export class CLIError extends Error {
     message: string,
     public type: CLIResponse['errorType'],
     public exitCode?: number,
-    public stderr?: string
+    public stderr?: string,
+    public sessionId?: string  // Claude session ID for retry
   ) {
     super(message);
     this.name = 'CLIError';
@@ -275,7 +295,7 @@ async function executeClaudeOnce(
   // Build CLI arguments
   // Note: --dangerously-skip-permissions cannot be used with root privileges
   // Use --permission-mode instead (passed via flags parameter)
-  const args = ['--print'];
+  const args = ['--print', '--output-format', 'json'];
 
   // Add model flag if specified
   if (model) {
@@ -431,9 +451,47 @@ async function executeClaudeOnce(
             return;
           }
 
-          log.info(`[${sessionId}] === SUCCESS ===`);
-          log.info(`[${sessionId}] Output preview (first 200 chars): ${cleanOutput.substring(0, 200)}`);
-          resolve(cleanOutput);
+          // Parse JSON response from Claude CLI
+          try {
+            const jsonResponse: ClaudeJSONResponse = JSON.parse(cleanOutput);
+            const claudeSessionId = jsonResponse.session_id;
+
+            log.info(`[${sessionId}] === JSON RESPONSE PARSED ===`);
+            log.info(`[${sessionId}] Claude Session ID: ${claudeSessionId}`);
+            log.info(`[${sessionId}] is_error: ${jsonResponse.is_error}`);
+            log.info(`[${sessionId}] Result length: ${jsonResponse.result?.length || 0} chars`);
+            if (jsonResponse.usage) {
+              log.info(`[${sessionId}] Tokens: ${jsonResponse.usage.input_tokens} in / ${jsonResponse.usage.output_tokens} out`);
+            }
+            if (jsonResponse.total_cost_usd !== undefined) {
+              log.info(`[${sessionId}] Cost: $${jsonResponse.total_cost_usd.toFixed(4)}`);
+            }
+
+            // Check is_error field - this is the key fix!
+            if (jsonResponse.is_error) {
+              log.error(`[${sessionId}] === CLAUDE REPORTED ERROR ===`);
+              log.error(`[${sessionId}] Error result: ${jsonResponse.result}`);
+              // Throw error with session_id for potential retry
+              reject(new CLIError(
+                `Claude CLI reported error: ${jsonResponse.result}`,
+                'EXECUTION_ERROR',
+                exitCode,
+                jsonResponse.result,
+                claudeSessionId  // Include session_id for retry
+              ));
+              return;
+            }
+
+            log.info(`[${sessionId}] === SUCCESS ===`);
+            log.info(`[${sessionId}] Output preview (first 200 chars): ${jsonResponse.result?.substring(0, 200)}`);
+            resolve(jsonResponse.result);
+          } catch (parseError: any) {
+            // Fallback to raw output if JSON parsing fails (backwards compatibility)
+            log.warn(`[${sessionId}] Failed to parse JSON response, using raw output: ${parseError.message}`);
+            log.info(`[${sessionId}] === SUCCESS (RAW) ===`);
+            log.info(`[${sessionId}] Output preview (first 200 chars): ${cleanOutput.substring(0, 200)}`);
+            resolve(cleanOutput);
+          }
         } else {
           const errorType = parseExitCode(exitCode);
           const errorMsg = `Claude CLI exited with code ${exitCode}${signal ? ` (signal: ${signal})` : ''}`;
@@ -469,6 +527,126 @@ async function executeClaudeOnce(
 }
 
 /**
+ * Resume a Claude CLI session with a follow-up prompt
+ * Uses --resume flag to continue from previous session context
+ */
+async function resumeClaudeSession(
+  claudeSessionId: string,
+  followUpPrompt: string,
+  options: CLIOptions = {}
+): Promise<string> {
+  const {
+    timeout = parseInt(process.env.CLAUDE_CLI_TIMEOUT || String(DEFAULT_TIMEOUT)),
+    cwd = process.cwd(),
+    cols = DEFAULT_COLS,
+    rows = DEFAULT_ROWS,
+    flags = [],
+    model
+  } = options;
+
+  const sessionId = generateSessionId();
+  const startTime = Date.now();
+
+  // Build CLI arguments for resume
+  const args = ['--print', '--output-format', 'json', '--resume', claudeSessionId];
+
+  if (model) {
+    args.push('--model', model);
+  }
+  args.push(...flags);
+
+  log.info(`[${sessionId}] === RESUMING CLAUDE SESSION ===`);
+  log.info(`[${sessionId}] Resuming Claude Session: ${claudeSessionId}`);
+  log.info(`[${sessionId}] Follow-up Prompt: ${followUpPrompt.substring(0, 100)}...`);
+
+  return new Promise<string>((resolve, reject) => {
+    let output = '';
+    let timeoutId: NodeJS.Timeout;
+    let ptySession: pty.IPty;
+    let dataChunksReceived = 0;
+
+    timeoutId = setTimeout(async () => {
+      log.warn(`[${sessionId}] Resume session timeout after ${timeout}ms`);
+      if (ptySession) {
+        await killProcessGracefully(ptySession, sessionId);
+      }
+      reject(new CLIError(`Resume session timed out after ${timeout}ms`, 'TIMEOUT'));
+    }, timeout);
+
+    try {
+      const env = {
+        ...process.env,
+        HOME: process.env.HOME || '/home/uatu',
+        USER: process.env.USER || 'uatu'
+      };
+
+      // Create temp file for follow-up prompt
+      const tempDir = mkdtempSync(join(tmpdir(), `claude-resume-${sessionId}-`));
+      const tempFile = join(tempDir, 'prompt.txt');
+      writeFileSync(tempFile, followUpPrompt, 'utf8');
+
+      const shellCommand = `cat "${tempFile}" | ${getCLIPath()} ${args.join(' ')}`;
+
+      ptySession = pty.spawn('/bin/bash', ['-c', shellCommand], {
+        name: 'dumb',
+        cols,
+        rows,
+        cwd,
+        env
+      });
+
+      activeSessions.set(sessionId, ptySession);
+
+      ptySession.onData((data: string) => {
+        output += data;
+        dataChunksReceived++;
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(async () => {
+          if (ptySession) await killProcessGracefully(ptySession, sessionId);
+          reject(new CLIError('Resume session timed out (no activity)', 'TIMEOUT'));
+        }, timeout);
+      });
+
+      ptySession.onExit(({ exitCode }) => {
+        clearTimeout(timeoutId);
+        activeSessions.delete(sessionId);
+        cleanupTempFile(tempFile, sessionId);
+
+        const executionTime = Date.now() - startTime;
+        log.info(`[${sessionId}] Resume completed in ${executionTime}ms`);
+
+        if (exitCode === 0) {
+          const cleanOutput = sanitizeOutput(output);
+          try {
+            const jsonResponse: ClaudeJSONResponse = JSON.parse(cleanOutput);
+            if (jsonResponse.is_error) {
+              reject(new CLIError(
+                `Resume failed: ${jsonResponse.result}`,
+                'EXECUTION_ERROR',
+                exitCode,
+                jsonResponse.result,
+                jsonResponse.session_id
+              ));
+              return;
+            }
+            log.info(`[${sessionId}] Resume SUCCESS - Result: ${jsonResponse.result?.length || 0} chars`);
+            resolve(jsonResponse.result);
+          } catch {
+            log.warn(`[${sessionId}] Resume: JSON parse failed, using raw output`);
+            resolve(cleanOutput);
+          }
+        } else {
+          reject(new CLIError(`Resume failed with exit code ${exitCode}`, 'EXECUTION_ERROR', exitCode));
+        }
+      });
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      reject(new CLIError(`Failed to resume session: ${error.message}`, 'PROCESS_ERROR'));
+    }
+  });
+}
+
+/**
  * Check if error is retryable
  */
 function isRetryableError(error: CLIError): boolean {
@@ -483,6 +661,7 @@ function isRetryableError(error: CLIError): boolean {
 
 /**
  * Execute Claude CLI with retry logic
+ * Uses session-based retry when sessionId is available from previous error
  */
 async function executeWithRetry(
   prompt: string,
@@ -490,19 +669,39 @@ async function executeWithRetry(
 ): Promise<string> {
   const maxRetries = options.maxRetries ?? parseInt(process.env.CLAUDE_MAX_RETRIES || String(DEFAULT_MAX_RETRIES));
   let lastError: CLIError | null = null;
+  let lastSessionId: string | undefined = undefined;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      log.debug(`Attempt ${attempt}/${maxRetries}`);
-      const result = await executeClaudeOnce(prompt, options);
-      return result;
+      // First attempt: execute with full prompt
+      // Subsequent attempts: try session resume if sessionId available
+      if (attempt === 1 || !lastSessionId) {
+        log.debug(`Attempt ${attempt}/${maxRetries} - Fresh execution`);
+        const result = await executeClaudeOnce(prompt, options);
+        return result;
+      } else {
+        // Session-based retry - much more efficient
+        log.info(`Attempt ${attempt}/${maxRetries} - Resuming session ${lastSessionId}`);
+        const resumePrompt = 'Please complete the previous task. Output the complete JSON response as requested.';
+        const result = await resumeClaudeSession(lastSessionId, resumePrompt, options);
+        return result;
+      }
     } catch (error: any) {
       lastError = error instanceof CLIError ? error : new CLIError(error.message, 'EXECUTION_ERROR');
+
+      // Save sessionId for potential resume retry
+      if (lastError.sessionId) {
+        lastSessionId = lastError.sessionId;
+        log.info(`Saved session ID for retry: ${lastSessionId}`);
+      }
 
       // Check if we should retry
       if (attempt < maxRetries && isRetryableError(lastError)) {
         const delay = Math.pow(2, attempt - 1) * 1000; // Exponential backoff: 1s, 2s, 4s
         log.warn(`Attempt ${attempt} failed: ${lastError.message}. Retrying in ${delay}ms...`);
+        if (lastSessionId) {
+          log.info(`Will attempt session resume with ID: ${lastSessionId}`);
+        }
         await sleep(delay);
       } else {
         break;
