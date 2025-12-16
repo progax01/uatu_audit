@@ -119,12 +119,8 @@ function validatePrompt(prompt: string): void {
     throw new CLIError('Prompt cannot be empty', 'INVALID_INPUT');
   }
 
-  if (prompt.length > MAX_PROMPT_LENGTH) {
-    throw new CLIError(
-      `Prompt exceeds maximum length of ${MAX_PROMPT_LENGTH} characters`,
-      'INVALID_INPUT'
-    );
-  }
+  // No artificial length limit - let Claude's actual context window be the natural boundary
+  // Large prompts are handled via temp files (stdin), so shell limits don't apply
 
   // Check for null bytes
   if (prompt.includes('\0')) {

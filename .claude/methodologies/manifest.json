@@ -286,6 +286,154 @@
       "timestamp": "2025-12-10T11:51:10.476Z",
       "methodologies": {},
       "milestone": 5
+    },
+    {
+      "jobId": "27",
+      "timestamp": "2025-12-10T12:53:11.442Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "27",
+      "timestamp": "2025-12-10T12:57:51.610Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "27",
+      "timestamp": "2025-12-10T12:59:18.657Z",
+      "methodologies": {
+        "reentrancy": "1.0.0",
+        "oracle-manipulation": "1.0.0",
+        "access-control": "1.0.0",
+        "injection": "1.0.0"
+      },
+      "milestone": 3
+    },
+    {
+      "jobId": "27",
+      "timestamp": "2025-12-10T13:01:51.015Z",
+      "methodologies": {},
+      "milestone": 4
+    },
+    {
+      "jobId": "27",
+      "timestamp": "2025-12-10T13:06:23.422Z",
+      "methodologies": {},
+      "milestone": 5
+    },
+    {
+      "jobId": "28",
+      "timestamp": "2025-12-11T12:23:13.345Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "29",
+      "timestamp": "2025-12-11T12:24:10.092Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "29",
+      "timestamp": "2025-12-11T12:33:19.728Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "28",
+      "timestamp": "2025-12-11T12:33:20.709Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "28",
+      "timestamp": "2025-12-11T12:35:22.567Z",
+      "methodologies": {
+        "reentrancy": "1.0.0",
+        "oracle-manipulation": "1.0.0",
+        "access-control": "1.0.0",
+        "injection": "1.0.0"
+      },
+      "milestone": 3
+    },
+    {
+      "jobId": "28",
+      "timestamp": "2025-12-11T12:36:20.818Z",
+      "methodologies": {},
+      "milestone": 4
+    },
+    {
+      "jobId": "29",
+      "timestamp": "2025-12-11T12:36:49.763Z",
+      "methodologies": {
+        "reentrancy": "1.0.0",
+        "oracle-manipulation": "1.0.0",
+        "access-control": "1.0.0",
+        "injection": "1.0.0"
+      },
+      "milestone": 3
+    },
+    {
+      "jobId": "28",
+      "timestamp": "2025-12-11T12:38:10.105Z",
+      "methodologies": {},
+      "milestone": 5
+    },
+    {
+      "jobId": "29",
+      "timestamp": "2025-12-11T12:39:10.071Z",
+      "methodologies": {},
+      "milestone": 4
+    },
+    {
+      "jobId": "30",
+      "timestamp": "2025-12-11T12:39:37.402Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "29",
+      "timestamp": "2025-12-11T12:42:18.618Z",
+      "methodologies": {},
+      "milestone": 5
+    },
+    {
+      "jobId": "30",
+      "timestamp": "2025-12-11T12:54:22.477Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "30",
+      "timestamp": "2025-12-11T12:56:54.678Z",
+      "methodologies": {
+        "reentrancy": "1.0.0",
+        "oracle-manipulation": "1.0.0",
+        "access-control": "1.0.0",
+        "injection": "1.0.0"
+      },
+      "milestone": 3
+    },
+    {
+      "jobId": "30",
+      "timestamp": "2025-12-11T13:00:04.407Z",
+      "methodologies": {},
+      "milestone": 4
+    },
+    {
+      "jobId": "30",
+      "timestamp": "2025-12-11T13:01:54.569Z",
+      "methodologies": {},
+      "milestone": 5
     }
   ]
 }
