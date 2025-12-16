@@ -434,6 +434,43 @@
       "timestamp": "2025-12-11T13:01:54.569Z",
       "methodologies": {},
       "milestone": 5
+    },
+    {
+      "jobId": "32",
+      "timestamp": "2025-12-16T06:50:50.313Z",
+      "methodologies": {},
+      "milestone": 1
+    },
+    {
+      "jobId": "32",
+      "timestamp": "2025-12-16T06:54:35.645Z",
+      "methodologies": {
+        "access-control": "1.0.0"
+      },
+      "milestone": 2
+    },
+    {
+      "jobId": "32",
+      "timestamp": "2025-12-16T06:57:51.741Z",
+      "methodologies": {
+        "reentrancy": "1.0.0",
+        "oracle-manipulation": "1.0.0",
+        "access-control": "1.0.0",
+        "injection": "1.0.0"
+      },
+      "milestone": 3
+    },
+    {
+      "jobId": "32",
+      "timestamp": "2025-12-16T07:01:32.027Z",
+      "methodologies": {},
+      "milestone": 4
+    },
+    {
+      "jobId": "32",
+      "timestamp": "2025-12-16T07:04:33.148Z",
+      "methodologies": {},
+      "milestone": 5
     }
   ]
 }

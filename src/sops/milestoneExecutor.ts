@@ -551,6 +551,11 @@ export class MilestoneExecutor {
         break;
     }
 
+    // Add JSON output instruction for all milestones
+    query += `\n## Output Format\n\n`;
+    query += `IMPORTANT: Output ONLY valid JSON. No markdown, no explanations, no code blocks - just the raw JSON object.\n`;
+    query += `Your entire response must be a single valid JSON object that can be parsed by JSON.parse().\n`;
+
     return query;
   }
 
@@ -600,10 +605,23 @@ export class MilestoneExecutor {
    */
   private parseOutput(output: string, milestoneNumber: MilestoneNumber): any {
     try {
-      // Try to extract JSON from the output
-      const jsonMatch = output.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+      // Strategy 1: Try to parse entire output as JSON first (ideal case)
+      try {
+        return JSON.parse(output.trim());
+      } catch {
+        // Continue to other strategies
+      }
+
+      // Strategy 2: Look for ```json code blocks
+      const codeBlockMatch = output.match(/```json\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch) {
+        return JSON.parse(codeBlockMatch[1]);
+      }
+
+      // Strategy 3: Find JSON object by matching balanced braces
+      const jsonStr = this.extractBalancedJson(output);
+      if (jsonStr) {
+        return JSON.parse(jsonStr);
       }
 
       // If no JSON found, return raw output
@@ -613,6 +631,63 @@ export class MilestoneExecutor {
       log.error(`Failed to parse output:`, error);
       return { raw_output: output, parse_error: String(error) };
     }
+  }
+
+  /**
+   * Extract JSON by finding balanced braces (handles nested objects)
+   */
+  private extractBalancedJson(text: string): string | null {
+    // Find the first '{' that starts a valid JSON object
+    let startIndex = -1;
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '{') {
+        // Check if this looks like the start of a JSON object (not a template literal or other syntax)
+        const beforeChar = i > 0 ? text[i - 1] : ' ';
+        // Skip if it looks like a template variable ${...} or similar
+        if (beforeChar === '$') continue;
+
+        startIndex = i;
+        break;
+      }
+    }
+
+    if (startIndex === -1) return null;
+
+    // Count braces to find matching closing brace
+    let braceCount = 0;
+    let inString = false;
+    let escapeNext = false;
+
+    for (let i = startIndex; i < text.length; i++) {
+      const char = text[i];
+
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\' && inString) {
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"' && !escapeNext) {
+        inString = !inString;
+        continue;
+      }
+
+      if (!inString) {
+        if (char === '{') braceCount++;
+        if (char === '}') {
+          braceCount--;
+          if (braceCount === 0) {
+            return text.substring(startIndex, i + 1);
+          }
+        }
+      }
+    }
+
+    return null;
   }
 
   /**
