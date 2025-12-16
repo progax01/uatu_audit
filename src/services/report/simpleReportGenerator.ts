@@ -33,6 +33,7 @@ interface CertificateData {
 export interface AuditResults {
   metadata: {
     repo: string;
+    repository?: string; // Alternative field name in some results
     branch: string;
     timestamp: string;
     duration_seconds: number;
@@ -286,8 +287,9 @@ export async function generateReportFromResults(
   }
   let template = await fs.readFile(templatePath, "utf8");
 
-  // Extract project name from repo
-  const projectName = results.metadata.repo?.split("/").pop()?.replace(".git", "") || "Unknown Project";
+  // Extract project name from repo (support both 'repo' and 'repository' fields)
+  const repoUrl = results.metadata.repo || results.metadata.repository;
+  const projectName = repoUrl?.split("/").pop()?.replace(".git", "") || "Unknown Project";
 
   // Calculate counts if not in breakdown (with safe fallbacks)
   const breakdown = results.score.breakdown || {
@@ -477,8 +479,9 @@ export async function generateCertificateFromResults(
     if (mascotDataUri) break;
   }
 
-  // Extract project name from repo
-  const projectName = results.metadata.repo?.split("/").pop()?.replace(".git", "") || "Unknown Project";
+  // Extract project name from repo (support both 'repo' and 'repository' fields)
+  const repoUrl = results.metadata.repo || results.metadata.repository;
+  const projectName = repoUrl?.split("/").pop()?.replace(".git", "") || "Unknown Project";
 
   // Calculate counts
   const breakdown = results.score.breakdown || {};

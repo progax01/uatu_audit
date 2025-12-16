@@ -937,37 +937,22 @@
                     <h3>Key Findings Summary</h3>
                     <div class="severity-row">
                         <span class="severity-label">Critical</span>
-                        <div class="severity-bar-container">
-                            <div class="severity-bar critical" id="criticalBar" style="width: 0%"></div>
-                        </div>
                         <span class="severity-count" id="criticalCount">(0)</span>
                     </div>
                     <div class="severity-row">
                         <span class="severity-label">High</span>
-                        <div class="severity-bar-container">
-                            <div class="severity-bar high" id="highBar" style="width: 0%"></div>
-                        </div>
                         <span class="severity-count" id="highCount">(0)</span>
                     </div>
                     <div class="severity-row">
                         <span class="severity-label">Medium</span>
-                        <div class="severity-bar-container">
-                            <div class="severity-bar medium" id="mediumBar" style="width: 0%"></div>
-                        </div>
                         <span class="severity-count" id="mediumCount">(0)</span>
                     </div>
                     <div class="severity-row">
                         <span class="severity-label">Low</span>
-                        <div class="severity-bar-container">
-                            <div class="severity-bar low" id="lowBar" style="width: 0%"></div>
-                        </div>
                         <span class="severity-count" id="lowCount">(0)</span>
                     </div>
                     <div class="severity-row">
                         <span class="severity-label">Informational</span>
-                        <div class="severity-bar-container">
-                            <div class="severity-bar info" id="infoBar" style="width: 0%"></div>
-                        </div>
                         <span class="severity-count" id="infoCount">(0)</span>
                     </div>
                     <div class="status-row" id="statusRow">
@@ -1098,7 +1083,7 @@
             if (score >= 80) return 'Good';
             if (score >= 70) return 'Satisfactory';
             if (score >= 50) return 'Needs Improvement';
-            return 'Critical Issues';
+            return '';
         }
 
         function getAssuranceLevel(score) {
