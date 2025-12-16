@@ -1177,12 +1177,6 @@
             document.getElementById('lowCount').textContent = `(${severity.low || 0})`;
             document.getElementById('infoCount').textContent = `(${severity.info || 0})`;
 
-            document.getElementById('criticalBar').style.width = `${((severity.critical || 0) / maxBar) * 100}%`;
-            document.getElementById('highBar').style.width = `${((severity.high || 0) / maxBar) * 100}%`;
-            document.getElementById('mediumBar').style.width = `${((severity.medium || 0) / maxBar) * 100}%`;
-            document.getElementById('lowBar').style.width = `${((severity.low || 0) / maxBar) * 100}%`;
-            document.getElementById('infoBar').style.width = `${((severity.info || 0) / maxBar) * 100}%`;
-
             document.getElementById('openCount').textContent = total;
 
             // Executive Summary
