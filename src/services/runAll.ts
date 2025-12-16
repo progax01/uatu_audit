@@ -181,8 +181,8 @@ export async function runAll(params: {
   await writeMilestones(contextPath, "NOT_STARTED");
   log.info("Step 1.5c: milestones.md written");
 
-  await initResultsJson(contextPath);
-  log.info("Step 1.5d: results.json initialized");
+  await initResultsJson(contextPath, repo, branch);
+  log.info("Step 1.5d: results.json initialized", { repo, branch });
 
   await onProgress({ phase: "context", step: "context-ready", pct: 100 });
   log.info("=== PHASE 1 COMPLETE ===");

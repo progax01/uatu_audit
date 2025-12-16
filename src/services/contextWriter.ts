@@ -236,11 +236,13 @@ Start from beginning
 }
 
 /**
- * Initializes empty results.json
+ * Initializes empty results.json with repo and branch info
  */
-export async function initResultsJson(contextPath: string): Promise<string> {
+export async function initResultsJson(contextPath: string, repo?: string, branch?: string): Promise<string> {
   const results = {
     metadata: {
+      repo: repo || "",
+      branch: branch || "",
       status: "pending",
       timestamp: new Date().toISOString()
     },
