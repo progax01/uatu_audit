@@ -1299,6 +1299,66 @@ Each audit now stores the git commit hash in `results.json`:
 
 ---
 
+## 🐛 BUG FIX: Certificate Severity Counts Not Updating
+
+### **Problem**
+Certificate was showing only Critical count correctly, all other severity counts were 0.
+
+### **Root Cause**
+In a previous fix, bar HTML elements were removed from `certificate-template.html`, but the JavaScript was still trying to update those removed elements:
+
+```javascript
+// OLD CODE - caused crash
+const updateFinding = (id, count, barId) => {
+    document.getElementById(id + 'Value').textContent = `(${count})`;  // Line 1: Works
+    document.getElementById(barId).style.width = barWidth + '%';       // Line 2: CRASH! Element doesn't exist
+};
+```
+
+When `criticalBar` element didn't exist, JavaScript crashed after setting Critical count, preventing High/Medium/Low/Info from being updated.
+
+### **Fix**
+Simplified JavaScript to directly update text without bar references:
+
+```javascript
+// NEW CODE - works correctly
+document.getElementById('criticalValue').textContent = `(${sev.critical || 0})`;
+document.getElementById('highValue').textContent = `(${sev.high || 0})`;
+document.getElementById('mediumValue').textContent = `(${sev.medium || 0})`;
+document.getElementById('lowValue').textContent = `(${sev.low || 0})`;
+document.getElementById('infoValue').textContent = `(${sev.info || 0})`;
+```
+
+### **File Changed**
+- `src/templates/certificate-template.html` - Lines 740-747
+
+---
+
+## 🔗 Frontend Run Parameter Integration
+
+### **Problem**
+Backend supported `run` parameter, but frontend UI was generating URLs without it:
+```
+/report?project=X&branch=main&format=html  (missing run)
+```
+
+### **Fix**
+Updated `ReviewAndRun.tsx` and `useAuditProgress.ts` to include run timestamp:
+
+```javascript
+// Now generates:
+/report?project=X&branch=main&run=1765362901677&format=html
+```
+
+### **Files Changed**
+
+| File | Change |
+|------|--------|
+| `ui/src/pages/ReviewAndRun.tsx` | Added `run` param to `handleViewReport()` and certificate iframe |
+| `ui/src/hooks/useAuditProgress.ts` | Added `run` param to `checkReportReady()` |
+
+---
+
 ## ✅ COMPLETE! Every Single Log Point Documented
 
 **Total Execution:** GitHub → 130 Log Points → Final Report

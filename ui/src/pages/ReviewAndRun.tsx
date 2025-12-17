@@ -161,7 +161,9 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
   }
 
   const handleViewReport = (format: 'html' | 'pdf') => {
-    const url = `/report?project=${encodeURIComponent(repoData.project)}&branch=${encodeURIComponent(repoData.branch)}&format=${format}`
+    // Include run timestamp for specific run access
+    const runParam = progress?.timestamp ? `&run=${encodeURIComponent(progress.timestamp)}` : ''
+    const url = `/report?project=${encodeURIComponent(repoData.project)}&branch=${encodeURIComponent(repoData.branch)}${runParam}&format=${format}`
     if (format === 'pdf') {
       // Download PDF directly
       const link = document.createElement('a')
@@ -665,7 +667,7 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
                 {activeTab === 'certificate' && (
                   <div className="relative">
                     <iframe
-                      src={`/certificate?project=${encodeURIComponent(repoData.project)}&branch=${encodeURIComponent(repoData.branch)}`}
+                      src={`/certificate?project=${encodeURIComponent(repoData.project)}&branch=${encodeURIComponent(repoData.branch)}${progress?.timestamp ? `&run=${encodeURIComponent(progress.timestamp)}` : ''}`}
                       className="w-full h-[800px] rounded-xl border border-gray-200 bg-white shadow-lg"
                       title="Audit Certificate"
                     />

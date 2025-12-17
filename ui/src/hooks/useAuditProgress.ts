@@ -39,10 +39,11 @@ export function useAuditProgress(project: string, branch: string, shouldPoll: bo
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const logIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  const checkReportReady = useCallback(async () => {
+  const checkReportReady = useCallback(async (runTimestamp?: string) => {
     try {
+      const runParam = runTimestamp ? `&run=${encodeURIComponent(runTimestamp)}` : ''
       const res = await fetch(
-        `/report?project=${encodeURIComponent(project)}&branch=${encodeURIComponent(branch)}&format=html`,
+        `/report?project=${encodeURIComponent(project)}&branch=${encodeURIComponent(branch)}${runParam}&format=html`,
         { method: 'HEAD' }
       )
       return res.ok
@@ -89,7 +90,7 @@ export function useAuditProgress(project: string, branch: string, shouldPoll: bo
 
         if (data.overall_pct >= 100 || allPhasesComplete || reportComplete || executePhaseComplete) {
           if (!isComplete) {
-            await checkReportReady()
+            await checkReportReady(data.timestamp)
             setIsComplete(true)
           }
         } else {

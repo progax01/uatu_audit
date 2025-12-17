@@ -739,20 +739,12 @@
 
             // Severity counts
             const sev = D.severity || {};
-            const total = (sev.critical || 0) + (sev.high || 0) + (sev.medium || 0) + (sev.low || 0) + (sev.info || 0);
-            const maxCount = Math.max(total, 1);
 
-            const updateFinding = (id, count, barId) => {
-                document.getElementById(id + 'Value').textContent = `(${count})`;
-                const barWidth = total > 0 ? (count / maxCount) * 100 : 0;
-                document.getElementById(barId).style.width = barWidth + '%';
-            };
-
-            updateFinding('critical', sev.critical || 0, 'criticalBar');
-            updateFinding('high', sev.high || 0, 'highBar');
-            updateFinding('medium', sev.medium || 0, 'mediumBar');
-            updateFinding('low', sev.low || 0, 'lowBar');
-            updateFinding('info', sev.info || 0, 'infoBar');
+            document.getElementById('criticalValue').textContent = `(${sev.critical || 0})`;
+            document.getElementById('highValue').textContent = `(${sev.high || 0})`;
+            document.getElementById('mediumValue').textContent = `(${sev.medium || 0})`;
+            document.getElementById('lowValue').textContent = `(${sev.low || 0})`;
+            document.getElementById('infoValue').textContent = `(${sev.info || 0})`;
 
             // Executive Summary
             const summary = D.executiveSummary ||
