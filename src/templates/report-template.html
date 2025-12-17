@@ -99,7 +99,7 @@
         .certificate-grid {
             display: grid;
             grid-template-columns: 1fr auto 1fr;
-            gap: 32px;
+            gap: 48px;
             align-items: center;
         }
 
@@ -1213,9 +1213,9 @@
                 </div>
             `).join('');
 
-            // Findings Grid
+            // Findings Grid - Show all findings (no limit)
             const findingsGrid = document.getElementById('findingsGrid');
-            findingsGrid.innerHTML = findings.slice(0, 8).map(f => `
+            findingsGrid.innerHTML = findings.map(f => `
                 <div class="finding-card">
                     <div class="finding-card-header">
                         <span class="finding-badge ${(f.severity || 'info').toLowerCase()}">${(f.severity || 'INFO').toUpperCase()}</span>
