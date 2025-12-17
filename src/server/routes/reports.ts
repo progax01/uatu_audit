@@ -8,11 +8,13 @@ export async function handleReportRoutes(
   res: any,
   parsed: { pathname: string; query: any }
 ): Promise<boolean> {
-  // GET/HEAD /report?project=&branch=&format=pdf|html
+  // GET/HEAD /report?project=&branch=&run=&format=pdf|html
+  // run parameter is optional - if not provided, returns latest run
   if ((req.method === "GET" || req.method === "HEAD") && parsed.pathname === "/report") {
     const project = String(parsed.query.project || "");
     const branch = String(parsed.query.branch || "");
     const format = String(parsed.query.format || "html");
+    const runId = parsed.query.run ? String(parsed.query.run) : null;
 
     if (!project || !branch) {
       res.statusCode = 400;
@@ -28,14 +30,34 @@ export async function handleReportRoutes(
       return true;
     }
 
-    // Find the latest run that has a report.html
     let runPath: string | null = null;
-    for (let i = runs.length - 1; i >= 0; i--) {
-      const candidatePath = path.join(runsPath, runs[i]);
-      const reportExists = await fs.pathExists(path.join(candidatePath, "report.html"));
-      if (reportExists) {
-        runPath = candidatePath;
-        break;
+
+    // If specific run ID provided, use that
+    if (runId) {
+      const specificRunPath = path.join(runsPath, runId);
+      if (await fs.pathExists(specificRunPath)) {
+        const reportExists = await fs.pathExists(path.join(specificRunPath, "report.html"));
+        if (reportExists) {
+          runPath = specificRunPath;
+        } else {
+          res.statusCode = 404;
+          res.end(`Run ${runId} exists but has no report.html`);
+          return true;
+        }
+      } else {
+        res.statusCode = 404;
+        res.end(`Run ${runId} not found`);
+        return true;
+      }
+    } else {
+      // Find the latest run that has a report.html
+      for (let i = runs.length - 1; i >= 0; i--) {
+        const candidatePath = path.join(runsPath, runs[i]);
+        const reportExists = await fs.pathExists(path.join(candidatePath, "report.html"));
+        if (reportExists) {
+          runPath = candidatePath;
+          break;
+        }
       }
     }
 
@@ -83,10 +105,12 @@ export async function handleReportRoutes(
     }
   }
 
-  // GET/HEAD /certificate?project=&branch=
+  // GET/HEAD /certificate?project=&branch=&run=
+  // run parameter is optional - if not provided, returns latest run
   if ((req.method === "GET" || req.method === "HEAD") && parsed.pathname === "/certificate") {
     const project = String(parsed.query.project || "");
     const branch = String(parsed.query.branch || "");
+    const runId = parsed.query.run ? String(parsed.query.run) : null;
 
     if (!project || !branch) {
       res.statusCode = 400;
@@ -102,14 +126,34 @@ export async function handleReportRoutes(
       return true;
     }
 
-    // Find the latest run that has a certificate.html
     let runPath: string | null = null;
-    for (let i = runs.length - 1; i >= 0; i--) {
-      const candidatePath = path.join(runsPath, runs[i]);
-      const certExists = await fs.pathExists(path.join(candidatePath, "certificate.html"));
-      if (certExists) {
-        runPath = candidatePath;
-        break;
+
+    // If specific run ID provided, use that
+    if (runId) {
+      const specificRunPath = path.join(runsPath, runId);
+      if (await fs.pathExists(specificRunPath)) {
+        const certExists = await fs.pathExists(path.join(specificRunPath, "certificate.html"));
+        if (certExists) {
+          runPath = specificRunPath;
+        } else {
+          res.statusCode = 404;
+          res.end(`Run ${runId} exists but has no certificate.html`);
+          return true;
+        }
+      } else {
+        res.statusCode = 404;
+        res.end(`Run ${runId} not found`);
+        return true;
+      }
+    } else {
+      // Find the latest run that has a certificate.html
+      for (let i = runs.length - 1; i >= 0; i--) {
+        const candidatePath = path.join(runsPath, runs[i]);
+        const certExists = await fs.pathExists(path.join(candidatePath, "certificate.html"));
+        if (certExists) {
+          runPath = candidatePath;
+          break;
+        }
       }
     }
 

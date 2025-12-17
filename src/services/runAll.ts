@@ -1,6 +1,6 @@
 import path from "node:path";
 import fs from "fs-extra";
-import { cloneOrRefresh } from "./gitService.js";
+import { cloneOrRefresh, getCommitHash } from "./gitService.js";
 import { resolveWorkspace } from "./workspaceService.js";
 import { bootstrapSOP } from "../sops/bootstrap.js";
 import { singlePromptAuditSOP } from "../sops/singlePromptAudit.js";
@@ -181,8 +181,12 @@ export async function runAll(params: {
   await writeMilestones(contextPath, "NOT_STARTED");
   log.info("Step 1.5c: milestones.md written");
 
-  await initResultsJson(contextPath, repo, branch);
-  log.info("Step 1.5d: results.json initialized", { repo, branch });
+  // Get commit hash for metadata
+  const commitHash = await getCommitHash(branchPath);
+  log.info("Step 1.5d: Got commit hash", { commitHash });
+
+  await initResultsJson(contextPath, repo, branch, commitHash || undefined);
+  log.info("Step 1.5e: results.json initialized", { repo, branch, commitHash });
 
   await onProgress({ phase: "context", step: "context-ready", pct: 100 });
   log.info("=== PHASE 1 COMPLETE ===");

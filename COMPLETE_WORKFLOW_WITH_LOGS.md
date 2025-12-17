@@ -1247,6 +1247,58 @@ Pipeline completed: score: 0, grade: F (19 findings)
 
 ---
 
+---
+
+## 🔗 RUN ID & COMMIT TRACKING
+
+### **New Feature: Specific Run Access via URL**
+
+Reports and certificates can now be accessed by specific run ID:
+
+```
+# Latest run (default behavior)
+GET /report?project=LandRegistry&branch=main&format=html
+
+# Specific run by ID
+GET /report?project=LandRegistry&branch=main&run=1765362901677&format=html
+
+# Certificate with specific run
+GET /certificate?project=LandRegistry&branch=main&run=1765362901677
+```
+
+### **Commit Hash in Metadata**
+
+Each audit now stores the git commit hash in `results.json`:
+
+```json
+{
+  "metadata": {
+    "repo": "https://github.com/user/repo.git",
+    "branch": "main",
+    "commit": "47dd1b2",  // NEW: Short commit hash
+    "status": "completed",
+    "timestamp": "2025-12-17T06:38:02.916Z"
+  }
+}
+```
+
+### **Files Changed**
+
+| File | Change |
+|------|--------|
+| `src/services/gitService.ts` | Added `getCommitHash()` and `getFullCommitHash()` functions |
+| `src/services/contextWriter.ts` | `initResultsJson()` now accepts `commitHash` parameter |
+| `src/services/runAll.ts` | Gets commit hash after clone and passes to `initResultsJson()` |
+| `src/server/routes/reports.ts` | Added `run` parameter support for `/report` and `/certificate` endpoints |
+
+### **Benefits**
+
+1. **Historical Access** - Access any previous audit by run ID
+2. **Traceability** - Know exactly which commit was audited
+3. **Backward Compatible** - If `run` not provided, returns latest report
+
+---
+
 ## ✅ COMPLETE! Every Single Log Point Documented
 
 **Total Execution:** GitHub → 130 Log Points → Final Report

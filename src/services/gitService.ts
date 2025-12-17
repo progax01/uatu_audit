@@ -58,6 +58,30 @@ async function handleScanProtocol(repo: string, targetPath: string): Promise<boo
   return true;
 }
 
+/**
+ * Get the current commit hash of a repository
+ */
+export async function getCommitHash(repoPath: string): Promise<string | null> {
+  try {
+    const { stdout } = await execAsync(`git rev-parse HEAD`, { cwd: repoPath });
+    return stdout.trim().substring(0, 7); // Short hash (7 chars)
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get the full commit hash of a repository
+ */
+export async function getFullCommitHash(repoPath: string): Promise<string | null> {
+  try {
+    const { stdout } = await execAsync(`git rev-parse HEAD`, { cwd: repoPath });
+    return stdout.trim();
+  } catch {
+    return null;
+  }
+}
+
 export async function cloneOrRefresh(repo: string, targetPath: string, branch: string, accessToken?: string) {
   // Early validation to catch bad repo URLs
   if (!repo || typeof repo !== 'string') {
