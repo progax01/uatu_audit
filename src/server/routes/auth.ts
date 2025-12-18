@@ -167,7 +167,11 @@ export async function handleAuthRoutes(
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.end(
-        `<script>window.opener||window.opener;window.location='/'</script><p>GitHub auth ok. You can close this tab and return to the test UI.</p>`
+        `<script>
+          var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+          localStorage.removeItem('oauth_return_url');
+          window.location = returnUrl;
+        </script><p>GitHub auth ok. Redirecting...</p>`
       );
     } catch (e: any) {
       logger.error("GitHub OAuth callback error", {
@@ -227,7 +231,11 @@ export async function handleAuthRoutes(
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.end(
-        `<script>window.opener||window.opener;window.location='/'</script><p>GitHub auth ok. You can close this tab and return to the test UI.</p>`
+        `<script>
+          var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+          localStorage.removeItem('oauth_return_url');
+          window.location = returnUrl;
+        </script><p>GitHub auth ok. Redirecting...</p>`
       );
     } catch (e: any) {
       res.statusCode = 500;

@@ -53,6 +53,8 @@ export default function ConnectSource({ onNext, onHomeClick, repoData, setRepoDa
   }
 
   const handleLogin = () => {
+    // Save current URL to return after OAuth
+    localStorage.setItem('oauth_return_url', window.location.pathname + window.location.search)
     window.location.href = '/auth/github/login'
   }
 
