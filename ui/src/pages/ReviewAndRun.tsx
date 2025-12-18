@@ -406,14 +406,33 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
                       <span className="text-gray-500">Project:</span>
                       <span className="text-gray-800 ml-2 font-medium">{repoData.project}</span>
                     </div>
-                    <div>
-                      <span className="text-gray-500">Branch:</span>
-                      <span className="text-gray-800 ml-2 font-medium">{repoData.branch}</span>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-gray-500">Repository:</span>
-                      <span className="text-gray-800 ml-2 font-medium break-all">{repoData.repo}</span>
-                    </div>
+                    {repoData.repo?.startsWith('scan://') ? (
+                      <>
+                        <div>
+                          <span className="text-gray-500">Network:</span>
+                          <span className="text-gray-800 ml-2 font-medium capitalize">
+                            {repoData.repo.replace('scan://', '').split('/')[0]}
+                          </span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Contract:</span>
+                          <span className="text-gray-800 ml-2 font-medium break-all">
+                            {repoData.repo.replace('scan://', '').split('/')[1]}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <span className="text-gray-500">Branch:</span>
+                          <span className="text-gray-800 ml-2 font-medium">{repoData.branch}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Repository:</span>
+                          <span className="text-gray-800 ml-2 font-medium break-all">{repoData.repo}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
