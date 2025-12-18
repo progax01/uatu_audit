@@ -1,6 +1,7 @@
 import { runAll } from "../services/runAll.js";
-import { claimNext, complete, JobCancelledError } from "../services/jobQueue.js";
+import { claimNext, complete, JobCancelledError, getJob } from "../services/jobQueue.js";
 import { logger, createJobLogger } from "../utils/logger.js";
+import { updateRepoHomepage, buildReportUrl } from "../services/githubService.js";
 
 /**
  * Background worker that processes jobs from the queue
@@ -40,6 +41,26 @@ export async function startWorker(workerId: number) {
           grade,
           workerId,
         });
+
+        // Update GitHub repo "About" section with report link (non-blocking)
+        if (job.accessToken && job.repo && !job.repo.startsWith("scan://")) {
+          try {
+            // Get updated job to fetch runTimestamp
+            const updatedJob = await getJob(job.id);
+            if (updatedJob?.runTimestamp) {
+              const reportUrl = buildReportUrl(job.project, job.branch, updatedJob.runTimestamp);
+              const result = await updateRepoHomepage(job.accessToken, job.repo, reportUrl);
+              if (result.success) {
+                jobLog.info(`GitHub repo homepage updated with report link`, { reportUrl });
+              } else {
+                jobLog.warn(`Failed to update GitHub repo homepage`, { error: result.error });
+              }
+            }
+          } catch (ghError) {
+            // Don't fail the job if GitHub update fails
+            jobLog.warn(`Error updating GitHub repo homepage`, { error: String(ghError) });
+          }
+        }
       } catch (error) {
         // Handle cancellation gracefully
         if (error instanceof JobCancelledError) {
