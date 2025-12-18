@@ -1359,6 +1359,32 @@ Updated `ReviewAndRun.tsx` and `useAuditProgress.ts` to include run timestamp:
 
 ---
 
+## 🔗 Quick Scan - Base Chain Support
+
+### **Problem**
+Quick Scan feature on HomePage was missing Base chain option. Backend already supported Base (chainId 8453) but HomePage UI only showed 5 networks: Arbitrum, Ethereum, Polygon, BNB, Optimism.
+
+### **Fix**
+Added Base chain to HomePage.tsx network configuration:
+
+```typescript
+// Updated Network type
+type Network = 'arbitrum' | 'ethereum' | 'polygon' | 'base' | 'bnb' | 'optimism'
+
+// Added Base to networks array
+{ id: 'base', name: 'Base', color: '#0052FF' }
+```
+
+### **File Changed**
+- `ui/src/pages/HomePage.tsx` - Lines 21, 28
+
+### **Verification**
+- Backend `/scan/networks` already returned Base with `hasApiKey: true`
+- ScanContract.tsx already had Base configured
+- Only HomePage.tsx was missing Base chain option
+
+---
+
 ## ✅ COMPLETE! Every Single Log Point Documented
 
 **Total Execution:** GitHub → 130 Log Points → Final Report
