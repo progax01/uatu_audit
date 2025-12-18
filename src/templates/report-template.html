@@ -767,6 +767,76 @@
             border-radius: 50%;
         }
 
+        /* Categorized Recommendations */
+        .rec-category {
+            margin-bottom: 24px;
+        }
+        .rec-category-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .rec-category-title .rec-badge {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .rec-badge-immediate { background: #fef2f2; color: #dc2626; }
+        .rec-badge-short { background: #fefce8; color: #ca8a04; }
+        .rec-badge-long { background: #f0fdf4; color: #16a34a; }
+        .rec-badge-best { background: #eff6ff; color: #2563eb; }
+        .rec-item {
+            background: var(--bg-card-alt);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .rec-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        .rec-item-action {
+            font-weight: 500;
+            color: var(--text-primary);
+            flex: 1;
+        }
+        .rec-item-effort {
+            font-size: 12px;
+            color: var(--text-muted);
+            background: var(--bg-secondary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            margin-left: 12px;
+        }
+        .rec-item-details {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .rec-item-finding {
+            font-size: 12px;
+            color: var(--severity-high);
+            margin-bottom: 4px;
+        }
+        .rec-simple-item {
+            background: var(--bg-card-alt);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
         /* Footer */
         .footer {
             display: flex;
@@ -1057,9 +1127,9 @@
         <!-- Recommendations -->
         <section class="section">
             <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px;"><path d="M9 18h6M10 22h4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/></svg>Recommendations</h2>
-            <ul class="recommendations-list" id="recommendationsList">
-                <!-- Populated by JS -->
-            </ul>
+            <div id="recommendationsContainer">
+                <!-- Populated by JS - supports both array and object formats -->
+            </div>
         </section>
 
         <!-- Footer -->
@@ -1350,9 +1420,73 @@
                 }
             }
 
-            // Recommendations
-            const recList = document.getElementById('recommendationsList');
-            recList.innerHTML = improve.map(r => `<li>${r}</li>`).join('');
+            // Recommendations - supports both array (old) and object (new) formats
+            const recContainer = document.getElementById('recommendationsContainer');
+            if (Array.isArray(improve)) {
+                // Old format: simple array of strings
+                recContainer.innerHTML = `<ul class="recommendations-list">${improve.map(r => `<li>${r}</li>`).join('')}</ul>`;
+            } else if (improve && typeof improve === 'object') {
+                // New format: categorized object
+                let html = '';
+
+                // Immediate Actions
+                if (improve.immediate && improve.immediate.length > 0) {
+                    html += `<div class="rec-category">
+                        <div class="rec-category-title"><span class="rec-badge rec-badge-immediate">Immediate</span> Critical Actions</div>
+                        ${improve.immediate.map(r => `
+                            <div class="rec-item">
+                                ${r.finding ? `<div class="rec-item-finding">Related: ${r.finding}</div>` : ''}
+                                <div class="rec-item-header">
+                                    <div class="rec-item-action">${r.action || r}</div>
+                                    ${r.effort ? `<span class="rec-item-effort">${r.effort}</span>` : ''}
+                                </div>
+                                ${r.details ? `<div class="rec-item-details">${r.details}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>`;
+                }
+
+                // Short-term Actions
+                if (improve.short_term && improve.short_term.length > 0) {
+                    html += `<div class="rec-category">
+                        <div class="rec-category-title"><span class="rec-badge rec-badge-short">Short-term</span> Near-term Improvements</div>
+                        ${improve.short_term.map(r => `
+                            <div class="rec-item">
+                                ${r.category ? `<div class="rec-item-finding">${r.category}</div>` : ''}
+                                <div class="rec-item-header">
+                                    <div class="rec-item-action">${r.action || r}</div>
+                                    ${r.effort ? `<span class="rec-item-effort">${r.effort}</span>` : ''}
+                                </div>
+                                ${r.details ? `<div class="rec-item-details">${r.details}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>`;
+                }
+
+                // Long-term Actions
+                if (improve.long_term && improve.long_term.length > 0) {
+                    html += `<div class="rec-category">
+                        <div class="rec-category-title"><span class="rec-badge rec-badge-long">Long-term</span> Strategic Improvements</div>
+                        ${improve.long_term.map(r => `
+                            <div class="rec-simple-item">${typeof r === 'string' ? r : (r.action || r.description || JSON.stringify(r))}</div>
+                        `).join('')}
+                    </div>`;
+                }
+
+                // Security Best Practices
+                if (improve.security_best_practices && improve.security_best_practices.length > 0) {
+                    html += `<div class="rec-category">
+                        <div class="rec-category-title"><span class="rec-badge rec-badge-best">Best Practices</span> Security Guidelines</div>
+                        ${improve.security_best_practices.map(r => `
+                            <div class="rec-simple-item">${typeof r === 'string' ? r : (r.action || r.description || JSON.stringify(r))}</div>
+                        `).join('')}
+                    </div>`;
+                }
+
+                recContainer.innerHTML = html || '<p style="color: var(--text-muted);">No recommendations available.</p>';
+            } else {
+                recContainer.innerHTML = '<p style="color: var(--text-muted);">No recommendations available.</p>';
+            }
         }
 
         document.addEventListener('DOMContentLoaded', populateReport);
