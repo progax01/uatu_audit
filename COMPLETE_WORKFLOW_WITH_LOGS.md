@@ -1385,6 +1385,38 @@ type Network = 'arbitrum' | 'ethereum' | 'polygon' | 'base' | 'bnb' | 'optimism'
 
 ---
 
+## 🔗 Quick Scan - ReviewAndRun UI Improvements
+
+### **Problem**
+Quick Scan was showing irrelevant GitHub-specific fields:
+- "Branch: main" (meaningless for deployed contracts)
+- "Repository: scan://ethereum/0x..." (ugly internal format)
+
+### **Fix**
+Conditional rendering in ReviewAndRun.tsx based on scan:// protocol detection:
+
+| Flow | Field 1 | Field 2 |
+|------|---------|---------|
+| **GitHub** | Branch: main | Repository: https://github.com/... |
+| **Quick Scan** | Network: Ethereum | Contract: 0xA0b8...eB48 |
+
+```typescript
+// Detection logic
+if (repoData.repo?.startsWith('scan://')) {
+  // Parse: scan://ethereum/0x1234... → network + address
+  const network = repoData.repo.replace('scan://', '').split('/')[0]
+  const address = repoData.repo.replace('scan://', '').split('/')[1]
+  // Show Network + Contract
+} else {
+  // Show Branch + Repository (GitHub flow)
+}
+```
+
+### **File Changed**
+- `ui/src/pages/ReviewAndRun.tsx` - Lines 409-435
+
+---
+
 ## ✅ COMPLETE! Every Single Log Point Documented
 
 **Total Execution:** GitHub → 130 Log Points → Final Report
