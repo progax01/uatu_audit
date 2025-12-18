@@ -1470,6 +1470,55 @@ if (Array.isArray(improve)) {
 
 ---
 
+## 🔗 Auto-Update GitHub Repo "About" with Report Link
+
+### **Feature**
+After audit completes, automatically update the user's GitHub repository "About" section with the report link.
+
+### **Flow**
+```
+Audit Completes
+     ↓
+Check: GitHub repo? (not scan://)
+     ↓
+Check: Has accessToken?
+     ↓
+Build Report URL from GITHUB_OAUTH_CALLBACK
+     ↓
+Call GitHub API: PATCH /repos/{owner}/{repo}
+Body: { "homepage": "https://domain/report?project=X&branch=Y&run=Z" }
+     ↓
+User's GitHub repo "About" section updated!
+```
+
+### **Files**
+| File | Purpose |
+|------|---------|
+| `src/services/githubService.ts` | Parse repo, build URL, call GitHub API |
+| `src/server/worker.ts` | Call githubService after completion |
+
+### **Key Functions**
+```typescript
+// Parse GitHub URL → { owner, repo }
+parseGitHubRepo(repoUrl: string)
+
+// Build report URL from existing GITHUB_OAUTH_CALLBACK
+buildReportUrl(project, branch, runTimestamp)
+
+// Update GitHub repo homepage via API
+updateRepoHomepage(accessToken, repoUrl, reportUrl)
+```
+
+### **Edge Cases**
+| Case | Handling |
+|------|----------|
+| Quick Scan (scan://) | Skipped |
+| No accessToken | Skipped |
+| API failure | Logged as warning, job still succeeds |
+| Private repo | Works (OAuth has `repo` scope) |
+
+---
+
 ## ✅ COMPLETE! Every Single Log Point Documented
 
 **Total Execution:** GitHub → 130 Log Points → Final Report
