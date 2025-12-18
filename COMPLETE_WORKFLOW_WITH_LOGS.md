@@ -1548,6 +1548,53 @@ User on /step/2 → Save to localStorage → OAuth → Callback reads localStora
 
 ---
 
+## 🔗 GitHub Repo Update - Monitoring Logs
+
+### **Feature**
+Added detailed logs to monitor GitHub repo "About" section auto-update feature.
+
+### **Log Points in worker.ts**
+```
+[GitHub Update] Checking conditions
+  - hasAccessToken: true/false
+  - accessTokenLength: 40
+  - repo: https://github.com/...
+  - isScanProtocol: true/false
+
+[GitHub Update] Conditions met, proceeding with update
+
+[GitHub Update] Got updated job
+  - hasRunTimestamp: true/false
+  - runTimestamp: 1766046201235
+
+[GitHub Update] Calling updateRepoHomepage
+
+[GitHub Update] SUCCESS / FAILED / SKIPPED
+  - reason (if skipped/failed)
+```
+
+### **Log Points in githubService.ts**
+```
+[GitHub Update] Building report URL
+  - UATU_PUBLIC_URL: https://audit.uatu.xyz (or "NOT SET")
+  - baseUrl, project, branch, runTimestamp
+
+[GitHub Update] Report URL built
+  - fullUrl
+
+[GitHub Update] Starting updateRepoHomepage
+  - hasAccessToken, accessTokenLength, repoUrl, reportUrl
+
+[GitHub Update] Calling GitHub API
+  - owner, repo, apiUrl, reportUrl
+```
+
+### **Files Changed**
+- `src/server/worker.ts` - Added condition checking and result logs
+- `src/services/githubService.ts` - Added URL building and API call logs
+
+---
+
 ## ✅ COMPLETE! Every Single Log Point Documented
 
 **Total Execution:** GitHub → 130 Log Points → Final Report
