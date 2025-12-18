@@ -18,13 +18,14 @@ interface HomePageProps {
 }
 
 type TabType = 'github' | 'quickscan'
-type Network = 'arbitrum' | 'ethereum' | 'polygon' | 'bnb' | 'optimism'
+type Network = 'arbitrum' | 'ethereum' | 'polygon' | 'base' | 'bnb' | 'optimism'
 type ValidationStatus = 'idle' | 'validating' | 'valid' | 'invalid' | 'error'
 
 const networks: { id: Network; name: string; color: string }[] = [
   { id: 'arbitrum', name: 'Arbitrum', color: '#28A0F0' },
   { id: 'ethereum', name: 'Ethereum', color: '#627EEA' },
   { id: 'polygon', name: 'Polygon', color: '#8247E5' },
+  { id: 'base', name: 'Base', color: '#0052FF' },
   { id: 'bnb', name: 'BNB', color: '#F3BA2F' },
   { id: 'optimism', name: 'Optimism', color: '#FF0420' },
 ]
