@@ -1983,6 +1983,51 @@ function calculateDeploymentVerdict(score: number, severity: SeverityCounts): De
 | 60-69 | D | Needs Improvement |
 | 0-59 | F | Critical Issues |
 
+**Score Calculation Methodology:**
+
+The security score is calculated using a point deduction system:
+
+```
+Starting Score: 100 points
+
+Deductions per finding:
+┌──────────────┬─────────────┬─────────────────────────────────┐
+│ Severity     │ Deduction   │ Rationale                       │
+├──────────────┼─────────────┼─────────────────────────────────┤
+│ Critical     │ -25 points  │ Immediate exploitation risk     │
+│ High         │ -15 points  │ Significant security impact     │
+│ Medium       │ -10 points  │ Moderate risk requiring fix     │
+│ Low          │ -5 points   │ Minor issues, best practices    │
+│ Info         │ -1 point    │ Informational, optimization     │
+└──────────────┴─────────────┴─────────────────────────────────┘
+
+Formula: Score = max(0, 100 - (Critical×25 + High×15 + Medium×10 + Low×5 + Info×1))
+Minimum Score: 0
+```
+
+**Example Calculation:**
+```
+Findings: 0 Critical, 1 High, 2 Medium, 3 Low
+Deductions: (0×25) + (1×15) + (2×10) + (3×5) = 0 + 15 + 20 + 15 = 50
+Final Score: 100 - 50 = 50 (Grade F)
+```
+
+**Score Breakdown Display (in report):**
+```
+┌─────────────────────────┐
+│   Score Breakdown       │
+├─────────────────────────┤
+│ Base Score        100   │
+│ Critical (-25)    -0    │
+│ High (-15)        -15   │
+│ Medium (-10)      -20   │
+│ Low (-5)          -15   │
+│ Info (-1)         -0    │
+├─────────────────────────┤
+│ Final Score       50    │
+└─────────────────────────┘
+```
+
 #### 11.2.3 Risk Badges
 
 **Purpose:** Boolean flags for common vulnerability categories (quick visual scan).
