@@ -1519,6 +1519,35 @@ updateRepoHomepage(accessToken, repoUrl, reportUrl)
 
 ---
 
+## 🔗 OAuth Return URL Preservation
+
+### **Problem**
+After GitHub OAuth login, user was always redirected to home page (`/`) instead of staying on their current page.
+
+### **Fix**
+Using localStorage to preserve return URL:
+
+**Frontend (ConnectSource.tsx):**
+```javascript
+// Before OAuth redirect
+localStorage.setItem('oauth_return_url', window.location.pathname + window.location.search)
+```
+
+**Backend callback (auth.ts):**
+```javascript
+// After OAuth success
+var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+localStorage.removeItem('oauth_return_url');
+window.location = returnUrl;
+```
+
+### **Flow**
+```
+User on /step/2 → Save to localStorage → OAuth → Callback reads localStorage → Redirect to /step/2
+```
+
+---
+
 ## ✅ COMPLETE! Every Single Log Point Documented
 
 **Total Execution:** GitHub → 130 Log Points → Final Report
