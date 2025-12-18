@@ -1417,6 +1417,59 @@ if (repoData.repo?.startsWith('scan://')) {
 
 ---
 
+## 🔗 Recommendations Display - Dual Format Support
+
+### **Problem**
+Recommendations section was empty in reports. The `improve` field changed from array to object format:
+
+**Old format (array):**
+```json
+"improve": ["Fix reentrancy", "Add access control", ...]
+```
+
+**New format (object):**
+```json
+"improve": {
+  "immediate": [{ "action": "...", "effort": "...", "details": "..." }],
+  "short_term": [...],
+  "long_term": [...],
+  "security_best_practices": [...]
+}
+```
+
+Template code `improve.map()` failed silently on objects.
+
+### **Fix**
+Updated `report-template.html` to detect and handle both formats:
+
+```javascript
+if (Array.isArray(improve)) {
+    // Old format: simple list
+    recContainer.innerHTML = `<ul>...</ul>`;
+} else if (improve && typeof improve === 'object') {
+    // New format: categorized sections
+    // Render: Immediate, Short-term, Long-term, Best Practices
+}
+```
+
+### **Features**
+| Category | Badge Color | Display |
+|----------|-------------|---------|
+| Immediate | Red | Action + Effort + Details |
+| Short-term | Yellow | Category + Action + Details |
+| Long-term | Green | Simple text items |
+| Best Practices | Blue | Simple text items |
+
+### **File Changed**
+- `src/templates/report-template.html` - CSS (lines 770-838) + JS (lines 1423-1490)
+
+### **Backward Compatibility**
+- Old array format: Still renders as bullet list
+- New object format: Renders categorized sections
+- Empty/null: Shows "No recommendations available"
+
+---
+
 ## ✅ COMPLETE! Every Single Log Point Documented
 
 **Total Execution:** GitHub → 130 Log Points → Final Report
