@@ -228,6 +228,75 @@
             margin-top: 4px;
         }
 
+        /* Score Breakdown */
+        .score-breakdown {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 16px;
+            max-width: 220px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .score-breakdown h5 {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            padding: 3px 0;
+        }
+
+        .breakdown-row.base {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .breakdown-row.deduction {
+            color: var(--text-secondary);
+        }
+
+        .breakdown-row.deduction .breakdown-value {
+            color: var(--severity-high);
+        }
+
+        .breakdown-row.deduction .breakdown-value.zero {
+            color: var(--text-muted);
+        }
+
+        .breakdown-row.total {
+            border-top: 1px solid var(--border-color);
+            margin-top: 6px;
+            padding-top: 6px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .breakdown-label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .breakdown-multiplier {
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        .breakdown-value {
+            font-weight: 500;
+        }
+
         /* Risk Badges & Severity */
         .right-panel {
             display: flex;
@@ -1200,6 +1269,39 @@
                     </div>
                     <div class="score-label">Security Score</div>
                     <div class="assurance-level" id="assuranceLevel">-- Assurance Level</div>
+
+                    <!-- Score Breakdown -->
+                    <div class="score-breakdown">
+                        <h5>Score Breakdown</h5>
+                        <div class="breakdown-row base">
+                            <span class="breakdown-label">Base Score</span>
+                            <span class="breakdown-value">100</span>
+                        </div>
+                        <div class="breakdown-row deduction">
+                            <span class="breakdown-label">Critical <span class="breakdown-multiplier">(-25)</span></span>
+                            <span class="breakdown-value" id="criticalDeduction">-0</span>
+                        </div>
+                        <div class="breakdown-row deduction">
+                            <span class="breakdown-label">High <span class="breakdown-multiplier">(-15)</span></span>
+                            <span class="breakdown-value" id="highDeduction">-0</span>
+                        </div>
+                        <div class="breakdown-row deduction">
+                            <span class="breakdown-label">Medium <span class="breakdown-multiplier">(-10)</span></span>
+                            <span class="breakdown-value" id="mediumDeduction">-0</span>
+                        </div>
+                        <div class="breakdown-row deduction">
+                            <span class="breakdown-label">Low <span class="breakdown-multiplier">(-5)</span></span>
+                            <span class="breakdown-value" id="lowDeduction">-0</span>
+                        </div>
+                        <div class="breakdown-row deduction">
+                            <span class="breakdown-label">Info <span class="breakdown-multiplier">(-1)</span></span>
+                            <span class="breakdown-value" id="infoDeduction">-0</span>
+                        </div>
+                        <div class="breakdown-row total">
+                            <span class="breakdown-label">Final Score</span>
+                            <span class="breakdown-value" id="finalScore">--</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Risk Badges & Severity -->
@@ -1556,6 +1658,32 @@
             document.getElementById('mediumCount').textContent = `(${sev.medium || 0})`;
             document.getElementById('lowCount').textContent = `(${sev.low || 0})`;
             document.getElementById('infoCount').textContent = `(${sev.info || 0})`;
+
+            // Score Breakdown Calculation
+            const criticalDed = (sev.critical || 0) * 25;
+            const highDed = (sev.high || 0) * 15;
+            const mediumDed = (sev.medium || 0) * 10;
+            const lowDed = (sev.low || 0) * 5;
+            const infoDed = (sev.info || 0) * 1;
+
+            const criticalEl = document.getElementById('criticalDeduction');
+            const highEl = document.getElementById('highDeduction');
+            const mediumEl = document.getElementById('mediumDeduction');
+            const lowEl = document.getElementById('lowDeduction');
+            const infoEl = document.getElementById('infoDeduction');
+
+            criticalEl.textContent = criticalDed > 0 ? `-${criticalDed}` : '-0';
+            criticalEl.classList.toggle('zero', criticalDed === 0);
+            highEl.textContent = highDed > 0 ? `-${highDed}` : '-0';
+            highEl.classList.toggle('zero', highDed === 0);
+            mediumEl.textContent = mediumDed > 0 ? `-${mediumDed}` : '-0';
+            mediumEl.classList.toggle('zero', mediumDed === 0);
+            lowEl.textContent = lowDed > 0 ? `-${lowDed}` : '-0';
+            lowEl.classList.toggle('zero', lowDed === 0);
+            infoEl.textContent = infoDed > 0 ? `-${infoDed}` : '-0';
+            infoEl.classList.toggle('zero', infoDed === 0);
+
+            document.getElementById('finalScore').textContent = score;
 
             // Project Overview
             document.getElementById('projectName').textContent = meta.project || 'Unknown Project';
