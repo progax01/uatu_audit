@@ -36,13 +36,23 @@ export function parseGitHubRepo(repoUrl: string): { owner: string; repo: string 
 export function buildReportUrl(project: string, branch: string, runTimestamp: string): string {
   const baseUrl = process.env.UATU_PUBLIC_URL || `http://localhost:${process.env.UATU_PORT || 9090}`;
 
+  log.info("[GitHub Update] Building report URL", {
+    baseUrl,
+    project,
+    branch,
+    runTimestamp,
+    UATU_PUBLIC_URL: process.env.UATU_PUBLIC_URL || "NOT SET"
+  });
+
   const params = new URLSearchParams({
     project,
     branch,
     run: runTimestamp,
     format: "html"
   });
-  return `${baseUrl}/report?${params.toString()}`;
+  const fullUrl = `${baseUrl}/report?${params.toString()}`;
+  log.info("[GitHub Update] Report URL built", { fullUrl });
+  return fullUrl;
 }
 
 /**
@@ -54,16 +64,23 @@ export async function updateRepoHomepage(
   repoUrl: string,
   reportUrl: string
 ): Promise<{ success: boolean; error?: string }> {
+  log.info("[GitHub Update] Starting updateRepoHomepage", {
+    repoUrl,
+    reportUrl,
+    hasAccessToken: !!accessToken,
+    accessTokenLength: accessToken?.length || 0
+  });
+
   const parsed = parseGitHubRepo(repoUrl);
   if (!parsed) {
-    log.debug("Skipping homepage update - not a GitHub repo", { repoUrl });
+    log.warn("[GitHub Update] Skipping - not a GitHub repo", { repoUrl });
     return { success: false, error: "Not a GitHub repository" };
   }
 
   const { owner, repo } = parsed;
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}`;
 
-  log.info("Updating GitHub repo homepage", { owner, repo, reportUrl });
+  log.info("[GitHub Update] Calling GitHub API", { owner, repo, apiUrl, reportUrl });
 
   try {
     const response = await fetch(apiUrl, {

@@ -43,23 +43,43 @@ export async function startWorker(workerId: number) {
         });
 
         // Update GitHub repo "About" section with report link (non-blocking)
+        jobLog.info(`[GitHub Update] Checking conditions`, {
+          hasAccessToken: !!job.accessToken,
+          accessTokenLength: job.accessToken?.length || 0,
+          repo: job.repo,
+          isScanProtocol: job.repo?.startsWith("scan://")
+        });
+
         if (job.accessToken && job.repo && !job.repo.startsWith("scan://")) {
+          jobLog.info(`[GitHub Update] Conditions met, proceeding with update`);
           try {
             // Get updated job to fetch runTimestamp
             const updatedJob = await getJob(job.id);
+            jobLog.info(`[GitHub Update] Got updated job`, {
+              hasRunTimestamp: !!updatedJob?.runTimestamp,
+              runTimestamp: updatedJob?.runTimestamp
+            });
+
             if (updatedJob?.runTimestamp) {
               const reportUrl = buildReportUrl(job.project, job.branch, updatedJob.runTimestamp);
+              jobLog.info(`[GitHub Update] Calling updateRepoHomepage`, { reportUrl, repo: job.repo });
               const result = await updateRepoHomepage(job.accessToken, job.repo, reportUrl);
               if (result.success) {
-                jobLog.info(`GitHub repo homepage updated with report link`, { reportUrl });
+                jobLog.info(`[GitHub Update] SUCCESS - GitHub repo homepage updated`, { reportUrl });
               } else {
-                jobLog.warn(`Failed to update GitHub repo homepage`, { error: result.error });
+                jobLog.warn(`[GitHub Update] FAILED - Could not update GitHub repo homepage`, { error: result.error });
               }
+            } else {
+              jobLog.warn(`[GitHub Update] SKIPPED - No runTimestamp found`);
             }
           } catch (ghError) {
             // Don't fail the job if GitHub update fails
-            jobLog.warn(`Error updating GitHub repo homepage`, { error: String(ghError) });
+            jobLog.error(`[GitHub Update] ERROR - Exception during GitHub update`, { error: String(ghError) });
           }
+        } else {
+          jobLog.info(`[GitHub Update] SKIPPED - Conditions not met`, {
+            reason: !job.accessToken ? "No accessToken" : job.repo?.startsWith("scan://") ? "Scan protocol" : "No repo"
+          });
         }
       } catch (error) {
         // Handle cancellation gracefully
