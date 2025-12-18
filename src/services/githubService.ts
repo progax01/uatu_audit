@@ -31,13 +31,10 @@ export function parseGitHubRepo(repoUrl: string): { owner: string; repo: string 
 
 /**
  * Build the public report URL
- * Extracts base URL from GITHUB_OAUTH_CALLBACK (e.g., http://localhost:9090/auth/github/callback -> http://localhost:9090)
+ * Uses UATU_PUBLIC_URL env var (e.g., https://audit.uatu.xyz)
  */
 export function buildReportUrl(project: string, branch: string, runTimestamp: string): string {
-  // Extract base URL from existing GITHUB_OAUTH_CALLBACK
-  const callback = process.env.GITHUB_OAUTH_CALLBACK || `http://localhost:${process.env.UATU_PORT || 9090}/auth/github/callback`;
-  const url = new URL(callback);
-  const baseUrl = `${url.protocol}//${url.host}`;
+  const baseUrl = process.env.UATU_PUBLIC_URL || `http://localhost:${process.env.UATU_PORT || 9090}`;
 
   const params = new URLSearchParams({
     project,
