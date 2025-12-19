@@ -1278,19 +1278,19 @@
                             <span class="breakdown-value">100</span>
                         </div>
                         <div class="breakdown-row deduction">
-                            <span class="breakdown-label">Critical <span class="breakdown-multiplier">(-25)</span></span>
+                            <span class="breakdown-label">Critical <span class="breakdown-multiplier">(-15)</span></span>
                             <span class="breakdown-value" id="criticalDeduction">-0</span>
                         </div>
                         <div class="breakdown-row deduction">
-                            <span class="breakdown-label">High <span class="breakdown-multiplier">(-15)</span></span>
+                            <span class="breakdown-label">High <span class="breakdown-multiplier">(-10)</span></span>
                             <span class="breakdown-value" id="highDeduction">-0</span>
                         </div>
                         <div class="breakdown-row deduction">
-                            <span class="breakdown-label">Medium <span class="breakdown-multiplier">(-10)</span></span>
+                            <span class="breakdown-label">Medium <span class="breakdown-multiplier">(-4)</span></span>
                             <span class="breakdown-value" id="mediumDeduction">-0</span>
                         </div>
                         <div class="breakdown-row deduction">
-                            <span class="breakdown-label">Low <span class="breakdown-multiplier">(-5)</span></span>
+                            <span class="breakdown-label">Low <span class="breakdown-multiplier">(-2)</span></span>
                             <span class="breakdown-value" id="lowDeduction">-0</span>
                         </div>
                         <div class="breakdown-row deduction">
@@ -1659,11 +1659,11 @@
             document.getElementById('lowCount').textContent = `(${sev.low || 0})`;
             document.getElementById('infoCount').textContent = `(${sev.info || 0})`;
 
-            // Score Breakdown Calculation
-            const criticalDed = (sev.critical || 0) * 25;
-            const highDed = (sev.high || 0) * 15;
-            const mediumDed = (sev.medium || 0) * 10;
-            const lowDed = (sev.low || 0) * 5;
+            // Score Breakdown Calculation (Critical×15, High×10, Medium×4, Low×2, Info×1)
+            const criticalDed = (sev.critical || 0) * 15;
+            const highDed = (sev.high || 0) * 10;
+            const mediumDed = (sev.medium || 0) * 4;
+            const lowDed = (sev.low || 0) * 2;
             const infoDed = (sev.info || 0) * 1;
 
             const criticalEl = document.getElementById('criticalDeduction');
