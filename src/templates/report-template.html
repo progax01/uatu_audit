@@ -1775,7 +1775,7 @@
                 </div>
             `).join('');
 
-            // Findings Grid
+            // Findings Grid (minimal: badge + title + code only)
             const findingsGrid = document.getElementById('findingsGrid');
             findingsGrid.innerHTML = findings.map(f => `
                 <div class="finding-card">
@@ -1783,9 +1783,7 @@
                         <span class="finding-badge ${(f.severity || 'info').toLowerCase()}">${(f.severity || 'INFO').toUpperCase()}</span>
                     </div>
                     <div class="finding-title">${f.title || 'Untitled Finding'}</div>
-                    <div class="finding-location">Location: ${f.file && f.file !== 'undefined' ? f.file : 'N/A'}</div>
                     ${f.code_snippet ? `<div class="finding-code">${f.code_snippet}</div>` : ''}
-                    <div class="finding-recommendation"><strong>Recommendations:</strong> ${typeof f.rec === 'object' ? (f.rec.text || f.rec.description || JSON.stringify(f.rec)) : (typeof f.recommendation === 'object' ? (f.recommendation.text || f.recommendation.description || JSON.stringify(f.recommendation)) : (f.rec || f.recommendation || 'Review recommended'))}</div>
                 </div>
             `).join('');
 
@@ -1865,40 +1863,85 @@
                 }
             }
 
-            // Recommendations
+            // Recommendations (consolidated from all findings + improve section)
             const recContainer = document.getElementById('recommendationsContainer');
-            if (Array.isArray(improve)) {
-                recContainer.innerHTML = `<ul class="recommendations-list">${improve.map(r => `<li>${r}</li>`).join('')}</ul>`;
+            let recHtml = '';
+
+            // Collect recommendations from findings (grouped by severity)
+            const findingRecs = { critical: [], high: [], medium: [], low: [], info: [] };
+            findings.forEach(f => {
+                const rec = f.rec || f.recommendation;
+                if (rec) {
+                    const recText = typeof rec === 'object' ? (rec.text || rec.description || JSON.stringify(rec)) : rec;
+                    const severity = (f.severity || 'info').toLowerCase();
+                    const title = f.title || 'Untitled Finding';
+                    if (findingRecs[severity]) {
+                        findingRecs[severity].push({ title, rec: recText });
+                    }
+                }
+            });
+
+            // Render findings recommendations by severity
+            if (findingRecs.critical.length > 0) {
+                recHtml += `<div class="rec-category">
+                    <div class="rec-category-title"><span class="rec-badge rec-badge-immediate">Critical</span> Critical Findings Remediation</div>
+                    ${findingRecs.critical.map(r => `<div class="rec-item"><div class="rec-item-header"><div class="rec-item-action">${r.title}</div></div><div class="rec-item-details">${r.rec}</div></div>`).join('')}
+                </div>`;
+            }
+            if (findingRecs.high.length > 0) {
+                recHtml += `<div class="rec-category">
+                    <div class="rec-category-title"><span class="rec-badge rec-badge-short">High</span> High Priority Remediation</div>
+                    ${findingRecs.high.map(r => `<div class="rec-item"><div class="rec-item-header"><div class="rec-item-action">${r.title}</div></div><div class="rec-item-details">${r.rec}</div></div>`).join('')}
+                </div>`;
+            }
+            if (findingRecs.medium.length > 0) {
+                recHtml += `<div class="rec-category">
+                    <div class="rec-category-title"><span class="rec-badge rec-badge-long">Medium</span> Medium Priority Remediation</div>
+                    ${findingRecs.medium.map(r => `<div class="rec-item"><div class="rec-item-header"><div class="rec-item-action">${r.title}</div></div><div class="rec-item-details">${r.rec}</div></div>`).join('')}
+                </div>`;
+            }
+            if (findingRecs.low.length > 0 || findingRecs.info.length > 0) {
+                const lowInfoRecs = [...findingRecs.low, ...findingRecs.info];
+                recHtml += `<div class="rec-category">
+                    <div class="rec-category-title"><span class="rec-badge rec-badge-best">Low/Info</span> Best Practice Improvements</div>
+                    ${lowInfoRecs.map(r => `<div class="rec-item"><div class="rec-item-header"><div class="rec-item-action">${r.title}</div></div><div class="rec-item-details">${r.rec}</div></div>`).join('')}
+                </div>`;
+            }
+
+            // Also include improve section if available
+            if (Array.isArray(improve) && improve.length > 0) {
+                recHtml += `<div class="rec-category">
+                    <div class="rec-category-title"><span class="rec-badge rec-badge-best">General</span> Additional Recommendations</div>
+                    <ul class="recommendations-list">${improve.map(r => `<li>${r}</li>`).join('')}</ul>
+                </div>`;
             } else if (improve && typeof improve === 'object') {
-                let html = '';
                 if (improve.immediate && improve.immediate.length > 0) {
-                    html += `<div class="rec-category">
+                    recHtml += `<div class="rec-category">
                         <div class="rec-category-title"><span class="rec-badge rec-badge-immediate">Immediate</span> Critical Actions</div>
                         ${improve.immediate.map(r => `<div class="rec-item"><div class="rec-item-header"><div class="rec-item-action">${r.action || r}</div></div>${r.details ? `<div class="rec-item-details">${r.details}</div>` : ''}</div>`).join('')}
                     </div>`;
                 }
                 if (improve.short_term && improve.short_term.length > 0) {
-                    html += `<div class="rec-category">
+                    recHtml += `<div class="rec-category">
                         <div class="rec-category-title"><span class="rec-badge rec-badge-short">Short-term</span> Near-term Improvements</div>
                         ${improve.short_term.map(r => `<div class="rec-item"><div class="rec-item-header"><div class="rec-item-action">${r.action || r}</div></div></div>`).join('')}
                     </div>`;
                 }
                 if (improve.long_term && improve.long_term.length > 0) {
-                    html += `<div class="rec-category">
+                    recHtml += `<div class="rec-category">
                         <div class="rec-category-title"><span class="rec-badge rec-badge-long">Long-term</span> Strategic Improvements</div>
                         ${improve.long_term.map(r => `<div class="rec-simple-item">${typeof r === 'string' ? r : (r.action || JSON.stringify(r))}</div>`).join('')}
                     </div>`;
                 }
                 if (improve.security_best_practices && improve.security_best_practices.length > 0) {
-                    html += `<div class="rec-category">
+                    recHtml += `<div class="rec-category">
                         <div class="rec-category-title"><span class="rec-badge rec-badge-best">Best Practices</span> Security Guidelines</div>
                         ${improve.security_best_practices.map(r => `<div class="rec-simple-item">${typeof r === 'string' ? r : (r.action || JSON.stringify(r))}</div>`).join('')}
                     </div>`;
                 }
-                recContainer.innerHTML = html || '<p style="color: var(--text-muted);">No recommendations available.</p>';
-            } else {
-                recContainer.innerHTML = '<p style="color: var(--text-muted);">No recommendations available.</p>';
             }
+
+            recContainer.innerHTML = recHtml || '<p style="color: var(--text-muted);">No recommendations available.</p>';
         }
 
         // Helper to calculate verdict if not provided
