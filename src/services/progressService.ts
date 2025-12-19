@@ -1,9 +1,15 @@
 import path from "node:path";
 import fs from "fs-extra";
 
-export type PhaseName = "bootstrap" | "inventory" | "analysis" | "testgen" | "execute";
+// Milestone-based progress (5 milestones + report generation)
+export type PhaseName = "m1_context" | "m2_static" | "m3_logic" | "m4_tests" | "m5_final" | "report";
 export const PHASE_WEIGHTS: Record<PhaseName, number> = {
-  bootstrap: 10, inventory: 20, analysis: 35, testgen: 15, execute: 20
+  m1_context: 16,  // M1 - Context Ingestion
+  m2_static: 16,   // M2 - Static Analysis
+  m3_logic: 16,    // M3 - Logic Simulation
+  m4_tests: 16,    // M4 - Test Generation
+  m5_final: 16,    // M5 - Final Consolidation
+  report: 20       // Report Generation
 };
 
 export type PhaseProgress = { name: PhaseName; pct: number; step?: string };
@@ -95,11 +101,12 @@ export function newProgress(project: string, branch: string, timestamp: string):
     project, branch, timestamp,
     overall_pct: 0,
     phases: [
-      { name: "bootstrap", pct: 0 },
-      { name: "inventory", pct: 0 },
-      { name: "analysis", pct: 0 },
-      { name: "testgen", pct: 0 },
-      { name: "execute", pct: 0 }
+      { name: "m1_context", pct: 0 },  // M1 - Context Ingestion
+      { name: "m2_static", pct: 0 },   // M2 - Static Analysis
+      { name: "m3_logic", pct: 0 },    // M3 - Logic Simulation
+      { name: "m4_tests", pct: 0 },    // M4 - Test Generation
+      { name: "m5_final", pct: 0 },    // M5 - Final Consolidation
+      { name: "report", pct: 0 }       // Report Generation
     ]
   };
 }

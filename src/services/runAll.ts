@@ -278,7 +278,8 @@ export async function runAll(params: {
       projectPath: branchPath,
       projectContext,
       domain: undefined, // auto-detect
-      auditDepth: 'standard'
+      auditDepth: 'standard',
+      onProgress // Pass progress callback to track milestone progress
     });
 
     log.info(`   ✅ MilestoneExecutor initialized`);
@@ -395,10 +396,7 @@ export async function runAll(params: {
     }
   }
 
-  // Mark all audit phases as complete
-  await onProgress({ phase: "inventory", step: "inventory-complete", pct: 100 });
-  await onProgress({ phase: "analysis", step: "analysis-complete", pct: 100 });
-  await onProgress({ phase: "testgen", step: "testgen-complete", pct: 100 });
+  // Milestones are tracked by MilestoneExecutor - no need to update here
   log.info("=== PHASE 2 COMPLETE ===");
 
   // Validate audit results before proceeding to report generation
@@ -524,7 +522,7 @@ export async function runAll(params: {
     log.warn("Step 3.2: PDF generation failed (non-critical)", { error: pdfResult.error });
   }
 
-  await onProgress({ phase: "execute", step: "report-complete", pct: 100 });
+  await onProgress({ phase: "report", step: "report-complete", pct: 100 });
   log.info("=== PHASE 3 COMPLETE ===");
 
   // ============================================================

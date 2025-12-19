@@ -19,7 +19,7 @@ export const bootstrapSOP: SOP = {
 
     liveLogger.info('Bootstrap SOP starting', { projectPath: i.projectPath });
 
-    await step(onProgress, { phase: "bootstrap", step: "project-detection", pct: 25 });
+    await step(onProgress, { phase: "m1_context", step: "project-detection", pct: 10 });
     
     // Smart ecosystem detection
     liveLogger.info('Detecting project ecosystems...');
@@ -29,7 +29,7 @@ export const bootstrapSOP: SOP = {
     liveLogger.info('Analyzing project structure...');
     const projectStructure = await analyzeProjectStructure(i.projectPath as string);
     
-    await step(onProgress, { phase: "bootstrap", step: "dependency-fingerprint", pct: 50 });
+    await step(onProgress, { phase: "m1_context", step: "dependency-fingerprint", pct: 25 });
     
     // Generate project summary
     const projectSummary = await generateProjectSummary(projectStructure);
@@ -41,7 +41,7 @@ export const bootstrapSOP: SOP = {
       hasTests: projectStructure.testCoverage.hasTests
     });
 
-    await step(onProgress, { phase: "bootstrap", step: "context-built", pct: 90 });
+    await step(onProgress, { phase: "m1_context", step: "context-built", pct: 40 });
     
     // Ensure context and SOP directories exist
     await fs.ensureDir(i.contextPath as string);
@@ -66,7 +66,7 @@ export const bootstrapSOP: SOP = {
     await fs.writeJson(path.join(i.contextPath as string, "fingerprint.json"), fingerprint);
     await fs.writeFile(path.join(i.projectPath as string, ".uatu", "sop", "done.marker"), "bootstrap\n");
 
-    await step(onProgress, { phase: "bootstrap", step: "ready-marked", pct: 100 });
+    await step(onProgress, { phase: "m1_context", step: "ready-marked", pct: 50 });
     
     liveLogger.info('Bootstrap SOP completed successfully');
     
