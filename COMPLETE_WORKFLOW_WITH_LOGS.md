@@ -1628,6 +1628,47 @@ Final Score: 100 - 24 = 76 (Grade C)
 
 ---
 
+## 🎨 Key Security Findings Card Redesign
+
+### **Updated Layout (December 2025)**
+
+Finding cards simplified to show only essential information:
+
+**Before:**
+```
+┌─────────────────────────────┐
+│ CRITICAL                    │
+│ Title...                    │
+│ Location: N/A               │  ← Removed
+│ ┌─────────────────────────┐ │
+│ │ function xyz...         │ │
+│ └─────────────────────────┘ │
+│ Recommendations: ...        │  ← Removed (moved to section)
+└─────────────────────────────┘
+```
+
+**After:**
+```
+┌─────────────────────────────┐
+│ CRITICAL                    │
+│ Title...                    │
+│ ┌─────────────────────────┐ │
+│ │ function xyz...         │ │  ← Code snippet only
+│ └─────────────────────────┘ │
+└─────────────────────────────┘
+```
+
+### **Recommendations Section**
+All recommendations now consolidated in dedicated section:
+- Grouped by severity (Critical → High → Medium → Low/Info)
+- Shows finding title + recommendation text
+- Includes both finding recommendations and improve section
+
+### **Files Changed**
+- `src/templates/report-template.html` - Lines 1778-1788 (finding cards), Lines 1866-1944 (recommendations)
+
+---
+
 ## ✅ COMPLETE! Every Single Log Point Documented
 
 **Total Execution:** GitHub → 130 Log Points → Final Report
