@@ -17,13 +17,13 @@ export function getSessionId(req: any): string | null {
 export function setSessionCookie(res: any, sessionId: string) {
   res.setHeader(
     "Set-Cookie",
-    `session_id=${sessionId}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000`
+    `session_id=${sessionId}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`
   ); // 30 days
 }
 
 // Clear session cookie
 export function clearSessionCookie(res: any) {
-  res.setHeader("Set-Cookie", "session_id=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0");
+  res.setHeader("Set-Cookie", "session_id=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0");
 }
 
 async function tokenPath(sessionId: string) {
