@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Contract Audit Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f8fafc 100%);
+            min-height: 100vh;
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: transparent;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .logo-icon svg {
+            width: 28px;
+            height: 28px;
+            fill: white;
+        }
+
+        .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .brand-text {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+        }
+
+        .brand-title {
+            font-size: 18px;
+            font-weight: 400;
+            color: #475569;
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .report-id {
+            font-size: 14px;
+            color: #0ea5e9;
+            font-weight: 600;
+        }
+
+        .report-date {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        /* Progress Bar */
+        .progress-bar-container {
+            height: 4px;
+            background: linear-gradient(90deg, #0ea5e9 0%, #06b6d4 50%, #10b981 100%);
+            box-shadow: 0 0 20px rgba(14, 165, 233, 0.5);
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 40px;
+        }
+
+        /* Hero Section - 3 Column Layout */
+        .hero-section {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        /* Card Styles */
+        .card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 24px;
+        }
+
+        /* Project Overview */
+        .overview-item {
+            margin-bottom: 20px;
+        }
+
+        .overview-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .overview-value {
+            font-size: 15px;
+            color: #1e293b;
+            font-weight: 500;
+        }
+
+        /* Score Section */
+        .score-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .score-ring-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            margin-bottom: 20px;
+        }
+
+        .score-ring {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .score-ring-bg {
+            fill: none;
+            stroke: rgba(14, 165, 233, 0.1);
+            stroke-width: 8;
+        }
+
+        .score-ring-progress {
+            fill: none;
+            stroke: url(#scoreGradient);
+            stroke-width: 8;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 15px rgba(14, 165, 233, 0.6));
+            transform: rotate(-90deg);
+            transform-origin: center;
+            transition: stroke-dasharray 1.5s ease-out;
+        }
+
+        .score-ring-dashed {
+            fill: none;
+            stroke: rgba(14, 165, 233, 0.3);
+            stroke-width: 1;
+            stroke-dasharray: 4 8;
+        }
+
+        .score-shield {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 160px;
+            height: 180px;
+            background: transparent;
+            overflow: visible;
+        }
+
+        .shield-shape {
+            fill: url(#shieldGradient);
+            filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.4));
+        }
+
+        .score-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 72px;
+            font-weight: 700;
+            color: #ffffff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .score-label {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .score-subtitle {
+            font-size: 16px;
+            color: #0ea5e9;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .score-assurance {
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        /* Key Findings */
+        .findings-card {
+            padding: 28px;
+            margin-top: 40px;
+        }
+
+        .finding-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding: 8px 0;
+        }
+
+        .finding-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .finding-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .finding-label.critical { color: #ef4444; }
+        .finding-label.high { color: #f97316; }
+        .finding-label.medium { color: #eab308; }
+        .finding-label.low { color: #64748b; }
+        .finding-label.info { color: #64748b; }
+
+        .finding-count {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .finding-bar-container {
+            flex: 1;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            margin: 0 16px;
+            overflow: hidden;
+        }
+
+        .finding-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.8s ease-out;
+        }
+
+        .finding-bar.critical { background: linear-gradient(90deg, #ef4444, #dc2626); }
+        .finding-bar.high { background: linear-gradient(90deg, #f97316, #ea580c); }
+        .finding-bar.medium { background: linear-gradient(90deg, #eab308, #ca8a04); }
+        .finding-bar.low { background: linear-gradient(90deg, #64748b, #475569); }
+        .finding-bar.info { background: linear-gradient(90deg, #64748b, #475569); }
+
+        .finding-value {
+            font-size: 14px;
+            font-weight: 600;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .finding-value.critical { color: #ef4444; }
+        .finding-value.high { color: #f97316; }
+        .finding-value.medium { color: #eab308; }
+        .finding-value.low { color: #94a3b8; }
+        .finding-value.info { color: #94a3b8; }
+
+        .findings-status {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(100, 116, 139, 0.2);
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        /* Executive Summary */
+        .executive-section {
+            display: flex;
+            align-items: flex-start;
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .executive-content {
+            flex: 1;
+        }
+
+        .executive-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 16px;
+        }
+
+        .executive-text {
+            font-size: 14px;
+            line-height: 1.7;
+            color: #475569;
+        }
+
+        /* Certificate Badge - Owl Mascot */
+        .certificate-badge {
+            flex-shrink: 0;
+            width: 140px;
+            height: 140px;
+            position: relative;
+        }
+
+        .badge-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .badge-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 15px rgba(14, 165, 233, 0.3));
+        }
+
+        /* Detailed Findings Section */
+        .detailed-findings {
+            margin-top: 50px;
+        }
+
+        .section-header {
+            font-size: 22px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .findings-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(15, 30, 55, 0.6);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .findings-table th {
+            background: rgba(14, 165, 233, 0.1);
+            padding: 16px 20px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(14, 165, 233, 0.2);
+        }
+
+        .findings-table td {
+            padding: 16px 20px;
+            font-size: 14px;
+            color: #e2e8f0;
+            border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+        }
+
+        .findings-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .severity-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .severity-badge.critical { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .severity-badge.high { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+        .severity-badge.medium { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+        .severity-badge.low { background: rgba(100, 116, 139, 0.2); color: #94a3b8; }
+        .severity-badge.info { background: rgba(100, 116, 139, 0.2); color: #94a3b8; }
+
+        .finding-file {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        /* Recommendations */
+        .recommendations-section {
+            margin-top: 50px;
+        }
+
+        .recommendations-list {
+            display: grid;
+            gap: 16px;
+        }
+
+        .recommendation-item {
+            background: rgba(15, 30, 55, 0.6);
+            border: 1px solid rgba(14, 165, 233, 0.15);
+            border-radius: 12px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .recommendation-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(14, 165, 233, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: #0ea5e9;
+            font-size: 16px;
+        }
+
+        .recommendation-text {
+            font-size: 14px;
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 60px;
+            padding: 30px 0;
+            border-top: 1px solid rgba(100, 116, 139, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-text {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .footer-mascot img {
+            height: 80px;
+            width: auto;
+            opacity: 0.8;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: #0a1628;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .container {
+                max-width: none;
+            }
+        }
+
+        @page {
+            size: A4 landscape;
+            margin: 10mm;
+        }
+
+        /* Navigation Arrow (decorative) */
+        .nav-arrow {
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 40px;
+            background: rgba(15, 30, 55, 0.8);
+            border: 1px solid rgba(14, 165, 233, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .nav-arrow:hover {
+            background: rgba(14, 165, 233, 0.2);
+            color: #0ea5e9;
+        }
+
+        /* No print for nav */
+        @media print {
+            .nav-arrow { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo-icon" id="logoIcon">
+                    <img id="logoImage" src="{{LOGO_BASE64}}" alt="Logo">
+                </div>
+                <!-- <div class="brand-text">
+                    <span class="brand-title">Smart Contract Audit Report</span>
+                </div> -->
+            </div>
+            <div class="header-right">
+                <div class="report-id" id="reportId">Report ID: UA-0000-00-00-000</div>
+                <div class="report-date" id="reportDate">Date: 0000-00-00 00:00:00.000Z</div>
+            </div>
+        </header>
+
+        <!-- Progress Bar -->
+        <div class="progress-bar-container"></div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Hero Section -->
+            <div class="hero-section">
+                <!-- Project Overview -->
+                <div class="card">
+                    <h2 class="card-title">Project Overview</h2>
+                    <div class="overview-item">
+                        <div class="overview-label">Project</div>
+                        <div class="overview-value" id="projectName">-</div>
+                    </div>
+                    <div class="overview-item">
+                        <div class="overview-label">Audited Version</div>
+                        <div class="overview-value" id="auditedVersion">commit latest</div>
+                    </div>
+                    <div class="overview-item">
+                        <div class="overview-label">Scope</div>
+                        <div class="overview-value" id="scope">Solidity Smart Contracts</div>
+                    </div>
+                </div>
+
+                <!-- Score Section -->
+                <div class="score-section">
+                    <div class="score-ring-container">
+                        <svg class="score-ring" viewBox="0 0 280 280">
+                            <defs>
+                                <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:#0ea5e9"/>
+                                    <stop offset="50%" style="stop-color:#06b6d4"/>
+                                    <stop offset="100%" style="stop-color:#10b981"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- Outer dashed ring -->
+                            <circle class="score-ring-dashed" cx="140" cy="140" r="135"/>
+                            <!-- Background ring -->
+                            <circle class="score-ring-bg" cx="140" cy="140" r="120"/>
+                            <!-- Progress ring -->
+                            <circle class="score-ring-progress" cx="140" cy="140" r="120" id="scoreRing"
+                                stroke-dasharray="0 754"/>
+                        </svg>
+                        <!-- Shield -->
+                        <svg class="score-shield" viewBox="0 0 100 120">
+                            <defs>
+                                <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#0f2744"/>
+                                    <stop offset="100%" style="stop-color:#1a3a5c"/>
+                                </linearGradient>
+                            </defs>
+                            <path class="shield-shape" d="M50 0 L100 20 L100 60 C100 90 75 110 50 120 C25 110 0 90 0 60 L0 20 Z"/>
+                        </svg>
+                        <div class="score-value" id="scoreValue">--</div>
+                    </div>
+                    <div class="score-label" id="scoreLabel">--</div>
+                    <div class="score-subtitle">Overall Security Score</div>
+                    <div class="score-assurance" id="assuranceLevel">--</div>
+                </div>
+
+                <!-- Key Findings Summary -->
+                <div class="card findings-card">
+                    <h2 class="card-title">Key Findings Summary</h2>
+
+                    <div class="finding-row">
+                        <div class="finding-left">
+                            <span class="finding-label critical">Critical</span>
+                        </div>
+                        <span class="finding-value critical" id="criticalValue">(0)</span>
+                    </div>
+
+                    <div class="finding-row">
+                        <div class="finding-left">
+                            <span class="finding-label high">High</span>
+                        </div>
+                        <span class="finding-value high" id="highValue">(0)</span>
+                    </div>
+
+                    <div class="finding-row">
+                        <div class="finding-left">
+                            <span class="finding-label medium">Medium</span>
+                        </div>
+                        <span class="finding-value medium" id="mediumValue">(0)</span>
+                    </div>
+
+                    <div class="finding-row">
+                        <div class="finding-left">
+                            <span class="finding-label low">Low</span>
+                        </div>
+                        <span class="finding-value low" id="lowValue">(0)</span>
+                    </div>
+
+                    <div class="finding-row">
+                        <div class="finding-left">
+                            <span class="finding-label info">Informational</span>
+                        </div>
+                        <span class="finding-value info" id="infoValue">(0)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Executive Summary -->
+            <div class="executive-section">
+                <div class="executive-content">
+                    <h2 class="executive-title">Executive Summary</h2>
+                    <p class="executive-text" id="executiveSummary">
+                        This comprehensive smart contract audit was conducted using advanced AI-powered analysis system.
+                        The audit identified issues across severity levels. AI-generated tests executed with results.
+                        The project achieved a security score.
+                    </p>
+                </div>
+                <div class="certificate-badge">
+                    <div class="badge-container">
+                        <img src="{{MASCOT_BASE64}}" alt="Mascot">
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Expect window.UATU_CERT_DATA to be injected
+        const D = window.UATU_CERT_DATA || {
+            reportId: 'UA-0000-00-00-000',
+            reportDate: new Date().toISOString(),
+            project: 'Sample Project',
+            contractAddress: 'N/A',
+            version: 'commit latest',
+            scope: 'Solidity Smart Contracts',
+            score: 85,
+            grade: 'B+',
+            severity: { critical: 0, high: 0, medium: 2, low: 0, info: 0 },
+            findings: [],
+            recommendations: [],
+            executiveSummary: '',
+            logoUrl: null,
+            mascotUrl: null
+        };
+
+        function getScoreLabel(score) {
+            if (score >= 90) return 'Excellent';
+            if (score >= 80) return 'Very Good';
+            if (score >= 70) return 'Good';
+            if (score >= 60) return 'Fair';
+            return 'Needs Improvement';
+        }
+
+        function getAssuranceLevel(score) {
+            if (score >= 90) return 'High Assurance Level';
+            if (score >= 80) return 'Good Assurance Level';
+            if (score >= 70) return 'Moderate Assurance Level';
+            if (score >= 60) return 'Basic Assurance Level';
+            return 'Low Assurance Level';
+        }
+
+        function populateCertificate() {
+            // Header
+            document.getElementById('reportId').textContent = `Report ID: ${D.reportId}`;
+            document.getElementById('reportDate').textContent = `Date: ${D.reportDate}`;
+
+            // Project Overview
+            document.getElementById('projectName').textContent = D.project;
+            document.getElementById('auditedVersion').textContent = D.version || 'commit latest';
+            document.getElementById('scope').textContent = D.scope || 'Solidity Smart Contracts';
+
+            // Score
+            const score = D.score || 0;
+            document.getElementById('scoreValue').textContent = score;
+            document.getElementById('scoreLabel').textContent = getScoreLabel(score);
+            document.getElementById('assuranceLevel').textContent = getAssuranceLevel(score);
+
+            // Animate score ring
+            const circumference = 2 * Math.PI * 120;
+            const progress = (score / 100) * circumference;
+            setTimeout(() => {
+                document.getElementById('scoreRing').style.strokeDasharray = `${progress} ${circumference}`;
+            }, 100);
+
+            // Severity counts
+            const sev = D.severity || {};
+
+            document.getElementById('criticalValue').textContent = `(${sev.critical || 0})`;
+            document.getElementById('highValue').textContent = `(${sev.high || 0})`;
+            document.getElementById('mediumValue').textContent = `(${sev.medium || 0})`;
+            document.getElementById('lowValue').textContent = `(${sev.low || 0})`;
+            document.getElementById('infoValue').textContent = `(${sev.info || 0})`;
+
+            // Executive Summary
+            const summary = D.executiveSummary ||
+                `This comprehensive smart contract audit was conducted using advanced AI-powered analysis system. ` +
+                `The audit identified ${total} total issues across severity levels. ` +
+                `The project achieved a security score of ${score}/100 (Grade: ${D.grade || 'N/A'}).`;
+            document.getElementById('executiveSummary').textContent = summary;
+
+            // Logo - now handled via {{LOGO_BASE64}} placeholder replacement
+        }
+
+        document.addEventListener('DOMContentLoaded', populateCertificate);
+    </script>
+</body>
+</html>
