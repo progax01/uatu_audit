@@ -189,7 +189,7 @@ export async function runAll(params: {
   await initResultsJson(contextPath, repo, branch, commitHash || undefined);
   log.info("Step 1.5e: results.json initialized", { repo, branch, commitHash });
 
-  await onProgress({ phase: "context", step: "context-ready", pct: 100 });
+  // Note: m1_context progress is handled by bootstrap.ts (0-50%) and MilestoneExecutor (50-100%)
   log.info("=== PHASE 1 COMPLETE ===");
 
   // ============================================================
@@ -340,14 +340,8 @@ export async function runAll(params: {
       contextPath,
       runPath,
       jobId,
-      sessionTimeout: sessionTimeoutMs, // Pass dynamic timeout
-      onProgress: async (update) => {
-        await onProgress({
-          phase: "audit",
-          step: update.session,
-          pct: update.pct
-        });
-      }
+      sessionTimeout: sessionTimeoutMs // Pass dynamic timeout
+      // Note: Parallel audit doesn't use milestone-based progress
     });
 
     if (!parallelResult.success) {
