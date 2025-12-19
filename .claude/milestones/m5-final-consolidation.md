@@ -212,6 +212,7 @@ Write a non-technical summary:
             "function": "borrow()"
           },
           "description": "The borrow() function uses spot price from Uniswap pool...",
+          "code_snippet": "uint256 price = uniswapPool.getSpotPrice();\nuint256 collateralValue = collateral * price;",
           "impact": "Attacker can manipulate oracle price and borrow unlimited funds",
           "exploit_scenario": "1. Flash loan 100M tokens\n2. Swap to manipulate price\n3. Over-borrow with inflated collateral\n4. Profit $419K per attack",
           "recommendation": "Replace spot price with Chainlink oracle + 30-minute TWAP",
