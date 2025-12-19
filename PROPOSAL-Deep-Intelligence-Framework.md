@@ -1994,22 +1994,23 @@ Deductions per finding:
 ┌──────────────┬─────────────┬─────────────────────────────────┐
 │ Severity     │ Deduction   │ Rationale                       │
 ├──────────────┼─────────────┼─────────────────────────────────┤
-│ Critical     │ -25 points  │ Immediate exploitation risk     │
-│ High         │ -15 points  │ Significant security impact     │
-│ Medium       │ -10 points  │ Moderate risk requiring fix     │
-│ Low          │ -5 points   │ Minor issues, best practices    │
+│ Critical     │ -15 points  │ Immediate exploitation risk     │
+│ High         │ -10 points  │ Significant security impact     │
+│ Medium       │ -4 points   │ Moderate risk requiring fix     │
+│ Low          │ -2 points   │ Minor issues, best practices    │
 │ Info         │ -1 point    │ Informational, optimization     │
+│ Third-party  │ -1 point    │ Third-party dependent issues    │
 └──────────────┴─────────────┴─────────────────────────────────┘
 
-Formula: Score = max(0, 100 - (Critical×25 + High×15 + Medium×10 + Low×5 + Info×1))
+Formula: Score = max(0, 100 - (Critical×15 + High×10 + Medium×4 + Low×2 + Info×1))
 Minimum Score: 0
 ```
 
 **Example Calculation:**
 ```
 Findings: 0 Critical, 1 High, 2 Medium, 3 Low
-Deductions: (0×25) + (1×15) + (2×10) + (3×5) = 0 + 15 + 20 + 15 = 50
-Final Score: 100 - 50 = 50 (Grade F)
+Deductions: (0×15) + (1×10) + (2×4) + (3×2) = 0 + 10 + 8 + 6 = 24
+Final Score: 100 - 24 = 76 (Grade C)
 ```
 
 **Score Breakdown Display (in report):**
@@ -2018,13 +2019,13 @@ Final Score: 100 - 50 = 50 (Grade F)
 │   Score Breakdown       │
 ├─────────────────────────┤
 │ Base Score        100   │
-│ Critical (-25)    -0    │
-│ High (-15)        -15   │
-│ Medium (-10)      -20   │
-│ Low (-5)          -15   │
+│ Critical (-15)    -0    │
+│ High (-10)        -10   │
+│ Medium (-4)       -8    │
+│ Low (-2)          -6    │
 │ Info (-1)         -0    │
 ├─────────────────────────┤
-│ Final Score       50    │
+│ Final Score       76    │
 └─────────────────────────┘
 ```
 

@@ -1595,6 +1595,39 @@ Added detailed logs to monitor GitHub repo "About" section auto-update feature.
 
 ---
 
+## 🔢 Score Calculation Formula Update
+
+### **Updated Scoring (December 2025)**
+
+The security score calculation was updated to be more balanced:
+
+```
+Score = 100 - (Critical×15 + High×10 + Medium×4 + Low×2 + Info×1)
+```
+
+| Severity | Deduction | Rationale |
+|----------|-----------|-----------|
+| Critical | -15 points | Immediate exploitation risk |
+| High | -10 points | Significant security impact |
+| Medium | -4 points | Moderate risk requiring fix |
+| Low | -2 points | Minor issues, best practices |
+| Info | -1 point | Informational, optimization |
+| Third-party | -1 point | Third-party dependent issues |
+
+### **Files Updated**
+- `src/services/runAll.ts` - Backend calculation (lines 52-58)
+- `.claude/milestones/m5-final-consolidation.md` - AI prompt reference
+- `PROPOSAL-Deep-Intelligence-Framework.md` - Section 11.2.2 documentation
+
+### **Example Calculation**
+```
+Findings: 0 Critical, 1 High, 2 Medium, 3 Low
+Deductions: (0×15) + (1×10) + (2×4) + (3×2) = 0 + 10 + 8 + 6 = 24
+Final Score: 100 - 24 = 76 (Grade C)
+```
+
+---
+
 ## ✅ COMPLETE! Every Single Log Point Documented
 
 **Total Execution:** GitHub → 130 Log Points → Final Report

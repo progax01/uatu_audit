@@ -29,11 +29,11 @@ Combine all findings from previous milestones, calculate final score, generate r
 #### Severity Weighting
 ```
 Score = 100 - (
-  (critical_count × 25) +
+  (critical_count × 15) +
   (high_count × 10) +
-  (medium_count × 3) +
-  (low_count × 1) +
-  (info_count × 0)
+  (medium_count × 4) +
+  (low_count × 2) +
+  (info_count × 1)
 )
 ```
 

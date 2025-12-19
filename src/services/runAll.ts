@@ -27,7 +27,7 @@ function checkCancellation(jobId: number | undefined) {
 
 /**
  * Calculate security score based on findings
- * Formula: 100 - (critical×25 + high×10 + medium×3 + low×1)
+ * Formula: 100 - (critical×15 + high×10 + medium×4 + low×2 + info×1)
  * Score is always between 0-100
  */
 function calculateScoreFromFindings(findings: any[]): { value: number; grade: string; breakdown: Record<string, number> } {
@@ -49,12 +49,13 @@ function calculateScoreFromFindings(findings: any[]): { value: number; grade: st
     else if (severity === 'info' || severity === 'informational') breakdown.info_count++;
   }
 
-  // Calculate score: 100 - (critical×25 + high×10 + medium×3 + low×1)
+  // Calculate score: 100 - (critical×15 + high×10 + medium×4 + low×2 + info×1)
   const deductions =
-    breakdown.critical_count * 25 +
+    breakdown.critical_count * 15 +
     breakdown.high_count * 10 +
-    breakdown.medium_count * 3 +
-    breakdown.low_count * 1;
+    breakdown.medium_count * 4 +
+    breakdown.low_count * 2 +
+    breakdown.info_count * 1;
 
   const value = Math.max(0, Math.min(100, 100 - deductions));
 
