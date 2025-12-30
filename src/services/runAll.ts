@@ -20,6 +20,17 @@ import { loadLiabilityMap } from "./liabilityMap.js";
 import { calculateWeightedScore, type FindingLike } from "./scoringService.js";
 import { runDeterministicScanners } from "./scannerRunner.js";
 import { generateLiabilityQuestionsFromEvidence, loadConversationState } from "../ai/conversationManager.js";
+import {
+  checkCancellation as checkJobCancellation,
+  attachRunTimestamp,
+  updateJobPct,
+  updateJobNote,
+  updateJobPreAuditStatus,
+  getJob,
+} from "./jobQueue.js";
+import { runPreAuditScan, savePreAuditEvidence, loadPreAuditEvidence } from "./preAuditScanService.js";
+import { createQuestionnaire, saveQuestionnaire, loadQuestionnaire } from "./preAuditQuestionGenerator.js";
+import type { ComponentFingerprint } from "../types/project.js";
 
 // Helper to check cancellation and throw if cancelled
 function checkCancellation(jobId: number | undefined) {
@@ -152,22 +163,123 @@ export async function runAll(params: {
   log.info("=== PHASE 1 COMPLETE ===");
 
   // ============================================================
+  // PHASE 1.5: Pre-Audit Questionnaire (Interactive Human-in-the-Loop)
+  // ============================================================
+  log.info("=== PHASE 1.5: Pre-Audit Questionnaire ===");
+  checkCancellation(jobId);
+
+  // Check if pre-audit was already completed or skipped
+  const existingQuestionnaire = await loadQuestionnaire(contextPath);
+  const job = jobId ? await getJob(jobId) : null;
+  const preAuditStatus = job?.preAuditStatus;
+
+  if (preAuditStatus === 'completed' || preAuditStatus === 'skipped') {
+    log.info("Pre-audit questionnaire already processed", { status: preAuditStatus });
+  } else if (existingQuestionnaire?.status === 'COMPLETED' || existingQuestionnaire?.status === 'SKIPPED') {
+    log.info("Pre-audit questionnaire already completed", { status: existingQuestionnaire.status });
+  } else {
+    // Run deterministic scanners for evidence collection
+    log.info("Step 1.5a: Running deterministic scanners...");
+    const toolLogs = await runDeterministicScanners(branchPath);
+    log.info("Scanners completed", { logLength: toolLogs.length });
+
+    // Create fingerprint from project structure
+    const projectStructure = await fs.readJson(path.join(contextPath, "project-structure.json")).catch(() => null);
+    const fingerprint: ComponentFingerprint = {
+      ecosystems: projectStructure?.ecosystems?.map((e: string) => ({ name: e, confidence: 0.9 })) || [],
+      stats: {
+        totalFiles: projectStructure?.stats?.totalFiles || 0,
+        totalLines: projectStructure?.stats?.totalLines || 0,
+        solidityFiles: projectStructure?.stats?.solidityFiles || 0,
+        rustFiles: projectStructure?.stats?.rustFiles || 0,
+        typescriptFiles: projectStructure?.stats?.typescriptFiles || 0,
+        javascriptFiles: projectStructure?.stats?.javascriptFiles || 0,
+        testFiles: projectStructure?.stats?.testFiles || 0,
+      },
+      dependencies: projectStructure?.dependencies || [],
+      contracts: projectStructure?.mainContracts?.map((c: any) => ({
+        name: c.name,
+        file: c.path,
+        isInterface: c.name?.startsWith('I') || false,
+        isLibrary: c.name?.includes('Lib') || false,
+        isAbstract: false,
+      })) || [],
+      contentHash: Date.now().toString(),
+      fingerprintedAt: new Date().toISOString(),
+    };
+
+    // Run pre-audit scan to collect evidence
+    log.info("Step 1.5b: Running pre-audit evidence scan...");
+    const evidence = await runPreAuditScan(branchPath, fingerprint);
+    await savePreAuditEvidence(contextPath, evidence);
+    log.info("Pre-audit evidence collected", {
+      riskHotspots: evidence.riskHotspots.length,
+      adminPatterns: evidence.detectedPatterns.adminPatterns.length,
+      oracleUsage: evidence.detectedPatterns.oracleUsage.length,
+    });
+
+    // Generate questionnaire from evidence
+    log.info("Step 1.5c: Generating pre-audit questionnaire...");
+    const componentId = job?.componentId || 'main';
+    const questionnaire = createQuestionnaire(project, evidence, componentId);
+    await saveQuestionnaire(contextPath, questionnaire);
+    log.info("Pre-audit questionnaire generated", {
+      questionCount: questionnaire.questions.length,
+      status: questionnaire.status,
+    });
+
+    // If there are questions, pause for user input (unless skipPreAudit is set)
+    const skipPreAudit = process.env.SKIP_PREAUDIT === 'true';
+    if (questionnaire.questions.length > 0 && !skipPreAudit) {
+      log.info("Pausing for pre-audit questionnaire - waiting for user input");
+      if (jobId) {
+        await updateJobPreAuditStatus(jobId, 'pending', project);
+        await updateJobNote(jobId, 'Awaiting pre-audit questionnaire responses');
+      }
+
+      // Return early - the job will be resumed when user submits answers
+      // The worker will pick it up again when status changes from 'awaiting-preaudit'
+      log.info("=== JOB PAUSED FOR PRE-AUDIT QUESTIONNAIRE ===");
+      await onProgress({ phase: "preaudit", step: "awaiting-user-input", pct: 50 });
+
+      return {
+        status: 'awaiting-preaudit',
+        message: 'Pre-audit questionnaire generated, awaiting user responses',
+        questionCount: questionnaire.questions.length,
+        timestamp,
+        runPath: path.join(runsPath, timestamp),
+      };
+    } else {
+      // No questions or skipping pre-audit
+      log.info("Pre-audit questionnaire skipped or no questions generated");
+      if (jobId) {
+        await updateJobPreAuditStatus(jobId, 'skipped');
+      }
+      questionnaire.status = 'SKIPPED';
+      await saveQuestionnaire(contextPath, questionnaire);
+    }
+  }
+
+  await onProgress({ phase: "preaudit", step: "preaudit-complete", pct: 100 });
+  log.info("=== PHASE 1.5 COMPLETE ===");
+
+  // ============================================================
   // PHASE 2: Single Claude CLI Audit
   // ============================================================
   log.info("=== PHASE 2: Single Claude CLI Audit ===");
   checkCancellation(jobId);
 
-  // Run deterministic scanners first
+  // Run deterministic scanners (may already have run in pre-audit, but idempotent)
   log.info("Running deterministic scanners...");
   const toolLogs = await runDeterministicScanners(branchPath);
   log.info("Scanners completed", { logLength: toolLogs.length });
 
-  // Triage Phase: Generate interactive questions if this is a first audit
+  // Legacy triage phase (kept for backward compatibility)
   const existingLiabilityMap = await loadLiabilityMap(contextPath);
   const conversation = await loadConversationState(contextPath);
 
   if (!existingLiabilityMap && !conversation) {
-    log.info("No audit attached, generating liability hotspots questionnaire...");
+    log.info("No liability map found, generating from evidence...");
     await generateLiabilityQuestionsFromEvidence({
       contextPath,
       repo,
@@ -437,8 +549,8 @@ export async function runAll(params: {
   await fs.writeJson(resultsPath, auditResults, { spaces: 2 });
   log.info("Updated results.json with calculated score", {
     originalScore,
-    newScore: calculatedScore.value,
-    newGrade: calculatedScore.grade
+    newScore: weightedScoreResult.value,
+    newGrade: weightedScoreResult.grade
   });
 
   log.info("Audit results validated successfully", {

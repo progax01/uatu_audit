@@ -14,6 +14,7 @@ import {
   handleHealthRoutes,
   handleScanRoutes,
   handleProjectRoutes,
+  handlePreAuditRoutes,
   getSessionId,
   loadUserId,
 } from "./routes/index.js";
@@ -131,6 +132,9 @@ async function handleRequest(req: any, res: any) {
     const sessionId = getSessionId(req);
     const userId = sessionId ? await loadUserId(sessionId) : undefined;
     if (await handleProjectRoutes(req, res, { userId: userId || undefined, sessionId: sessionId || undefined })) return;
+
+    // Pre-audit questionnaire routes
+    if (await handlePreAuditRoutes(req, res, parsed)) return;
 
     // Default 404
     logger.warn('404 Not Found', { path: parsed.pathname, method: req.method });
