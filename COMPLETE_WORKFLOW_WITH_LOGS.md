@@ -1595,8 +1595,100 @@ Added detailed logs to monitor GitHub repo "About" section auto-update feature.
 
 ---
 
+---
+
+## 🆕 NEW UI FLOW: Multi-Source Project Audit (Phase 3)
+
+### Entry Point: Dashboard → Create Project
+
+```
+USER BROWSER
+    │
+    ├─ ui/src/pages/Dashboard.tsx
+    │  └─ User clicks "New Audit"
+    │
+    ▼
+STEP 1: Create Project
+    ├─ ui/src/pages/ProjectCreate.tsx
+    │  └─ User fills:
+    │     - Project name (required, 3+ chars)
+    │     - Description (optional)
+    │     - Project type: full | contract-only | dapp-pentest | library-audit
+    │
+    ├─ POST /api/projects
+    │  └─ Returns: { id, name, type, slug, status: 'draft' }
+    │
+    ▼
+STEP 2: Add Components
+    ├─ ui/src/pages/AddComponents.tsx
+    │  └─ User adds multiple sources:
+    │     - GitHub Repository (OAuth, repo select, branch select)
+    │     - Deployed Contract (address, network)
+    │     - DApp URL (url, pentest options)
+    │     - Library Source (package name, version, registry)
+    │
+    ├─ POST /api/projects/:id/components (per component)
+    │  └─ Returns: { id, type, displayName, status: 'pending' }
+    │
+    ├─ User clicks "Start Audit"
+    │
+    ├─ POST /api/projects/:id/audit
+    │  └─ Returns: { jobId }
+    │  └─ Triggers: Pre-audit scan (Phase 1.5 in runAll.ts)
+    │
+    ▼
+STEP 3: Pre-Audit Questionnaire (NEW)
+    ├─ ui/src/pages/PreAuditQuestionnaire.tsx
+    │  └─ Displays smart questions based on code analysis:
+    │     - ADMIN_CUSTODY (custody model for admin keys)
+    │     - ORACLE_TRUST (price oracle providers)
+    │     - THIRD_PARTY_DEPS (library versions, audit status)
+    │     - EXTERNAL_INTEGRATION (API calls, bridges)
+    │     - MISSING_SOURCE (backend, frontend not provided)
+    │     - CROSS_CHAIN (message verification)
+    │
+    ├─ GET /preaudit/questions/:jobId
+    │  └─ Returns: { status, questions[], answers[] }
+    │
+    ├─ POST /preaudit/answers/:jobId
+    │  └─ Body: { answers: [...] }
+    │  └─ Generates: liability_map.json
+    │
+    ├─ (Optional) POST /preaudit/skip/:jobId
+    │  └─ Skips questionnaire with default assumptions
+    │
+    ▼
+STEP 4: Deep Audit (Existing 5-Milestone Flow)
+    └─ Proceeds to Phase 2+ as documented above
+```
+
+### Key Files Added/Modified
+
+| File | Change |
+|------|--------|
+| `ui/src/App.tsx` | Added routes: create-project, add-components, preaudit-questionnaire |
+| `ui/src/pages/ProjectCreate.tsx` | NEW: Project creation with type selection |
+| `ui/src/pages/AddComponents.tsx` | NEW: Multi-source component manager |
+| `ui/src/pages/PreAuditQuestionnaire.tsx` | NEW: Smart question answering UI |
+| `ui/src/pages/Dashboard.tsx` | Updated: Shows projects instead of repos |
+
+### Project Flow States
+
+```
+draft → configured → awaiting-preaudit → auditing → completed
+  │         │              │                │
+  │         │              │                └─ 5-Milestone audit complete
+  │         │              └─ Waiting for user answers
+  │         └─ Components added, settings configured
+  └─ Project created, no components yet
+```
+
+---
+
 ## ✅ COMPLETE! Every Single Log Point Documented
 
 **Total Execution:** GitHub → 130 Log Points → Final Report
+
+**New UI Flow:** Dashboard → Project Create → Add Components → Pre-Audit Questions → Deep Audit
 
 No steps skipped! 🎉
