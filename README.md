@@ -2,6 +2,13 @@
 
 UatuAudit transforms ad-hoc smart contract audits into **standardized, repeatable SOPs** (Standard Operating Procedures). This platform implements the **Deep Intelligence Framework** featuring multi-domain agents, milestone-based execution, and liability-weighted scoring.
 
+## What's New (v2.0)
+
+- **Multi-Source Projects**: Audit GitHub repos, deployed contracts, DApps, and libraries in a single project
+- **Pre-Audit Questionnaire**: Smart questions about admin custody, oracles, dependencies before deep analysis
+- **UNDECLARED Findings**: Track referenced but unprovided components without affecting score
+- **Guardrails System**: Prevent score manipulation and enforce SOP adherence
+
 ---
 
 ## Architecture Overview
@@ -83,6 +90,17 @@ UatuAudit transforms ad-hoc smart contract audits into **standardized, repeatabl
 | **Professional Reports** | ✅ Complete | PDF/HTML with embedded assets |
 | **Quick Scan** | ✅ Complete | Deployed contract analysis |
 | **Job Queue** | ✅ Complete | Persistent with retry logic |
+
+### New in v2.0
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Multi-Source Projects** | ✅ Complete | Projects → Components hierarchy |
+| **Pre-Audit Questionnaire** | ✅ Complete | Smart questions with liability mapping |
+| **UNDECLARED Severity** | ✅ Complete | Track missing components (0 score weight) |
+| **Guardrails Enforcer** | ✅ Complete | Prevent score manipulation |
+| **Project Dashboard** | ✅ Complete | View all projects with scores |
+| **Component Manager** | ✅ Complete | Add GitHub, contracts, DApps, libraries |
 
 ---
 
@@ -197,6 +215,7 @@ Load liability_map.json (if exists)
 Calculate weighted score:
   • INTERNAL: full weight
   • EXTERNAL: 0.2x discount
+  • UNDECLARED: 0 weight (tracked but not scored)
      ↓
 Generate HTML Report
      ↓
@@ -207,12 +226,117 @@ Mark job complete
 
 ---
 
+## Multi-Source Project Flow (v2.0)
+
+The new project-based workflow supports auditing multiple sources in a unified project:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         PROJECT-BASED AUDIT FLOW                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  STEP 1: Create Project                                                     │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  POST /api/projects                                                   │  │
+│  │  • Name, Description, Type (full/contract-only/dapp-pentest/library)  │  │
+│  │  → Returns: { id, slug, status: 'draft' }                             │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                    ↓                                         │
+│  STEP 2: Add Components                                                     │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  POST /api/projects/:id/components                                    │  │
+│  │  • GitHub Repository (OAuth, repo, branch)                            │  │
+│  │  • Deployed Contract (address, network)                               │  │
+│  │  • DApp URL (url, pentest options)                                    │  │
+│  │  • Library Source (npm/crates/pypi)                                   │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                    ↓                                         │
+│  STEP 3: Start Audit                                                        │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  POST /api/projects/:id/audit                                         │  │
+│  │  → Triggers: Pre-audit scan + Question generation                     │  │
+│  │  → Returns: { jobId }                                                 │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                    ↓                                         │
+│  STEP 4: Pre-Audit Questionnaire (Human-in-the-Loop)                        │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  GET /preaudit/questions/:jobId                                       │  │
+│  │  Categories:                                                          │  │
+│  │  • ADMIN_CUSTODY - Key management model                               │  │
+│  │  • ORACLE_TRUST - Price feed providers                                │  │
+│  │  • THIRD_PARTY_DEPS - Library audit status                            │  │
+│  │  • EXTERNAL_INTEGRATION - API/bridge dependencies                     │  │
+│  │  • MISSING_SOURCE - Undeclared components                             │  │
+│  │  • CROSS_CHAIN - Bridge trust assumptions                             │  │
+│  │                                                                       │  │
+│  │  POST /preaudit/answers/:jobId → Generate liability_map.json          │  │
+│  │  POST /preaudit/skip/:jobId → Use default assumptions                 │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                    ↓                                         │
+│  STEP 5: Deep Audit (5-Milestone Pipeline)                                  │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  M1 Context → M2 Static → M3 Logic → M4 Tests → M5 Report             │  │
+│  │  Uses liability_map.json for weighted scoring                         │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                    ↓                                         │
+│  STEP 6: Report with UNDECLARED Section                                     │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  • Scored findings (Critical, High, Medium, Low)                      │  │
+│  │  • UNDECLARED components (tracked but 0 weight)                       │  │
+│  │  • Liability-weighted final score                                     │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Project Status Flow
+```
+draft → configured → awaiting-preaudit → auditing → completed
+  │         │              │                │           │
+  │         │              │                │           └─ Final report ready
+  │         │              │                └─ 5-Milestone execution
+  │         │              └─ Waiting for questionnaire answers
+  │         └─ Components added
+  └─ Project created
+```
+
+### UNDECLARED Findings
+
+Components referenced in code but not provided for audit are tracked as **UNDECLARED**:
+
+```
+## Undeclared Components in Report
+
+| Component | Type | Referenced By | Status |
+|-----------|------|---------------|--------|
+| api.example.com | External API | src/api.ts:45 | UNDECLARED |
+| BackendController | Backend | src/App.tsx:12 | UNDECLARED |
+| 0x1234...5678 | Contract | src/Token.sol:89 | UNDECLARED |
+
+Note: UNDECLARED findings are informational and DO NOT affect the security score.
+```
+
+### Guardrails System
+
+The Guardrails Enforcer prevents score manipulation and ensures SOP adherence:
+
+```typescript
+// Immutable Rules (from .claude/guardrails.md)
+1. SCORE_INTEGRITY - Formula: 100 - (Critical×25 + High×10 + Medium×3 + Low×1)
+2. SOP_ADHERENCE - Milestones must execute M1 → M2 → M3 → M4 → M5
+3. FINDING_EVIDENCE - All findings must have location, code snippet, impact
+4. SEVERITY_CONSISTENCY - Severity must match described impact
+5. USER_REQUEST_VALIDATION - Block requests to inflate scores or hide findings
+```
+
+---
+
 ## Directory Structure
 
 ```
 UatuAudit/
 ├── .claude/                          # Prompt templates (Deep Intelligence)
 │   ├── system.md                     # Master auditor framework
+│   ├── guardrails.md                 # Immutable rules for score integrity
 │   ├── personas/                     # Domain-specific personas
 │   │   ├── web3.md                   # EVM & Solidity auditor
 │   │   ├── backend.md                # API security auditor
@@ -249,13 +373,18 @@ UatuAudit/
 │   │   ├── jobQueue.ts               # Persistent job queue
 │   │   ├── progressService.ts        # Real-time progress
 │   │   ├── liabilityMap.ts           # Component liability tracking
-│   │   ├── scoringService.ts         # Liability-weighted scoring
+│   │   ├── scoringService.ts         # Liability-weighted scoring (UNDECLARED=0)
 │   │   ├── scannerRunner.ts          # Deterministic scanner runner
 │   │   ├── promptCache.ts            # 4-layer prompt caching
 │   │   ├── ecosystemDetector.ts      # Framework detection
 │   │   ├── projectAnalyzer.ts        # Structure analysis
 │   │   ├── contextWriter.ts          # Context file generation
 │   │   ├── pdfGenerator.ts           # Puppeteer PDF
+│   │   ├── projectService.ts         # NEW: Project CRUD operations
+│   │   ├── preAuditScanService.ts    # NEW: Evidence collection
+│   │   ├── preAuditQuestionGenerator.ts # NEW: Smart question generation
+│   │   ├── undeclaredDetector.ts     # NEW: Missing component detection
+│   │   ├── guardrailsEnforcer.ts     # NEW: Score manipulation prevention
 │   │   └── ai/
 │   │       └── claudeCLIProvider.ts  # Claude CLI integration
 │   │
@@ -270,7 +399,9 @@ UatuAudit/
 │   │       ├── github.ts             # Repo/branch APIs
 │   │       ├── jobs.ts               # Job management
 │   │       ├── reports.ts            # Report download
-│   │       └── scan.ts               # Quick scan
+│   │       ├── scan.ts               # Quick scan
+│   │       ├── projects.ts           # NEW: Project CRUD
+│   │       └── preaudit.ts           # NEW: Questionnaire APIs
 │   │
 │   ├── github/                       # GitHub integration
 │   │   ├── appWebhookServer.ts       # Webhook receiver
@@ -294,13 +425,16 @@ UatuAudit/
 │   └── src/
 │       ├── pages/
 │       │   ├── HomePage.tsx          # Landing page
-│       │   ├── ConnectSource.tsx     # GitHub OAuth
+│       │   ├── ConnectSource.tsx     # GitHub OAuth (legacy)
 │       │   ├── ConfigureAudit.tsx    # Audit settings
 │       │   ├── ReviewAndRun.tsx      # Live progress
-│       │   ├── Dashboard.tsx         # Job history
+│       │   ├── Dashboard.tsx         # Project listing (updated)
 │       │   ├── AuditDetails.tsx      # Report viewer
 │       │   ├── ScanContract.tsx      # Quick scan
-│       │   └── Settings.tsx          # User settings
+│       │   ├── Settings.tsx          # User settings
+│       │   ├── ProjectCreate.tsx     # NEW: Create project
+│       │   ├── AddComponents.tsx     # NEW: Add sources
+│       │   └── PreAuditQuestionnaire.tsx # NEW: Answer questions
 │       └── components/
 │           ├── MilestoneTracker.tsx  # 5-milestone stepper
 │           ├── CoTReasoning.tsx      # Chain-of-thought display
@@ -431,23 +565,61 @@ uatu batch \
 | `/scan/results?address=0x...` | GET | Scan results |
 | `/scan/networks` | GET | Supported networks |
 
+### Projects (v2.0)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/projects` | POST | Create new project |
+| `/api/projects` | GET | List user's projects |
+| `/api/projects/:id` | GET | Get project details |
+| `/api/projects/:id` | PUT | Update project |
+| `/api/projects/:id` | DELETE | Delete project |
+| `/api/projects/:id/components` | POST | Add component |
+| `/api/projects/:id/components/:cid` | DELETE | Remove component |
+| `/api/projects/:id/audit` | POST | Start unified audit |
+| `/api/projects/manual` | POST | Create manual project |
+
+### Pre-Audit Questionnaire (v2.0)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/preaudit/questions/:jobId` | GET | Get questionnaire |
+| `/preaudit/answers/:jobId` | POST | Submit answers |
+| `/preaudit/skip/:jobId` | POST | Skip questionnaire |
+| `/preaudit/evidence/:jobId` | GET | Get scan evidence |
+
 ---
 
 ## Workspace Structure
 
 ```
 ~/.uatu/
-├── workspace/users/{userId}/projects/{project}/branches/{branch}/
-│   ├── <cloned-repo>/
+├── projects/                          # NEW: Project storage
+│   ├── index.json                     # Fast lookup index
+│   └── {projectId}/
+│       ├── metadata.json              # Project configuration
+│       └── components/{componentId}/
+│           ├── config.json            # Component configuration
+│           └── source/                # Cloned/fetched code
+│
+├── workspace/users/{userId}/projects/{project}/
+│   ├── components/{componentId}/      # NEW: Per-component context
+│   │   ├── .uatu/context/
+│   │   └── runs/{timestamp}/
+│   ├── unified/                       # NEW: Cross-component analysis
+│   │   └── dependency-graph.json
 │   ├── context/
-│   │   ├── files_structure.md        # Flattened source
-│   │   ├── test_requirements.md      # Test styles
-│   │   ├── liability_map.json        # Component scope
-│   │   ├── intent_map.json           # M1 output
-│   │   ├── milestone_state.json      # Execution state
-│   │   └── results.json              # Final results
+│   │   ├── files_structure.md         # Flattened source
+│   │   ├── test_requirements.md       # Test styles
+│   │   ├── liability_map.json         # Component scope
+│   │   ├── preaudit_evidence.json     # NEW: Scan evidence
+│   │   ├── preaudit_questionnaire.json # NEW: Questions & answers
+│   │   ├── undeclared_components.json # NEW: Missing components
+│   │   ├── audit_trail.jsonl          # NEW: Guardrail audit log
+│   │   ├── guardrail_violations.jsonl # NEW: Violation log
+│   │   ├── intent_map.json            # M1 output
+│   │   ├── milestone_state.json       # Execution state
+│   │   └── results.json               # Final results
 │   └── runs/{timestamp}/
-│       ├── progress.json             # Real-time progress
+│       ├── progress.json              # Real-time progress
 │       ├── milestone-1-context.json
 │       ├── milestone-2-static.json
 │       ├── milestone-3-logic.json
@@ -455,10 +627,11 @@ uatu batch \
 │       ├── milestone-5-consolidated.json
 │       ├── report.html
 │       └── report.pdf
+│
 ├── queue/
-│   └── jobs.json                     # Job queue
+│   └── jobs.json                      # Job queue
 └── sessions/{sessionId}/secrets/
-    └── github.json                   # OAuth tokens
+    └── github.json                    # OAuth tokens
 ```
 
 ---
@@ -500,6 +673,16 @@ Score = 100 - (Internal_Deductions + External_Deductions × 0.2)
 - [x] Chain-of-Thought prompt structure
 - [x] UI: MilestoneTracker, CoTReasoning, LiabilityTriage components
 - [x] Dashboard and AuditDetails pages
+
+### New in v2.0 (Fully Implemented)
+- [x] Multi-Source Projects (Projects → Components hierarchy)
+- [x] Pre-Audit Questionnaire System (smart question generation)
+- [x] UNDECLARED Severity Type (0 weight for missing components)
+- [x] Guardrails Enforcer (score manipulation prevention)
+- [x] Audit Trail with State Hashing
+- [x] UI: ProjectCreate, AddComponents, PreAuditQuestionnaire pages
+- [x] Updated Dashboard with Project Listing
+- [x] Project/Component API Routes
 
 ### Partially Implemented
 - [~] Inter-Agent Message Bus (basic implementation)
