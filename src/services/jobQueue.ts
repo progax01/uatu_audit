@@ -3,7 +3,7 @@ import fs from "fs-extra";
 import { getUatuHome } from "../constants/paths.js";
 import { killSessionByJobId } from "./ai/claudeCLIProvider.js";
 
-export type JobStatus = "pending" | "running" | "done" | "failed";
+export type JobStatus = "pending" | "running" | "done" | "failed" | "awaiting-preaudit";
 export interface AuditJob {
   id: number;
   repo: string;
@@ -32,6 +32,12 @@ export interface AuditJob {
   sessionId?: string;
   // User account isolation (GitHub userId for persistent isolation)
   userId?: string;
+  // Two-level project hierarchy (optional for backward compatibility)
+  projectId?: string;       // UUID of the parent project
+  componentId?: string;     // UUID of the component being audited
+  // Pre-audit questionnaire state
+  preAuditStatus?: 'pending' | 'completed' | 'skipped';
+  preAuditQuestionnaireId?: string;
 }
 
 interface QueueFile { nextId: number; jobs: AuditJob[]; }
@@ -245,6 +251,30 @@ export async function updateJobNote(jobId: number, note: string) {
   await withQueueLock(async () => {
     const q = await load(); const j = q.jobs.find(x => x.id === jobId); if (!j) return;
     j.note = note; await save(q);
+  });
+}
+
+// Update job's pre-audit status (for questionnaire workflow)
+export async function updateJobPreAuditStatus(
+  jobId: number,
+  preAuditStatus: 'pending' | 'completed' | 'skipped',
+  questionnaireId?: string
+) {
+  await withQueueLock(async () => {
+    const q = await load();
+    const j = q.jobs.find(x => x.id === jobId);
+    if (!j) return;
+    j.preAuditStatus = preAuditStatus;
+    if (questionnaireId) j.preAuditQuestionnaireId = questionnaireId;
+
+    // Update job status based on pre-audit status
+    if (preAuditStatus === 'pending' && j.status === 'running') {
+      j.status = 'awaiting-preaudit';
+    } else if ((preAuditStatus === 'completed' || preAuditStatus === 'skipped') && j.status === 'awaiting-preaudit') {
+      j.status = 'running';
+    }
+
+    await save(q);
   });
 }
 

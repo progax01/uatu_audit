@@ -4,3 +4,4 @@ export { handleJobRoutes } from "./jobs.js";
 export { handleReportRoutes } from "./reports.js";
 export { handleHealthRoutes } from "./health.js";
 export { handleScanRoutes } from "./scan.js";
+export { handleProjectRoutes } from "./projects.js";

@@ -13,6 +13,9 @@ import {
   handleReportRoutes,
   handleHealthRoutes,
   handleScanRoutes,
+  handleProjectRoutes,
+  getSessionId,
+  loadUserId,
 } from "./routes/index.js";
 
 import { GitHubWebhookServer } from "../github/appWebhookServer.js";
@@ -123,6 +126,11 @@ async function handleRequest(req: any, res: any) {
     if (await handleJobRoutes(req, res, parsed)) return;
     if (await handleReportRoutes(req, res, parsed)) return;
     if (await handleScanRoutes(req, res, parsed)) return;
+
+    // Project routes (with user context)
+    const sessionId = getSessionId(req);
+    const userId = sessionId ? await loadUserId(sessionId) : undefined;
+    if (await handleProjectRoutes(req, res, { userId: userId || undefined, sessionId: sessionId || undefined })) return;
 
     // Default 404
     logger.warn('404 Not Found', { path: parsed.pathname, method: req.method });
