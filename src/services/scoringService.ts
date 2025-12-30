@@ -3,9 +3,12 @@ import type { LiabilityMap } from "./liabilityMap.js";
 export interface FindingLike {
   id?: string;                 // stable id if available
   component_id?: string;       // matches LiabilityMap.component.id if possible
-  severity?: string;           // "critical" | "high" | "medium" | "low" | "info"
+  severity?: string;           // "critical" | "high" | "medium" | "low" | "info" | "undeclared"
   title?: string;
   description?: string;
+  isUndeclared?: boolean;      // true if finding is from undeclared component
+  referencedBy?: string[];     // files that reference this undeclared component
+  componentType?: 'backend' | 'frontend' | 'contract' | 'library' | 'external-api';
 }
 
 export interface ScoreBreakdown {
@@ -18,6 +21,7 @@ export interface ScoreBreakdown {
   medium_count_external: number;
   low_count_external: number;
   info_count: number;
+  undeclared_count: number;    // UNDECLARED findings (weight = 0)
 }
 
 export interface WeightedScoreResult {
@@ -26,12 +30,17 @@ export interface WeightedScoreResult {
   breakdown: ScoreBreakdown;
 }
 
+/**
+ * Get the weight for a severity level.
+ * UNDECLARED explicitly returns 0 - these findings are tracked but don't affect score.
+ */
 function severityWeight(severity: string | undefined): number {
   const s = (severity || "").toLowerCase();
   if (s === "critical") return 25;
   if (s === "high") return 10;
   if (s === "medium") return 3;
   if (s === "low") return 1;
+  if (s === "undeclared") return 0;  // Explicit zero weight for UNDECLARED
   return 0;
 }
 
@@ -63,6 +72,7 @@ function classifyFindingScope(
  * Calculate score with liability weighting:
  * - INTERNAL: full weight
  * - EXTERNAL: discounted (e.g. 0.2x) because responsibility is shared/shifted.
+ * - UNDECLARED: zero weight (tracked but doesn't affect score)
  */
 export function calculateWeightedScore(
   findings: FindingLike[],
@@ -79,20 +89,30 @@ export function calculateWeightedScore(
     medium_count_external: 0,
     low_count_external: 0,
     info_count: 0,
+    undeclared_count: 0,
   };
 
   let localDeductions = 0;
   let externalDeductions = 0;
 
   for (const f of findings || []) {
-    const scope = classifyFindingScope(f, liabilityMap);
     const s = (f.severity || "").toLowerCase();
     const w = severityWeight(f.severity);
 
+    // Handle UNDECLARED findings - track but don't score
+    if (s === "undeclared" || f.isUndeclared) {
+      breakdown.undeclared_count++;
+      continue; // Zero weight - doesn't affect score
+    }
+
+    // Handle INFO findings
     if (s === "info" || s === "informational") {
       breakdown.info_count++;
       continue;
     }
+
+    // Classify and score other findings
+    const scope = classifyFindingScope(f, liabilityMap);
 
     if (scope === "INTERNAL") {
       localDeductions += w;

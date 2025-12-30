@@ -17,12 +17,19 @@ interface CertificateData {
     medium: number;
     low: number;
     info: number;
+    undeclared: number;  // Components referenced but not provided (not scored)
   };
   findings: Array<{
     severity: string;
     title: string;
     file: string;
     recommendation: string;
+  }>;
+  undeclaredComponents?: Array<{
+    name: string;
+    type: string;
+    referencedBy: string;
+    reason: string;
   }>;
   recommendations: string[];
   executiveSummary: string;
@@ -140,7 +147,7 @@ export interface TestResult {
 
 export interface Finding {
   id: string;
-  severity: "critical" | "high" | "medium" | "low" | "info";
+  severity: "critical" | "high" | "medium" | "low" | "info" | "undeclared";
   category: string;
   title: string;
   file: string;
@@ -148,6 +155,9 @@ export interface Finding {
   description: string;
   code_snippet?: string;
   recommendation: string;
+  isUndeclared?: boolean;      // true if from undeclared component
+  componentType?: string;       // type of undeclared component
+  referencedBy?: string[];      // files that reference undeclared component
 }
 
 // Old UATU_DATA format for the classic template
@@ -171,6 +181,7 @@ interface UatuData {
     medium: number;
     low: number;
     info: number;
+    undeclared: number;  // Components referenced but not provided (not scored)
   };
   findings: Array<{
     severity: string;
@@ -178,6 +189,12 @@ interface UatuData {
     file: string;
     rec: string;
     code_snippet?: string;
+  }>;
+  undeclaredComponents?: Array<{
+    name: string;
+    type: string;
+    referencedBy: string;
+    reason: string;
   }>;
   contractsAnalyzed?: number;
   timeline: Array<{
@@ -297,13 +314,23 @@ export async function generateReportFromResults(
     high_count: 0,
     medium_count: 0,
     low_count: 0,
-    info_count: 0
+    info_count: 0,
+    undeclared_count: 0
   };
   const criticalCount = breakdown.critical_count ?? countBySeverity(results.analysis.findings, "critical");
   const highCount = breakdown.high_count ?? countBySeverity(results.analysis.findings, "high");
   const mediumCount = breakdown.medium_count ?? countBySeverity(results.analysis.findings, "medium");
   const lowCount = breakdown.low_count ?? countBySeverity(results.analysis.findings, "low");
   const infoCount = breakdown.info_count ?? countBySeverity(results.analysis.findings, "info");
+  const undeclaredCount = (breakdown as any).undeclared_count ?? countBySeverity(results.analysis.findings, "undeclared");
+
+  // Separate undeclared findings for special display
+  const regularFindings = results.analysis.findings.filter(f =>
+    f.severity !== 'undeclared' && !(f as any).isUndeclared
+  );
+  const undeclaredFindings = results.analysis.findings.filter(f =>
+    f.severity === 'undeclared' || (f as any).isUndeclared
+  );
 
   // Build UATU_DATA in the format the new dark-themed template expects
   const uatuData: UatuData = {
@@ -325,10 +352,11 @@ export async function generateReportFromResults(
       high: highCount,
       medium: mediumCount,
       low: lowCount,
-      info: infoCount
+      info: infoCount,
+      undeclared: undeclaredCount
     },
     contractsAnalyzed: results.analysis.contracts_analyzed || 0,
-    findings: results.analysis.findings.map(f => ({
+    findings: regularFindings.map(f => ({
       severity: f.severity,
       title: f.title,
       file: (f.file || 'N/A') + (f.line ? `:${f.line}` : ""),
@@ -363,7 +391,14 @@ export async function generateReportFromResults(
     contracts_explained: results.contracts_explained || [],
     test_methodology: results.test_methodology || null,
     user_flows: results.user_flows || [],
-    test_results: results.test_results || []
+    test_results: results.test_results || [],
+    // Undeclared components section
+    undeclaredComponents: undeclaredFindings.map(f => ({
+      name: f.title || 'Unknown',
+      type: (f as any).componentType || 'unknown',
+      referencedBy: (f as any).referencedBy?.join(', ') || f.file || 'N/A',
+      reason: f.description || 'Component referenced but not provided for audit'
+    }))
   };
 
   // Inject UATU_DATA into template
