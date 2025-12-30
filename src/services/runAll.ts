@@ -16,56 +16,16 @@ import { ensureClaudeReady } from "../utils/claudeHealthCheck.js";
 import { createJobLogger as createJobFileLogger, closeJobLogger } from "./jobLogger.js";
 import { newProgress, saveProgress, setPhasePct } from "./progressService.js";
 import type { ProgressHook } from "../utils/stepHelper.js";
-import { attachRunTimestamp, updateJobNote, updateJobPct, checkCancellation as checkJobCancellation } from "./jobQueue.js";
+import { loadLiabilityMap } from "./liabilityMap.js";
+import { calculateWeightedScore, type FindingLike } from "./scoringService.js";
+import { runDeterministicScanners } from "./scannerRunner.js";
+import { generateLiabilityQuestionsFromEvidence, loadConversationState } from "../ai/conversationManager.js";
 
 // Helper to check cancellation and throw if cancelled
 function checkCancellation(jobId: number | undefined) {
   if (jobId) {
     checkJobCancellation(jobId);
   }
-}
-
-/**
- * Calculate security score based on findings
- * Formula: 100 - (critical×25 + high×10 + medium×3 + low×1)
- * Score is always between 0-100
- */
-function calculateScoreFromFindings(findings: any[]): { value: number; grade: string; breakdown: Record<string, number> } {
-  const breakdown = {
-    critical_count: 0,
-    high_count: 0,
-    medium_count: 0,
-    low_count: 0,
-    info_count: 0
-  };
-
-  // Count findings by severity
-  for (const finding of findings || []) {
-    const severity = (finding.severity || '').toLowerCase();
-    if (severity === 'critical') breakdown.critical_count++;
-    else if (severity === 'high') breakdown.high_count++;
-    else if (severity === 'medium') breakdown.medium_count++;
-    else if (severity === 'low') breakdown.low_count++;
-    else if (severity === 'info' || severity === 'informational') breakdown.info_count++;
-  }
-
-  // Calculate score: 100 - (critical×25 + high×10 + medium×3 + low×1)
-  const deductions =
-    breakdown.critical_count * 25 +
-    breakdown.high_count * 10 +
-    breakdown.medium_count * 3 +
-    breakdown.low_count * 1;
-
-  const value = Math.max(0, Math.min(100, 100 - deductions));
-
-  // Determine grade
-  const grade =
-    value >= 90 ? 'A' :
-    value >= 80 ? 'B' :
-    value >= 70 ? 'C' :
-    value >= 60 ? 'D' : 'F';
-
-  return { value, grade, breakdown };
 }
 
 /**
@@ -197,6 +157,27 @@ export async function runAll(params: {
   log.info("=== PHASE 2: Single Claude CLI Audit ===");
   checkCancellation(jobId);
 
+  // Run deterministic scanners first
+  log.info("Running deterministic scanners...");
+  const toolLogs = await runDeterministicScanners(branchPath);
+  log.info("Scanners completed", { logLength: toolLogs.length });
+
+  // Triage Phase: Generate interactive questions if this is a first audit
+  const existingLiabilityMap = await loadLiabilityMap(contextPath);
+  const conversation = await loadConversationState(contextPath);
+
+  if (!existingLiabilityMap && !conversation) {
+    log.info("No audit attached, generating liability hotspots questionnaire...");
+    await generateLiabilityQuestionsFromEvidence({
+      contextPath,
+      repo,
+      branch,
+      evidenceSummary: toolLogs,
+      jobId
+    });
+    log.info("Liability questions generated in intent_map.json");
+  }
+
   // Health check: Ensure Claude CLI is ready before starting audit
   log.info("Performing Claude CLI health check...");
   try {
@@ -276,6 +257,7 @@ export async function runAll(params: {
       jobId: jobId?.toString() || 'unknown',
       projectPath: branchPath,
       projectContext,
+      toolLogs, // Pass scanner evidence
       domain: undefined, // auto-detect
       auditDepth: 'standard'
     });
@@ -427,20 +409,29 @@ export async function runAll(params: {
     ];
   }
 
-  // Always recalculate score based on actual findings to ensure consistency
-  const calculatedScore = calculateScoreFromFindings(findings);
-  log.info("Score calculated from findings", {
+  // Always recalculate score based on actual findings and liability mapping
+  const liabilityMap = await loadLiabilityMap(contextPath);
+  const normalizedFindings: FindingLike[] = findings.map((f: any) => ({
+    id: f.id || f.code || f.slug,
+    component_id: f.component_id || f.component || f.location,
+    severity: f.severity,
+    title: f.title,
+    description: f.description,
+  }));
+
+  const weightedScoreResult = calculateWeightedScore(normalizedFindings, liabilityMap);
+  
+  log.info("Score calculated with liability weighting", {
     findingsCount: findings.length,
-    calculatedScore: calculatedScore.value,
-    calculatedGrade: calculatedScore.grade,
-    breakdown: calculatedScore.breakdown,
+    calculatedScore: weightedScoreResult.value,
+    calculatedGrade: weightedScoreResult.grade,
+    breakdown: weightedScoreResult.breakdown,
     originalScore: auditResults.score?.value
   });
 
   // ALWAYS use the calculated score to ensure consistency
-  // The AI-generated score is often incorrect (e.g., 0 or 50 regardless of findings)
   const originalScore = auditResults.score?.value;
-  auditResults.score = calculatedScore;
+  auditResults.score = weightedScoreResult;
 
   // Update the results.json with corrected score
   await fs.writeJson(resultsPath, auditResults, { spaces: 2 });

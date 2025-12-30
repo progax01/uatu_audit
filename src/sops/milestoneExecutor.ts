@@ -43,6 +43,7 @@ export interface AuditContext {
   jobId: string;
   projectPath: string;
   projectContext?: string; // Flattened source code
+  toolLogs?: string;      // Deterministic scanner outputs
   domain?: 'web3' | 'backend' | 'frontend' | 'multi-domain';
   methodologies?: string[];
   testStyle?: string;
@@ -77,8 +78,8 @@ const MILESTONE_CONFIGS: Record<MilestoneNumber, MilestoneConfig> = {
   2: {
     id: 2,
     name: 'Static & Structural Analysis',
-    description: 'Pattern-based vulnerability detection and architectural analysis',
-    requiredInputs: ['projectContext'],
+    description: 'Pattern-based vulnerability detection and architectural analysis using local tools as evidence',
+    requiredInputs: ['projectContext', 'toolLogs'],
     outputSchema: {
       findings: 'array',
       static_metrics: 'object'
@@ -525,14 +526,17 @@ export class MilestoneExecutor {
     // Add milestone-specific instructions
     switch (milestoneNumber) {
       case 1:
-        query += `Read and analyze the following project context:\n\n`;
-        query += `\`\`\`\n${inputs.projectContext}\n\`\`\`\n\n`;
-        query += `Provide your analysis in the format specified in the milestone instructions above.\n`;
+        query += `Analyze the following project context to build an Intent Map.\n\n`;
+        query += `PROJECT CONTEXT:\n\`\`\`\n${inputs.projectContext}\n\`\`\`\n\n`;
+        query += `OUTPUT SCHEMA:\n`;
+        query += `{\n  "product_goal": "string",\n  "assets": ["string"],\n  "entrypoints": ["string"],\n  "trust_boundaries": ["string"],\n  "risk_hotspots": [{"name": "string", "reason": "string"}]\n}\n`;
         break;
 
       case 2:
-        query += `Perform static analysis on the project.\n\n`;
-        query += `Focus on pattern-based vulnerability detection as described in the methodologies loaded.\n`;
+        query += `Perform static analysis on the project using the provided local tool evidence.\n\n`;
+        query += `LOCAL TOOL EVIDENCE:\n`;
+        query += `\`\`\`\n${inputs.toolLogs}\n\`\`\`\n\n`;
+        query += `Focus on pattern-based vulnerability detection as described in the methodologies loaded, using the tool results as primary witnesses.\n`;
         break;
 
       case 3:
@@ -543,8 +547,10 @@ export class MilestoneExecutor {
         break;
 
       case 4:
-        query += `Generate executable PoC tests for the following findings:\n\n`;
-        query += `${JSON.stringify(inputs.findings, null, 2)}\n\n`;
+        query += `Generate a structured Test Plan based on the following findings.\n\n`;
+        query += `FINDINGS:\n${JSON.stringify(inputs.findings, null, 2)}\n\n`;
+        query += `OUTPUT SCHEMA:\n`;
+        query += `{\n  "test_categories": ["string"],\n  "tests": [{\n    "name": "string",\n    "target_component": "string",\n    "expected_invariant": "string",\n    "tooling": "string"\n  }]\n}\n`;
         break;
 
       case 5:
@@ -704,10 +710,11 @@ export class MilestoneExecutor {
       inputs.projectContext = this.context.projectContext;
     }
 
-    // M2: Needs project context
+    // M2: Needs project context and tool logs
     if (milestoneNumber === 2) {
       const m1State = this.states.get(1);
       inputs.projectContext = this.context.projectContext;
+      inputs.toolLogs = this.context.toolLogs; // Ingest from context
       if (m1State?.outputs) {
         inputs.contextSummary = m1State.outputs;
       }

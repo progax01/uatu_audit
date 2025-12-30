@@ -15,8 +15,12 @@ import {
   handleScanRoutes,
 } from "./routes/index.js";
 
+import { GitHubWebhookServer } from "../github/appWebhookServer.js";
+
 const PORT = parseInt(process.env.UATU_PORT || "9090");
+const WEBHOOK_PORT = parseInt(process.env.UATU_WEBHOOK_PORT || "9091");
 const CONCURRENCY = parseInt(process.env.UATU_CONCURRENCY || "2");
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
 
 /**
  * Main request handler - routes requests to appropriate handlers
@@ -150,6 +154,15 @@ export async function startDaemon() {
   for (let i = 0; i < CONCURRENCY; i++) {
     startWorker(i);
     logger.info(`Started worker ${i}`, { workerId: i });
+  }
+
+  // Start GitHub Webhook Server
+  if (GITHUB_TOKEN) {
+    const webhookServer = new GitHubWebhookServer(WEBHOOK_PORT, GITHUB_TOKEN);
+    webhookServer.start();
+    logger.info(`GitHub Webhook server listening`, { port: WEBHOOK_PORT });
+  } else {
+    logger.warn("GITHUB_TOKEN not set, Webhook server disabled");
   }
 
   // Start HTTP server

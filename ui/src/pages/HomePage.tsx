@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle, Search, Brain, Radio } from 'lucide-react'
+import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle, Search, Brain, Radio, Shield, Zap, Lock, Code2 } from 'lucide-react'
 import mascot from '../assets/letf-mascot.png'
 
 // GitHub Icon SVG Component
@@ -12,520 +12,218 @@ function GithubIcon({ className }: { className?: string }) {
 }
 
 interface HomePageProps {
+  isAuthed?: boolean
   onGetStarted: () => void
+  onEnterApp: () => void
   onScanContract: () => void
   onStartAudit?: (data: { project: string; branch: string; jobId: number }) => void
 }
 
-type TabType = 'github' | 'quickscan'
-type Network = 'arbitrum' | 'ethereum' | 'polygon' | 'base' | 'bnb' | 'optimism'
-type ValidationStatus = 'idle' | 'validating' | 'valid' | 'invalid' | 'error'
-
-const networks: { id: Network; name: string; color: string }[] = [
-  { id: 'arbitrum', name: 'Arbitrum', color: '#28A0F0' },
-  { id: 'ethereum', name: 'Ethereum', color: '#627EEA' },
-  { id: 'polygon', name: 'Polygon', color: '#8247E5' },
-  { id: 'base', name: 'Base', color: '#0052FF' },
-  { id: 'bnb', name: 'BNB', color: '#F3BA2F' },
-  { id: 'optimism', name: 'Optimism', color: '#FF0420' },
-]
-
-interface ContractInfo {
-  isContract: boolean
-  isVerified: boolean
-  contractName?: string
-  compiler?: string
-  explorerUrl?: string
-  isProxy?: boolean
-  implementationAddress?: string
-  implementationName?: string
-}
-
-interface FetchedSource {
-  contractName: string
-  compiler: string
-  files: string[]
-  fileCount: number
-  isProxy: boolean
-  implementationAddress?: string
-  cached: boolean
-}
-
-export default function HomePage({ onGetStarted, onScanContract, onStartAudit }: HomePageProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('quickscan')
-  const [selectedNetwork, setSelectedNetwork] = useState<Network>('ethereum')
-  const [contractAddress, setContractAddress] = useState('')
-  const [validationStatus, setValidationStatus] = useState<ValidationStatus>('idle')
-  const [contractInfo, setContractInfo] = useState<ContractInfo | null>(null)
-  const [fetchedSource, setFetchedSource] = useState<FetchedSource | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [isStarting, setIsStarting] = useState(false)
-
-  const debounceRef = useRef<NodeJS.Timeout | null>(null)
-  const abortControllerRef = useRef<AbortController | null>(null)
-
-  const isValidAddressFormat = (address: string) => /^0x[a-fA-F0-9]{40}$/.test(address)
-
-  const validateAndFetch = useCallback(async (address: string, network: Network) => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-    abortControllerRef.current = new AbortController()
-
-    setValidationStatus('validating')
-    setContractInfo(null)
-    setFetchedSource(null)
-    setError(null)
-
-    try {
-      const response = await fetch('/scan/validate-and-fetch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, network }),
-        signal: abortControllerRef.current.signal,
-      })
-      const data = await response.json()
-
-      if (!response.ok) {
-        setError(data.error || 'Validation failed')
-        setValidationStatus('error')
-        return
-      }
-
-      if (!data.isContract) {
-        setError('Address is not a contract (EOA)')
-        setValidationStatus('invalid')
-        return
-      }
-
-      if (!data.isVerified) {
-        setError('Contract source code not verified on explorer')
-        setValidationStatus('invalid')
-        setContractInfo(data)
-        return
-      }
-
-      setContractInfo({
-        isContract: data.isContract,
-        isVerified: data.isVerified,
-        contractName: data.contractName,
-        compiler: data.compiler,
-        explorerUrl: data.explorerUrl,
-        isProxy: data.isProxy,
-        implementationAddress: data.implementationAddress,
-        implementationName: data.implementationName,
-      })
-
-      setFetchedSource({
-        contractName: data.contractName,
-        compiler: data.compiler,
-        files: data.files || [],
-        fileCount: data.fileCount || 0,
-        isProxy: data.isProxy || false,
-        implementationAddress: data.implementationAddress,
-        cached: data.cached || false,
-      })
-
-      setValidationStatus('valid')
-    } catch (err: any) {
-      if (err.name === 'AbortError') return
-      setError('Failed to validate contract')
-      setValidationStatus('error')
-    }
-  }, [])
-
-  const handleAddressChange = (address: string) => {
-    setContractAddress(address)
-
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current)
-    }
-
-    if (!address) {
-      setValidationStatus('idle')
-      setContractInfo(null)
-      setFetchedSource(null)
-      setError(null)
-      return
-    }
-
-    if (!isValidAddressFormat(address)) {
-      setValidationStatus('idle')
-      setError(null)
-      return
-    }
-
-    debounceRef.current = setTimeout(() => {
-      validateAndFetch(address, selectedNetwork)
-    }, 500)
-  }
-
-  const handleNetworkChange = (network: Network) => {
-    setSelectedNetwork(network)
-    setValidationStatus('idle')
-    setContractInfo(null)
-    setFetchedSource(null)
-    setError(null)
-
-    if (contractAddress && isValidAddressFormat(contractAddress)) {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
-      }
-      validateAndFetch(contractAddress, network)
-    }
-  }
-
-  const handleStartScan = async () => {
-    if (!contractAddress || validationStatus !== 'valid') return
-
-    setIsStarting(true)
-    setError(null)
-
-    try {
-      const response = await fetch('/scan/enqueue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          address: contractAddress,
-          network: selectedNetwork,
-          scanMode: 'quick',
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to start scan')
-      }
-
-      if (onStartAudit) {
-        onStartAudit({
-          project: data.projectName,
-          branch: 'main',
-          jobId: data.job.id,
-        })
-      } else {
-        onScanContract()
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to start scan')
-      setIsStarting(false)
-    }
-  }
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-      if (abortControllerRef.current) abortControllerRef.current.abort()
-    }
-  }, [])
-
+export default function HomePage({ isAuthed, onGetStarted, onEnterApp, onScanContract, onStartAudit }: HomePageProps) {
   return (
-    <div className="min-h-screen bg-white relative">
+    <div className="min-h-screen bg-white relative font-sans">
       {/* Tech Grid Background */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
+      <div className="absolute inset-0 opacity-20 pointer-events-none">
         <div
           className="w-full h-full"
           style={{
             backgroundImage: `
-              linear-gradient(rgba(15, 63, 98, 0.03) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(15, 63, 98, 0.03) 1px, transparent 1px)
+              linear-gradient(rgba(15, 63, 98, 0.05) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(15, 63, 98, 0.05) 1px, transparent 1px)
             `,
-            backgroundSize: '50px 50px'
+            backgroundSize: '40px 40px'
           }}
         />
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center cursor-pointer hover:opacity-80 transition-opacity">
-            <img src="/logo.svg" alt="Uatu Logo" className="h-10" />
+            <img src="/logo.svg" alt="Uatu Logo" className="h-9" />
           </div>
+          
+          <nav className="hidden md:flex items-center gap-8">
+            <a href="#features" className="text-sm font-semibold text-gray-500 hover:text-[#0F3F62]">Features</a>
+            <a href="#audit-flow" className="text-sm font-semibold text-gray-500 hover:text-[#0F3F62]">How it Works</a>
+            {isAuthed ? (
+              <button 
+                onClick={onEnterApp}
+                className="bg-[#0F3F62] text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-lg shadow-blue-900/10 hover:bg-[#1a5a8a] transition-all"
+              >
+                Go to Dashboard
+              </button>
+            ) : (
+              <button 
+                onClick={onGetStarted}
+                className="bg-[#0F3F62] text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-lg shadow-blue-900/10 hover:bg-[#1a5a8a] transition-all flex items-center gap-2"
+              >
+                <GithubIcon className="w-4 h-4" />
+                Login with GitHub
+              </button>
+            )}
+          </nav>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-8 py-8">
-        {/* Row 1: Hero Text (Left) + Robot Mascot (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-8">
-          {/* Left Side - Text Content */}
-          <div className="py-4">
-            <h1 className="text-5xl lg:text-6xl font-bold text-[#0F3F62] leading-tight mb-6">
-              Secure Your Smart {" "}
-              Contracts with
-              <span className="text-[#0F3F62] ml-2">AI-Driven Audits</span>
+      {/* Hero Section */}
+      <section className="relative pt-20 pb-32 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="relative z-10 text-center lg:text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-xs font-bold uppercase tracking-widest mb-6">
+              <Zap className="w-3 h-3" />
+              Next-Gen CI Security
+            </div>
+            <h1 className="text-6xl lg:text-7xl font-black text-[#0F3F62] leading-[1.1] mb-8">
+              Audit Grade <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0F3F62] to-[#3B82A0]">Deterministic</span> Security for CI/CD
             </h1>
-            <p className="text-xl text-gray-600 max-w-xl leading-relaxed">
-              Leverage our advanced engine to safeguard your Web3 assets with rigorous vulnerability analysis.
+            <p className="text-xl text-gray-500 max-w-xl mb-10 leading-relaxed mx-auto lg:mx-0 font-medium">
+              Uatu isn't just an LLM crawler. It's a tool-augmented orchestration engine that combines Slither, Foundry, and Semgrep with Deep-Intelligence reasoning.
             </p>
-          </div>
-
-          {/* Right Side - Robot Mascot */}
-          <div className="hidden lg:flex items-center justify-center">
-            <img
-              src={mascot}
-              alt="Uatu Mascot"
-              className="w-[420px] h-auto"
-              style={{ filter: 'drop-shadow(0 10px 30px rgba(15, 63, 98, 0.15))' }}
-            />
-          </div>
-        </div>
-
-        {/* Row 2: Centered Action Card */}
-        <div className="flex justify-center">
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 backdrop-blur-sm w-full max-w-3xl shadow-xl shadow-gray-200/50">
-              {/* Tabs */}
-              <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => { setActiveTab('github'); }}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-all ${
-                    activeTab === 'github'
-                      ? 'bg-white text-[#0F3F62] shadow-md'
-                      : 'text-gray-500 hover:text-[#0F3F62]'
-                  }`}
-                >
-                  <GithubIcon className="w-5 h-5" />
-                  Connect GitHub
-                </button>
-                <button
-                  onClick={() => setActiveTab('quickscan')}
-                  className={`flex-1 px-4 py-3 rounded-md text-sm font-medium transition-all ${
-                    activeTab === 'quickscan'
-                      ? 'bg-white text-[#0F3F62] shadow-md'
-                      : 'text-gray-500 hover:text-[#0F3F62]'
-                  }`}
-                >
-                  Quick Scan
-                </button>
-              </div>
-
-              {activeTab === 'github' ? (
-                /* GitHub Tab Content */
-                <div className="text-center py-8">
-                  <p className="text-gray-600 mb-6">Connect your GitHub repository to audit your smart contracts</p>
-                  <button
-                    onClick={onGetStarted}
-                    className="relative group inline-flex"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#0F3F62] to-[#1a5a8a] rounded-xl blur-md group-hover:blur-lg transition-all opacity-30" />
-                    <div className="relative bg-[#0F3F62] hover:bg-[#1a5a8a] text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all flex items-center gap-3">
-                      <GithubIcon className="w-5 h-5" />
-                      Authorize GitHub Access
-                    </div>
-                  </button>
-                </div>
-              ) : (
-                /* Quick Scan Tab Content */
-                <div>
-                  {/* Chain Selector Pills */}
-                  <div className="flex flex-wrap gap-2 mb-5">
-                    {networks.map((network) => (
-                      <button
-                        key={network.id}
-                        onClick={() => handleNetworkChange(network.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                          selectedNetwork === network.id
-                            ? 'text-white'
-                            : 'bg-gray-100 text-gray-600 hover:text-gray-800 border border-transparent hover:border-gray-300'
-                        }`}
-                        style={selectedNetwork === network.id ? { backgroundColor: network.color } : {}}
-                      >
-                        <span className="font-semibold">{network.name}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Contract Address Input */}
-                  <div className="mb-5">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={contractAddress}
-                        onChange={(e) => handleAddressChange(e.target.value)}
-                        placeholder="0x1234... paste your contract address"
-                        className={`w-full bg-gray-50 border rounded-lg px-4 py-4 text-gray-800 placeholder-gray-400 focus:outline-none transition-colors font-mono pr-12 ${
-                          validationStatus === 'valid'
-                            ? 'border-green-500 focus:border-green-400'
-                            : validationStatus === 'invalid' || validationStatus === 'error'
-                            ? 'border-red-500 focus:border-red-400'
-                            : 'border-gray-300 focus:border-[#0F3F62]'
-                        }`}
-                      />
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                        {validationStatus === 'validating' && (
-                          <Loader2 className="w-5 h-5 text-[#0F3F62] animate-spin" />
-                        )}
-                        {validationStatus === 'valid' && (
-                          <CheckCircle className="w-5 h-5 text-green-500" />
-                        )}
-                        {(validationStatus === 'invalid' || validationStatus === 'error') && (
-                          <XCircle className="w-5 h-5 text-red-500" />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Contract Info */}
-                    {contractInfo && validationStatus === 'valid' && fetchedSource && (
-                      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                            <span className="text-green-700 font-medium text-sm">{contractInfo.contractName}</span>
-                            {fetchedSource.cached && (
-                              <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">Cached</span>
-                            )}
-                          </div>
-                          {contractInfo.explorerUrl && (
-                            <a
-                              href={contractInfo.explorerUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[#0F3F62] hover:underline flex items-center gap-1 text-xs"
-                            >
-                              Explorer <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 text-gray-500 text-xs">
-                          <FileCode className="w-3 h-3" />
-                          <span>{fetchedSource.fileCount} files</span>
-                          {contractInfo.isProxy && (
-                            <span className="flex items-center gap-1 text-yellow-600">
-                              <AlertTriangle className="w-3 h-3" />
-                              Proxy
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {error && (
-                      <p className="text-red-500 text-sm mt-2">{error}</p>
-                    )}
-                  </div>
-
-                  {/* Start Scan Button */}
-                  <button
-                    onClick={handleStartScan}
-                    disabled={validationStatus !== 'valid' || isStarting}
-                    className={`w-full relative group ${
-                      validationStatus !== 'valid' || isStarting ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#0F3F62] to-[#1a5a8a] rounded-xl blur-md group-hover:blur-lg transition-all opacity-30" />
-                    <div className="relative bg-gradient-to-r from-[#0F3F62] to-[#1a5a8a] hover:from-[#1a5a8a] hover:to-[#0F3F62] text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2">
-                      {isStarting ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Starting Scan...
-                        </>
-                      ) : (
-                        <>
-                          Start Quick Scan
-                          <ArrowRight className="w-5 h-5" />
-                        </>
-                      )}
-                    </div>
-                  </button>
-                </div>
-              )}
-          </div>
-        </div>
-
-        {/* Row 3: How Uatu Protects Section */}
-        <div className="mt-16 mb-8 bg-[#F0F7FA] rounded-3xl p-8">
-          {/* Section Header */}
-          <div className="text-center mb-10">
-            <h2 className="text-4xl font-bold text-[#0F3F62] mb-4">
-              How Uatu protects your smart contracts
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Start with a quick contract check, upgrade to a full AI-driven audit, and keep production deployments monitored with smart alerts.
-            </p>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="flex justify-center mb-10">
-            <div className="flex w-full max-w-2xl h-2 rounded-full overflow-hidden">
-              <div className="flex-1 bg-[#0F3F62]" />
-              <div className="flex-1 bg-[#3B82A0]" />
-              <div className="flex-1 bg-[#5DC4B8]" />
+            <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
+              <button 
+                onClick={onGetStarted}
+                className="w-full sm:w-auto bg-[#0F3F62] text-white px-8 py-4 rounded-2xl font-black text-lg shadow-2xl shadow-blue-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                Get Started Free
+              </button>
+              <button 
+                onClick={onScanContract}
+                className="w-full sm:w-auto bg-white border-2 border-gray-100 text-gray-600 px-8 py-4 rounded-2xl font-bold text-lg hover:bg-gray-50 transition-all"
+              >
+                Quick Scan Contract
+              </button>
             </div>
           </div>
 
-          {/* Feature Cards */}
+          <div className="relative lg:flex justify-center hidden">
+            <div className="absolute inset-0 bg-blue-400/10 blur-[120px] rounded-full" />
+            <img src={mascot} alt="Uatu" className="w-[480px] relative z-10 drop-shadow-2xl animate-float" />
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="bg-[#0F3F62] py-16">
+        <div className="max-w-7xl mx-auto px-8 grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Step 1: Quick Scan */}
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                <div className="w-14 h-14 bg-gradient-to-br from-[#7DD3E8] to-[#5BC4D4] rounded-2xl flex items-center justify-center mb-4">
-                  <Search className="w-7 h-7 text-[#0F3F62]" />
-                </div>
-                <div className="text-sm text-gray-500 mb-1">Step 1</div>
-                <h3 className="text-xl font-bold text-[#0F3F62] mb-3">Quick Scan</h3>
-                <p className="text-gray-600 text-sm mb-4">
-                  Paste any verified contract address to get a fast AI snapshot of risk before you commit time or budget to a full audit.
-                </p>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#5DC4B8] mt-1">•</span>
-                    <span>Supports Ethereum, Arbitrum, Polygon, BNB & more.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#5DC4B8] mt-1">•</span>
-                    <span>Highlights obvious vulnerabilities and misconfigurations</span>
-                  </li>
-                </ul>
-              </div>
+            <div className="text-4xl font-black mb-2">100%</div>
+            <div className="text-blue-200 text-sm font-bold uppercase tracking-widest">Deterministic</div>
+          </div>
+          <div>
+            <div className="text-4xl font-black mb-2">5+</div>
+            <div className="text-blue-200 text-sm font-bold uppercase tracking-widest">Local Scanners</div>
+          </div>
+          <div>
+            <div className="text-4xl font-black mb-2">0</div>
+            <div className="text-blue-200 text-sm font-bold uppercase tracking-widest">Hallucinations</div>
+          </div>
+          <div>
+            <div className="text-4xl font-black mb-2">24/7</div>
+            <div className="text-blue-200 text-sm font-bold uppercase tracking-widest">Branch Guard</div>
+          </div>
+        </div>
+      </section>
 
-              {/* Step 2: Deep AI Audit */}
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                <div className="w-14 h-14 bg-gradient-to-br from-[#C4B5E8] to-[#A89BD4] rounded-2xl flex items-center justify-center mb-4">
-                  <Brain className="w-7 h-7 text-[#0F3F62]" />
-                </div>
-                <div className="text-sm text-gray-500 mb-1">Step 2</div>
-                <h3 className="text-xl font-bold text-[#0F3F62] mb-3">Deep AI Audit</h3>
-                <p className="text-gray-600 text-sm mb-4">
-                  Connect your GitHub repo to let Uatu reason across the entire codebase, not just a single deployed contract.
-                </p>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#A89BD4] mt-1">•</span>
-                    <span>Line-by-line review of core contracts, libraries and upgrades</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#A89BD4] mt-1">•</span>
-                    <span>Detects access-control issues and protocol logic bugs</span>
-                  </li>
-                </ul>
-              </div>
+      {/* Capabilities Section */}
+      <section id="features" className="py-32 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-8">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl font-black text-[#0F3F62] mb-4">The Uatu Capability Stack</h2>
+            <p className="text-gray-500 font-medium max-w-2xl mx-auto italic">More than an LLM. A complete security toolchain wrapped in deep-intelligence.</p>
+          </div>
 
-              {/* Step 3: Continuous Monitoring */}
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                <div className="w-14 h-14 bg-gradient-to-br from-[#7DD3E8] to-[#5DC4B8] rounded-2xl flex items-center justify-center mb-4">
-                  <Radio className="w-7 h-7 text-[#0F3F62]" />
-                </div>
-                <div className="text-sm text-gray-500 mb-1">Step 3</div>
-                <h3 className="text-xl font-bold text-[#0F3F62] mb-3">Continuous Monitoring</h3>
-                <p className="text-gray-600 text-sm mb-4">
-                  After deployment: keep Uatu watching your contracts and alerting you whenever sensitive events fire on-chain.
-                </p>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#5DC4B8] mt-1">•</span>
-                    <span>Notify on admin calls, upgrades, pause/unpause actions and more</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#5DC4B8] mt-1">•</span>
-                    <span>Close to email, Slack / Discord, or custom webhooks.</span>
-                  </li>
-                </ul>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-white p-10 rounded-[40px] border border-gray-100 shadow-xl shadow-gray-200/50 hover:translate-y-[-8px] transition-all">
+              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-8">
+                <Shield className="w-8 h-8 text-[#0F3F62]" />
               </div>
+              <h3 className="text-2xl font-black text-[#0F3F62] mb-4">Tool-Augmented</h3>
+              <p className="text-gray-500 leading-relaxed font-medium">Uatu runs local binaries like Slither and Semgrep. AI doesn't "guess" code—it interprets verified tool logs.</p>
+            </div>
+
+            <div className="bg-white p-10 rounded-[40px] border border-gray-100 shadow-xl shadow-gray-200/50 hover:translate-y-[-8px] transition-all">
+              <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mb-8">
+                <Lock className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="text-2xl font-black text-[#0F3F62] mb-4">Liability Mapping</h3>
+              <p className="text-gray-500 leading-relaxed font-medium">Human-in-the-loop triage allows you to shift liability to verified third-party deps like Gnosis or OpenZeppelin.</p>
+            </div>
+
+            <div className="bg-white p-10 rounded-[40px] border border-gray-100 shadow-xl shadow-gray-200/50 hover:translate-y-[-8px] transition-all">
+              <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mb-8">
+                <Code2 className="w-8 h-8 text-purple-600" />
+              </div>
+              <h3 className="text-2xl font-black text-[#0F3F62] mb-4">Branch Protection</h3>
+              <p className="text-gray-500 leading-relaxed font-medium">Integrates directly with GitHub Checks API to block unsafe merges until your deterministic score passes.</p>
             </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* How it Works Section */}
+      <section id="audit-flow" className="py-32">
+        <div className="max-w-7xl mx-auto px-8">
+          <div className="flex flex-col md:flex-row gap-16 items-center">
+            <div className="md:w-1/2">
+              <h2 className="text-5xl font-black text-[#0F3F62] mb-12">The Deterministic Audit Pipeline</h2>
+              <div className="space-y-12">
+                <div className="flex gap-6">
+                  <div className="w-12 h-12 bg-[#0F3F62] text-white rounded-full flex items-center justify-center shrink-0 font-black text-xl">1</div>
+                  <div>
+                    <h4 className="text-xl font-black text-gray-900 mb-2">Fingerprint & Scan</h4>
+                    <p className="text-gray-500 font-medium">Local bash scripts identify frameworks and run scanners to build an Evidence Bundle.</p>
+                  </div>
+                </div>
+                <div className="flex gap-6">
+                  <div className="w-12 h-12 bg-[#0F3F62] text-white rounded-full flex items-center justify-center shrink-0 font-black text-xl">2</div>
+                  <div>
+                    <h4 className="text-xl font-black text-gray-900 mb-2">Interactive Triage</h4>
+                    <p className="text-gray-500 font-medium">AI identifies liability hotspots. You explain admin wallets or oracles once; Uatu remembers forever.</p>
+                  </div>
+                </div>
+                <div className="flex gap-6">
+                  <div className="w-12 h-12 bg-[#0F3F62] text-white rounded-full flex items-center justify-center shrink-0 font-black text-xl">3</div>
+                  <div>
+                    <h4 className="text-xl font-black text-gray-900 mb-2">Deep Milestone Audit</h4>
+                    <p className="text-gray-500 font-medium">5-stage reasoning pipeline simulates complex attack scenarios based on tool logs.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="md:w-1/2 bg-gray-900 rounded-[40px] p-8 shadow-2xl shadow-gray-900/40 font-mono text-xs text-blue-400">
+              <div className="flex gap-2 mb-6">
+                <div className="w-3 h-3 rounded-full bg-red-500" />
+                <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                <div className="w-3 h-3 rounded-full bg-green-500" />
+              </div>
+              <p className="mb-2">$ uatu run --repo protocol-v2</p>
+              <p className="text-gray-500 mb-2">[+] Cloning repository...</p>
+              <p className="text-gray-500 mb-2">[+] Detecting Ecosystem: Foundry/Solidity</p>
+              <p className="text-yellow-400 mb-2">[!] Warning: Potential Admin Wallet risk found in Vault.sol</p>
+              <p className="text-white mb-2">? Is the 'owner' controlled by a Gnosis Safe? (y/n)</p>
+              <p className="text-green-400 mb-2">[✓] Response mapped. Liability shifted to EXTERNAL.</p>
+              <p className="text-gray-500 mb-2">[+] Starting Milestone 3: Deep Logic Simulation...</p>
+              <p className="text-white mt-8 font-black underline">AUDIT COMPLETE: GRADE A (94/100)</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-50 border-t border-gray-100 py-12">
+        <div className="max-w-7xl mx-auto px-8 flex justify-between items-center text-gray-400 text-sm font-bold uppercase tracking-widest">
+          <div className="flex items-center gap-2">
+            <img src="/logo.svg" alt="Uatu" className="h-6 grayscale" />
+            <span>&copy; 2025 UatuAudit. Deterministic Security.</span>
+          </div>
+          <div className="flex gap-8">
+            <a href="#" className="hover:text-[#0F3F62]">Docs</a>
+            <a href="#" className="hover:text-[#0F3F62]">Twitter</a>
+            <a href="#" className="hover:text-[#0F3F62]">GitHub</a>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

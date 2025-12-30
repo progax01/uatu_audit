@@ -1,31 +1,326 @@
 # UatuAudit — Automated Smart Contract Audit Platform
 
-UatuAudit transforms ad-hoc smart contract audits into **standardized, repeatable SOPs** (Standard Operating Procedures). This platform supports multi-ecosystem auditing including Solidity (Foundry/Hardhat), Anchor (Solana), Soroban (Stellar), and Node.js projects.
+UatuAudit transforms ad-hoc smart contract audits into **standardized, repeatable SOPs** (Standard Operating Procedures). This platform implements the **Deep Intelligence Framework** featuring multi-domain agents, milestone-based execution, and liability-weighted scoring.
 
-## 🚀 **Key Features**
+---
 
-- **Multi-Ecosystem Support**: Solidity, Anchor/Soroban, Node.js detection and analysis
-- **GitHub OAuth Integration**: Secure access to private repositories
-- **Live Progress Tracking**: Real-time updates with weighted progress calculation
-- **Professional Reports**: PDF and SARIF export with coverage metrics
-- **Web UI**: Single-page timeline interface for complete audit workflow
-- **Retry & Timeout Logic**: Production-ready reliability features
-- **Structured Logging**: Comprehensive audit trails with job context
+## Architecture Overview
 
-## 🔧 **Installation & Setup**
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         UATUAUDIT ARCHITECTURE                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐                   │
+│  │   Web UI    │     │   CLI       │     │   API       │                   │
+│  │  (React)    │     │ (uatu run)  │     │ (REST)      │                   │
+│  └──────┬──────┘     └──────┬──────┘     └──────┬──────┘                   │
+│         └───────────────────┼───────────────────┘                           │
+│                             ▼                                                │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                    HTTP SERVER (app.ts)                              │  │
+│  │  • GitHub OAuth  • Job Queue  • Progress API  • Report API           │  │
+│  └──────────────────────────────────┬───────────────────────────────────┘  │
+│                                     ▼                                       │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                    MASTER ORCHESTRATOR                               │  │
+│  │  • Domain Detection (Web3 / Backend / Frontend)                      │  │
+│  │  • Agent Routing & Message Bus                                       │  │
+│  │  • Results Combination                                               │  │
+│  └─────────────────────────────────┬────────────────────────────────────┘  │
+│                                    │                                        │
+│         ┌──────────────────────────┼──────────────────────────┐            │
+│         ▼                          ▼                          ▼            │
+│  ┌───────────┐            ┌───────────┐            ┌───────────┐          │
+│  │   WEB3    │            │  BACKEND  │            │ FRONTEND  │          │
+│  │   AGENT   │            │   AGENT   │            │   AGENT   │          │
+│  ├───────────┤            ├───────────┤            ├───────────┤          │
+│  │ Solidity  │            │ OWASP     │            │ React/Vue │          │
+│  │ Foundry   │            │ API Sec   │            │ XSS/DOM   │          │
+│  │ Hardhat   │            │ Injection │            │ State     │          │
+│  └───────────┘            └───────────┘            └───────────┘          │
+│                                    │                                        │
+│                                    ▼                                        │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                    5-MILESTONE EXECUTOR                              │  │
+│  │                                                                      │  │
+│  │  M1 Context ──► M2 Static ──► M3 Logic ──► M4 Tests ──► M5 Report   │  │
+│  │     10min          30min        60min       30min        10min       │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                    STORAGE & SERVICES                                │  │
+│  │  • Job Queue (SQLite)  • Prompt Cache  • Liability Map               │  │
+│  │  • Progress Tracking   • Live Logs     • Report Generator            │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Key Features
+
+### Deep Intelligence Framework (Implemented)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **5-Milestone Pipeline** | ✅ Complete | Context → Static → Logic → Tests → Report |
+| **Domain Agents** | ✅ Complete | Web3, Backend, Frontend specialized analysis |
+| **Master Orchestrator** | ✅ Complete | Routes to appropriate agents, combines results |
+| **Prompt Caching** | ✅ Complete | 4-layer cache for cost reduction |
+| **Liability-Weighted Scoring** | ✅ Complete | INTERNAL vs EXTERNAL component scoring |
+| **Chain-of-Thought Reasoning** | ✅ Complete | Step-by-step vulnerability detection |
+| **Milestone State Persistence** | ✅ Complete | Resume interrupted audits |
+| **Deterministic Scanners** | ✅ Complete | Slither, Semgrep integration |
+
+### Platform Features
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Multi-Ecosystem Support** | ✅ Complete | Solidity, Anchor, Soroban, Node.js, Go |
+| **GitHub OAuth Integration** | ✅ Complete | Private repo access, PR integration |
+| **Real-Time Progress** | ✅ Complete | 5-phase weighted progress tracking |
+| **Professional Reports** | ✅ Complete | PDF/HTML with embedded assets |
+| **Quick Scan** | ✅ Complete | Deployed contract analysis |
+| **Job Queue** | ✅ Complete | Persistent with retry logic |
+
+---
+
+## Complete Audit Flow
+
+### Phase 1: Context Preparation (10%)
+```
+User Request
+     ↓
+POST /enqueue
+     ↓
+┌─────────────────────────────────────┐
+│ 1.1 Clone/Refresh Repository        │
+│ 1.2 Run Fingerprint Detection       │
+│     • Repo shape (monorepo/standard)│
+│     • Ecosystem (Foundry/Hardhat)   │
+│     • Node.js, Rust, Solidity       │
+│ 1.3 Run Deterministic Scanners      │
+│     • Slither (if Solidity)         │
+│     • Semgrep                       │
+│ 1.4 Write Context Files             │
+│     • files_structure.md            │
+│     • test_requirements.md          │
+│     • results.json (empty)          │
+└─────────────────────────────────────┘
+```
+
+### Phase 2: Milestone Execution (65%)
+
+#### Milestone 1: Context Ingestion (10 min)
+```
+Load .claude/system.md + personas
+     ↓
+Read entire codebase
+     ↓
+Build Intent Map:
+  • product_goal
+  • assets
+  • entrypoints
+  • trust_boundaries
+  • risk_hotspots
+     ↓
+Save to context/milestone-1-context.json
+```
+
+#### Milestone 2: Static Analysis (30 min)
+```
+Load methodology: access-control.md
+     ↓
+Ingest local tool evidence (Slither/Semgrep)
+     ↓
+Pattern-based vulnerability detection:
+  • Access control issues
+  • Integer overflows
+  • Unchecked calls
+  • DoS vectors
+     ↓
+Save to context/milestone-2-static.json
+```
+
+#### Milestone 3: Deep Logic Simulation (60 min)
+```
+Load all methodologies:
+  • reentrancy.md
+  • oracle-manipulation.md
+  • access-control.md
+  • injection.md
+     ↓
+Chain-of-Thought reasoning:
+  1. Map the System
+  2. Trace Data Flow
+  3. Identify State Changes
+  4. Hypothesize Attacks
+  5. Validate Hypothesis
+     ↓
+Save to context/milestone-3-logic.json
+```
+
+#### Milestone 4: Test Generation (30 min)
+```
+Load findings from M2 + M3
+     ↓
+Generate Test Plan:
+  • test_categories
+  • tests[] with invariants
+  • tooling recommendations
+     ↓
+Save to context/milestone-4-exploits.json
+```
+
+#### Milestone 5: Final Consolidation (10 min)
+```
+Combine all findings
+     ↓
+Calculate liability-weighted score
+     ↓
+Generate recommendations:
+  • immediate
+  • short_term
+  • long_term
+  • security_best_practices
+     ↓
+Save to context/results.json
+```
+
+### Phase 3: Report Generation (25%)
+```
+Load results.json
+     ↓
+Load liability_map.json (if exists)
+     ↓
+Calculate weighted score:
+  • INTERNAL: full weight
+  • EXTERNAL: 0.2x discount
+     ↓
+Generate HTML Report
+     ↓
+Generate PDF via Puppeteer
+     ↓
+Mark job complete
+```
+
+---
+
+## Directory Structure
+
+```
+UatuAudit/
+├── .claude/                          # Prompt templates (Deep Intelligence)
+│   ├── system.md                     # Master auditor framework
+│   ├── personas/                     # Domain-specific personas
+│   │   ├── web3.md                   # EVM & Solidity auditor
+│   │   ├── backend.md                # API security auditor
+│   │   └── frontend.md               # Client-side auditor
+│   ├── methodologies/                # Vulnerability detection patterns
+│   │   ├── reentrancy.md
+│   │   ├── oracle-manipulation.md
+│   │   ├── access-control.md
+│   │   └── injection.md
+│   └── milestones/                   # Milestone prompt templates
+│       ├── m1-context-ingestion.md
+│       ├── m2-static-analysis.md
+│       ├── m3-logic-simulation.md
+│       ├── m4-test-generation.md
+│       └── m5-final-consolidation.md
+│
+├── src/
+│   ├── agents/                       # Domain-specific agents
+│   │   ├── masterOrchestrator.ts     # Routes to agents, combines results
+│   │   ├── web3Agent.ts              # Solidity/EVM analysis
+│   │   ├── backendAgent.ts           # API/server analysis
+│   │   ├── frontendAgent.ts          # Client-side analysis
+│   │   └── types.ts                  # Agent interfaces
+│   │
+│   ├── sops/                         # Standard Operating Procedures
+│   │   ├── bootstrap.ts              # Project initialization
+│   │   ├── milestoneExecutor.ts      # 5-milestone engine
+│   │   ├── singlePromptAudit.ts      # Legacy single-prompt mode
+│   │   ├── parallelAuditExecutor.ts  # Parallel 4-session mode
+│   │   └── prompts/                  # Prompt builders
+│   │
+│   ├── services/
+│   │   ├── runAll.ts                 # Main 3-phase orchestrator
+│   │   ├── jobQueue.ts               # Persistent job queue
+│   │   ├── progressService.ts        # Real-time progress
+│   │   ├── liabilityMap.ts           # Component liability tracking
+│   │   ├── scoringService.ts         # Liability-weighted scoring
+│   │   ├── scannerRunner.ts          # Deterministic scanner runner
+│   │   ├── promptCache.ts            # 4-layer prompt caching
+│   │   ├── ecosystemDetector.ts      # Framework detection
+│   │   ├── projectAnalyzer.ts        # Structure analysis
+│   │   ├── contextWriter.ts          # Context file generation
+│   │   ├── pdfGenerator.ts           # Puppeteer PDF
+│   │   └── ai/
+│   │       └── claudeCLIProvider.ts  # Claude CLI integration
+│   │
+│   ├── detect/                       # Fingerprint detection
+│   │   └── fingerprint.ts            # Orchestrates bash scripts
+│   │
+│   ├── server/                       # HTTP server
+│   │   ├── app.ts                    # Main server
+│   │   ├── worker.ts                 # Background job processor
+│   │   └── routes/                   # API endpoints
+│   │       ├── auth.ts               # GitHub OAuth
+│   │       ├── github.ts             # Repo/branch APIs
+│   │       ├── jobs.ts               # Job management
+│   │       ├── reports.ts            # Report download
+│   │       └── scan.ts               # Quick scan
+│   │
+│   ├── github/                       # GitHub integration
+│   │   ├── appWebhookServer.ts       # Webhook receiver
+│   │   └── checksClient.ts           # PR checks API
+│   │
+│   └── templates/                    # Report templates
+│       ├── report-template.html
+│       └── certificate-template.html
+│
+├── scripts/
+│   ├── detect/                       # Fingerprint scripts
+│   │   ├── 00_repo_shape.sh          # Monorepo detection
+│   │   ├── 10_node.sh                # Node.js detection
+│   │   ├── 20_solidity.sh            # Solidity framework
+│   │   ├── 30_rust.sh                # Rust/Anchor detection
+│   │   └── 99_emit_fingerprint.sh    # Emit JSON
+│   └── run/
+│       └── security_scanners.sh      # Slither/Semgrep runner
+│
+├── ui/                               # React frontend
+│   └── src/
+│       ├── pages/
+│       │   ├── HomePage.tsx          # Landing page
+│       │   ├── ConnectSource.tsx     # GitHub OAuth
+│       │   ├── ConfigureAudit.tsx    # Audit settings
+│       │   ├── ReviewAndRun.tsx      # Live progress
+│       │   ├── Dashboard.tsx         # Job history
+│       │   ├── AuditDetails.tsx      # Report viewer
+│       │   ├── ScanContract.tsx      # Quick scan
+│       │   └── Settings.tsx          # User settings
+│       └── components/
+│           ├── MilestoneTracker.tsx  # 5-milestone stepper
+│           ├── CoTReasoning.tsx      # Chain-of-thought display
+│           ├── LiabilityTriage.tsx   # Component scope Q&A
+│           └── FileSelector.tsx      # File picker
+│
+└── docs/                             # Documentation
+```
+
+---
+
+## Installation & Setup
 
 ### Prerequisites
-
 - Node.js 18+ (recommended: 20 LTS)
 - pnpm package manager
-- (Optional) Toolchains for target ecosystems:
-  - Foundry (`forge`) for Solidity
-  - Hardhat/npm for Node.js projects
-  - Anchor CLI for Solana projects
-  - Soroban CLI for Stellar projects
+- Claude CLI installed (`claude --version`)
+- (Optional) Docker for sandboxed execution
 
 ### Install Dependencies
-
 ```bash
 git clone <repository-url>
 cd uatu-audit
@@ -34,357 +329,226 @@ pnpm build
 ```
 
 ### Environment Configuration
-
-Create a `.env` file based on `env.example`:
-
 ```bash
 cp env.example .env
 ```
 
-**Required Environment Variables:**
-
+**Required Variables:**
 ```env
-# Daemon Configuration
+# Daemon
 UATU_PORT=9090
 UATU_CONCURRENCY=4
 UATU_HOME=/Users/yourusername/.uatu
 
-# GitHub OAuth (Required for private repos)
-GITHUB_CLIENT_ID=your_github_client_id_here
-GITHUB_CLIENT_SECRET=your_github_client_secret_here
+# GitHub OAuth
+GITHUB_CLIENT_ID=your_client_id
+GITHUB_CLIENT_SECRET=your_client_secret
 GITHUB_OAUTH_CALLBACK=http://localhost:9090/auth/github/callback
 
-# Optional: AI Enhancement
-ANTHROPIC_API_KEY=your_anthropic_key_here
+# AI
+ANTHROPIC_API_KEY=your_key
 
-# Optional: Security & Performance
-UATU_EXECUTE_TIMEOUT_MS=900000    # 15 minutes
-UATU_COVERAGE_ENABLED=true
+# Optional
+UATU_SANDBOX=docker
+UATU_EXECUTE_TIMEOUT_MS=900000
 ```
 
-## 🌐 **GitHub OAuth Setup**
+---
 
-1. **Create GitHub OAuth App**:
-   - Go to GitHub Settings → Developer settings → OAuth Apps
-   - Create new OAuth App with:
-     - Application name: `UatuAudit`
-     - Homepage URL: `http://localhost:9090`
-     - Authorization callback URL: `http://localhost:9090/auth/github/callback`
-
-2. **Configure Environment**:
-   ```env
-   GITHUB_CLIENT_ID=your_client_id
-   GITHUB_CLIENT_SECRET=your_client_secret
-   GITHUB_OAUTH_CALLBACK=http://localhost:9090/auth/github/callback
-   ```
-
-## 🏃 **Usage**
+## Usage
 
 ### Start the Daemon
-
 ```bash
 uatu daemon
+# or
+pnpm daemon
 ```
 
 ### Web Interface
-
-Open your browser to `http://localhost:9090/index.html`
+Open `http://localhost:9090`
 
 **Workflow:**
 1. **Connect GitHub** → OAuth authentication
-2. **Select Repository & Branch** → Live GitHub integration
-3. **Select Technology Stack** → Foundry, Hardhat, Anchor, Soroban, Node.js
-4. **Run Audit** → Live progress tracking across 5 phases
-5. **Download Report** → PDF with findings and coverage metrics
+2. **Select Repository** → Pick repo, branch, files
+3. **Configure Audit** → Ecosystem, test styles, depth
+4. **Run Audit** → Watch 5-milestone progress
+5. **Download Report** → PDF with findings
 
 ### CLI Usage
-
-**Single Repository Audit:**
 ```bash
+# Single audit
 uatu run \
   --repo https://github.com/owner/repo.git \
   --project my-project \
   --branch main \
   --ai
-```
 
-**Batch Processing:**
-```bash
+# Batch processing
 uatu batch \
   --repos "https://github.com/org/repo1.git#main,https://github.com/org/repo2.git#develop" \
   --ai
 ```
 
-**Check Version:**
-```bash
-uatu --version
-```
+---
 
-## 📊 **Audit Phases & Progress**
+## API Endpoints
 
-The audit pipeline consists of 5 weighted phases:
-
-| Phase | Weight | Description |
-|-------|--------|-------------|
-| **Bootstrap** | 10% | Project detection, ecosystem fingerprinting |
-| **Inventory** | 20% | Contract discovery, function cataloging |
-| **Analysis** | 35% | Static analysis, pattern detection |
-| **Testgen** | 15% | Test plan generation (+ optional AI) |
-| **Execute** | 20% | Sandboxed test execution, coverage analysis |
-
-## 🏗 **SOPs (Standard Operating Procedures)**
-
-### Bootstrap SOP
-- Detects project ecosystems (Solidity, Anchor, Soroban, Node.js)
-- Builds `.uatu/context` directory
-- Creates readiness markers
-
-### Inventory SOP
-- Extracts public/external function signatures
-- Catalogs smart contracts and source files
-- Discovers existing test files
-- Maps inheritance and dependencies
-
-### Analysis SOP
-- **Solidity**: tx.origin usage, low-level calls, unbounded loops
-- **Rust**: unsafe blocks, unwrap() calls, missing auth checks
-- **Node.js**: eval() usage, hardcoded secrets, child_process calls
-- Severity classification (high/medium/low)
-
-### Testgen SOP
-- Generates ecosystem-specific test checklists
-- Optional AI-enhanced test suggestions via Anthropic
-- Creates `.uatu/ai_tests/` with actionable plans
-
-### Execute SOP
-- Sandboxed execution (local or Docker)
-- Multi-toolchain support (Forge, Hardhat, Anchor, Cargo)
-- Coverage extraction and aggregation
-- Comprehensive logging
-
-## 🐳 **Docker Sandbox Security**
-
-Enable secure execution with Docker:
-
-```env
-UATU_SANDBOX=docker
-```
-
-**Security Features:**
-- Read-only filesystem
-- Network isolation (`--network=none`)
-- Memory/CPU limits
-- Non-root user execution
-- Capability dropping
-- Temporary filesystem for outputs
-
-**Supported Images:**
-- Foundry: `ghcr.io/foundry-rs/foundry:latest`
-- Node.js: `node:18-alpine`
-- Rust: `rust:1.70-alpine`
-
-## 📋 **Configuration**
-
-**Repository-Local Config** (`.uatu/config.json`):
-```json
-{
-  "ai": true,
-  "sandbox": "docker",
-  "timeouts": {
-    "executeMs": 1200000
-  },
-  "coverage": {
-    "foundry": true,
-    "hardhat": true,
-    "node": true
-  }
-}
-```
-
-## 📊 **API Endpoints**
-
+### Authentication
 | Endpoint | Method | Description |
-|----------|---------|-------------|
-| `/healthz` | GET | Health check |
-| `/auth/github/login` | GET | GitHub OAuth login |
+|----------|--------|-------------|
+| `/auth/github/login` | GET | Start OAuth flow |
+| `/auth/github/callback` | GET | OAuth callback |
 | `/auth/github/me` | GET | Current user info |
+
+### GitHub
+| Endpoint | Method | Description |
+|----------|--------|-------------|
 | `/github/repos` | GET | List repositories |
 | `/github/branches?repo=owner/name` | GET | List branches |
-| `/enqueue` | POST | Queue audit job |
+| `/github/file-tree?repo=owner/name&branch=main` | GET | File tree |
+
+### Jobs
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/enqueue` | POST | Queue new audit |
 | `/jobs` | GET | List all jobs |
-| `/progress?project=X&branch=Y` | GET | Live progress |
-| `/logs?project=X&branch=Y` | GET | Debug logs |
-| `/report?project=X&branch=Y&format=pdf\|html` | GET | Download PDF or view HTML report |
+| `/progress?project=X&branch=Y` | GET | Real-time progress |
+| `/logs?project=X&branch=Y` | GET | Live logs |
+| `/cancel?jobId=X` | POST | Cancel job |
 
-## 📁 **Workspace Structure**
+### Reports
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/report?project=X&branch=Y&format=html` | GET | HTML report |
+| `/report?project=X&branch=Y&format=pdf` | GET | PDF download |
+| `/report?project=X&branch=Y&run=123456` | GET | Specific run |
+| `/certificate?project=X&branch=Y` | GET | Audit certificate |
 
-```
-~/.uatu/
-├── workspace/
-│   └── users/{user}/projects/{project}/branches/{branch}/
-│       ├── .uatu/
-│       │   ├── context/         # Project analysis context
-│       │   ├── sop/             # SOP status files
-│       │   └── ai_tests/        # AI-generated test plans
-│       ├── runs/
-│       │   └── {timestamp}/
-│       │       ├── progress.json    # Live progress tracking
-│       │       ├── inventory.json   # Contract inventory
-│       │       ├── analysis.json    # Security findings
-│       │       ├── findings.sarif   # SARIF export
-│       │       ├── execute.log      # Execution logs
-│       │       ├── coverage.txt     # Coverage report
-│       │       └── report.pdf       # Final audit report
-│       └── <cloned repository>
-├── queue/
-│   └── jobs.json               # Persistent job queue
-└── users/{user}/secrets/
-    └── github.json             # OAuth tokens
-```
-
-## 🔒 **Security Considerations**
-
-- **Sandbox Execution**: Always use Docker in production (`UATU_SANDBOX=docker`)
-- **GitHub Tokens**: Stored locally with appropriate scopes
-- **Network Isolation**: Docker containers run with `--network=none`
-- **Resource Limits**: Memory and CPU constraints prevent resource exhaustion
-- **Non-Root Execution**: All sandboxed processes run as unprivileged user
-
-## 📄 **HTML Report Features**
-
-The platform generates beautiful HTML reports with:
-
-- **Interactive Elements**: Live score gauge, hover effects, print optimization
-- **Professional Styling**: Dark/light themes, A4 print layout, embedded assets
-- **Rich Data Visualization**: Security score, coverage bars, severity breakdown
-- **Print-Ready PDF**: Use browser "Print → Save as PDF" for distribution
-- **No External Dependencies**: Self-contained HTML with embedded SVG/CSS
-
-**Accessing Reports:**
-- **HTML**: `GET /report?project=X&branch=Y&format=html` (view in browser)
-- **PDF**: `GET /report?project=X&branch=Y&format=pdf` (download file)
-
-**Converting HTML to PDF with Puppeteer:**
-```bash
-# Install Puppeteer (optional, for automated PDF generation)
-pnpm add --save-dev puppeteer
-
-# Convert any HTML report to PDF
-node scripts/html-to-pdf.js report.html output.pdf [data.json]
-```
-
-## 🧪 **Testing**
-
-```bash
-# Run unit tests
-pnpm test
-
-# Test specific modules
-pnpm test progressService
-pnpm test jobQueue
-
-# Build verification
-pnpm build
-```
-
-## 📈 **Production Deployment**
-
-**Recommended Setup:**
-1. Use Docker sandbox mode (`UATU_SANDBOX=docker`)
-2. Configure appropriate concurrency (`UATU_CONCURRENCY=8`)
-3. Set up persistent storage for workspace
-4. Configure GitHub OAuth for your domain
-5. Set up reverse proxy with SSL
-6. Monitor logs and queue status
-
-**Scaling:**
-- Horizontal: Run multiple daemon instances with shared storage
-- Vertical: Increase `UATU_CONCURRENCY` based on available cores
-- Queue-based: Separate enqueuers from workers
-
-## 🏛️ **Codebase Architecture**
-
-### Backend Services (`src/services/`)
-
-| Service | Purpose | Used By |
-|---------|---------|---------|
-| `runAll.ts` | Main 3-phase audit pipeline orchestrator | daemon.ts, bin/uatu.ts |
-| `jobQueue.ts` | Persistent job queue with SQLite, handles enqueue/claim/complete | daemon.ts, singlePromptAudit.ts, parallelAuditExecutor.ts |
-| `progressService.ts` | Real-time progress tracking with weighted phases | daemon.ts, index.ts |
-| `gitService.ts` | Git clone/refresh operations with auth support | runAll.ts |
-| `projectAnalyzer.ts` | Project structure analysis, contract detection | bootstrap.ts |
-| `liveLogger.ts` | Real-time log streaming for UI | bootstrap.ts, singlePromptAudit.ts |
-| `ecosystemDetector.ts` | Detects Foundry/Hardhat/Anchor/Soroban ecosystems | bootstrap.ts |
-| `metrics.ts` | Performance metrics collection | daemon.ts |
-| `jobLogger.ts` | Per-job file logging for debugging | daemon.ts, runAll.ts |
-| `testStyles.ts` | Test style validation (behavioral/stride/owasp) | bin/uatu.ts |
-| `insightAutoWriter.ts` | Auto-generates insights from command outputs | smokeTests.ts |
-| `contextWriter.ts` | Writes context files (files_structure.md, test_requirements.md) | runAll.ts |
-| `pdfGenerator.ts` | HTML to PDF conversion using Puppeteer | runAll.ts |
-| `configService.ts` | Loads .uatu/config.json settings | runAll.ts |
-| `workspaceService.ts` | Resolves workspace paths for projects | daemon.ts, runAll.ts |
-| `ai/claudeCLIProvider.ts` | Claude CLI integration, session management | jobQueue.ts |
-| `report/simpleReportGenerator.ts` | Generates HTML reports from results.json | runAll.ts |
-
-### SOPs (`src/sops/`)
-
-| SOP | Purpose |
-|-----|---------|
-| `bootstrap.ts` | Project initialization, ecosystem detection, context setup |
-| `singlePromptAudit.ts` | Single Claude CLI call for complete audit |
-| `parallelAuditExecutor.ts` | Parallel multi-session audit for large projects |
-
-### Frontend (`ui/src/`)
-
-**Pages:**
-| Page | Purpose |
-|------|---------|
-| `AuditSetup.tsx` | Repository selection, branch picker, file selector |
-| `ReviewAndRun.tsx` | Audit execution with live progress tracking |
-| `Reports.tsx` | List of completed audit reports |
-| `ReportDetail.tsx` | Individual report viewer with PDF download |
-| `Settings.tsx` | Application settings |
-
-**Hooks:**
-| Hook | Purpose |
-|------|---------|
-| `useLocalStorage.ts` | Persistent state management |
-| `useAudit.ts` | Audit state and operations |
-| `useToast.ts` | Toast notifications |
-
-### Utilities (`src/utils/`)
-
-| Utility | Purpose |
-|---------|---------|
-| `logger.ts` | Structured logging with pino |
-| `retry.ts` | Retry and timeout wrappers |
-| `stepHelper.ts` | Progress step management |
-| `claudeHealthCheck.ts` | Claude CLI availability check |
-
-### Templates (`src/templates/`)
-
-| Template | Purpose |
-|----------|---------|
-| `report-template.html` | HTML report template with dark theme |
-| `certificate-template.html` | Audit certificate template |
-| `sop-prompt.txt` | Main Claude CLI audit prompt |
-
-### Server (`src/server/`)
-
-| File | Purpose |
-|------|---------|
-| `app.ts` | HTTP server setup, request routing, CORS |
-| `worker.ts` | Background job processor |
-| `routes/auth.ts` | GitHub OAuth routes (/auth/*) |
-| `routes/github.ts` | GitHub API routes (/github/*) |
-| `routes/jobs.ts` | Job management routes (/jobs, /enqueue, /progress) |
-| `routes/reports.ts` | Report routes (/report, /certificate) |
-| `routes/health.ts` | Health & metrics routes (/healthz, /metrics) |
-| `routes/scan.ts` | Deployed contract scan routes (/scan/*) |
+### Quick Scan
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/scan/deployed` | POST | Analyze deployed contract |
+| `/scan/results?address=0x...` | GET | Scan results |
+| `/scan/networks` | GET | Supported networks |
 
 ---
 
-## 🤝 **Contributing**
+## Workspace Structure
+
+```
+~/.uatu/
+├── workspace/users/{userId}/projects/{project}/branches/{branch}/
+│   ├── <cloned-repo>/
+│   ├── context/
+│   │   ├── files_structure.md        # Flattened source
+│   │   ├── test_requirements.md      # Test styles
+│   │   ├── liability_map.json        # Component scope
+│   │   ├── intent_map.json           # M1 output
+│   │   ├── milestone_state.json      # Execution state
+│   │   └── results.json              # Final results
+│   └── runs/{timestamp}/
+│       ├── progress.json             # Real-time progress
+│       ├── milestone-1-context.json
+│       ├── milestone-2-static.json
+│       ├── milestone-3-logic.json
+│       ├── milestone-4-exploits.json
+│       ├── milestone-5-consolidated.json
+│       ├── report.html
+│       └── report.pdf
+├── queue/
+│   └── jobs.json                     # Job queue
+└── sessions/{sessionId}/secrets/
+    └── github.json                   # OAuth tokens
+```
+
+---
+
+## Scoring System
+
+### Standard Scoring
+```
+Score = 100 - (Critical×25 + High×10 + Medium×3 + Low×1)
+```
+
+### Liability-Weighted Scoring
+Components marked as EXTERNAL (dependencies, third-party) receive a 0.2x discount:
+```
+Score = 100 - (Internal_Deductions + External_Deductions × 0.2)
+```
+
+| Grade | Score Range |
+|-------|-------------|
+| A | 90-100 |
+| B | 75-89 |
+| C | 60-74 |
+| D | 40-59 |
+| F | 0-39 |
+
+---
+
+## Deep Intelligence Proposal Completion Status
+
+### Fully Implemented
+- [x] `.claude/` folder structure with system, personas, methodologies, milestones
+- [x] 5-Milestone Execution Engine (`milestoneExecutor.ts`)
+- [x] Domain-Specific Agents (Web3, Backend, Frontend)
+- [x] Master Orchestrator with routing logic
+- [x] Prompt Cache Manager (4-layer caching)
+- [x] Liability Map and Weighted Scoring
+- [x] Milestone State Persistence and Resume
+- [x] Deterministic Scanner Integration
+- [x] Chain-of-Thought prompt structure
+- [x] UI: MilestoneTracker, CoTReasoning, LiabilityTriage components
+- [x] Dashboard and AuditDetails pages
+
+### Partially Implemented
+- [~] Inter-Agent Message Bus (basic implementation)
+- [~] Test Artifact File Output (structure exists, output unclear)
+
+### Not Yet Implemented
+- [ ] Dry Run Mode (estimate cost before starting)
+- [ ] Budget Controller (max tokens/cost limits)
+- [ ] Circuit Breaker Pattern (API failure handling)
+- [ ] Audit Diff Engine (compare two audits)
+- [ ] False Positive Feedback Loop
+- [ ] Incremental Audit (only changed files)
+- [ ] SSE/WebSocket Result Streaming
+- [ ] Confidence Scoring for Findings
+- [ ] Methodology Versioning (v1, v2, etc.)
+- [ ] Canary Deployments for Prompts
+
+---
+
+## Security Considerations
+
+- **Sandbox Execution**: Use Docker in production (`UATU_SANDBOX=docker`)
+- **GitHub Tokens**: Stored locally with appropriate scopes
+- **Network Isolation**: Docker containers run with `--network=none`
+- **Resource Limits**: Memory and CPU constraints
+- **Non-Root Execution**: All sandboxed processes run as unprivileged user
+
+---
+
+## Development
+
+### Build Commands
+```bash
+pnpm build        # TypeScript compile + Vite build
+pnpm typecheck    # Type checking only
+pnpm lint         # ESLint
+pnpm test         # Vitest run
+pnpm dev:ui       # Start UI dev server
+```
+
+### Testing
+```bash
+pnpm test progressService
+pnpm test jobQueue
+```
+
+---
+
+## Contributing
 
 1. Fork the repository
 2. Create feature branch (`git checkout -b feature/amazing-feature`)
@@ -392,10 +556,6 @@ pnpm build
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open Pull Request
 
-## 📝 **License**
-
-[Specify your license here]
-
 ---
 
-**Built with ❤️ for the smart contract security community**
+**Built for the smart contract security community**
