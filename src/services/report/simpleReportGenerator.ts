@@ -545,7 +545,8 @@ export async function generateCertificateFromResults(
       high: highCount,
       medium: mediumCount,
       low: lowCount,
-      info: infoCount
+      info: infoCount,
+      undeclared: results.analysis.findings.filter(f => f.severity === 'undeclared').length
     },
     findings: results.analysis.findings.map(f => ({
       severity: f.severity,

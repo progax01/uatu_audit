@@ -21,11 +21,11 @@ export interface ProjectFingerprint {
  */
 export async function detectProjectFingerprint(projectPath: string): Promise<ProjectFingerprint> {
   const scriptPath = path.resolve("scripts/detect/99_emit_fingerprint.sh");
-  
+
   log.info("Running fingerprint detection", { projectPath, scriptPath });
 
   try {
-    const { stdout } = await execPromise(\`bash "\${scriptPath}"\`, {
+    const { stdout } = await execPromise(`bash "${scriptPath}"`, {
       cwd: projectPath,
       timeout: 30000, // 30s
     });
@@ -35,7 +35,7 @@ export async function detectProjectFingerprint(projectPath: string): Promise<Pro
     return fingerprint;
   } catch (error: any) {
     log.error("Fingerprint detection failed", { error: error.message });
-    throw new Error(\`Failed to detect project fingerprint: \${error.message}\`);
+    throw new Error(`Failed to detect project fingerprint: ${error.message}`);
   }
 }
 
@@ -43,4 +43,3 @@ export async function saveFingerprint(contextPath: string, fingerprint: ProjectF
   const filePath = path.join(contextPath, "fingerprint.json");
   await fs.writeJson(filePath, fingerprint, { spaces: 2 });
 }
-

@@ -247,7 +247,7 @@ async function runSemgrep(sourcePath: string): Promise<{
 
 interface PatternMatch {
   file: string;
-  line?: number;
+  line: number;
   pattern: string;
   context?: string;
 }
@@ -303,7 +303,7 @@ async function scanForPatterns(
           const lineNum = lines.findIndex(l => l.includes(match)) + 1;
           result.adminPatterns.push({
             file,
-            line: lineNum > 0 ? lineNum : undefined,
+            line: lineNum > 0 ? lineNum : 1,
             pattern: match,
           });
         }

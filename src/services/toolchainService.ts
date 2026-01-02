@@ -36,7 +36,7 @@ export class ToolchainService {
     if (await fs.pathExists(localPath)) return true;
 
     try {
-      await execPromise(\`which \${name}\`);
+      await execPromise(`which ${name}`);
       return true;
     } catch {
       return false;
@@ -50,7 +50,7 @@ export class ToolchainService {
     const pathDelimiter = process.platform === "win32" ? ";" : ":";
     return {
       ...process.env,
-      PATH: \`\${this.binPath}\${pathDelimiter}\${process.env.PATH}\`,
+      PATH: `${this.binPath}${pathDelimiter}${process.env.PATH}`,
     };
   }
 
@@ -65,8 +65,7 @@ export class ToolchainService {
       log.info("Tool already available", { name: tool.name });
       return;
     }
-    
+
     log.warn("Automatic tool download not implemented. Please ensure tool is in PATH.", { name: tool.name });
   }
 }
-

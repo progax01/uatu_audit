@@ -21,7 +21,7 @@ const log = logger.child({ service: 'results-adapter' });
  */
 export interface Finding {
   id: string;
-  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info' | 'undeclared';
   category: string;
   title: string;
   description: string;
