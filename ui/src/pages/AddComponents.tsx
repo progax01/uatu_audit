@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Loader2
 } from 'lucide-react'
+import logo from '../assets/logo.svg'
 import type { SourceComponentUI } from '../App'
 
 type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit'
@@ -417,7 +418,7 @@ export default function AddComponents({
             onClick={onHomeClick}
             className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0"
           >
-            <img src="/logo.svg" alt="Uatu Logo" className="h-10" />
+            <img src={logo} alt="Uatu Logo" className="h-10" />
           </button>
         </div>
       </header>

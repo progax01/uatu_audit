@@ -128,19 +128,15 @@ function App() {
     return (
       <HomePage
         isAuthed={isAuthed}
+        onLogin={() => {
+          // Store current location for post-OAuth redirect
+          localStorage.setItem('oauth_return_url', '/?page=dashboard')
+          // Redirect to GitHub OAuth
+          window.location.href = '/auth/github/login'
+        }}
         onGetStarted={() => navigate(isAuthed ? 'dashboard' : 'connect')}
         onEnterApp={() => navigate('dashboard')}
         onScanContract={() => navigate('scan')}
-        onStartAudit={(data) => {
-          setRepoData(prev => ({
-            ...prev,
-            project: data.project,
-            branch: data.branch,
-            repo: `scan://${data.project}`,
-          }))
-          setJobId(data.jobId)
-          navigate('audit-details')
-        }}
       />
     )
   }

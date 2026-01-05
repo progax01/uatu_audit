@@ -81,7 +81,13 @@ async function handleRequest(req: any, res: any) {
               ? "text/css"
               : ext === ".json"
                 ? "application/json"
-                : "application/octet-stream";
+                : ext === ".svg"
+                  ? "image/svg+xml"
+                  : ext === ".png"
+                    ? "image/png"
+                    : ext === ".jpg" || ext === ".jpeg"
+                      ? "image/jpeg"
+                      : "application/octet-stream";
         res.setHeader("Content-Type", contentType);
         res.setHeader("Cache-Control", "public, max-age=31536000");
         const content = await fs.readFile(assetPath);

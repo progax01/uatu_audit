@@ -1,229 +1,341 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle, Search, Brain, Radio, Shield, Zap, Lock, Code2 } from 'lucide-react'
-import mascot from '../assets/letf-mascot.png'
-
-// GitHub Icon SVG Component
-function GithubIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-    </svg>
-  )
-}
+import { motion, useScroll, useTransform, useSpring, useMotionValue } from 'framer-motion';
+import {
+  ArrowRight, Shield,
+  Box, Activity, ShieldCheck,
+  Terminal, Github, Fingerprint, Eye, Search, Code, Cpu
+} from 'lucide-react';
+import mascot from '../assets/letf-mascot.png';
+import logo from '../assets/logo.svg';
+import {
+  IntegrityScoreboard,
+  SecurityStream,
+  ControlModuleCard
+} from '../components/CommandCenterComponents';
 
 interface HomePageProps {
-  isAuthed?: boolean
-  onGetStarted: () => void
-  onEnterApp: () => void
-  onScanContract: () => void
-  onStartAudit?: (data: { project: string; branch: string; jobId: number }) => void
+  isAuthed?: boolean;
+  onLogin: () => void;
+  onGetStarted: () => void;
+  onEnterApp: () => void;
+  onScanContract: () => void;
 }
 
-export default function HomePage({ isAuthed, onGetStarted, onEnterApp, onScanContract, onStartAudit }: HomePageProps) {
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15, delayChildren: 0.2 }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 30, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1
+  }
+};
+
+export default function HomePage({ isAuthed, onLogin, onGetStarted, onEnterApp, onScanContract }: HomePageProps) {
+  const { scrollYProgress } = useScroll();
+  const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
+  const scale = useTransform(scrollYProgress, [0, 0.2], [1, 0.95]);
+
+  const mouseX = useSpring(useMotionValue(0), { damping: 25 });
+  const mouseY = useSpring(useMotionValue(0), { damping: 25 });
+
+  const handleMouseMove = ({ clientX, clientY }: React.MouseEvent) => {
+    const x = (clientX / window.innerWidth - 0.5) * 15;
+    const y = (clientY / window.innerHeight - 0.5) * -15;
+    mouseX.set(x);
+    mouseY.set(y);
+  };
+
   return (
-    <div className="min-h-screen bg-white relative font-sans">
-      {/* Tech Grid Background */}
-      <div className="absolute inset-0 opacity-20 pointer-events-none">
-        <div
-          className="w-full h-full"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(15, 63, 98, 0.05) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(15, 63, 98, 0.05) 1px, transparent 1px)
-            `,
-            backgroundSize: '40px 40px'
-          }}
-        />
+    <div className="min-h-screen bg-base relative selection:bg-indigo-500/20" onMouseMove={handleMouseMove}>
+      {/* Decorative Atmosphere */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-500/[0.03] blur-[140px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-500/[0.02] blur-[120px] rounded-full" />
       </div>
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center cursor-pointer hover:opacity-80 transition-opacity">
-            <img src="/logo.svg" alt="Uatu Logo" className="h-9" />
-          </div>
-          
-          <nav className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm font-semibold text-gray-500 hover:text-[#0F3F62]">Features</a>
-            <a href="#audit-flow" className="text-sm font-semibold text-gray-500 hover:text-[#0F3F62]">How it Works</a>
-            {isAuthed ? (
-              <button 
-                onClick={onEnterApp}
-                className="bg-[#0F3F62] text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-lg shadow-blue-900/10 hover:bg-[#1a5a8a] transition-all"
-              >
-                Go to Dashboard
-              </button>
-            ) : (
-              <button 
-                onClick={onGetStarted}
-                className="bg-[#0F3F62] text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-lg shadow-blue-900/10 hover:bg-[#1a5a8a] transition-all flex items-center gap-2"
-              >
-                <GithubIcon className="w-4 h-4" />
-                Login with GitHub
-              </button>
-            )}
+      {/* Ultra-Premium Navbar */}
+      <header className="fixed top-0 left-0 right-0 z-[100] h-24 flex items-center bg-white/70 backdrop-blur-xl border-b border-black/[0.03]">
+        <div className="max-w-7xl mx-auto px-10 w-full flex items-center justify-between">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center gap-4 group cursor-pointer"
+          >
+            <img src={logo} alt="Uatu" className="h-9" />
+          </motion.div>
+
+          <nav className="hidden lg:flex items-center gap-12">
+            {['Analytics', 'Security Pulse', 'Infrastructure'].map((item) => (
+              <a key={item} href="#" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-indigo-600 transition-all duration-300">
+                {item}
+              </a>
+            ))}
           </nav>
+
+          <div className="flex items-center gap-6">
+            <button
+              onClick={isAuthed ? onEnterApp : onLogin}
+              className="flex items-center gap-3 bg-indigo-600 text-white px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 hover:shadow-indigo-500/30 hover:bg-indigo-700 transition-all duration-500 group"
+            >
+              {isAuthed ? 'Enter Command' : <><Github size={14} className="group-hover:rotate-12 transition-transform" /> Sign In with GitHub</>}
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative pt-20 pb-32 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="relative z-10 text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-xs font-bold uppercase tracking-widest mb-6">
-              <Zap className="w-3 h-3" />
-              Next-Gen CI Security
-            </div>
-            <h1 className="text-6xl lg:text-7xl font-black text-[#0F3F62] leading-[1.1] mb-8">
-              Audit Grade <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0F3F62] to-[#3B82A0]">Deterministic</span> Security for CI/CD
-            </h1>
-            <p className="text-xl text-gray-500 max-w-xl mb-10 leading-relaxed mx-auto lg:mx-0 font-medium">
-              Uatu isn't just an LLM crawler. It's a tool-augmented orchestration engine that combines Slither, Foundry, and Semgrep with Deep-Intelligence reasoning.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
-              <button 
+      {/* Hero: The Alabaster Origin */}
+      <section className="relative min-h-screen flex items-center pt-24 overflow-hidden">
+        <motion.div style={{ opacity, scale }} className="max-w-7xl mx-auto px-10 w-full grid grid-cols-1 lg:grid-cols-2 gap-24 items-center h-full">
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="relative z-10"
+          >
+            {/* Mascot Placement: Assistant Guardian */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5, rotate: -20 }}
+              animate={{ opacity: 1, scale: 1, rotate: -15 }}
+              transition={{ delay: 0.5, duration: 1 }}
+              className="absolute -top-20 -left-16 w-32 h-32 pointer-events-none opacity-40 hover:opacity-100 transition-opacity duration-700 select-none grayscale"
+            >
+              <img src={mascot} alt="Guardian" className="w-full h-full object-contain animate-float" />
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="inline-flex items-center gap-3 px-5 py-2.5 bg-white border border-black/[0.04] shadow-sm rounded-full text-indigo-600 text-[10px] font-black uppercase tracking-[0.25em] mb-10">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+              </span>
+              AI-Powered Security Auditing
+            </motion.div>
+
+            <motion.h1 variants={itemVariants} className="text-7xl lg:text-[100px] font-black text-slate-900 leading-[0.85] mb-10 tracking-[-0.06em]">
+              Sovereign <br />
+              <span className="text-indigo-600">Auditing.</span>
+            </motion.h1>
+
+            <motion.p variants={itemVariants} className="text-xl text-slate-500 max-w-lg mb-14 leading-[1.6] font-medium italic">
+              "Experience the next generation of code analysis. Deterministic proofs, real-time vulnerability tracking, and total sovereignty over your project's integrity."
+            </motion.p>
+
+            <motion.div variants={itemVariants} className="flex flex-wrap gap-6">
+              <button
                 onClick={onGetStarted}
-                className="w-full sm:w-auto bg-[#0F3F62] text-white px-8 py-4 rounded-2xl font-black text-lg shadow-2xl shadow-blue-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="btn-primary"
               >
-                Get Started Free
+                Start New Audit
+                <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
               </button>
-              <button 
+              <button
                 onClick={onScanContract}
-                className="w-full sm:w-auto bg-white border-2 border-gray-100 text-gray-600 px-8 py-4 rounded-2xl font-bold text-lg hover:bg-gray-50 transition-all"
+                className="btn-secondary"
               >
-                Quick Scan Contract
+                Scan Single Contract
               </button>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
-          <div className="relative lg:flex justify-center hidden">
-            <div className="absolute inset-0 bg-blue-400/10 blur-[120px] rounded-full" />
-            <img src={mascot} alt="Uatu" className="w-[480px] relative z-10 drop-shadow-2xl animate-float" />
-          </div>
-        </div>
-      </section>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 40 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+            className="relative flex justify-center items-center"
+          >
+            {/* Cinematic HUD Atmosphere */}
+            <div className="absolute inset-0 bg-indigo-500/5 blur-[120px] rounded-full scale-110 pointer-events-none" />
 
-      {/* Stats Section */}
-      <section className="bg-[#0F3F62] py-16">
-        <div className="max-w-7xl mx-auto px-8 grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
-          <div>
-            <div className="text-4xl font-black mb-2">100%</div>
-            <div className="text-blue-200 text-sm font-bold uppercase tracking-widest">Deterministic</div>
-          </div>
-          <div>
-            <div className="text-4xl font-black mb-2">5+</div>
-            <div className="text-blue-200 text-sm font-bold uppercase tracking-widest">Local Scanners</div>
-          </div>
-          <div>
-            <div className="text-4xl font-black mb-2">0</div>
-            <div className="text-blue-200 text-sm font-bold uppercase tracking-widest">Hallucinations</div>
-          </div>
-          <div>
-            <div className="text-4xl font-black mb-2">24/7</div>
-            <div className="text-blue-200 text-sm font-bold uppercase tracking-widest">Branch Guard</div>
-          </div>
-        </div>
-      </section>
-
-      {/* Capabilities Section */}
-      <section id="features" className="py-32 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-8">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl font-black text-[#0F3F62] mb-4">The Uatu Capability Stack</h2>
-            <p className="text-gray-500 font-medium max-w-2xl mx-auto italic">More than an LLM. A complete security toolchain wrapped in deep-intelligence.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-10 rounded-[40px] border border-gray-100 shadow-xl shadow-gray-200/50 hover:translate-y-[-8px] transition-all">
-              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-8">
-                <Shield className="w-8 h-8 text-[#0F3F62]" />
+            <motion.div
+              className="relative flex justify-center items-center"
+              style={{
+                perspective: 1200,
+                rotateY: mouseX,
+                rotateX: mouseY
+              }}
+            >
+              <div className="relative z-20 shadow-premium rounded-[100px]">
+                <IntegrityScoreboard />
               </div>
-              <h3 className="text-2xl font-black text-[#0F3F62] mb-4">Tool-Augmented</h3>
-              <p className="text-gray-500 leading-relaxed font-medium">Uatu runs local binaries like Slither and Semgrep. AI doesn't "guess" code—it interprets verified tool logs.</p>
-            </div>
 
-            <div className="bg-white p-10 rounded-[40px] border border-gray-100 shadow-xl shadow-gray-200/50 hover:translate-y-[-8px] transition-all">
-              <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mb-8">
-                <Lock className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="text-2xl font-black text-[#0F3F62] mb-4">Liability Mapping</h3>
-              <p className="text-gray-500 leading-relaxed font-medium">Human-in-the-loop triage allows you to shift liability to verified third-party deps like Gnosis or OpenZeppelin.</p>
-            </div>
-
-            <div className="bg-white p-10 rounded-[40px] border border-gray-100 shadow-xl shadow-gray-200/50 hover:translate-y-[-8px] transition-all">
-              <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mb-8">
-                <Code2 className="w-8 h-8 text-purple-600" />
-              </div>
-              <h3 className="text-2xl font-black text-[#0F3F62] mb-4">Branch Protection</h3>
-              <p className="text-gray-500 leading-relaxed font-medium">Integrates directly with GitHub Checks API to block unsafe merges until your deterministic score passes.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it Works Section */}
-      <section id="audit-flow" className="py-32">
-        <div className="max-w-7xl mx-auto px-8">
-          <div className="flex flex-col md:flex-row gap-16 items-center">
-            <div className="md:w-1/2">
-              <h2 className="text-5xl font-black text-[#0F3F62] mb-12">The Deterministic Audit Pipeline</h2>
-              <div className="space-y-12">
-                <div className="flex gap-6">
-                  <div className="w-12 h-12 bg-[#0F3F62] text-white rounded-full flex items-center justify-center shrink-0 font-black text-xl">1</div>
-                  <div>
-                    <h4 className="text-xl font-black text-gray-900 mb-2">Fingerprint & Scan</h4>
-                    <p className="text-gray-500 font-medium">Local bash scripts identify frameworks and run scanners to build an Evidence Bundle.</p>
+              {/* Advanced UI Stream Fragments */}
+              <motion.div
+                animate={{ y: [0, -12, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute -top-12 -right-8 card p-5 flex items-center gap-4 z-30 scale-90"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <ShieldCheck className="text-emerald-500" size={20} strokeWidth={1.5} />
+                </div>
+                <div className="flex flex-col">
+                  <div className="text-[10px] font-black text-slate-900 uppercase tracking-widest leading-none">Security Proof</div>
+                  <div className="text-[8px] text-slate-400 font-bold uppercase mt-1.5 flex items-center gap-2">
+                    <span className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></span>
+                    Verified Logic Path
                   </div>
                 </div>
-                <div className="flex gap-6">
-                  <div className="w-12 h-12 bg-[#0F3F62] text-white rounded-full flex items-center justify-center shrink-0 font-black text-xl">2</div>
-                  <div>
-                    <h4 className="text-xl font-black text-gray-900 mb-2">Interactive Triage</h4>
-                    <p className="text-gray-500 font-medium">AI identifies liability hotspots. You explain admin wallets or oracles once; Uatu remembers forever.</p>
-                  </div>
+              </motion.div>
+
+              <motion.div
+                animate={{ y: [0, 12, 0] }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                className="absolute -bottom-12 -left-12 card p-5 flex items-center gap-4 z-30 scale-90"
+              >
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                  <Fingerprint className="text-indigo-500" size={20} strokeWidth={1.5} />
                 </div>
-                <div className="flex gap-6">
-                  <div className="w-12 h-12 bg-[#0F3F62] text-white rounded-full flex items-center justify-center shrink-0 font-black text-xl">3</div>
-                  <div>
-                    <h4 className="text-xl font-black text-gray-900 mb-2">Deep Milestone Audit</h4>
-                    <p className="text-gray-500 font-medium">5-stage reasoning pipeline simulates complex attack scenarios based on tool logs.</p>
-                  </div>
+                <div className="flex flex-col text-left">
+                  <div className="text-[10px] font-black text-slate-900 uppercase tracking-widest leading-none">Identity Linked</div>
+                  <div className="text-[8px] text-slate-400 font-bold uppercase mt-1.5">GitHub Sovereign #0421</div>
                 </div>
-              </div>
-            </div>
-            <div className="md:w-1/2 bg-gray-900 rounded-[40px] p-8 shadow-2xl shadow-gray-900/40 font-mono text-xs text-blue-400">
-              <div className="flex gap-2 mb-6">
-                <div className="w-3 h-3 rounded-full bg-red-500" />
-                <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                <div className="w-3 h-3 rounded-full bg-green-500" />
-              </div>
-              <p className="mb-2">$ uatu run --repo protocol-v2</p>
-              <p className="text-gray-500 mb-2">[+] Cloning repository...</p>
-              <p className="text-gray-500 mb-2">[+] Detecting Ecosystem: Foundry/Solidity</p>
-              <p className="text-yellow-400 mb-2">[!] Warning: Potential Admin Wallet risk found in Vault.sol</p>
-              <p className="text-white mb-2">? Is the 'owner' controlled by a Gnosis Safe? (y/n)</p>
-              <p className="text-green-400 mb-2">[✓] Response mapped. Liability shifted to EXTERNAL.</p>
-              <p className="text-gray-500 mb-2">[+] Starting Milestone 3: Deep Logic Simulation...</p>
-              <p className="text-white mt-8 font-black underline">AUDIT COMPLETE: GRADE A (94/100)</p>
-            </div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      </section>
+
+      {/* Cinematic Flow: Capabilities */}
+      <section id="capabilities" className="py-48 relative bg-white/40">
+        <div className="max-w-7xl mx-auto px-10">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex flex-col items-center text-center mb-32"
+          >
+            <h2 className="text-6xl font-black text-slate-900 tracking-[-0.05em] mb-8">Engineering Certainty.</h2>
+            <p className="text-slate-500 max-w-2xl text-lg leading-relaxed font-medium uppercase text-[10px] tracking-[0.3em]">
+              Beyond simple linting. We provide a complete security suit <br /> for high-stakes decentralized applications.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <ControlModuleCard
+              title="Vulnerability Sentry"
+              description="Continuous inspection of your dependency tree and logic flow. We detect exploits before they reach production environments."
+              icon={Search}
+              colorClass="text-indigo-500"
+              stats={[{ label: 'ACCURACY', value: '99.8%' }, { label: 'STATUS', value: 'ACTIVE' }]}
+            />
+            <ControlModuleCard
+              title="Deterministic Proofs"
+              description="Every finding is backed by a verifiable trace. No hallucinations, only cold mathematical certainty for your logic."
+              icon={Code}
+              colorClass="text-slate-900"
+              stats={[{ label: 'LOGIC', value: 'VERIFIED' }, { label: 'TRACE', value: 'GEN-2' }]}
+            />
+            <ControlModuleCard
+              title="Supply Chain Guard"
+              description="Deep analysis of NPM and Library sources. Protect your project against malicious package updates and backdoors."
+              icon={Cpu}
+              colorClass="text-amber-500"
+              stats={[{ label: 'DEPENDENCIES', value: 'REAL-TIME' }]}
+            />
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-50 border-t border-gray-100 py-12">
-        <div className="max-w-7xl mx-auto px-8 flex justify-between items-center text-gray-400 text-sm font-bold uppercase tracking-widest">
-          <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="Uatu" className="h-6 grayscale" />
-            <span>&copy; 2025 UatuAudit. Deterministic Security.</span>
+      {/* Security Pulse: Narrative Visualization */}
+      <section id="sovereignty" className="py-48 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-10 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-32 items-center">
+            <div>
+              <motion.div
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                className="space-y-12"
+              >
+                <div className="w-16 h-1 bg-indigo-600 rounded-full mb-10" />
+                <h2 className="text-5xl font-black text-slate-900 tracking-[-0.04em] leading-tight">Proactive Security <br />Intelligence Stream.</h2>
+
+                <div className="grid gap-10">
+                  {[
+                    { title: 'Continuous Pulse', desc: 'Background scanners execute deep analysis every 15 minutes, protecting your codebase.', icon: Activity },
+                    { title: 'Deterministic Analysis', desc: 'Our engine identifies complex logical vulnerabilities that standard tools miss.', icon: Terminal },
+                    { title: 'Integrity Hub', desc: 'One centralized plane for all your security reports, dependency alerts, and audit history.', icon: Shield }
+                  ].map((f, i) => (
+                    <div key={i} className="flex gap-8 group">
+                      <div className="w-14 h-14 rounded-2xl bg-white border border-black/[0.04] shadow-sm flex items-center justify-center shrink-0 group-hover:shadow-indigo-500/10 transition-all duration-500">
+                        <f.icon className="text-indigo-600" size={24} strokeWidth={1.5} />
+                      </div>
+                      <div className="flex flex-col justify-center">
+                        <h4 className="text-md font-black text-slate-900 mb-1.5 uppercase tracking-wider">{f.title}</h4>
+                        <p className="text-[10px] text-slate-400 font-bold leading-relaxed uppercase tracking-widest">{f.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              className="card !p-10 !rounded-[48px] shadow-premium relative bg-white/60 backdrop-blur-3xl overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-12 opacity-[0.03]">
+                <Activity size={200} className="text-indigo-900" />
+              </div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-4 mb-10 text-indigo-600">
+                  <Activity size={24} strokeWidth={3} />
+                  <span className="text-[10px] font-black uppercase tracking-[0.4em]">Live Intelligence Feed</span>
+                </div>
+                <SecurityStream />
+              </div>
+            </motion.div>
           </div>
-          <div className="flex gap-8">
-            <a href="#" className="hover:text-[#0F3F62]">Docs</a>
-            <a href="#" className="hover:text-[#0F3F62]">Twitter</a>
-            <a href="#" className="hover:text-[#0F3F62]">GitHub</a>
+        </div>
+      </section>
+
+      {/* Flowing Footer */}
+      <footer className="pt-48 pb-20 relative bg-slate-50">
+        <div className="max-w-7xl mx-auto px-10">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-20 items-start border-b border-black/[0.03] pb-24 mb-20">
+            <div className="md:col-span-2">
+              <div className="flex items-center mb-8">
+                <img src={logo} alt="Uatu Sovereignty Hub" className="h-10 object-contain" />
+              </div>
+              <p className="text-slate-400 text-sm font-medium leading-relaxed max-w-sm">
+                Engineering certainty for high-stakes decentralized projects. Modular, deterministic, and security-first.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-6">
+              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-900">Intelligence</span>
+              {['Security Dossiers', 'Vulnerability Feed', 'Library Analysis'].map(l => (
+                <a key={l} href="#" className="text-sm font-bold text-slate-400 hover:text-indigo-600 transition-colors">{l}</a>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-6">
+              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-900">Platform</span>
+              {['Command Center', 'GitHub Integration', 'Audit History'].map(l => (
+                <a key={l} href="#" className="text-sm font-bold text-slate-400 hover:text-indigo-600 transition-colors">{l}</a>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row justify-between items-center gap-10">
+            <div className="flex items-center gap-12">
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">&copy; 2026 Uatu Security Hub</p>
+              <div className="flex gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                <a href="#" className="hover:text-indigo-600 transition-colors">Privacy</a>
+                <a href="#" className="hover:text-indigo-600 transition-colors">Terms</a>
+              </div>
+            </div>
+
+            <div className="relative flex justify-center scale-90 grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all duration-700">
+              <img src={mascot} alt="Guardian" className="w-24 pointer-events-auto cursor-help animate-float" />
+            </div>
           </div>
         </div>
       </footer>
     </div>
-  )
+  );
 }

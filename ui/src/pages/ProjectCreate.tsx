@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ArrowLeft, Shield, FileCode, Globe, BookOpen, ChevronRight } from 'lucide-react'
+import logo from '../assets/logo.svg'
 
 type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit'
 
@@ -113,7 +114,7 @@ export default function ProjectCreate({ onNext, onBack, onHomeClick }: ProjectCr
             onClick={onHomeClick}
             className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0"
           >
-            <img src="/logo.svg" alt="Uatu Logo" className="h-10" />
+            <img src={logo} alt="Uatu Logo" className="h-10" />
           </button>
         </div>
       </header>

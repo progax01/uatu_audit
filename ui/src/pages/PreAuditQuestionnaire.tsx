@@ -11,6 +11,7 @@ import {
   Loader2,
   SkipForward
 } from 'lucide-react'
+import logo from '../assets/logo.svg'
 
 type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 
@@ -295,7 +296,7 @@ export default function PreAuditQuestionnaire({
             onClick={onHomeClick}
             className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0"
           >
-            <img src="/logo.svg" alt="Uatu Logo" className="h-10" />
+            <img src={logo} alt="Uatu Logo" className="h-10" />
           </button>
 
           {/* Progress Bar */}

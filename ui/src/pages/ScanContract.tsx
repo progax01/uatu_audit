@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle } from 'lucide-react'
+import logo from '../assets/logo.svg'
 
 interface ScanContractProps {
   onBack: () => void
@@ -274,7 +275,7 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
             onClick={onHomeClick}
             className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0"
           >
-            <img src="/logo.svg" alt="Uatu Logo" className="h-10" />
+            <img src={logo} alt="Uatu Logo" className="h-10" />
           </button>
         </div>
       </header>

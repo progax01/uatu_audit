@@ -91,6 +91,27 @@ export async function handleAuthRoutes(
 
   const { v4: uuidv4 } = await import("uuid");
 
+  // GET /auth/status - Quick auth check (used by UI)
+  if (req.method === "GET" && parsed.pathname === "/auth/status") {
+    const sessionId = getSessionId(req);
+    if (!sessionId) {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ authed: false }));
+      return true;
+    }
+
+    const tok = await loadToken(sessionId);
+    if (!tok) {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ authed: false }));
+      return true;
+    }
+
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ authed: true }));
+    return true;
+  }
+
   // GET /auth/github/login
   if (req.method === "GET" && parsed.pathname === "/auth/github/login") {
     logger.info("GitHub OAuth login initiated");

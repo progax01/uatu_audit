@@ -54,6 +54,7 @@
     "commander": "^14.0.1",
     "dotenv": "^17.2.2",
     "fast-glob": "^3.3.3",
+    "framer-motion": "^12.24.0",
     "fs-extra": "^11.3.2",
     "lucide-react": "^0.553.0",
     "node-fetch": "^3.3.2",
