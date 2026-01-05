@@ -279,7 +279,7 @@ function generateWorstCaseScenarios(findings: Finding[]): WorstCaseScenario[] {
 
   // Sort by severity (critical first)
   highSeverity.sort((a, b) => {
-    const order = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+    const order: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4, undeclared: 5 };
     return order[a.severity] - order[b.severity];
   });
 
