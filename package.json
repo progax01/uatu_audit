@@ -11,6 +11,7 @@
     "dist"
   ],
   "scripts": {
+    "dev": "npm run build && UATU_PORT=9091 node dist/bin/uatu.js daemon",
     "build": "tsc -p tsconfig.json && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . --ext .ts",
