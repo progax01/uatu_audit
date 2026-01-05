@@ -29,11 +29,11 @@ Combine all findings from previous milestones, calculate final score, generate r
 #### Severity Weighting
 ```
 Score = 100 - (
-  (critical_count × 25) +
+  (critical_count × 15) +
   (high_count × 10) +
-  (medium_count × 3) +
-  (low_count × 1) +
-  (info_count × 0)
+  (medium_count × 4) +
+  (low_count × 2) +
+  (info_count × 1)
 )
 ```
 
@@ -212,6 +212,7 @@ Write a non-technical summary:
             "function": "borrow()"
           },
           "description": "The borrow() function uses spot price from Uniswap pool...",
+          "code_snippet": "uint256 price = uniswapPool.getSpotPrice();\nuint256 collateralValue = collateral * price;",
           "impact": "Attacker can manipulate oracle price and borrow unlimited funds",
           "exploit_scenario": "1. Flash loan 100M tokens\n2. Swap to manipulate price\n3. Over-borrow with inflated collateral\n4. Profit $419K per attack",
           "recommendation": "Replace spot price with Chainlink oracle + 30-minute TWAP",
@@ -227,9 +228,62 @@ Write a non-technical summary:
           }
         }
       ],
-      "high": [ /* ... */ ],
-      "medium": [ /* ... */ ],
-      "low": [ /* ... */ ]
+      "high": [
+        {
+          "id": "HIGH-001",
+          "title": "Missing Access Control on Admin Function",
+          "severity": "HIGH",
+          "confidence": 0.90,
+          "category": "Access Control",
+          "location": { "file": "src/Admin.sol", "line": 45 },
+          "description": "The setFee() function lacks access control modifier",
+          "code_snippet": "function setFee(uint256 _fee) external {\n    fee = _fee;\n}",
+          "impact": "Anyone can modify protocol fees",
+          "recommendation": "Add onlyOwner modifier"
+        }
+      ],
+      "medium": [
+        {
+          "id": "MED-001",
+          "title": "Unbounded Loop in Array Iteration",
+          "severity": "MEDIUM",
+          "confidence": 0.85,
+          "category": "DoS Vector",
+          "location": { "file": "src/Registry.sol", "line": 120 },
+          "description": "Loop iterates over unbounded array which can cause DoS",
+          "code_snippet": "for (uint i = 0; i < users.length; i++) {\n    processUser(users[i]);\n}",
+          "impact": "Function may run out of gas with large arrays",
+          "recommendation": "Implement pagination or limit array size"
+        }
+      ],
+      "low": [
+        {
+          "id": "LOW-001",
+          "title": "Missing Event Emission",
+          "severity": "LOW",
+          "confidence": 0.80,
+          "category": "Best Practice",
+          "location": { "file": "src/Token.sol", "line": 89 },
+          "description": "State change without event emission",
+          "code_snippet": "function updateName(string memory _name) external {\n    name = _name;\n}",
+          "impact": "Off-chain services cannot track changes",
+          "recommendation": "Emit event after state change"
+        }
+      ],
+      "info": [
+        {
+          "id": "INFO-001",
+          "title": "Floating Pragma Version",
+          "severity": "INFO",
+          "confidence": 0.95,
+          "category": "Code Quality",
+          "location": { "file": "src/Token.sol", "line": 1 },
+          "description": "Contract uses floating pragma which may compile with different versions",
+          "code_snippet": "pragma solidity ^0.8.0;",
+          "impact": "Potential inconsistent behavior across compiler versions",
+          "recommendation": "Lock pragma to specific version"
+        }
+      ]
     },
     "tooling_artifacts": {
       "foundry_tests": [

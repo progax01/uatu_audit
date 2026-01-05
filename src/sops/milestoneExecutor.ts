@@ -39,6 +39,9 @@ export interface MilestoneState {
   retryCount?: number;
 }
 
+// Progress callback type for milestone-based progress updates
+export type MilestoneProgressCallback = (update: { phase: string; step: string; pct: number }) => Promise<void>;
+
 export interface AuditContext {
   jobId: string;
   projectPath: string;
@@ -48,6 +51,7 @@ export interface AuditContext {
   methodologies?: string[];
   testStyle?: string;
   auditDepth?: 'quick' | 'standard' | 'deep';
+  onProgress?: MilestoneProgressCallback; // Progress callback for UI updates
 }
 
 export interface MilestoneResult {
@@ -334,8 +338,18 @@ export class MilestoneExecutor {
 
     const overallStartTime = Date.now();
 
+    // Map milestone numbers to phase names for progress tracking
+    const milestonePhaseMap: Record<MilestoneNumber, string> = {
+      1: 'm1_context',
+      2: 'm2_static',
+      3: 'm3_logic',
+      4: 'm4_tests',
+      5: 'm5_final'
+    };
+
     for (let i = 1; i <= 5; i++) {
       const milestoneNumber = i as MilestoneNumber;
+      const phaseName = milestonePhaseMap[milestoneNumber];
       const previousState = i > 1 ? this.states.get((i - 1) as MilestoneNumber) : null;
 
       // Prepare inputs from previous milestone outputs
@@ -352,7 +366,16 @@ export class MilestoneExecutor {
       // Check if skipped
       if (result.state.status === 'skipped') {
         log.info(`⏭️  Milestone ${milestoneNumber} skipped, continuing...`);
+        // Still update progress for skipped milestones
+        if (this.context.onProgress) {
+          await this.context.onProgress({ phase: phaseName, step: 'skipped', pct: 100 });
+        }
         continue;
+      }
+
+      // Update progress after successful milestone completion
+      if (this.context.onProgress) {
+        await this.context.onProgress({ phase: phaseName, step: 'complete', pct: 100 });
       }
     }
 

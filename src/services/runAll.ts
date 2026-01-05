@@ -40,6 +40,50 @@ function checkCancellation(jobId: number | undefined) {
 }
 
 /**
+ * Calculate security score based on findings
+ * Formula: 100 - (critical×15 + high×10 + medium×4 + low×2 + info×1)
+ * Score is always between 0-100
+ */
+function calculateScoreFromFindings(findings: any[]): { value: number; grade: string; breakdown: Record<string, number> } {
+  const breakdown = {
+    critical_count: 0,
+    high_count: 0,
+    medium_count: 0,
+    low_count: 0,
+    info_count: 0
+  };
+
+  // Count findings by severity
+  for (const finding of findings || []) {
+    const severity = (finding.severity || '').toLowerCase();
+    if (severity === 'critical') breakdown.critical_count++;
+    else if (severity === 'high') breakdown.high_count++;
+    else if (severity === 'medium') breakdown.medium_count++;
+    else if (severity === 'low') breakdown.low_count++;
+    else if (severity === 'info' || severity === 'informational') breakdown.info_count++;
+  }
+
+  // Calculate score: 100 - (critical×15 + high×10 + medium×4 + low×2 + info×1)
+  const deductions =
+    breakdown.critical_count * 15 +
+    breakdown.high_count * 10 +
+    breakdown.medium_count * 4 +
+    breakdown.low_count * 2 +
+    breakdown.info_count * 1;
+
+  const value = Math.max(0, Math.min(100, 100 - deductions));
+
+  // Determine grade
+  const grade =
+    value >= 90 ? 'A' :
+      value >= 80 ? 'B' :
+        value >= 70 ? 'C' :
+          value >= 60 ? 'D' : 'F';
+
+  return { value, grade, breakdown };
+}
+
+/**
  * Simplified 3-Phase Audit Pipeline
  *
  * Phase 1: Context Preparation (Clone + Bootstrap + Write Context Files)
@@ -159,7 +203,7 @@ export async function runAll(params: {
   await initResultsJson(contextPath, repo, branch, commitHash || undefined);
   log.info("Step 1.5e: results.json initialized", { repo, branch, commitHash });
 
-  await onProgress({ phase: "context", step: "context-ready", pct: 100 });
+  // Note: m1_context progress is handled by bootstrap.ts (0-50%) and MilestoneExecutor (50-100%)
   log.info("=== PHASE 1 COMPLETE ===");
 
   // ============================================================
@@ -371,7 +415,8 @@ export async function runAll(params: {
       projectContext,
       toolLogs, // Pass scanner evidence
       domain: undefined, // auto-detect
-      auditDepth: 'standard'
+      auditDepth: 'standard',
+      onProgress // Pass progress callback to track milestone progress
     });
 
     log.info(`   ✅ MilestoneExecutor initialized`);
@@ -432,14 +477,8 @@ export async function runAll(params: {
       contextPath,
       runPath,
       jobId,
-      sessionTimeout: sessionTimeoutMs, // Pass dynamic timeout
-      onProgress: async (update) => {
-        await onProgress({
-          phase: "audit",
-          step: update.session,
-          pct: update.pct
-        });
-      }
+      sessionTimeout: sessionTimeoutMs // Pass dynamic timeout
+      // Note: Parallel audit doesn't use milestone-based progress
     });
 
     if (!parallelResult.success) {
@@ -488,10 +527,7 @@ export async function runAll(params: {
     }
   }
 
-  // Mark all audit phases as complete
-  await onProgress({ phase: "inventory", step: "inventory-complete", pct: 100 });
-  await onProgress({ phase: "analysis", step: "analysis-complete", pct: 100 });
-  await onProgress({ phase: "testgen", step: "testgen-complete", pct: 100 });
+  // Milestones are tracked by MilestoneExecutor - no need to update here
   log.info("=== PHASE 2 COMPLETE ===");
 
   // Validate audit results before proceeding to report generation
@@ -532,7 +568,7 @@ export async function runAll(params: {
   }));
 
   const weightedScoreResult = calculateWeightedScore(normalizedFindings, liabilityMap);
-  
+
   log.info("Score calculated with liability weighting", {
     findingsCount: findings.length,
     calculatedScore: weightedScoreResult.value,
@@ -626,7 +662,7 @@ export async function runAll(params: {
     log.warn("Step 3.2: PDF generation failed (non-critical)", { error: pdfResult.error });
   }
 
-  await onProgress({ phase: "execute", step: "report-complete", pct: 100 });
+  await onProgress({ phase: "report", step: "report-complete", pct: 100 });
   log.info("=== PHASE 3 COMPLETE ===");
 
   // ============================================================

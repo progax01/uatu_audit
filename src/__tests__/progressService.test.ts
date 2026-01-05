@@ -32,7 +32,7 @@ describe('progressService', () => {
     expect(progress.branch).toBe('main');
     expect(progress.timestamp).toBe('123456789');
     expect(progress.overall_pct).toBe(0);
-    expect(progress.phases).toHaveLength(5);
+    expect(progress.phases).toHaveLength(6);
     
     // All phases should start at 0%
     progress.phases.forEach(phase => {
@@ -57,37 +57,37 @@ describe('progressService', () => {
     const progress = newProgress('test-project', 'main', '123456789');
     await saveProgress(runPath, progress);
     
-    // Set bootstrap to 100% (weight: 10)
-    await setPhasePct(runPath, 'bootstrap', 100);
+    // Set m1_context to 100% (weight: 16)
+    await setPhasePct(runPath, 'm1_context', 100);
     const updated1 = await loadProgress(runPath);
-    expect(updated1!.overall_pct).toBe(10); // 10% * 100% = 10%
-    
-    // Set inventory to 50% (weight: 20)
-    await setPhasePct(runPath, 'inventory', 50);
+    expect(updated1!.overall_pct).toBe(16); // 16% * 100% = 16%
+
+    // Set m2_static to 50% (weight: 16)
+    await setPhasePct(runPath, 'm2_static', 50);
     const updated2 = await loadProgress(runPath);
-    expect(updated2!.overall_pct).toBe(20); // 10 + (20 * 0.5) = 20%
-    
-    // Set analysis to 100% (weight: 35)
-    await setPhasePct(runPath, 'analysis', 100);
+    expect(updated2!.overall_pct).toBe(24); // 16 + (16 * 0.5) = 24%
+
+    // Set m3_logic to 100% (weight: 16)
+    await setPhasePct(runPath, 'm3_logic', 100);
     const updated3 = await loadProgress(runPath);
-    expect(updated3!.overall_pct).toBe(55); // 10 + 10 + 35 = 55%
+    expect(updated3!.overall_pct).toBe(40); // 16 + 8 + 16 = 40%
   });
 
   it('should bump phase percentage correctly', async () => {
     const progress = newProgress('test-project', 'main', '123456789');
     await saveProgress(runPath, progress);
     
-    await bumpPhase(runPath, 'bootstrap', 25, 'First step');
+    await bumpPhase(runPath, 'm1_context', 25, 'First step');
     const updated1 = await loadProgress(runPath);
     expect(updated1!.phases[0].pct).toBe(25);
     expect(updated1!.phases[0].step).toBe('First step');
-    
-    await bumpPhase(runPath, 'bootstrap', 30);
+
+    await bumpPhase(runPath, 'm1_context', 30);
     const updated2 = await loadProgress(runPath);
     expect(updated2!.phases[0].pct).toBe(55);
-    
+
     // Should cap at 100%
-    await bumpPhase(runPath, 'bootstrap', 50);
+    await bumpPhase(runPath, 'm1_context', 50);
     const updated3 = await loadProgress(runPath);
     expect(updated3!.phases[0].pct).toBe(100);
   });

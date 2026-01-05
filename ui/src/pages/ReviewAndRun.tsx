@@ -613,11 +613,6 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
                           style={{ width: `${overallProgress}%` }}
                         />
                       </div>
-                      {progress?.last_event && (
-                        <p className="text-gray-500 text-xs mt-2">
-                          Last activity: {progress.last_event}
-                        </p>
-                      )}
                     </div>
 
                     {/* Completion Actions */}

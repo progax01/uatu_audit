@@ -32,6 +32,7 @@ This document outlines a comprehensive proposal to upgrade UatuAudit from its cu
 8. [Implementation Priority](#8-implementation-priority)
 9. [Appendix: Prompt Templates](#appendix-prompt-templates)
 10. [Critical Analysis: Flaws, Gaps & Suggestions](#10-critical-analysis-flaws-gaps--suggestions)
+11. [Report UI Redesign Specification](#11-report-ui-redesign-specification)
 
 ---
 
@@ -1871,6 +1872,718 @@ PHASE 6 (NEW - Hardening):
 
 ---
 
+## 11. Report UI Redesign Specification
+
+This section outlines the new report structure featuring a unified template with PAGE 1 (Executive Certificate) and PAGE 2 (Risk Narrative), followed by detailed findings.
+
+### 11.1 Design Philosophy
+
+**Goal:** Unify `certificate-template.html` and `report-template.html` into a single comprehensive report with:
+- **PAGE 1:** Executive-level summary for stakeholders (Deployment Verdict, Score, Risk Overview)
+- **PAGE 2:** Risk narrative for security teams (Attack Scenarios, Threat Model)
+- **PAGE 3+:** Detailed technical findings (existing sections)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    UNIFIED AUDIT REPORT                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  PAGE 1: EXECUTIVE CERTIFICATE                                   │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  ││
+│  │  │  DEPLOYMENT  │  │   SECURITY   │  │   RISK BADGES    │  ││
+│  │  │   VERDICT    │  │    SCORE     │  │   (bool flags)   │  ││
+│  │  │              │  │              │  │                  │  ││
+│  │  │ PRODUCTION   │  │     85       │  │ ☑ Reentrancy     │  ││
+│  │  │   READY      │  │    Grade A   │  │ ☐ Oracle Risk    │  ││
+│  │  └──────────────┘  └──────────────┘  │ ☐ Access Control │  ││
+│  │                                       └──────────────────┘  ││
+│  │  ┌──────────────────────────────────────────────────────┐   ││
+│  │  │  SEVERITY SNAPSHOT        │  SCOPE SUMMARY           │   ││
+│  │  │  Critical: 0  High: 1     │  Contracts: 12           │   ││
+│  │  │  Medium: 3    Low: 5      │  Lines: 2,847            │   ││
+│  │  │  Info: 2                  │  Commit: abc123          │   ││
+│  │  └──────────────────────────────────────────────────────┘   ││
+│  └─────────────────────────────────────────────────────────────┘│
+│                                                                  │
+│  PAGE 2: RISK NARRATIVE                                          │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │  WORST-CASE SCENARIOS (Top 3)                               ││
+│  │  ┌─────────────────────────────────────────────────────────┐││
+│  │  │ 1. Reentrancy Attack: Attacker drains 100% of vault... │││
+│  │  │ 2. Oracle Manipulation: Flash loan attack on price...  │││
+│  │  │ 3. Access Control Bypass: Admin functions callable...  │││
+│  │  └─────────────────────────────────────────────────────────┘││
+│  │                                                              ││
+│  │  THREAT MODEL SUMMARY                                        ││
+│  │  ┌─────────────────────────────────────────────────────────┐││
+│  │  │ Threat Actors: External Attacker, Malicious Insider    │││
+│  │  │ Attack Vectors: Flash Loans, Front-running, Reentrancy │││
+│  │  │ Assets at Risk: User funds, Protocol reserves, NFTs    │││
+│  │  └─────────────────────────────────────────────────────────┘││
+│  │                                                              ││
+│  │  ATTACK SURFACE OVERVIEW                                     ││
+│  │  ┌─────────────────────────────────────────────────────────┐││
+│  │  │ External Entry Points: 15 public functions             │││
+│  │  │ Privileged Functions: 8 admin-only functions           │││
+│  │  │ Cross-Contract Calls: 12 external calls identified     │││
+│  │  └─────────────────────────────────────────────────────────┘││
+│  └─────────────────────────────────────────────────────────────┘│
+│                                                                  │
+│  PAGE 3+: DETAILED FINDINGS (existing sections)                  │
+│  - Security Findings Overview                                    │
+│  - Key Security Findings                                         │
+│  - User Flow Analysis                                            │
+│  - Contract Explanations                                         │
+│  - Test Results                                                  │
+│  - Recommendations                                               │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 11.2 PAGE 1: Executive Certificate Specification
+
+#### 11.2.1 Deployment Verdict
+
+**Purpose:** Clear, actionable deployment recommendation for stakeholders.
+
+| Verdict | Criteria | Color | Icon |
+|---------|----------|-------|------|
+| `PRODUCTION_READY` | Score ≥ 85, No Critical/High findings | Green | ✅ |
+| `CONDITIONALLY_READY` | Score 60-84, No Critical, ≤2 High findings | Yellow | ⚠️ |
+| `BLOCKED` | Score < 60, OR any Critical, OR >2 High findings | Red | 🛑 |
+
+**Logic:**
+```typescript
+function calculateDeploymentVerdict(score: number, severity: SeverityCounts): DeploymentVerdict {
+  if (severity.critical > 0) return 'BLOCKED';
+  if (severity.high > 2) return 'BLOCKED';
+  if (score < 60) return 'BLOCKED';
+  if (score >= 85 && severity.high === 0) return 'PRODUCTION_READY';
+  return 'CONDITIONALLY_READY';
+}
+```
+
+#### 11.2.2 Security Score
+
+**Display:**
+- Numeric score (0-100)
+- Letter grade (A, B, C, D, F)
+- Visual gauge/ring
+- Assurance level label
+
+**Grading Scale:**
+| Score | Grade | Label |
+|-------|-------|-------|
+| 90-100 | A | Excellent |
+| 80-89 | B | Good |
+| 70-79 | C | Satisfactory |
+| 60-69 | D | Needs Improvement |
+| 0-59 | F | Critical Issues |
+
+**Score Calculation Methodology:**
+
+The security score is calculated using a point deduction system:
+
+```
+Starting Score: 100 points
+
+Deductions per finding:
+┌──────────────┬─────────────┬─────────────────────────────────┐
+│ Severity     │ Deduction   │ Rationale                       │
+├──────────────┼─────────────┼─────────────────────────────────┤
+│ Critical     │ -15 points  │ Immediate exploitation risk     │
+│ High         │ -10 points  │ Significant security impact     │
+│ Medium       │ -4 points   │ Moderate risk requiring fix     │
+│ Low          │ -2 points   │ Minor issues, best practices    │
+│ Info         │ -1 point    │ Informational, optimization     │
+│ Third-party  │ -1 point    │ Third-party dependent issues    │
+└──────────────┴─────────────┴─────────────────────────────────┘
+
+Formula: Score = max(0, 100 - (Critical×15 + High×10 + Medium×4 + Low×2 + Info×1))
+Minimum Score: 0
+```
+
+**Example Calculation:**
+```
+Findings: 0 Critical, 1 High, 2 Medium, 3 Low
+Deductions: (0×15) + (1×10) + (2×4) + (3×2) = 0 + 10 + 8 + 6 = 24
+Final Score: 100 - 24 = 76 (Grade C)
+```
+
+**Score Breakdown Display (in report):**
+```
+┌─────────────────────────┐
+│   Score Breakdown       │
+├─────────────────────────┤
+│ Base Score        100   │
+│ Critical (-15)    -0    │
+│ High (-10)        -10   │
+│ Medium (-4)       -8    │
+│ Low (-2)          -6    │
+│ Info (-1)         -0    │
+├─────────────────────────┤
+│ Final Score       76    │
+└─────────────────────────┘
+```
+
+#### 11.2.3 Risk Badges
+
+**Purpose:** Boolean flags for common vulnerability categories (quick visual scan).
+
+| Badge | Condition | Description |
+|-------|-----------|-------------|
+| `reentrancy_risk` | Any reentrancy finding | Reentrancy vulnerability detected |
+| `oracle_risk` | Any oracle manipulation finding | Price oracle risk detected |
+| `access_control_risk` | Any access control finding | Access control issues found |
+| `upgrade_risk` | Any proxy/upgrade finding | Upgradability concerns |
+| `flash_loan_risk` | Any flash loan finding | Flash loan attack vectors |
+| `dos_risk` | Any DoS finding | Denial of service risks |
+| `frontrun_risk` | Any frontrunning finding | MEV/Frontrunning exposure |
+| `centralization_risk` | Any centralization finding | Centralization concerns |
+
+**Schema:**
+```typescript
+interface RiskBadges {
+  reentrancy_risk: boolean;
+  oracle_risk: boolean;
+  access_control_risk: boolean;
+  upgrade_risk: boolean;
+  flash_loan_risk: boolean;
+  dos_risk: boolean;
+  frontrun_risk: boolean;
+  centralization_risk: boolean;
+}
+```
+
+#### 11.2.4 Severity Snapshot
+
+**Display:** Compact severity counts with visual indicators.
+
+```
+Critical: 0  │  High: 1  │  Medium: 3  │  Low: 5  │  Info: 2
+```
+
+#### 11.2.5 Scope Summary
+
+**Display:** Quick audit scope overview.
+
+| Field | Example |
+|-------|---------|
+| Contracts Analyzed | 12 contracts |
+| Total Lines | 2,847 lines |
+| Commit Hash | abc123def |
+| Branch | main |
+| Audit Date | 2025-12-18 |
+
+---
+
+### 11.3 PAGE 2: Risk Narrative Specification
+
+#### 11.3.1 Worst-Case Scenarios
+
+**Purpose:** Top 3 most impactful attack scenarios in plain language.
+
+**Schema:**
+```typescript
+interface WorstCaseScenario {
+  rank: 1 | 2 | 3;
+  title: string;           // "Reentrancy Attack on Vault"
+  attack_description: string;  // How attacker exploits
+  impact: string;          // "100% fund drainage"
+  likelihood: 'High' | 'Medium' | 'Low';
+  related_findings: string[];  // ["VULN-001", "VULN-003"]
+}
+```
+
+**Example:**
+```json
+{
+  "rank": 1,
+  "title": "Reentrancy Attack on Vault",
+  "attack_description": "Attacker deploys malicious contract that calls withdraw() recursively before balance update, draining all funds.",
+  "impact": "Complete loss of user funds (~$2M TVL at risk)",
+  "likelihood": "High",
+  "related_findings": ["VULN-001"]
+}
+```
+
+#### 11.3.2 Threat Model Summary
+
+**Purpose:** High-level threat landscape overview.
+
+**Schema:**
+```typescript
+interface ThreatModelSummary {
+  threat_actors: ThreatActor[];
+  attack_vectors: string[];
+  assets_at_risk: string[];
+  trust_assumptions: string[];
+}
+
+interface ThreatActor {
+  type: 'external_attacker' | 'malicious_insider' | 'compromised_admin' | 'mev_bot';
+  capability: string;
+  motivation: string;
+}
+```
+
+**Example:**
+```json
+{
+  "threat_actors": [
+    {
+      "type": "external_attacker",
+      "capability": "Smart contract deployment, flash loan access",
+      "motivation": "Financial gain"
+    },
+    {
+      "type": "mev_bot",
+      "capability": "Transaction ordering, sandwich attacks",
+      "motivation": "MEV extraction"
+    }
+  ],
+  "attack_vectors": ["Reentrancy", "Flash Loans", "Front-running", "Price Manipulation"],
+  "assets_at_risk": ["User deposits", "Protocol reserves", "Governance tokens"],
+  "trust_assumptions": ["Admin keys are secure", "Oracles are reliable"]
+}
+```
+
+#### 11.3.3 Attack Surface Overview
+
+**Purpose:** Quantified entry points and risk areas.
+
+**Schema:**
+```typescript
+interface AttackSurfaceOverview {
+  external_entry_points: {
+    count: number;
+    functions: string[];
+  };
+  privileged_functions: {
+    count: number;
+    functions: string[];
+    roles: string[];
+  };
+  external_calls: {
+    count: number;
+    targets: string[];
+  };
+  state_modifying_functions: number;
+  payable_functions: number;
+}
+```
+
+**Example:**
+```json
+{
+  "external_entry_points": {
+    "count": 15,
+    "functions": ["deposit()", "withdraw()", "swap()", "stake()", "unstake()"]
+  },
+  "privileged_functions": {
+    "count": 8,
+    "functions": ["setFee()", "pause()", "upgrade()", "withdrawFees()"],
+    "roles": ["owner", "admin", "operator"]
+  },
+  "external_calls": {
+    "count": 12,
+    "targets": ["IERC20", "IUniswapV2Router", "IChainlinkOracle"]
+  },
+  "state_modifying_functions": 23,
+  "payable_functions": 4
+}
+```
+
+---
+
+### 11.4 AI Prompts for PAGE 1 & PAGE 2 Data Generation
+
+#### 11.4.1 Deployment Verdict Prompt
+
+**Location:** `.claude/prompts/deployment-verdict.md`
+
+```markdown
+# Deployment Verdict Analysis
+
+You are a security auditor providing a deployment recommendation.
+
+## Input
+- Security Score: {{score}}
+- Severity Counts: {{severity}}
+- Critical Findings: {{critical_findings}}
+- High Findings: {{high_findings}}
+
+## Task
+Determine the deployment verdict based on these rules:
+
+1. **BLOCKED** if ANY of:
+   - Score < 60
+   - Critical findings > 0
+   - High findings > 2
+
+2. **PRODUCTION_READY** if ALL of:
+   - Score >= 85
+   - Critical findings = 0
+   - High findings = 0
+
+3. **CONDITIONALLY_READY** otherwise
+
+## Output Format
+```json
+{
+  "verdict": "PRODUCTION_READY" | "CONDITIONALLY_READY" | "BLOCKED",
+  "reasoning": "Brief explanation of verdict",
+  "conditions": ["List of conditions to meet before deployment"] // only for CONDITIONALLY_READY
+}
+```
+```
+
+#### 11.4.2 Risk Badges Prompt
+
+**Location:** `.claude/prompts/risk-badges.md`
+
+```markdown
+# Risk Badge Classification
+
+You are analyzing security findings to classify risk categories.
+
+## Input
+- Findings: {{findings}}
+
+## Task
+For each finding, determine which risk badges apply:
+
+| Badge | Keywords to Match |
+|-------|-------------------|
+| reentrancy_risk | "reentrancy", "reentrant", "callback", "external call before state" |
+| oracle_risk | "oracle", "price feed", "price manipulation", "TWAP" |
+| access_control_risk | "access control", "unauthorized", "permission", "onlyOwner missing" |
+| upgrade_risk | "proxy", "upgrade", "delegatecall", "implementation" |
+| flash_loan_risk | "flash loan", "flashloan", "atomic arbitrage" |
+| dos_risk | "denial of service", "DoS", "gas limit", "unbounded loop" |
+| frontrun_risk | "frontrun", "front-run", "MEV", "sandwich" |
+| centralization_risk | "centralization", "single point", "admin key", "owner privilege" |
+
+## Output Format
+```json
+{
+  "reentrancy_risk": true,
+  "oracle_risk": false,
+  "access_control_risk": true,
+  "upgrade_risk": false,
+  "flash_loan_risk": false,
+  "dos_risk": false,
+  "frontrun_risk": true,
+  "centralization_risk": true
+}
+```
+```
+
+#### 11.4.3 Worst-Case Scenarios Prompt
+
+**Location:** `.claude/prompts/worst-case-scenarios.md`
+
+```markdown
+# Worst-Case Scenario Analysis
+
+You are a security researcher identifying the most impactful attack scenarios.
+
+## Input
+- Findings: {{findings}}
+- Contract Architecture: {{architecture}}
+- TVL/Value at Risk: {{tvl}} (if known)
+
+## Task
+Identify the TOP 3 worst-case scenarios based on:
+1. **Impact** - Financial loss, reputation damage, protocol failure
+2. **Likelihood** - How easy is it to exploit?
+3. **Scope** - How many users/funds affected?
+
+For each scenario:
+1. Describe the attack step-by-step
+2. Quantify the impact
+3. Link to specific findings
+
+## Chain-of-Thought Required
+Before outputting, reason through:
+- Which findings have the highest impact?
+- Can multiple findings be chained together?
+- What's the realistic attacker profile?
+
+## Output Format
+```json
+{
+  "worst_case_scenarios": [
+    {
+      "rank": 1,
+      "title": "Attack Name",
+      "attack_description": "Step-by-step attack description",
+      "impact": "Quantified impact (e.g., '100% fund loss')",
+      "likelihood": "High" | "Medium" | "Low",
+      "related_findings": ["VULN-001", "VULN-002"]
+    }
+  ]
+}
+```
+```
+
+#### 11.4.4 Threat Model Summary Prompt
+
+**Location:** `.claude/prompts/threat-model.md`
+
+```markdown
+# Threat Model Analysis
+
+You are building a threat model for the audited smart contracts.
+
+## Input
+- Codebase: {{codebase_summary}}
+- Findings: {{findings}}
+- Architecture: {{architecture}}
+
+## Task
+Analyze and identify:
+
+### 1. Threat Actors
+Who might attack this system?
+- External Attacker (anonymous, has capital)
+- Malicious Insider (has internal access)
+- Compromised Admin (stolen keys)
+- MEV Bot (automated extraction)
+- Competitor (economic warfare)
+
+### 2. Attack Vectors
+What techniques could be used?
+- Reentrancy, Flash Loans, Frontrunning
+- Oracle Manipulation, Governance Attacks
+- Social Engineering, Key Compromise
+
+### 3. Assets at Risk
+What can be stolen/damaged?
+- User funds, Protocol reserves
+- Governance tokens, NFTs
+- Reputation, Protocol functionality
+
+### 4. Trust Assumptions
+What must remain true for security?
+- Admin keys secure
+- Oracles reliable
+- External contracts safe
+
+## Output Format
+```json
+{
+  "threat_actors": [
+    {
+      "type": "external_attacker",
+      "capability": "Description of capabilities",
+      "motivation": "Why they would attack"
+    }
+  ],
+  "attack_vectors": ["Vector1", "Vector2"],
+  "assets_at_risk": ["Asset1", "Asset2"],
+  "trust_assumptions": ["Assumption1", "Assumption2"]
+}
+```
+```
+
+#### 11.4.5 Attack Surface Overview Prompt
+
+**Location:** `.claude/prompts/attack-surface.md`
+
+```markdown
+# Attack Surface Analysis
+
+You are mapping the attack surface of smart contracts.
+
+## Input
+- Contract Files: {{contract_files}}
+- Function Signatures: {{functions}}
+- Inheritance Tree: {{inheritance}}
+
+## Task
+Identify and categorize:
+
+### 1. External Entry Points
+All `public` and `external` functions that can be called by anyone.
+
+### 2. Privileged Functions
+Functions with access control (onlyOwner, onlyAdmin, etc.)
+- List the function
+- List the required role
+
+### 3. External Calls
+All calls to external contracts (potential callback points).
+- Target contract/interface
+- Function called
+- Risk level
+
+### 4. Counts
+- Total state-modifying functions
+- Total payable functions
+- Total view/pure functions
+
+## Output Format
+```json
+{
+  "external_entry_points": {
+    "count": 15,
+    "functions": ["deposit(uint256)", "withdraw(uint256)"]
+  },
+  "privileged_functions": {
+    "count": 8,
+    "functions": ["setFee(uint256)", "pause()"],
+    "roles": ["owner", "admin"]
+  },
+  "external_calls": {
+    "count": 12,
+    "targets": ["IERC20", "IOracle"]
+  },
+  "state_modifying_functions": 23,
+  "payable_functions": 4
+}
+```
+```
+
+---
+
+### 11.5 Unified JSON Schema for Report Data
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UatuAudit Unified Report Schema v2.0",
+  "type": "object",
+  "properties": {
+    "meta": {
+      "type": "object",
+      "properties": {
+        "project": { "type": "string" },
+        "branch": { "type": "string" },
+        "commit": { "type": "string" },
+        "run": { "type": "string", "format": "date-time" },
+        "contracts_analyzed": { "type": "number" },
+        "lines_analyzed": { "type": "number" }
+      }
+    },
+    "page1_certificate": {
+      "type": "object",
+      "properties": {
+        "deployment_verdict": {
+          "type": "object",
+          "properties": {
+            "verdict": { "enum": ["PRODUCTION_READY", "CONDITIONALLY_READY", "BLOCKED"] },
+            "reasoning": { "type": "string" },
+            "conditions": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "grade": { "enum": ["A", "B", "C", "D", "F"] },
+        "risk_badges": {
+          "type": "object",
+          "properties": {
+            "reentrancy_risk": { "type": "boolean" },
+            "oracle_risk": { "type": "boolean" },
+            "access_control_risk": { "type": "boolean" },
+            "upgrade_risk": { "type": "boolean" },
+            "flash_loan_risk": { "type": "boolean" },
+            "dos_risk": { "type": "boolean" },
+            "frontrun_risk": { "type": "boolean" },
+            "centralization_risk": { "type": "boolean" }
+          }
+        },
+        "severity": {
+          "type": "object",
+          "properties": {
+            "critical": { "type": "number" },
+            "high": { "type": "number" },
+            "medium": { "type": "number" },
+            "low": { "type": "number" },
+            "info": { "type": "number" }
+          }
+        }
+      }
+    },
+    "page2_risk_narrative": {
+      "type": "object",
+      "properties": {
+        "worst_case_scenarios": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "properties": {
+              "rank": { "type": "number" },
+              "title": { "type": "string" },
+              "attack_description": { "type": "string" },
+              "impact": { "type": "string" },
+              "likelihood": { "enum": ["High", "Medium", "Low"] },
+              "related_findings": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "threat_model": {
+          "type": "object",
+          "properties": {
+            "threat_actors": { "type": "array" },
+            "attack_vectors": { "type": "array", "items": { "type": "string" } },
+            "assets_at_risk": { "type": "array", "items": { "type": "string" } },
+            "trust_assumptions": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "attack_surface": {
+          "type": "object",
+          "properties": {
+            "external_entry_points": { "type": "object" },
+            "privileged_functions": { "type": "object" },
+            "external_calls": { "type": "object" },
+            "state_modifying_functions": { "type": "number" },
+            "payable_functions": { "type": "number" }
+          }
+        }
+      }
+    },
+    "findings": { "type": "array" },
+    "user_flows": { "type": "array" },
+    "contracts_explained": { "type": "array" },
+    "test_results": { "type": "array" },
+    "improve": { "type": ["array", "object"] }
+  }
+}
+```
+
+---
+
+### 11.6 Files to Modify
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/templates/certificate-template.html` | **DELETE** | Merge into unified template |
+| `src/templates/report-template.html` | **REDESIGN** | Add PAGE 1 + PAGE 2 sections |
+| `src/types.ts` | **UPDATE** | Add new interfaces for verdict, badges, scenarios |
+| `src/services/report/simpleReportGenerator.ts` | **UPDATE** | Generate PAGE 1 + PAGE 2 data |
+| `src/sops/singlePromptAudit.ts` | **UPDATE** | Include PAGE 1/PAGE 2 prompts |
+| `.claude/prompts/` | **CREATE** | New prompt files for PAGE 1/PAGE 2 |
+
+---
+
+### 11.7 Implementation Priority
+
+| Phase | Task | Effort |
+|-------|------|--------|
+| 1 | Add types to `src/types.ts` | Low |
+| 2 | Create prompt files in `.claude/prompts/` | Low |
+| 3 | Update `singlePromptAudit.ts` to generate PAGE 1/PAGE 2 data | Medium |
+| 4 | Redesign `report-template.html` with new sections | Medium |
+| 5 | Update `simpleReportGenerator.ts` | Low |
+| 6 | Delete `certificate-template.html` | Low |
+| 7 | Test and validate | Medium |
+
+---
+
 ## Document History
 
 | Version | Date | Author | Changes |
@@ -1878,6 +2591,7 @@ PHASE 6 (NEW - Hardening):
 | 1.0 | 2025-12-09 | UatuAudit Team | Initial proposal |
 | 1.1 | 2025-12-09 | UatuAudit Team | Added Frontend Architecture (Section 6) |
 | 1.2 | 2025-12-09 | UatuAudit Team | Added Critical Analysis, Flaws, Gaps & Suggestions (Section 10) |
+| 1.3 | 2025-12-18 | UatuAudit Team | Added Report UI Redesign Specification (Section 11) |
 
 ---
 

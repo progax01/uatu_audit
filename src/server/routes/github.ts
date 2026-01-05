@@ -29,8 +29,17 @@ export async function handleGitHubRoutes(
     const r = await fetch(base, {
       headers: { Authorization: `Bearer ${token}`, "User-Agent": "UatuAudit" },
     });
-    const list = (await r.json()) as any[];
-    const slim = list.map((r) => ({
+    const list: any = await r.json();
+
+    // Handle GitHub API error responses
+    if (!Array.isArray(list)) {
+      res.statusCode = r.status >= 400 ? r.status : 400;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: list?.message || "Failed to fetch repos" }));
+      return true;
+    }
+
+    const slim = list.map((r: any) => ({
       id: r.id,
       full_name: r.full_name,
       default_branch: r.default_branch,
