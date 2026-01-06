@@ -40,6 +40,9 @@ export interface ProjectData {
   description?: string;
   type: ProjectType;
   components: SourceComponentUI[];
+  ecosystems?: string[];
+  testStyles?: string[];
+  selectedFiles?: string[];
 }
 
 export interface SourceComponentUI {
@@ -79,16 +82,13 @@ import DashboardLayout from './components/DashboardLayout';
 function App() {
   const [isAuthed, setIsAuthed] = useState<boolean>(false);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
-  const [repoData, setRepoData] = useState({
-    repo: '',
-    branch: '',
-    project: '',
-    ecosystems: [] as string[],
-    testStyles: ['behavioral', 'stride'] as string[],
-    selectedFiles: [] as string[],
-  });
   const [jobId, setJobId] = useState<number | undefined>();
-  const [projectData, setProjectData] = useState<ProjectData | null>(null);
+  const [projectData, setProjectData] = useState<ProjectData>({
+    name: '',
+    type: 'full',
+    components: [],
+    testStyles: ['behavioral', 'stride']
+  });
 
   // Check auth status on load
   useEffect(() => {
@@ -171,38 +171,41 @@ function App() {
                   <Route path="/connect" element={
                     <ConnectSource
                       onNext={() => window.location.href = '/configure'}
-                      onHomeClick={() => window.location.href = '/'}
-                      repoData={repoData}
-                      setRepoData={setRepoData}
+                      projectData={projectData}
+                      setProjectData={setProjectData}
                     />
                   } />
                   <Route path="/configure" element={
                     <ConfigureAudit
                       onNext={() => window.location.href = '/review'}
                       onBack={() => window.location.href = '/connect'}
-                      onHomeClick={() => window.location.href = '/'}
-                      repoData={repoData}
-                      setRepoData={setRepoData}
+                      projectData={projectData}
+                      setProjectData={setProjectData}
                     />
                   } />
                   <Route path="/review" element={
                     <ReviewAndRun
                       onBack={() => window.location.href = '/configure'}
-                      onHomeClick={() => window.location.href = '/'}
-                      repoData={repoData}
+                      projectData={projectData}
                       initialJobId={jobId}
                     />
                   } />
                   <Route path="/scan" element={
                     <ScanContract
                       onBack={() => window.location.href = '/'}
-                      onHomeClick={() => window.location.href = '/'}
+                      projectData={projectData}
+                      setProjectData={setProjectData}
                       onStartAudit={(data) => {
-                        setRepoData(prev => ({
+                        setProjectData(prev => ({
                           ...prev,
-                          project: data.project,
-                          branch: data.branch,
-                          repo: `scan://${data.project}`,
+                          name: data.project,
+                          components: [{
+                            id: 'temp-scan',
+                            type: 'deployed-contract',
+                            displayName: data.project,
+                            status: 'synced',
+                            config: { address: data.project, branch: data.branch }
+                          }]
                         }));
                         setJobId(data.jobId);
                         window.location.href = `/audit/${data.jobId}`;
@@ -231,13 +234,10 @@ function App() {
                       projectName={projectData?.name || ''}
                       projectType={projectData?.type || 'full'}
                       onNext={(components) => {
-                        if (projectData) {
-                          setProjectData({ ...projectData, components });
-                        }
+                        setProjectData(prev => ({ ...prev, components }));
                         window.location.href = '/configure';
                       }}
                       onBack={() => window.location.href = '/create-project'}
-                      onHomeClick={() => window.location.href = '/'}
                       onStartAudit={(jId) => {
                         setJobId(jId);
                         window.location.href = `/preaudit-questionnaire/${jId}`;
@@ -247,7 +247,7 @@ function App() {
                   <Route path="/preaudit-questionnaire/:jobId" element={
                     <PreAuditQuestionnaire
                       jobId={jobId}
-                      projectName={projectData?.name || repoData.project}
+                      projectName={projectData?.name || 'Untitled Project'}
                       onComplete={() => window.location.href = `/audit/${jobId}`}
                       onSkip={() => window.location.href = `/audit/${jobId}`}
                       onBack={() => window.location.href = '/dashboard'}

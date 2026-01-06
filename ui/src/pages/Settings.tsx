@@ -30,7 +30,7 @@ export default function Settings() {
         </button>
       </div>
 
-      <div className="flex gap-12">
+      <div className="flex gap-20">
         {/* Local Tab Nav */}
         <div className="w-64 shrink-0 space-y-2">
           {[

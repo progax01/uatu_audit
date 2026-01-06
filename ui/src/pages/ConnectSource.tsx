@@ -1,16 +1,12 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle2, RefreshCw, ChevronRight } from 'lucide-react'
-import logo from '../assets/logo.svg'
+import { CheckCircle, RefreshCw, ChevronRight } from 'lucide-react'
+
+import type { ProjectData } from '../App'
 
 interface ConnectSourceProps {
   onNext: () => void
-  onHomeClick: () => void
-  repoData: {
-    repo: string
-    branch: string
-    project: string
-  }
-  setRepoData: (data: any) => void
+  projectData: ProjectData
+  setProjectData: React.Dispatch<React.SetStateAction<ProjectData>>
 }
 
 interface Repository {
@@ -26,14 +22,13 @@ interface Branch {
   protected: boolean
 }
 
-export default function ConnectSource({ onNext, onHomeClick, repoData, setRepoData }: ConnectSourceProps) {
+export default function ConnectSource({ onNext, projectData, setProjectData }: ConnectSourceProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [repositories, setRepositories] = useState<Repository[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null)
   const [loading, setLoading] = useState(false)
-  const [currentStep, setCurrentStep] = useState(1)
 
   useEffect(() => {
     checkAuth()
@@ -89,44 +84,44 @@ export default function ConnectSource({ onNext, onHomeClick, repoData, setRepoDa
     const repo = repositories.find(r => r.full_name === e.target.value)
     if (repo) {
       setSelectedRepo(repo)
-      setRepoData({ ...repoData, repo: repo.clone_url, project: repo.full_name.split('/')[1] })
+      setProjectData(prev => ({
+        ...prev,
+        name: prev.name || repo.full_name.split('/')[1],
+        components: [{
+          id: 'main-github',
+          type: 'github-repo',
+          displayName: repo.full_name,
+          status: 'synced',
+          config: { fullName: repo.full_name, currentBranch: repo.default_branch }
+        }]
+      }))
       fetchBranches(repo.full_name)
     }
   }
 
   const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setRepoData({ ...repoData, branch: e.target.value })
+    const branch = e.target.value
+    setProjectData(prev => ({
+      ...prev,
+      components: prev.components.map(c =>
+        c.type === 'github-repo' ? { ...c, config: { ...c.config, currentBranch: branch } } : c
+      )
+    }))
   }
 
-  const canProceed = repoData.repo && repoData.branch && repoData.project
+  const githubComp = projectData.components.find(c => c.type === 'github-repo')
+  const canProceed = projectData.name && githubComp?.config?.fullName && githubComp?.config?.currentBranch
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white relative overflow-hidden">
-      {/* Tech Grid Background */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
-        <div
-          className="w-full h-full"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(15, 63, 98, 0.03) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(15, 63, 98, 0.03) 1px, transparent 1px)
-            `,
-            backgroundSize: '50px 50px'
-          }}
-        />
-      </div>
-
-      {/* Header */}
-      <header className="relative z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button
-            onClick={onHomeClick}
-            className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0"
-          >
-            <img src={logo} alt="Uatu Logo" className="h-10" />
-          </button>
+    <div className="max-w-7xl mx-auto">
+      {/* Step Indicator */}
+      <nav className="flex items-center gap-3 mb-10">
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+          <span className="text-indigo-600">01 Connect Source</span>
+          <ChevronRight size={12} className="text-slate-200" />
+          <span className="text-slate-300">02 Configure</span>
         </div>
-      </header>
+      </nav>
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-12">
         {/* Step Progress Indicator */}
@@ -184,7 +179,7 @@ export default function ConnectSource({ onNext, onHomeClick, repoData, setRepoDa
               ) : (
                 <div className="border-2 border-green-200 bg-green-50 rounded-lg px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    <CheckCircle className="w-5 h-5 text-green-600" />
                     <span className="text-gray-700 font-medium">
                       Connected as: {user?.login || 'your-github-username'}
                     </span>
@@ -223,15 +218,13 @@ export default function ConnectSource({ onNext, onHomeClick, repoData, setRepoDa
                     <div className="space-y-3">
                       <div className="flex gap-3">
                         <select
-                          className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-700 focus:outline-none focus:border-[#0F3F62] focus:ring-2 focus:ring-[#0F3F62]/20 transition-all cursor-pointer appearance-none disabled:opacity-50"
-                          value={repoData.branch}
+                          value={githubComp?.config?.currentBranch || ''}
                           onChange={handleBranchChange}
-                          disabled={!selectedRepo || loading}
+                          disabled={!selectedRepo}
+                          className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-700 focus:outline-none focus:border-[#0F3F62] focus:ring-2 focus:ring-[#0F3F62]/20 transition-all cursor-pointer appearance-none disabled:opacity-50"
                         >
-                          <option value="" className="bg-white text-gray-400">
-                            {selectedRepo ? 'Select branch...' : 'main'}
-                          </option>
-                          {branches.map((branch) => (
+                          <option value="" className="bg-white text-gray-400">Select branch...</option>
+                          {branches.map(branch => (
                             <option key={branch.name} value={branch.name} className="bg-white text-gray-700">
                               {branch.name}
                             </option>

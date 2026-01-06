@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuditProgress } from '../hooks/useAuditProgress'
-import { Check, ChevronLeft, Play, FileText, Download, Loader2, XCircle, Search, RefreshCw } from 'lucide-react'
-import logo from '../assets/logo.svg'
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Play, FileText, Download, XCircle, RefreshCw } from 'lucide-react'
+
+import { ProjectData } from '../App'
 
 interface ReviewAndRunProps {
   onBack: () => void
-  onHomeClick: () => void
-  repoData: any
+  projectData: ProjectData
   initialJobId?: number
 }
 
-export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJobId }: ReviewAndRunProps) {
+export default function ReviewAndRun({ onBack, projectData, initialJobId }: ReviewAndRunProps) {
   const [isRunning, setIsRunning] = useState(!!initialJobId)
   const [hasStarted, setHasStarted] = useState(!!initialJobId)
   const [activeTab, setActiveTab] = useState<'progress' | 'certificate'>('progress')
@@ -29,8 +29,8 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
   const lastDiffRef = useRef<number>(0)
 
   const { progress, logs, jobLogs, isComplete, error, resetProgress } = useAuditProgress(
-    repoData.project,
-    repoData.branch,
+    projectData.name,
+    projectData.components[0]?.config?.currentBranch || 'main',
     hasStarted,
     jobId
   )
@@ -110,20 +110,19 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
     lastDiffRef.current = 0
 
     try {
-      const body = {
-        repo: repoData.repo,
-        project: repoData.project,
-        branch: repoData.branch,
-        ai: true,
-        hintEcosystems: repoData.ecosystems || [],
-        testStyles: repoData.testStyles || ['behavioral', 'stride'],
-        selectedFiles: repoData.selectedFiles || [],
-      }
-
-      const res = await fetch('/enqueue', {
+      const res = await fetch('/api/audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          project: projectData.name,
+          repo: projectData.components.find(c => c.type === 'github-repo')?.config?.fullName || '',
+          branch: projectData.components.find(c => c.type === 'github-repo')?.config?.currentBranch || 'main',
+          ecosystems: projectData.ecosystems || [],
+          testStyles: projectData.testStyles || ['behavioral', 'stride'],
+          selectedFiles: projectData.selectedFiles || [],
+          components: projectData.components,
+          ai: true, // Assuming AI is always true for this flow
+        }),
         credentials: 'include', // Ensure cookies are sent
       })
 
@@ -164,12 +163,12 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
   const handleViewReport = (format: 'html' | 'pdf') => {
     // Include run timestamp for specific run access
     const runParam = progress?.timestamp ? `&run=${encodeURIComponent(progress.timestamp)}` : ''
-    const url = `/report?project=${encodeURIComponent(repoData.project)}&branch=${encodeURIComponent(repoData.branch)}${runParam}&format=${format}`
+    const url = `/report?project=${encodeURIComponent(projectData.name)}&branch=${encodeURIComponent(projectData.components[0]?.config?.currentBranch || 'main')}${runParam}&format=${format}`
     if (format === 'pdf') {
       // Download PDF directly
       const link = document.createElement('a')
       link.href = url
-      link.download = `${repoData.project}-${repoData.branch}-audit.pdf`
+      link.download = `${projectData.name}-${projectData.components[0]?.config?.currentBranch || 'main'}-audit.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -182,8 +181,7 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
     if (!jobId || isCancelling) return
 
     console.log(`[Cancel Audit] Initiating cancel for job ${jobId}`, {
-      project: repoData.project,
-      branch: repoData.branch,
+      project: projectData.name,
       timestamp: new Date().toISOString()
     })
 
@@ -323,32 +321,25 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
   const overallProgress = progress?.overall_pct || 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white relative overflow-hidden">
-      {/* Tech Grid Background */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
-        <div
-          className="w-full h-full"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(15, 63, 98, 0.03) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(15, 63, 98, 0.03) 1px, transparent 1px)
-            `,
-            backgroundSize: '50px 50px'
-          }}
-        />
-      </div>
-
-      {/* Header */}
-      <header className="relative z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button
-            onClick={onHomeClick}
-            className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0"
-          >
-            <img src={logo} alt="Uatu Logo" className="h-10" />
-          </button>
+    <div className="max-w-7xl mx-auto">
+      {/* Step Indicator */}
+      <nav className="flex items-center gap-3 mb-12">
+        <button
+          onClick={onBack}
+          className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition-colors"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+          <span className="text-slate-300">01 Identity</span>
+          <ChevronRight size={12} className="text-slate-200" />
+          <span className="text-slate-300">02 Sources</span>
+          <ChevronRight size={12} className="text-slate-200" />
+          <span className="text-slate-300">03 Configuration</span>
+          <ChevronRight size={12} className="text-slate-200" />
+          <span className="text-indigo-600">04 Review & Deployment</span>
         </div>
-      </header>
+      </nav>
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-12">
         {/* Step Progress Indicator */}
@@ -390,9 +381,12 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
 
           <div className="relative border border-gray-200 bg-white backdrop-blur-xl rounded-2xl p-6 sm:p-12 shadow-xl">
             {/* Main Heading */}
-            <h1 className="text-2xl sm:text-5xl font-bold text-[#0F3F62] mb-6 sm:mb-12 tracking-tight">
-              Review & Run Audit
+            <h1 className="text-4xl font-black text-slate-900 mb-2 tracking-tight">
+              Deployment Review
             </h1>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-12">
+              Phase 04: Final validation prior to engine execution
+            </p>
 
             {/* Configuration Summary */}
             <div className="mb-10">
@@ -405,20 +399,20 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-gray-500">Project:</span>
-                      <span className="text-gray-800 ml-2 font-medium">{repoData.project}</span>
+                      <span className="text-gray-800 ml-2 font-medium">{projectData.name}</span>
                     </div>
-                    {repoData.repo?.startsWith('scan://') ? (
+                    {projectData.components.some(c => c.type === 'deployed-contract') ? (
                       <>
                         <div>
                           <span className="text-gray-500">Network:</span>
                           <span className="text-gray-800 ml-2 font-medium capitalize">
-                            {repoData.repo.replace('scan://', '').split('/')[0]}
+                            {projectData.components.find(c => c.type === 'deployed-contract')?.config?.network || 'N/A'}
                           </span>
                         </div>
                         <div className="col-span-2">
                           <span className="text-gray-500">Contract:</span>
                           <span className="text-gray-800 ml-2 font-medium break-all">
-                            {repoData.repo.replace('scan://', '').split('/')[1]}
+                            {projectData.components.find(c => c.type === 'deployed-contract')?.config?.address || 'N/A'}
                           </span>
                         </div>
                       </>
@@ -426,11 +420,11 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
                       <>
                         <div>
                           <span className="text-gray-500">Branch:</span>
-                          <span className="text-gray-800 ml-2 font-medium">{repoData.branch}</span>
+                          <span className="text-slate-900 font-black tracking-tight">{projectData.components[0]?.config?.currentBranch || 'main'}</span>
                         </div>
                         <div className="col-span-2">
                           <span className="text-gray-500">Repository:</span>
-                          <span className="text-gray-800 ml-2 font-medium break-all">{repoData.repo}</span>
+                          <span className="text-gray-800 ml-2 font-medium break-all">{projectData.components[0]?.config?.fullName || ''}</span>
                         </div>
                       </>
                     )}
@@ -441,8 +435,8 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
                 <div className="p-6 bg-gray-50 rounded-xl border border-gray-200">
                   <h3 className="text-[#0F3F62] font-semibold text-lg mb-4">Ecosystems</h3>
                   <div className="flex flex-wrap gap-2">
-                    {repoData.ecosystems && repoData.ecosystems.length > 0 ? (
-                      repoData.ecosystems.map((eco: string) => (
+                    {projectData.ecosystems && projectData.ecosystems.length > 0 ? (
+                      projectData.ecosystems.map((eco: string) => (
                         <span key={eco} className="px-4 py-2 bg-[#0F3F62]/10 border border-[#0F3F62]/30 rounded-lg text-[#0F3F62] text-sm">
                           {eco}
                         </span>
@@ -457,8 +451,8 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
                 <div className="p-6 bg-gray-50 rounded-xl border border-gray-200">
                   <h3 className="text-[#0F3F62] font-semibold text-lg mb-4">Test Generation Strategy</h3>
                   <div className="flex flex-wrap gap-2">
-                    {repoData.testStyles && repoData.testStyles.length > 0 ? (
-                      repoData.testStyles.map((style: string) => (
+                    {projectData.testStyles && projectData.testStyles.length > 0 ? (
+                      projectData.testStyles.map((style: string) => (
                         <span key={style} className="px-4 py-2 bg-[#0F3F62]/10 border border-[#0F3F62]/30 rounded-lg text-[#0F3F62] text-sm">
                           {style}
                         </span>
@@ -473,14 +467,14 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
                 <div className="p-6 bg-gray-50 rounded-xl border border-gray-200">
                   <h3 className="text-[#0F3F62] font-semibold text-lg mb-4">
                     Files to Audit
-                    {repoData.selectedFiles && repoData.selectedFiles.length > 0 && (
-                      <span className="ml-2 text-sm text-gray-500">({repoData.selectedFiles.length} files)</span>
+                    {projectData.selectedFiles && projectData.selectedFiles.length > 0 && (
+                      <span className="ml-2 text-sm text-gray-500">({projectData.selectedFiles.length} files)</span>
                     )}
                   </h3>
                   <div className="max-h-[200px] overflow-y-auto">
-                    {repoData.selectedFiles && repoData.selectedFiles.length > 0 ? (
+                    {projectData.selectedFiles && projectData.selectedFiles.length > 0 ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {repoData.selectedFiles.map((file: string) => (
+                        {projectData.selectedFiles?.map((file: string) => (
                           <div key={file} className="flex items-center gap-2 text-sm">
                             <span className="text-[#0F3F62]">📄</span>
                             <span className="text-gray-600 truncate" title={file}>{file}</span>
@@ -545,22 +539,20 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
                   <div className="flex gap-4">
                     <button
                       onClick={() => setActiveTab('progress')}
-                      className={`px-6 py-3 font-semibold transition-all ${
-                        activeTab === 'progress'
-                          ? 'text-[#0F3F62] border-b-2 border-[#0F3F62]'
-                          : 'text-gray-400 hover:text-gray-600'
-                      }`}
+                      className={`px-6 py-3 font-semibold transition-all ${activeTab === 'progress'
+                        ? 'text-[#0F3F62] border-b-2 border-[#0F3F62]'
+                        : 'text-gray-400 hover:text-gray-600'
+                        }`}
                     >
                       Progress
                     </button>
                     {isComplete && !error && (
                       <button
                         onClick={() => setActiveTab('certificate')}
-                        className={`px-6 py-3 font-semibold transition-all flex items-center gap-2 ${
-                          activeTab === 'certificate'
-                            ? 'text-[#0F3F62] border-b-2 border-[#0F3F62]'
-                            : 'text-gray-400 hover:text-gray-600'
-                        }`}
+                        className={`px-6 py-3 font-semibold transition-all flex items-center gap-2 ${activeTab === 'certificate'
+                          ? 'text-[#0F3F62] border-b-2 border-[#0F3F62]'
+                          : 'text-gray-400 hover:text-gray-600'
+                          }`}
                       >
                         Certificate
                         <span className="text-yellow-500">✨</span>
@@ -572,11 +564,10 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
                     <button
                       onClick={handleCancelAudit}
                       disabled={isCancelling}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                        isCancelling
-                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                          : 'bg-red-50 text-red-600 border border-red-300 hover:bg-red-100'
-                      }`}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isCancelling
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-red-50 text-red-600 border border-red-300 hover:bg-red-100'
+                        }`}
                     >
                       <XCircle className="w-4 h-4" />
                       {isCancelling ? 'Cancelling...' : 'Cancel Audit'}
@@ -682,7 +673,7 @@ export default function ReviewAndRun({ onBack, onHomeClick, repoData, initialJob
                 {activeTab === 'certificate' && (
                   <div className="relative">
                     <iframe
-                      src={`/certificate?project=${encodeURIComponent(repoData.project)}&branch=${encodeURIComponent(repoData.branch)}${progress?.timestamp ? `&run=${encodeURIComponent(progress.timestamp)}` : ''}`}
+                      src={`/certificate?project=${encodeURIComponent(projectData.name)}&branch=${encodeURIComponent(projectData.components[0]?.config?.currentBranch || 'main')}${progress?.timestamp ? `&run=${encodeURIComponent(progress.timestamp)}` : ''}`}
                       className="w-full h-[800px] rounded-xl border border-gray-200 bg-white shadow-lg"
                       title="Audit Certificate"
                     />

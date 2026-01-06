@@ -1,19 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { ArrowLeft, ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle, Sparkles, Shield } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import logo from '../assets/logo.svg'
-import MouseTooltip from '../components/MouseTooltip'
+
+import type { ProjectData } from '../App'
 
 interface ScanContractProps {
   onBack: () => void
-  onHomeClick: () => void
   onStartAudit: (data: { project: string; branch: string; jobId: number }) => void
+  projectData: ProjectData
+  setProjectData: React.Dispatch<React.SetStateAction<ProjectData>>
 }
 
 type ScanMode = 'quick' | 'full'
 type Network = 'arbitrum' | 'ethereum' | 'polygon' | 'base' | 'bnb' | 'optimism'
 type ValidationStatus = 'idle' | 'validating' | 'valid' | 'invalid' | 'error'
-type FetchStatus = 'idle' | 'fetching' | 'fetched' | 'error'
 
 const networks: { id: Network; name: string; shortName: string; color: string }[] = [
   { id: 'arbitrum', name: 'Arbitrum', shortName: 'ARB', color: '#28A0F0' },
@@ -45,12 +45,11 @@ interface FetchedSource {
   cached: boolean
 }
 
-export default function ScanContract({ onBack, onHomeClick, onStartAudit }: ScanContractProps) {
+export default function ScanContract({ onBack, onStartAudit, projectData: _projectData, setProjectData: _setProjectData }: ScanContractProps) {
   const [scanMode, setScanMode] = useState<ScanMode>('quick')
   const [selectedNetwork, setSelectedNetwork] = useState<Network>('arbitrum')
   const [contractAddress, setContractAddress] = useState('')
   const [validationStatus, setValidationStatus] = useState<ValidationStatus>('idle')
-  const [fetchStatus, setFetchStatus] = useState<FetchStatus>('idle')
   const [contractInfo, setContractInfo] = useState<ContractInfo | null>(null)
   const [fetchedSource, setFetchedSource] = useState<FetchedSource | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -68,7 +67,6 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
     abortControllerRef.current = new AbortController()
 
     setValidationStatus('validating')
-    setFetchStatus('idle')
     setContractInfo(null)
     setFetchedSource(null)
     setError(null)
@@ -123,7 +121,6 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
       })
 
       setValidationStatus('valid')
-      setFetchStatus('fetched')
     } catch (err: any) {
       if (err.name === 'AbortError') {
         return
@@ -140,15 +137,12 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
     }
     if (!address) {
       setValidationStatus('idle')
-      setFetchStatus('idle')
       setContractInfo(null)
-      setFetchedSource(null)
       setError(null)
       return
     }
     if (!isValidAddressFormat(address)) {
       setValidationStatus('idle')
-      setFetchStatus('idle')
       setError(null)
       return
     }
@@ -160,7 +154,6 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
   const handleNetworkChange = (network: Network) => {
     setSelectedNetwork(network)
     setValidationStatus('idle')
-    setFetchStatus('idle')
     setContractInfo(null)
     setFetchedSource(null)
     setError(null)
@@ -220,27 +213,19 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
   }
 
   return (
-    <div className="min-h-screen bg-base flex flex-col selection:bg-indigo-500/20 relative overflow-hidden">
-      <MouseTooltip />
-
-      {/* Background Atmosphere */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/[0.03] blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute inset-0 z-0 bg-dot-pattern opacity-10 pointer-events-none" />
-
-      {/* Header */}
-      <header className="h-20 flex items-center justify-between px-10 shrink-0 z-10 bg-white/70 backdrop-blur-xl border-b border-black/[0.03]">
-        <div className="flex items-center gap-8">
-          <div onClick={onHomeClick} className="cursor-pointer">
-            <img src={logo} alt="Uatu Security" className="h-9" />
-          </div>
+    <div className="max-w-7xl mx-auto">
+      {/* Step Indicator */}
+      <nav className="flex items-center gap-3 mb-10">
+        <button
+          onClick={onBack}
+          className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition-colors"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+          <span className="text-indigo-600">Contract Analysis</span>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-100/50">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Global Scan Active</span>
-          </div>
-        </div>
-      </header>
+      </nav>
 
       <main className="flex-1 overflow-y-auto px-10 py-16 z-10">
         <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">

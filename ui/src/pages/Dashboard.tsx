@@ -50,12 +50,12 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Simulated realistic data
+    // Sector-specific institutional nodes
     setProjects([
-      { id: 'token-analysis', name: 'Sovereign Token (SOV)', slug: 'sov-token', type: 'full', status: 'completed', componentCount: 12, lastAuditAt: '2026-01-06', lastAuditJobId: 'token-analysis', aggregatedScore: { value: 92, grade: 'A-' }, category: 'Token Security' },
-      { id: '1', name: 'Uniswap V4 Router', slug: 'uniswap-v4', type: 'full', status: 'completed', componentCount: 22, lastAuditAt: '2025-11-20', lastAuditJobId: 101, aggregatedScore: { value: 99, grade: 'A' }, category: 'DEX' },
-      { id: '2', name: 'Aave V3 Lending Pool', slug: 'aave-v3', type: 'full', status: 'auditing', componentCount: 45, category: 'Lending' },
-      { id: '3', name: 'Lido Staking System', slug: 'lido-staking', type: 'contract-only', status: 'completed', componentCount: 8, lastAuditAt: '2025-11-15', lastAuditJobId: 102, aggregatedScore: { value: 96, grade: 'A' }, category: 'Staking' }
+      { id: 'sov-token-v2', name: 'Sovereign Token (Mainnet)', slug: 'sov-token', type: 'full', status: 'completed', componentCount: 12, lastAuditAt: '2026-01-06', lastAuditJobId: 'QA-29383', aggregatedScore: { value: 98, grade: 'A+' }, category: 'Asset Core' },
+      { id: '1', name: 'Liquidity Router Alpha', slug: 'uniswap-v4', type: 'full', status: 'completed', componentCount: 22, lastAuditAt: '2025-11-20', lastAuditJobId: 'QA-29384', aggregatedScore: { value: 99, grade: 'A' }, category: 'Protocol Logic' },
+      { id: '2', name: 'Institutional Lending Hub', slug: 'aave-v3', type: 'full', status: 'auditing', componentCount: 45, category: 'Credit Market' },
+      { id: '3', name: 'Governance Staking Node', slug: 'lido-staking', type: 'contract-only', status: 'completed', componentCount: 8, lastAuditAt: '2025-11-15', lastAuditJobId: 102, aggregatedScore: { value: 96, grade: 'A' }, category: 'Consensus' }
     ])
     setLoading(false)
   }, [])

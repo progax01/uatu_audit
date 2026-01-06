@@ -6,15 +6,12 @@ import {
   FileCode,
   Globe,
   Package,
-  Upload,
   X,
   CheckCircle,
   AlertCircle,
   RefreshCw,
-  ChevronRight,
-  Loader2
+  ChevronRight
 } from 'lucide-react'
-import logo from '../assets/logo.svg'
 import type { SourceComponentUI } from '../App'
 
 type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit'
@@ -39,7 +36,6 @@ interface AddComponentsProps {
   projectType: ProjectType
   onNext: (components: SourceComponentUI[]) => void
   onBack: () => void
-  onHomeClick: () => void
   onStartAudit: (jobId: number) => void
 }
 
@@ -66,7 +62,6 @@ export default function AddComponents({
   projectType: _projectType, // Used for future component type filtering
   onNext,
   onBack,
-  onHomeClick,
   onStartAudit
 }: AddComponentsProps) {
   const [components, setComponents] = useState<SourceComponentUI[]>([])
@@ -385,185 +380,117 @@ export default function AddComponents({
     }
   }
 
-  const getComponentIcon = (type: ComponentType) => {
-    switch (type) {
-      case 'github-repo': return Github
-      case 'deployed-contract': return FileCode
-      case 'dapp-url': return Globe
-      case 'library-source': return Package
-      default: return Upload
-    }
-  }
+  // No longer needed: return Github etc.
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white relative overflow-hidden">
-      {/* Tech Grid Background */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
-        <div
-          className="w-full h-full"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(15, 63, 98, 0.03) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(15, 63, 98, 0.03) 1px, transparent 1px)
-            `,
-            backgroundSize: '50px 50px'
-          }}
-        />
-      </div>
-
-      {/* Header */}
-      <header className="relative z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button
-            onClick={onHomeClick}
-            className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0"
-          >
-            <img src={logo} alt="Uatu Logo" className="h-10" />
-          </button>
-        </div>
-      </header>
-
-      <div className="relative z-10 max-w-5xl mx-auto px-6 py-12">
-        {/* Back Button */}
+    <div className="max-w-7xl mx-auto px-6 py-12">
+      {/* Breadcrumbs */}
+      <nav className="flex items-center gap-3 mb-12">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-gray-500 hover:text-[#0F3F62] transition-colors mb-8 group"
+          className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-medium">Back</span>
+          <ArrowLeft size={18} />
         </button>
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+          <span className="text-slate-300">01 Identity</span>
+          <ChevronRight size={12} className="text-slate-200" />
+          <span className="text-indigo-600">02 Sources</span>
+          <ChevronRight size={12} className="text-slate-200" />
+          <span className="text-slate-300">03 Configuration</span>
+          <ChevronRight size={12} className="text-slate-200" />
+          <span className="text-slate-300">04 Run</span>
+        </div>
+      </nav>
 
-        {/* Main Card */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0F3F62]/5 via-[#0F3F62]/3 to-[#0F3F62]/5 rounded-2xl blur-xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        {/* Left: Source Selection */}
+        <div className="lg:col-span-7">
+          <header className="mb-12">
+            <h1 className="text-4xl font-black text-slate-900 mb-2 tracking-tight">
+              {projectName}: Connect Sources
+            </h1>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+              Select codebases or contracts for analysis
+            </p>
+          </header>
 
-          <div className="relative border border-gray-200 bg-white backdrop-blur-xl rounded-2xl p-8 shadow-xl">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h1 className="text-3xl font-bold text-[#0F3F62] mb-1">
-                  Add Sources to "{projectName}"
-                </h1>
-                <p className="text-gray-500">
-                  Add repositories, contracts, and other sources for your audit
-                </p>
-              </div>
-              <span className="text-sm font-medium text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg">
-                {components.length} source{components.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                {error}
-              </div>
-            )}
-
-            {/* Component List */}
-            {components.length > 0 && (
-              <div className="mb-8 space-y-3">
-                {components.map(comp => {
-                  const Icon = getComponentIcon(comp.type)
-                  return (
-                    <div
-                      key={comp.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-gray-200">
-                          <Icon className="w-5 h-5 text-[#0F3F62]" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-800">{comp.displayName}</h4>
-                          <p className="text-sm text-gray-500 capitalize">{comp.type.replace('-', ' ')}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`flex items-center gap-1.5 text-sm font-medium ${
-                          comp.status === 'synced' ? 'text-green-600' :
-                          comp.status === 'error' ? 'text-red-600' : 'text-amber-600'
-                        }`}>
-                          {comp.status === 'synced' ? <CheckCircle className="w-4 h-4" /> :
-                           comp.status === 'error' ? <AlertCircle className="w-4 h-4" /> :
-                           <Loader2 className="w-4 h-4 animate-spin" />}
-                          {comp.status}
-                        </span>
-                        <button
-                          onClick={() => removeComponent(comp.id)}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
+          {!addingType ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {COMPONENT_TYPES.map((ct) => {
+                const Icon = ct.icon
+                return (
+                  <button
+                    key={ct.type}
+                    onClick={() => setAddingType(ct.type)}
+                    className="flex flex-col items-start gap-6 p-8 rounded-3xl border border-black/[0.03] bg-white/50 backdrop-blur-sm hover:border-indigo-100 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all group text-left"
+                  >
+                    <div className="w-16 h-16 rounded-2xl bg-slate-50 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center transition-all duration-500">
+                      <Icon size={28} strokeWidth={1.5} />
                     </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Add Component Section */}
-            {!addingType ? (
-              <div className="border-2 border-dashed border-gray-200 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-[#0F3F62] mb-4">Add Source</h3>
-                <div className="grid grid-cols-4 gap-4">
-                  {COMPONENT_TYPES.map(ct => {
-                    const Icon = ct.icon
-                    return (
-                      <button
-                        key={ct.type}
-                        onClick={() => setAddingType(ct.type)}
-                        className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 bg-white hover:border-[#0F3F62] hover:bg-[#0F3F62]/5 transition-all group"
-                      >
-                        <div className="w-12 h-12 rounded-xl bg-gray-100 group-hover:bg-[#0F3F62]/10 flex items-center justify-center transition-colors">
-                          <Icon className="w-6 h-6 text-gray-600 group-hover:text-[#0F3F62]" />
-                        </div>
-                        <span className="font-medium text-gray-700 group-hover:text-[#0F3F62]">
-                          {ct.label}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="border border-gray-200 rounded-xl p-6 bg-gray-50">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-[#0F3F62]">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 mb-1">{ct.label}</h3>
+                      <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                        {ct.type === 'github-repo' && 'Import your repository from GitHub'}
+                        {ct.type === 'deployed-contract' && 'Connect via network and address'}
+                        {ct.type === 'dapp-url' && 'Scan a live decentralized application'}
+                        {ct.type === 'library-source' && 'Analyze public package or library'}
+                      </p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl border border-black/[0.03] p-8 shadow-xl">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-indigo-600">
+                    {(() => {
+                      const Icon = COMPONENT_TYPES.find(ct => ct.type === addingType)?.icon || Github
+                      return <Icon size={20} />
+                    })()}
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900">
                     Add {COMPONENT_TYPES.find(ct => ct.type === addingType)?.label}
                   </h3>
-                  <button
-                    onClick={() => { setAddingType(null); resetForms() }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
                 </div>
+                <button
+                  onClick={() => { setAddingType(null); resetForms() }}
+                  className="p-2 text-slate-400 hover:text-slate-900 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
 
-                {/* GitHub Form */}
+              {/* Form Content */}
+              <div className="space-y-6">
                 {addingType === 'github-repo' && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {!isGithubAuthed ? (
-                      <button
-                        onClick={handleGithubLogin}
-                        className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-3 rounded-lg font-medium transition-colors"
-                      >
-                        <Github className="w-5 h-5" />
-                        Connect GitHub Account
-                      </button>
+                      <div className="text-center py-12">
+                        <Github size={48} className="mx-auto mb-4 text-slate-200" />
+                        <h4 className="text-lg font-bold mb-2">GitHub Authorization Required</h4>
+                        <p className="text-sm text-slate-500 mb-8">Connect your account to browse and import repositories.</p>
+                        <button
+                          onClick={handleGithubLogin}
+                          className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg"
+                        >
+                          Authenticate with GitHub
+                        </button>
+                      </div>
                     ) : (
-                      <>
-                        <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 gap-6">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Repository</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Repository</label>
                             <div className="flex gap-2">
                               <select
                                 value={selectedRepo?.full_name || ''}
                                 onChange={handleRepoChange}
-                                className="flex-1 bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:border-[#0F3F62] focus:ring-2 focus:ring-[#0F3F62]/20"
-                                disabled={loadingRepos}
+                                className="flex-1 bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-slate-900 font-bold focus:bg-white focus:border-indigo-100 focus:ring-0 transition-all appearance-none"
                               >
-                                <option value="">Select repository...</option>
+                                <option value="">Browse repositories...</option>
                                 {repositories.map(repo => (
                                   <option key={repo.id} value={repo.full_name}>{repo.full_name}</option>
                                 ))}
@@ -571,19 +498,19 @@ export default function AddComponents({
                               <button
                                 onClick={fetchRepositories}
                                 disabled={loadingRepos}
-                                className="p-2.5 border border-gray-200 bg-white hover:bg-gray-50 rounded-lg transition-all"
+                                className="px-5 bg-slate-50 rounded-2xl hover:bg-slate-100 transition-all"
                               >
-                                <RefreshCw className={`w-5 h-5 text-gray-600 ${loadingRepos ? 'animate-spin' : ''}`} />
+                                <RefreshCw size={20} className={`${loadingRepos ? 'animate-spin text-indigo-600' : 'text-slate-400'}`} />
                               </button>
                             </div>
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Branch</label>
                             <select
                               value={selectedBranch}
                               onChange={(e) => setSelectedBranch(e.target.value)}
-                              className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:border-[#0F3F62] focus:ring-2 focus:ring-[#0F3F62]/20"
                               disabled={!selectedRepo}
+                              className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-slate-900 font-bold focus:bg-white focus:border-indigo-100 focus:ring-0 transition-all appearance-none disabled:opacity-50"
                             >
                               <option value="">Select branch...</option>
                               {branches.map(branch => (
@@ -595,140 +522,134 @@ export default function AddComponents({
                         <button
                           onClick={addGithubComponent}
                           disabled={!selectedRepo || !selectedBranch || isLoading}
-                          className="w-full flex items-center justify-center gap-2 bg-[#0F3F62] hover:bg-[#1a5a8a] disabled:bg-gray-300 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                          className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 transition-all shadow-xl shadow-indigo-500/20"
                         >
-                          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                          Add Repository
+                          {isLoading ? 'Syncing...' : 'Add Repository'}
                         </button>
-                      </>
+                      </div>
                     )}
                   </div>
                 )}
 
-                {/* Contract Form */}
                 {addingType === 'deployed-contract' && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Contract Address</label>
-                        <input
-                          type="text"
-                          value={contractAddress}
-                          onChange={(e) => setContractAddress(e.target.value)}
-                          placeholder="0x..."
-                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 font-mono focus:outline-none focus:border-[#0F3F62] focus:ring-2 focus:ring-[#0F3F62]/20"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Network</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Network</label>
                         <select
                           value={selectedNetwork}
                           onChange={(e) => setSelectedNetwork(e.target.value)}
-                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:border-[#0F3F62] focus:ring-2 focus:ring-[#0F3F62]/20"
+                          className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-slate-900 font-bold focus:bg-white focus:border-indigo-100 transition-all"
                         >
                           {NETWORKS.map(net => (
                             <option key={net.id} value={net.id}>{net.name}</option>
                           ))}
                         </select>
                       </div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Contract Address</label>
+                        <input
+                          type="text"
+                          value={contractAddress}
+                          onChange={(e) => setContractAddress(e.target.value)}
+                          placeholder="0x..."
+                          className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-slate-900 font-bold focus:bg-white focus:border-indigo-100 transition-all"
+                        />
+                      </div>
                     </div>
                     <button
                       onClick={addContractComponent}
                       disabled={!contractAddress || isLoading}
-                      className="w-full flex items-center justify-center gap-2 bg-[#0F3F62] hover:bg-[#1a5a8a] disabled:bg-gray-300 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                      className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 transition-all"
                     >
-                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                      Add Contract
+                      Connect Contract
                     </button>
                   </div>
                 )}
 
-                {/* DApp Form */}
                 {addingType === 'dapp-url' && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">DApp URL</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">DApp URL</label>
                         <input
                           type="url"
                           value={dappUrl}
                           onChange={(e) => setDappUrl(e.target.value)}
                           placeholder="https://app.example.com"
-                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:border-[#0F3F62] focus:ring-2 focus:ring-[#0F3F62]/20"
+                          className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-slate-900 font-bold focus:bg-white focus:border-indigo-100 transition-all"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Name (optional)</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Name (optional)</label>
                         <input
                           type="text"
                           value={dappName}
                           onChange={(e) => setDappName(e.target.value)}
                           placeholder="My DApp"
-                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:border-[#0F3F62] focus:ring-2 focus:ring-[#0F3F62]/20"
+                          className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-slate-900 font-bold focus:bg-white focus:border-indigo-100 transition-all"
                         />
                       </div>
                     </div>
-                    <div className="flex items-center gap-6">
+                    <div className="space-y-3">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={checkContractInteractions}
                           onChange={(e) => setCheckContractInteractions(e.target.checked)}
-                          className="w-4 h-4 rounded border-gray-300 text-[#0F3F62] focus:ring-[#0F3F62]"
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
                         />
-                        <span className="text-sm text-gray-700">Check contract interactions</span>
+                        <span className="text-sm text-slate-700 font-medium">Check contract interactions</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={checkFrontendVulns}
                           onChange={(e) => setCheckFrontendVulns(e.target.checked)}
-                          className="w-4 h-4 rounded border-gray-300 text-[#0F3F62] focus:ring-[#0F3F62]"
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
                         />
-                        <span className="text-sm text-gray-700">Check frontend vulnerabilities</span>
+                        <span className="text-sm text-slate-700 font-medium">Check frontend vulnerabilities</span>
                       </label>
                     </div>
                     <button
                       onClick={addDappComponent}
                       disabled={!dappUrl || isLoading}
-                      className="w-full flex items-center justify-center gap-2 bg-[#0F3F62] hover:bg-[#1a5a8a] disabled:bg-gray-300 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                      className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 transition-all"
                     >
-                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
                       Add DApp
                     </button>
                   </div>
                 )}
 
-                {/* Library Form */}
                 {addingType === 'library-source' && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Package Name</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Package Name</label>
                         <input
                           type="text"
                           value={packageName}
                           onChange={(e) => setPackageName(e.target.value)}
                           placeholder="@openzeppelin/contracts"
-                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:border-[#0F3F62] focus:ring-2 focus:ring-[#0F3F62]/20"
+                          className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-slate-900 font-bold focus:bg-white focus:border-indigo-100 transition-all"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Version (optional)</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Version (optional)</label>
                         <input
                           type="text"
                           value={packageVersion}
                           onChange={(e) => setPackageVersion(e.target.value)}
                           placeholder="4.9.0"
-                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:border-[#0F3F62] focus:ring-2 focus:ring-[#0F3F62]/20"
+                          className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-slate-900 font-bold focus:bg-white focus:border-indigo-100 transition-all"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Registry</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Registry</label>
                         <select
                           value={packageRegistry}
                           onChange={(e) => setPackageRegistry(e.target.value as any)}
-                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:border-[#0F3F62] focus:ring-2 focus:ring-[#0F3F62]/20"
+                          className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-slate-900 font-bold focus:bg-white focus:border-indigo-100 transition-all"
                         >
                           <option value="npm">npm</option>
                           <option value="crates">crates.io</option>
@@ -740,47 +661,90 @@ export default function AddComponents({
                     <button
                       onClick={addLibraryComponent}
                       disabled={!packageName || isLoading}
-                      className="w-full flex items-center justify-center gap-2 bg-[#0F3F62] hover:bg-[#1a5a8a] disabled:bg-gray-300 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                      className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 transition-all"
                     >
-                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
                       Add Library
                     </button>
                   </div>
                 )}
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Active Nodes / Components List */}
+        <div className="lg:col-span-5">
+          <div className="sticky top-12 space-y-8">
+            <header>
+              <h2 className="text-2xl font-black text-slate-900 mb-2">Active Nodes</h2>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                {components.length} components ready for analysis
+              </p>
+            </header>
+
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                {error}
+              </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-between pt-8 border-t border-gray-200 mt-8">
+            <div className="space-y-4">
+              {components.map((component) => {
+                const Icon = COMPONENT_TYPES.find(ct => ct.type === component.type)?.icon || FileCode
+                return (
+                  <div
+                    key={component.id}
+                    className="flex items-center gap-4 p-5 rounded-2xl border border-black/[0.03] bg-white group hover:border-indigo-100 transition-all"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-slate-50 group-hover:bg-indigo-50 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 transition-colors">
+                      <Icon size={20} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-slate-900 truncate">{component.displayName}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        {component.type.replace('-', ' ')}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => removeComponent(component.id)}
+                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )
+              })}
+
+              {components.length === 0 && (
+                <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-3xl">
+                  <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4 text-slate-300">
+                    <Plus size={24} />
+                  </div>
+                  <p className="text-sm font-bold text-slate-400">No components added yet</p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-8 border-t border-black/[0.03] space-y-4">
               <button
                 onClick={() => onNext(components)}
-                className="text-gray-500 hover:text-[#0F3F62] font-medium transition-colors"
-              >
-                Configure Settings
-              </button>
-              <button
-                onClick={handleStartAudit}
                 disabled={components.length === 0 || isStartingAudit}
-                className={`
-                  flex items-center gap-2 px-8 py-3 rounded-lg font-semibold text-lg transition-all duration-200
-                  ${components.length > 0 && !isStartingAudit
-                    ? 'bg-[#0F3F62] text-white hover:bg-[#1a5a8a] shadow-lg shadow-[#0F3F62]/30 hover:shadow-[#0F3F62]/50'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }
-                `}
+                className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-lg hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-400 transition-all shadow-xl"
               >
-                {isStartingAudit ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Starting...
-                  </>
-                ) : (
-                  <>
-                    Start Audit
-                    <ChevronRight className="w-5 h-5" />
-                  </>
-                )}
+                Proceed to Configuration
               </button>
+
+              {components.length > 0 && (
+                <button
+                  onClick={handleStartAudit}
+                  disabled={isStartingAudit}
+                  className="w-full py-4 bg-white text-emerald-600 border-2 border-emerald-100 rounded-2xl font-black text-sm hover:bg-emerald-50 transition-all flex items-center justify-center gap-2"
+                >
+                  {isStartingAudit ? <RefreshCw size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+                  Express Analyze & Run
+                </button>
+              )}
             </div>
           </div>
         </div>

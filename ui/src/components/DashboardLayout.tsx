@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
     Layout, Settings, Shield,
     LogOut, Building2,
-    Bell, Search
+    Bell
 } from 'lucide-react'
 import logo from '../assets/logo.svg'
 import { Link, useLocation } from 'react-router-dom'
@@ -55,10 +55,7 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                 {/* Sidebar Header */}
                 <div className="h-20 flex items-center px-8 border-b border-black/[0.02]">
                     <Link to="/" className="flex items-center gap-3 group">
-                        <img src={logo} alt="Uatu" className="h-8 object-contain transition-transform duration-700 group-hover:scale-110" />
-                        {!isSidebarCollapsed && (
-                            <span className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-900 group-hover:text-indigo-600 transition-colors">Uatu Security</span>
-                        )}
+                        <img src={logo} alt="Uatu" className="h-9 object-contain transition-transform duration-700 group-hover:scale-110" />
                     </Link>
                 </div>
 
@@ -106,14 +103,7 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                 {/* Unified Dashboard Header */}
                 <header className="h-20 bg-white/70 backdrop-blur-2xl border-b border-black/[0.03] flex items-center justify-between px-10 shrink-0 z-50">
                     <div className="flex items-center gap-8 flex-1">
-                        <div className="relative group max-w-md w-full">
-                            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-400 transition-colors" />
-                            <input
-                                type="text"
-                                placeholder="Search Protocols, Audit Reports, or Assets..."
-                                className="w-full bg-slate-50/50 border border-black/[0.02] rounded-xl py-2.5 pl-12 pr-4 text-[11px] font-bold focus:outline-none focus:bg-white focus:border-indigo-100 transition-all placeholder:text-slate-300"
-                            />
-                        </div>
+                        {/* Search Removed per feedback */}
                     </div>
 
                     <div className="flex items-center gap-6">
@@ -135,7 +125,7 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                             </button>
                             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 p-0.5 shadow-lg shadow-indigo-500/10">
                                 <div className="w-full h-full rounded-[10px] bg-slate-900 flex items-center justify-center text-white text-[10px] font-black">
-                                    AD
+                                    UA
                                 </div>
                             </div>
                         </div>
@@ -151,7 +141,7 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.3, ease: 'easeOut' }}
-                            className="p-8 h-full"
+                            className="px-16 py-12 h-full"
                         >
                             {children}
                         </motion.div>
