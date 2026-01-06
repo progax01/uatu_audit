@@ -91,7 +91,7 @@ export default function PricingPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-4xl lg:text-7xl font-black tracking-tight mb-8"
+                            className="text-4xl lg:text-5xl font-black tracking-tight mb-8"
                         >
                             Scale With <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-br from-indigo-500 to-indigo-700">Deterministic Safety.</span>
@@ -101,7 +101,7 @@ export default function PricingPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2, duration: 0.8 }}
-                            className="text-xl lg:text-2xl text-slate-400 font-medium max-w-2xl mx-auto mb-16 leading-relaxed"
+                            className="text-lg lg:text-xl text-slate-400 font-medium max-w-2xl mx-auto mb-16 leading-relaxed"
                         >
                             Predictable pricing for high-assurance teams. No hidden fees, just pure security excellence.
                         </motion.p>
@@ -118,7 +118,7 @@ export default function PricingPage() {
                                     initial={{ opacity: 0, y: 30 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                                    className={`relative card-premium p-12 flex flex-col ${plan.popular
+                                    className={`relative card-premium !p-8 flex flex-col ${plan.popular
                                         ? 'border-indigo-600/20 shadow-2xl shadow-indigo-600/5 bg-white'
                                         : 'bg-white/40 backdrop-blur-3xl'
                                         }`}
@@ -130,13 +130,13 @@ export default function PricingPage() {
                                     )}
 
                                     <div className="mb-10">
-                                        <h3 className="text-3xl font-black text-slate-900 mb-3 tracking-tight">{plan.name}</h3>
-                                        <p className="text-sm text-slate-400 font-bold uppercase tracking-widest mb-10">{plan.description}</p>
+                                        <h3 className="text-xl font-black text-slate-900 mb-2 tracking-tight">{plan.name}</h3>
+                                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-10">{plan.description}</p>
 
                                         <div className="flex items-baseline gap-2">
-                                            <span className="text-6xl font-black text-slate-900 tracking-tighter">{plan.price}</span>
+                                            <span className="text-4xl font-black text-slate-900 tracking-tighter">{plan.price}</span>
                                             {plan.price !== 'Custom' && (
-                                                <span className="text-sm text-slate-400 font-black uppercase tracking-widest">/{plan.period.split(' ')[1]}</span>
+                                                <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">/{plan.period.split(' ')[1]}</span>
                                             )}
                                         </div>
                                     </div>
@@ -178,9 +178,9 @@ export default function PricingPage() {
                 {/* FAQ Section */}
                 <section className="py-40 bg-white relative border-y border-black/[0.02]">
                     <div className="max-w-4xl mx-auto px-6 lg:px-10">
-                        <div className="text-center mb-24">
+                        <div className="text-center mb-16">
                             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-6 block">Questions?</span>
-                            <h2 className="text-5xl font-black text-slate-900 tracking-tight">Frequently Asked Questions</h2>
+                            <h2 className="text-3xl font-black text-slate-900 tracking-tight">Frequently Asked Questions</h2>
                         </div>
 
                         <div className="grid grid-cols-1 gap-8">

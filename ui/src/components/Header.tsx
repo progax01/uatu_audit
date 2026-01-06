@@ -22,12 +22,8 @@ export default function Header({ isAuthed, onLogin }: HeaderProps) {
         <header className="fixed top-0 left-0 right-0 z-[100] h-20 flex items-center bg-white/70 backdrop-blur-xl border-b border-black/[0.02]">
             <div className="max-w-7xl mx-auto px-6 lg:px-10 w-full flex items-center justify-between">
                 {/* Logo */}
-                <Link to="/" className="flex items-center gap-3 group">
-                    <img src={logo} alt="Uatu" className="h-8 transition-transform duration-500 group-hover:scale-110" />
-                    <div className="flex flex-col">
-                        <span className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-900 leading-tight">Uatu</span>
-                        <span className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-400">Security</span>
-                    </div>
+                <Link to="/" className="flex items-center group">
+                    <img src={logo} alt="Uatu Security" className="h-9 transition-transform duration-500 group-hover:scale-105" />
                 </Link>
 
                 {/* Desktop Navigation */}

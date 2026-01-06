@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Layout, Settings, Plus, ArrowRight, Clock,
   FileCode, Globe, Package,
-  FolderGit2, ShieldCheck, Shield, Activity
+  FolderGit2, ShieldCheck, Shield, Activity, ShieldAlert
 } from 'lucide-react'
 import { PremiumShield } from '../components/IconSystem'
 import logo from '../assets/logo.svg'
@@ -83,34 +83,40 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
           <img src={logo} alt="Uatu Security" className="h-9 object-contain group-hover:scale-105 transition-all duration-700" />
         </div>
 
-        <nav className="flex-1 px-4 py-4 space-y-2">
-          <button className="w-full flex items-center gap-3 px-5 py-3.5 rounded-xl bg-indigo-50 text-indigo-700 font-bold text-[11px] uppercase tracking-wider transition-all border border-indigo-100/50 shadow-sm shadow-indigo-500/5">
-            <Layout size={16} strokeWidth={2} />
+        <nav className="flex-1 px-4 py-4 space-y-1">
+          <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-[10px] uppercase tracking-wider transition-all border border-indigo-100/30">
+            <Layout size={14} strokeWidth={2.5} />
             Command Center
           </button>
           <button
             onClick={onSettingsClick}
-            className="w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-900 font-bold text-[11px] uppercase tracking-wider transition-all"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-900 font-bold text-[10px] uppercase tracking-wider transition-all"
           >
-            <Settings size={16} strokeWidth={2} />
+            <Shield size={14} strokeWidth={2.5} />
             Protocols
+          </button>
+          <button
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-900 font-bold text-[10px] uppercase tracking-wider transition-all"
+          >
+            <Settings size={14} strokeWidth={2.5} />
+            Scan Node
           </button>
         </nav>
 
-        <div className="p-8">
-          <div className="glass-liquid rounded-3xl p-6 border-white/40 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-[0.05]">
-              <Activity size={60} className="text-indigo-900" />
+        <div className="p-6">
+          <div className="glass-liquid rounded-2xl p-4 border-white/20 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-3 opacity-[0.03]">
+              <Activity size={40} className="text-indigo-900" />
             </div>
-            <div className="flex items-center gap-3 mb-4 relative z-10">
+            <div className="flex items-center gap-2 mb-3 relative z-10">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
               </span>
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Security Pulse</span>
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Security Pulse</span>
             </div>
-            <p className="text-[9px] text-slate-500 font-bold leading-relaxed uppercase tracking-[0.1em] relative z-10">
-              Continuous monitoring of engineering standards across your connected infrastructure.
+            <p className="text-[8px] text-slate-500 font-bold leading-relaxed uppercase tracking-wider relative z-10">
+              Uatu Node: Connected
             </p>
           </div>
         </div>
@@ -122,24 +128,43 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
         <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/[0.02] blur-[120px] rounded-full pointer-events-none" />
 
         {/* Header */}
-        <header className="h-28 flex items-center justify-between px-12 shrink-0 z-10 bg-white/70 backdrop-blur-xl border-b border-black/[0.03]">
+        <header className="h-20 flex items-center justify-between px-10 shrink-0 z-10 bg-white/70 backdrop-blur-xl border-b border-black/[0.03]">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Security Command Center</h1>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-2 opacity-60">Verified Infrastructure / Security Control Plane</p>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">Security Command Center</h1>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1 opacity-60">Verified Infrastructure / security control plane</p>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <button
               onClick={onNewAudit}
-              className="btn-primary"
+              className="btn-primary py-2 px-6"
             >
-              <Plus size={16} strokeWidth={3} />
+              <Plus size={14} strokeWidth={3} />
               Secure New Project
             </button>
           </div>
         </header>
 
         {/* Scrollable Area */}
-        <div className="flex-1 overflow-y-auto p-12 z-10">
+        <div className="flex-1 overflow-y-auto p-10 z-10">
+          {/* Dashboard Stats Row */}
+          {!loading && projects.length > 0 && (
+            <div className="grid grid-cols-4 gap-6 mb-10 max-w-6xl mx-auto">
+              {[
+                { label: 'Total Audits', value: projects.length, icon: Shield },
+                { label: 'Critical Vulns', value: '12', icon: ShieldAlert, color: 'text-rose-500' },
+                { label: 'Verified Code', value: '820K Lines', icon: FileCode },
+                { label: 'Network Health', value: '98.2%', icon: Activity, color: 'text-emerald-500' },
+              ].map((stat) => (
+                <div key={stat.label} className="card-premium !p-5 bg-white/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <stat.icon size={14} className={stat.color || 'text-slate-400'} />
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">{stat.label}</span>
+                  </div>
+                  <div className="text-xl font-black text-slate-900">{stat.value}</div>
+                </div>
+              ))}
+            </div>
+          )}
           <AnimatePresence mode="wait">
             {loading ? (
               <motion.div
@@ -196,48 +221,46 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
                     return (
                       <motion.div
                         key={project.id}
-                        initial={{ opacity: 0, x: -30 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.08, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                        className="group relative card-premium !p-8 flex items-center justify-between hover:translate-x-1 shadow-sm hover:shadow-premium"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.05, duration: 0.5 }}
+                        className="group relative card-premium !p-5 flex items-center justify-between hover:bg-white transition-all shadow-sm border-black/[0.02]"
                       >
-                        <div className="flex items-center gap-10">
-                          <div className={`w-18 h-18 rounded-[28px] flex items-center justify-center bg-white border border-black/[0.03] shadow-sm transition-all duration-700 group-hover:scale-110 group-hover:shadow-indigo-500/10 ${typeConfig.colorClass}`}>
-                            <TypeIcon size={36} strokeWidth={1.5} />
+                        <div className="flex items-center gap-6">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-white border border-black/[0.03] shadow-sm transition-all duration-500 group-hover:scale-105 ${typeConfig.colorClass}`}>
+                            <TypeIcon size={20} strokeWidth={2} />
                           </div>
 
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-4">
-                              <h3 className="font-black text-slate-900 text-3xl tracking-[-0.04em]">{project.name}</h3>
-                              <div className={`text-[9px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full border shadow-sm ${statusConfig.colorClass}`}>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-3">
+                              <h3 className="font-black text-slate-900 text-base tracking-tight">{project.name}</h3>
+                              <div className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${statusConfig.colorClass}`}>
                                 {statusConfig.label}
                               </div>
                             </div>
-                            <div className="flex items-center gap-8 text-[10px] text-slate-400 font-black uppercase tracking-[0.25em] opacity-60">
-                              <span className="flex items-center gap-2.5">
-                                <Package size={14} strokeWidth={2} />
+                            <div className="flex items-center gap-5 text-[9px] text-slate-400 font-bold uppercase tracking-widest opacity-60 mt-1">
+                              <span className="flex items-center gap-1.5">
+                                <Package size={12} strokeWidth={2.5} />
                                 {project.componentCount} Nodes
                               </span>
                               {project.lastAuditAt && (
-                                <span className="flex items-center gap-2.5">
-                                  <Clock size={14} strokeWidth={2} />
-                                  SYNC: {new Date(project.lastAuditAt).toLocaleDateString()}
+                                <span className="flex items-center gap-1.5">
+                                  <Clock size={12} strokeWidth={2.5} />
+                                  {new Date(project.lastAuditAt).toLocaleDateString()}
                                 </span>
                               )}
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-16">
+                        <div className="flex items-center gap-10">
                           {project.aggregatedScore ? (
-                            <div className="text-right">
-                              <div className="flex items-center gap-3 justify-end mb-3">
-                                <div className="text-5xl font-black text-slate-900 tabular-nums tracking-tighter">
-                                  {project.aggregatedScore.value}
-                                  <span className="text-[10px] text-slate-300 ml-2 font-black tracking-widest uppercase">/ 100</span>
-                                </div>
+                            <div className="text-right flex flex-col items-end gap-1">
+                              <div className="text-xl font-black text-slate-900 tabular-nums">
+                                {project.aggregatedScore.value}
+                                <span className="text-[8px] text-slate-300 ml-1.5 font-bold uppercase tracking-widest">/ 100</span>
                               </div>
-                              <div className={`text-[9px] font-black uppercase tracking-[0.4em] px-4 py-2 rounded-2xl inline-block border shadow-sm ${project.aggregatedScore.grade === 'A' ? 'text-emerald-600 bg-emerald-50 border-emerald-100' :
+                              <div className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${project.aggregatedScore.grade === 'A' ? 'text-emerald-600 bg-emerald-50 border-emerald-100' :
                                 project.aggregatedScore.grade === 'B' ? 'text-indigo-600 bg-indigo-50 border-indigo-100' :
                                   'text-amber-600 bg-amber-50 border-amber-100'
                                 }`}>
@@ -245,12 +268,9 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
                               </div>
                             </div>
                           ) : (
-                            <div className="text-right flex flex-col items-end gap-2 pr-4 opacity-30 group-hover:opacity-100 transition-all duration-500">
-                              <div className="text-[10px] font-black text-slate-900 uppercase tracking-[0.3em]">
-                                {project.status === 'auditing' ? 'Security Scan Active' : 'Security Check Pending'}
-                              </div>
-                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                {project.status === 'auditing' ? 'Running High-Assurance Scan...' : 'Command Queue Waiting'}
+                            <div className="text-right flex flex-col items-end gap-1 opacity-30 group-hover:opacity-100 transition-all">
+                              <div className="text-[8px] font-black text-slate-900 uppercase tracking-widest">
+                                {project.status === 'auditing' ? 'Security Scan Active' : 'Scan Pending'}
                               </div>
                             </div>
                           )}
@@ -258,9 +278,9 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
                           <button
                             onClick={() => project.lastAuditJobId ? onViewAudit(project.lastAuditJobId) : null}
                             disabled={!project.lastAuditJobId}
-                            className="w-14 h-14 rounded-2xl bg-white border border-black/[0.04] shadow-sm flex items-center justify-center hover:bg-slate-900 hover:text-white hover:scale-110 transition-all duration-500 text-slate-400 group/btn"
+                            className="w-10 h-10 rounded-xl bg-white border border-black/[0.04] shadow-sm flex items-center justify-center hover:bg-slate-900 hover:text-white hover:scale-105 transition-all text-slate-400 group/btn"
                           >
-                            <ArrowRight size={20} strokeWidth={3} className="group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
+                            <ArrowRight size={16} strokeWidth={2.5} className="group-hover/btn:translate-x-0.5" />
                           </button>
                         </div>
                       </motion.div>

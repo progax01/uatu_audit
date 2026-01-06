@@ -95,7 +95,7 @@ export default function DocumentationPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-4xl lg:text-7xl font-black tracking-tight mb-8"
+                            className="text-4xl lg:text-5xl font-black tracking-tight mb-8"
                         >
                             Secure Your <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-br from-indigo-500 to-indigo-700">Infrastructure.</span>
@@ -130,8 +130,8 @@ export default function DocumentationPage() {
                                         <section.icon size={24} strokeWidth={2} />
                                     </div>
 
-                                    <h3 className="text-2xl font-black text-slate-900 mb-4 tracking-tight">{section.title}</h3>
-                                    <p className="text-sm text-slate-400 font-medium leading-relaxed mb-8 flex-grow">{section.description}</p>
+                                    <h3 className="text-lg font-black text-slate-900 mb-4 tracking-tight">{section.title}</h3>
+                                    <p className="text-xs text-slate-400 font-medium leading-relaxed mb-6 flex-grow">{section.description}</p>
 
                                     <div className="space-y-3 pt-6 border-t border-black/[0.03]">
                                         {section.links.map((link) => (
@@ -154,9 +154,9 @@ export default function DocumentationPage() {
                 {/* Quick Start Section */}
                 <section className="py-40 bg-white relative border-y border-black/[0.02]">
                     <div className="max-w-5xl mx-auto px-6 lg:px-10">
-                        <div className="text-center mb-24">
+                        <div className="text-center mb-16">
                             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-6 block">The Workflow</span>
-                            <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">Security Integration Guide</h2>
+                            <h2 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">Security Integration Guide</h2>
                         </div>
 
                         <div className="space-y-20">

@@ -68,7 +68,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
 
                 <motion.h1
                   variants={itemVariants}
-                  className="text-4xl lg:text-7xl font-black leading-tight tracking-tight mb-8"
+                  className="text-4xl lg:text-5xl font-black leading-tight tracking-tight mb-8"
                 >
                   High-Assurance <span className="text-slate-400 block lg:inline">Security</span> <br />
                   for Web3 <span className="text-transparent bg-clip-text bg-gradient-to-br from-indigo-500 to-indigo-700">Infrastructure.</span>
@@ -242,8 +242,8 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
               >
                 The Unified Command
               </motion.span>
-              <h2 className="text-4xl lg:text-6xl font-black tracking-tight mb-8">Integrated Security Ecosystem.</h2>
-              <p className="text-lg lg:text-xl text-slate-400 font-medium max-w-3xl mx-auto leading-relaxed">A unified suite for the entire security lifecycle. From rigorous bytecode analysis to live on-chain monitoring.</p>
+              <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-6">Integrated Security Ecosystem.</h2>
+              <p className="text-base lg:text-lg text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed">A unified suite for the entire security lifecycle. From rigorous bytecode analysis to live on-chain monitoring.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
@@ -312,13 +312,48 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
           </div>
         </section>
 
+        {/* Security Methodology */}
+        <section className="py-32 relative bg-white border-b border-black/[0.02]">
+          <div className="max-w-7xl mx-auto px-6 lg:px-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+              <div className="order-2 lg:order-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                  {[
+                    { step: '01', title: 'Static Analysis', desc: 'Automated scans detecting common patterns and vulnerabilities.' },
+                    { step: '02', title: 'Symbolic Execution', desc: 'Exhaustive exploration of contract state space.' },
+                    { step: '03', title: 'Formal Verification', desc: 'Mathematical proofs of business logic correctness.' },
+                    { step: '04', title: 'Live Pulse', desc: 'Continuous on-chain monitoring and runtime assertions.' },
+                  ].map((s) => (
+                    <div key={s.step} className="card-premium !p-6 bg-slate-50/50">
+                      <div className="text-[10px] font-black text-indigo-600 mb-2">{s.step}</div>
+                      <h4 className="text-base font-black text-slate-900 mb-2">{s.title}</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed font-medium">{s.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="order-1 lg:order-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-6 block">Our Methodology</span>
+                <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-6">The Multi-Layered <br /><span className="text-slate-300">Security Standard.</span></h2>
+                <p className="text-base text-slate-400 font-medium leading-relaxed mb-10">
+                  Uatu doesn't just scan; it verifies. Our engine combines classic static analysis with modern formal methods to provide a deterministic safety guarantee for your protocol.
+                </p>
+                <div className="inline-flex items-center gap-4 px-6 py-3 bg-slate-900 text-white rounded-xl text-[11px] font-black uppercase tracking-wider">
+                  <ShieldAlert size={14} className="text-indigo-400" />
+                  Deterministic Safety Guarantee
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Security Feature Grid */}
         <section className="py-40 relative bg-[#FAFAFA]">
           <div className="max-w-7xl mx-auto px-6 lg:px-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-32 items-center">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-8 block">Defense in Depth</span>
-                <h2 className="text-4xl lg:text-6xl font-black tracking-tight mb-10 leading-[1.1]">
+                <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-6 leading-tight">
                   Defense in Depth <br />
                   for <span className="text-slate-300">Modern Architecture.</span>
                 </h2>
@@ -405,7 +440,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-8 block">Rust & WASM Security</span>
-                <h2 className="text-4xl lg:text-5xl font-black tracking-tight mb-8">Specialized Audits for <br /><span className="text-slate-300">High-Performance Chains.</span></h2>
+                <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-6">Specialized Audits for <br /><span className="text-slate-300">High-Performance Chains.</span></h2>
                 <p className="text-lg text-slate-500 font-medium leading-relaxed mb-12">
                   Uatu provides deep-level bytecode analysis and formal verification for Rust-based ecosystems, ensuring deterministic safety for the next generation of blockchains.
                 </p>
@@ -434,6 +469,37 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                     <PremiumCode size={80} className="text-indigo-200 mb-8 mx-auto" strokeWidth={1} />
                     <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Binary Analysis Active</div>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Integrations & Trust */}
+        <section className="py-24 bg-white border-t border-black/[0.02]">
+          <div className="max-w-7xl mx-auto px-6 lg:px-10">
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
+              <div className="max-w-sm">
+                <h3 className="text-xl font-black tracking-tight mb-2">Protocol Native.</h3>
+                <p className="text-xs text-slate-400 font-medium leading-relaxed">Integrated directly into your existing development toolchain and CI/CD pipelines.</p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-12 lg:gap-20 opacity-30 invert">
+                {/* Mock Integrations Icons / Labels */}
+                <div className="flex items-center gap-3 grayscale">
+                  <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white text-[10px] font-black italic">H</div>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Hardhat</span>
+                </div>
+                <div className="flex items-center gap-3 grayscale">
+                  <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white text-[10px] font-black italic">F</div>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Foundry</span>
+                </div>
+                <div className="flex items-center gap-3 grayscale">
+                  <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white text-[10px] font-black italic">G</div>
+                  <span className="text-[10px] font-black uppercase tracking-widest">GitHub</span>
+                </div>
+                <div className="flex items-center gap-3 grayscale">
+                  <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white text-[10px] font-black italic">J</div>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Jenkins</span>
                 </div>
               </div>
             </div>
@@ -482,20 +548,24 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
         </section>
 
         {/* Global Multi-Chain Section */}
-        <section className="py-40 bg-slate-900 border-y border-black relative overflow-hidden">
+        <section className="py-32 bg-slate-900 border-y border-black relative overflow-hidden">
           <div className="absolute inset-0 bg-dot-pattern opacity-[0.05] invert" />
           <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/10 to-transparent" />
-          <div className="max-w-7xl mx-auto px-6 lg:px-10 relative z-10 text-center">
-            <h2 className="text-3xl lg:text-5xl font-black text-white tracking-tight mb-20">Secure Across All Ecosystems.</h2>
-            <div className="flex flex-wrap justify-center gap-16 lg:gap-24 opacity-60 hover:opacity-100 transition-opacity duration-700">
+          <div className="max-w-7xl mx-auto px-6 lg:px-10 relative z-10">
+            <div className="text-center mb-16">
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 mb-4 block">Ecosystem Connectivity</span>
+              <h2 className="text-3xl lg:text-4xl font-black text-white tracking-tight mb-6">Trusted Across All <span className="opacity-40">Protocols.</span></h2>
+              <p className="text-sm text-slate-400 max-w-xl mx-auto font-medium">Seamlessly integrated with the world's leading blockchain infrastructures and development toolchains.</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-12 lg:gap-20 opacity-40 hover:opacity-80 transition-opacity duration-700">
               {supportedChains.map((chain) => (
-                <div key={chain.name} className="flex flex-col items-center gap-5 group cursor-default">
+                <div key={chain.name} className="flex flex-col items-center gap-4 group cursor-default">
                   <div
-                    className="w-20 h-20 rounded-[28px] bg-white/5 border border-white/5 flex items-center justify-center p-5 group-hover:bg-white/10 group-hover:border-white/10 group-hover:shadow-2xl group-hover:shadow-indigo-500/20 transition-all duration-500 transform group-hover:-translate-y-3"
+                    className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center p-4 group-hover:bg-white/10 group-hover:border-white/10 transition-all duration-500"
                   >
-                    <chain.icon size={40} color={chain.color} />
+                    <chain.icon size={32} color={chain.color} />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 group-hover:text-white transition-colors">{chain.name}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 group-hover:text-white transition-colors">{chain.name}</span>
                 </div>
               ))}
             </div>

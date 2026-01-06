@@ -154,7 +154,7 @@ export default function FeaturesPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-4xl lg:text-7xl font-black tracking-tight mb-8"
+                            className="text-4xl lg:text-5xl font-black tracking-tight mb-8"
                         >
                             High-Assurance <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-br from-indigo-500 to-indigo-700">Security Infrastructure.</span>
@@ -164,7 +164,7 @@ export default function FeaturesPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2, duration: 0.8 }}
-                            className="text-xl lg:text-2xl text-slate-400 font-medium max-w-3xl mx-auto mb-16 leading-relaxed"
+                            className="text-lg lg:text-xl text-slate-400 font-medium max-w-3xl mx-auto mb-16 leading-relaxed"
                         >
                             A comprehensive security audit platform built for high-assurance Web3 teams.
                             From AI-powered detection to continuous mainnet monitoring.
@@ -183,14 +183,14 @@ export default function FeaturesPage() {
                                     whileInView={{ opacity: 1, y: 0 }}
                                     viewport={{ once: true }}
                                     transition={{ delay: index * 0.05, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                                    className="card-premium p-12 group hover:border-black/[0.1] transition-all duration-700 bg-white/60 backdrop-blur-3xl"
+                                    className="card-premium !p-8 group hover:border-black/[0.1] transition-all duration-700 bg-white/60 backdrop-blur-3xl"
                                 >
                                     <div className={`w-16 h-16 rounded-[22px] bg-white border border-black/[0.03] shadow-sm flex items-center justify-center mb-10 group-hover:scale-110 group-hover:shadow-xl transition-all duration-500 ${feature.color}`}>
                                         <feature.icon size={28} strokeWidth={2} />
                                     </div>
 
-                                    <h3 className="text-3xl font-black text-slate-900 mb-6 tracking-tight">{feature.title}</h3>
-                                    <p className="text-slate-400 font-medium leading-relaxed mb-10 text-pretty">{feature.description}</p>
+                                    <h3 className="text-xl font-black text-slate-900 mb-4 tracking-tight">{feature.title}</h3>
+                                    <p className="text-sm text-slate-400 font-medium leading-relaxed mb-8 text-pretty">{feature.description}</p>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-8 border-t border-black/[0.03]">
                                         {feature.details.map((detail, i) => (

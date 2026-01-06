@@ -79,8 +79,8 @@ export default function AuditDetails({ jobId, onBack, onHomeClick }: AuditDetail
             <ArrowLeft size={18} strokeWidth={2.5} className="group-hover:-translate-x-0.5 transition-transform" />
           </button>
           <div className="flex flex-col">
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">{auditData.projectName}</h1>
-            <span className="text-[9px] font-bold text-indigo-600 uppercase tracking-[0.2em] mt-1.5 flex items-center gap-2">
+            <h1 className="text-lg font-black text-slate-900 tracking-tight">{auditData.projectName}</h1>
+            <span className="text-[8px] font-bold text-indigo-600 uppercase tracking-widest mt-1 flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-pulse"></span>
               Security Audit ID: {jobId || '123'}
             </span>
@@ -137,10 +137,10 @@ export default function AuditDetails({ jobId, onBack, onHomeClick }: AuditDetail
               {/* Findings Summary */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                 {['critical', 'high', 'medium', 'low'].map((sev) => (
-                  <div key={sev} className="relative group card-premium !p-10 !bg-white/60 !backdrop-blur-3xl overflow-hidden hover:translate-y-[-5px] shadow-sm hover:shadow-premium">
+                  <div key={sev} className="relative group card-premium !p-6 !bg-white/60 !backdrop-blur-3xl overflow-hidden hover:translate-y-[-5px] shadow-sm hover:shadow-premium">
                     <div className={`absolute -top-12 -right-12 w-32 h-32 blur-3xl rounded-full transition-opacity opacity-[0.03] group-hover:opacity-[0.08] ${sev === 'critical' ? 'bg-rose-600' : sev === 'high' ? 'bg-orange-600' : sev === 'medium' ? 'bg-amber-600' : 'bg-blue-600'}`} />
-                    <span className="text-[9px] font-black uppercase tracking-[0.35em] text-slate-400 block mb-6">{sev} vulnerabilities</span>
-                    <span className={`text-6xl font-black tabular-nums tracking-tighter ${sev === 'critical' ? 'text-rose-600' : sev === 'high' ? 'text-orange-600' : sev === 'medium' ? 'text-amber-600' : 'text-blue-600'}`}>{auditData.findings[sev]}</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-4">{sev} vulnerabilities</span>
+                    <span className={`text-4xl font-black tabular-nums tracking-tighter ${sev === 'critical' ? 'text-rose-600' : sev === 'high' ? 'text-orange-600' : sev === 'medium' ? 'text-amber-600' : 'text-blue-600'}`}>{auditData.findings[sev]}</span>
                   </div>
                 ))}
               </div>
