@@ -70,6 +70,10 @@ function ProtectedRoute({ isAuthed, isLoading, children }: { isAuthed: boolean; 
   return <>{children}</>;
 }
 
+import QuickScan from './pages/QuickScan';
+import PublicAudits from './pages/PublicAudits';
+import DashboardLayout from './components/DashboardLayout';
+
 function App() {
   const [isAuthed, setIsAuthed] = useState<boolean>(false);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
@@ -105,6 +109,16 @@ function App() {
     window.location.href = '/auth/github/login';
   };
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/auth/logout');
+      setIsAuthed(false);
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Logout failed', err);
+    }
+  };
+
   return (
     <HelmetProvider>
       <BrowserRouter>
@@ -121,144 +135,130 @@ function App() {
             <Route path="/about" element={<AboutPage />} />
           </Route>
 
-          {/* App Pages - Protected Routes */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <Dashboard
-                onHomeClick={() => window.location.href = '/'}
-                onSettingsClick={() => window.location.href = '/settings'}
-                onViewAudit={(id) => window.location.href = `/audit/${id}`}
-                onNewAudit={() => window.location.href = '/create-project'}
-                onNewLegacyAudit={() => window.location.href = '/connect'}
-              />
-            </ProtectedRoute>
-          } />
+          {/* Standalone Public Tools (Standalone Headers) */}
+          <Route path="/quick-scan" element={<QuickScan />} />
+          <Route path="/public-audits" element={<PublicAudits />} />
 
-          <Route path="/settings" element={
+          {/* App Pages - Wrap all with DashboardLayout */}
+          <Route element={
             <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <Settings
-                onHomeClick={() => window.location.href = '/'}
-                onBack={() => window.location.href = '/dashboard'}
-              />
+              <DashboardLayout onLogout={handleLogout}>
+                <Routes>
+                  <Route path="/dashboard" element={
+                    <Dashboard
+                      onViewAudit={(id) => window.location.href = `/audit/${id}`}
+                      onNewAudit={() => window.location.href = '/create-project'}
+                    />
+                  } />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/audit/:jobId" element={
+                    <AuditDetails
+                      jobId={jobId}
+                      onHomeClick={() => window.location.href = '/'}
+                      onBack={() => window.location.href = '/dashboard'}
+                    />
+                  } />
+                  <Route path="/connect" element={
+                    <ConnectSource
+                      onNext={() => window.location.href = '/configure'}
+                      onHomeClick={() => window.location.href = '/'}
+                      repoData={repoData}
+                      setRepoData={setRepoData}
+                    />
+                  } />
+                  <Route path="/configure" element={
+                    <ConfigureAudit
+                      onNext={() => window.location.href = '/review'}
+                      onBack={() => window.location.href = '/connect'}
+                      onHomeClick={() => window.location.href = '/'}
+                      repoData={repoData}
+                      setRepoData={setRepoData}
+                    />
+                  } />
+                  <Route path="/review" element={
+                    <ReviewAndRun
+                      onBack={() => window.location.href = '/configure'}
+                      onHomeClick={() => window.location.href = '/'}
+                      repoData={repoData}
+                      initialJobId={jobId}
+                    />
+                  } />
+                  <Route path="/scan" element={
+                    <ScanContract
+                      onBack={() => window.location.href = '/'}
+                      onHomeClick={() => window.location.href = '/'}
+                      onStartAudit={(data) => {
+                        setRepoData(prev => ({
+                          ...prev,
+                          project: data.project,
+                          branch: data.branch,
+                          repo: `scan://${data.project}`,
+                        }));
+                        setJobId(data.jobId);
+                        window.location.href = `/audit/${data.jobId}`;
+                      }}
+                    />
+                  } />
+                  <Route path="/create-project" element={
+                    <ProjectCreate
+                      onNext={(project) => {
+                        setProjectData({
+                          id: project.id,
+                          name: project.name,
+                          description: project.description,
+                          type: project.type,
+                          components: []
+                        });
+                        window.location.href = '/add-components';
+                      }}
+                      onBack={() => window.location.href = '/dashboard'}
+                      onHomeClick={() => window.location.href = '/'}
+                    />
+                  } />
+                  <Route path="/add-components" element={
+                    <AddComponents
+                      projectId={projectData?.id || ''}
+                      projectName={projectData?.name || ''}
+                      projectType={projectData?.type || 'full'}
+                      onNext={(components) => {
+                        if (projectData) {
+                          setProjectData({ ...projectData, components });
+                        }
+                        window.location.href = '/configure';
+                      }}
+                      onBack={() => window.location.href = '/create-project'}
+                      onHomeClick={() => window.location.href = '/'}
+                      onStartAudit={(jId) => {
+                        setJobId(jId);
+                        window.location.href = `/preaudit-questionnaire/${jId}`;
+                      }}
+                    />
+                  } />
+                  <Route path="/preaudit-questionnaire/:jobId" element={
+                    <PreAuditQuestionnaire
+                      jobId={jobId}
+                      projectName={projectData?.name || repoData.project}
+                      onComplete={() => window.location.href = `/audit/${jobId}`}
+                      onSkip={() => window.location.href = `/audit/${jobId}`}
+                      onBack={() => window.location.href = '/dashboard'}
+                      onHomeClick={() => window.location.href = '/'}
+                    />
+                  } />
+                </Routes>
+              </DashboardLayout>
             </ProtectedRoute>
-          } />
-
-          <Route path="/audit/:jobId" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <AuditDetails
-                jobId={jobId}
-                onHomeClick={() => window.location.href = '/'}
-                onBack={() => window.location.href = '/dashboard'}
-              />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/connect" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <ConnectSource
-                onNext={() => window.location.href = '/configure'}
-                onHomeClick={() => window.location.href = '/'}
-                repoData={repoData}
-                setRepoData={setRepoData}
-              />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/configure" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <ConfigureAudit
-                onNext={() => window.location.href = '/review'}
-                onBack={() => window.location.href = '/connect'}
-                onHomeClick={() => window.location.href = '/'}
-                repoData={repoData}
-                setRepoData={setRepoData}
-              />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/review" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <ReviewAndRun
-                onBack={() => window.location.href = '/configure'}
-                onHomeClick={() => window.location.href = '/'}
-                repoData={repoData}
-                initialJobId={jobId}
-              />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/scan" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <ScanContract
-                onBack={() => window.location.href = '/'}
-                onHomeClick={() => window.location.href = '/'}
-                onStartAudit={(data) => {
-                  setRepoData(prev => ({
-                    ...prev,
-                    project: data.project,
-                    branch: data.branch,
-                    repo: `scan://${data.project}`,
-                  }));
-                  setJobId(data.jobId);
-                  window.location.href = `/audit/${data.jobId}`;
-                }}
-              />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/create-project" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <ProjectCreate
-                onNext={(project) => {
-                  setProjectData({
-                    id: project.id,
-                    name: project.name,
-                    description: project.description,
-                    type: project.type,
-                    components: []
-                  });
-                  window.location.href = '/add-components';
-                }}
-                onBack={() => window.location.href = '/dashboard'}
-                onHomeClick={() => window.location.href = '/'}
-              />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/add-components" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <AddComponents
-                projectId={projectData?.id || ''}
-                projectName={projectData?.name || ''}
-                projectType={projectData?.type || 'full'}
-                onNext={(components) => {
-                  if (projectData) {
-                    setProjectData({ ...projectData, components });
-                  }
-                  window.location.href = '/configure';
-                }}
-                onBack={() => window.location.href = '/create-project'}
-                onHomeClick={() => window.location.href = '/'}
-                onStartAudit={(jId) => {
-                  setJobId(jId);
-                  window.location.href = `/preaudit-questionnaire/${jId}`;
-                }}
-              />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/preaudit-questionnaire/:jobId" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <PreAuditQuestionnaire
-                jobId={jobId}
-                projectName={projectData?.name || repoData.project}
-                onComplete={() => window.location.href = `/audit/${jobId}`}
-                onSkip={() => window.location.href = `/audit/${jobId}`}
-                onBack={() => window.location.href = '/dashboard'}
-                onHomeClick={() => window.location.href = '/'}
-              />
-            </ProtectedRoute>
-          } />
+          }>
+            <Route path="/dashboard" />
+            <Route path="/settings" />
+            <Route path="/audit/:jobId" />
+            <Route path="/connect" />
+            <Route path="/configure" />
+            <Route path="/review" />
+            <Route path="/scan" />
+            <Route path="/create-project" />
+            <Route path="/add-components" />
+            <Route path="/preaudit-questionnaire/:jobId" />
+          </Route>
 
           {/* 404 Page */}
           <Route path="*" element={<NotFoundPage />} />

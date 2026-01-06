@@ -72,12 +72,10 @@ export default function AuditDetails({ jobId, onBack, onHomeClick }: AuditDetail
       {/* Header */}
       <header className="h-28 bg-white/70 backdrop-blur-xl border-b border-black/[0.03] flex items-center justify-between px-12 sticky top-0 z-50">
         <div className="flex items-center gap-8">
-          <button
-            onClick={onBack}
-            className="w-12 h-12 rounded-xl border border-black/[0.03] bg-white shadow-sm flex items-center justify-center hover:bg-slate-900 hover:text-white hover:scale-105 transition-all duration-500 text-slate-400 group"
-          >
-            <ArrowLeft size={18} strokeWidth={2.5} className="group-hover:-translate-x-0.5 transition-transform" />
-          </button>
+          <div onClick={onHomeClick} className="cursor-pointer">
+            <img src={logo} alt="Uatu" className="h-9 object-contain" />
+          </div>
+          <div className="h-6 w-[1px] bg-black/10" />
           <div className="flex flex-col">
             <h1 className="text-lg font-black text-slate-900 tracking-tight">{auditData.projectName}</h1>
             <span className="text-[8px] font-bold text-indigo-600 uppercase tracking-widest mt-1 flex items-center gap-2">

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle, Sparkles, Shield } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import logo from '../assets/logo.svg'
+import MouseTooltip from '../components/MouseTooltip'
 
 interface ScanContractProps {
   onBack: () => void
@@ -54,16 +56,12 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
 
-  // Ref for debounce timeout and abort controller
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Validate address format
   const isValidAddressFormat = (address: string) => /^0x[a-fA-F0-9]{40}$/.test(address)
 
-  // Debounced validation - validates and fetches source in one call
   const validateAndFetch = useCallback(async (address: string, network: Network) => {
-    // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
@@ -76,7 +74,6 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
     setError(null)
 
     try {
-      // Single API call that validates AND fetches source
       const response = await fetch('/scan/validate-and-fetch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,7 +101,6 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
         return
       }
 
-      // Set contract info
       setContractInfo({
         isContract: data.isContract,
         isVerified: data.isVerified,
@@ -116,7 +112,6 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
         implementationName: data.implementationName,
       })
 
-      // Set fetched source info
       setFetchedSource({
         contractName: data.contractName,
         compiler: data.compiler,
@@ -131,23 +126,18 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
       setFetchStatus('fetched')
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        return // Request was cancelled, ignore
+        return
       }
       setError('Failed to validate contract')
       setValidationStatus('error')
     }
   }, [])
 
-  // Handle address input change with debouncing
   const handleAddressChange = (address: string) => {
     setContractAddress(address)
-
-    // Clear previous debounce
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
     }
-
-    // Reset state for new input
     if (!address) {
       setValidationStatus('idle')
       setFetchStatus('idle')
@@ -156,43 +146,32 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
       setError(null)
       return
     }
-
     if (!isValidAddressFormat(address)) {
       setValidationStatus('idle')
       setFetchStatus('idle')
       setError(null)
       return
     }
-
-    // Debounce: wait 500ms before validating
     debounceRef.current = setTimeout(() => {
       validateAndFetch(address, selectedNetwork)
     }, 500)
   }
 
-  // Re-validate when network changes
   const handleNetworkChange = (network: Network) => {
     setSelectedNetwork(network)
-
-    // Clear previous state
     setValidationStatus('idle')
     setFetchStatus('idle')
     setContractInfo(null)
     setFetchedSource(null)
     setError(null)
-
-    // Re-validate with new network if address is valid
     if (contractAddress && isValidAddressFormat(contractAddress)) {
-      // Clear previous debounce
       if (debounceRef.current) {
         clearTimeout(debounceRef.current)
       }
-      // Immediate validation on network change
       validateAndFetch(contractAddress, network)
     }
   }
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
@@ -204,7 +183,6 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
     }
   }, [])
 
-  // Start the scan
   const handleStartScan = async () => {
     if (!contractAddress || validationStatus !== 'valid') {
       return
@@ -230,7 +208,6 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
         throw new Error(data.error || 'Failed to start scan')
       }
 
-      // Navigate to ReviewAndRun with the job
       onStartAudit({
         project: data.projectName,
         branch: 'main',
@@ -242,269 +219,224 @@ export default function ScanContract({ onBack, onHomeClick, onStartAudit }: Scan
     }
   }
 
-  const selectedNetworkData = networks.find(n => n.id === selectedNetwork)
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white relative overflow-hidden">
-      {/* Tech Grid Background */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
-        <div
-          className="w-full h-full"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(15, 63, 98, 0.03) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(15, 63, 98, 0.03) 1px, transparent 1px)
-            `,
-            backgroundSize: '50px 50px'
-          }}
-        />
-      </div>
+    <div className="min-h-screen bg-base flex flex-col selection:bg-indigo-500/20 relative overflow-hidden">
+      <MouseTooltip />
 
-      {/* Floating Blockchain Icons */}
-      <FloatingIcon shortName="ETH" color="#627EEA" position="top-20 left-20" />
-      <FloatingIcon shortName="ARB" color="#28A0F0" position="top-32 right-32" />
-      <FloatingIcon shortName="POLY" color="#8247E5" position="top-64 left-12" />
-      <FloatingIcon shortName="BNB" color="#F3BA2F" position="bottom-64 left-28" />
-      <FloatingIcon shortName="BASE" color="#0052FF" position="top-48 right-16" />
-      <FloatingIcon shortName="OP" color="#FF0420" position="bottom-32 right-24" />
+      {/* Background Atmosphere */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/[0.03] blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute inset-0 z-0 bg-dot-pattern opacity-10 pointer-events-none" />
 
       {/* Header */}
-      <header className="relative z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button
-            onClick={onHomeClick}
-            className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0"
-          >
-            <img src={logo} alt="Uatu Logo" className="h-10" />
-          </button>
+      <header className="h-20 flex items-center justify-between px-10 shrink-0 z-10 bg-white/70 backdrop-blur-xl border-b border-black/[0.03]">
+        <div className="flex items-center gap-8">
+          <div onClick={onHomeClick} className="cursor-pointer">
+            <img src={logo} alt="Uatu Security" className="h-9" />
+          </div>
+        </div>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-100/50">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Global Scan Active</span>
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="relative z-10 max-w-4xl mx-auto px-6 py-16">
-        {/* Hero Section */}
-        <div className="text-center mb-12">
-          <p className="text-[#0F3F62] text-sm tracking-widest mb-4 font-medium">UATU · AI SUPER-AUDIT</p>
-          <h1 className="text-5xl font-bold text-[#0F3F62] mb-4">
-            Audit your smart contracts
-            <br />
-            with <span className="text-[#1a5a8a]">AI Super-Intelligence</span> .
-          </h1>
-          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-            Deep reasoning engine that detects vulnerabilities, economic flaws, access-control issues
-            and gas inefficiencies — long before mainnet.
-          </p>
-        </div>
+      <main className="flex-1 overflow-y-auto px-10 py-16 z-10">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
 
-        {/* Main Card */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-xl">
-          {/* Scan Mode Toggle & Badge */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setScanMode('quick')}
-                className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-                  scanMode === 'quick'
-                    ? 'bg-white text-[#0F3F62] shadow-lg'
-                    : 'text-gray-500 hover:text-[#0F3F62]'
-                }`}
-              >
-                Quick Scan
-              </button>
-              <button
-                onClick={() => setScanMode('full')}
-                className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-                  scanMode === 'full'
-                    ? 'bg-white text-[#0F3F62] shadow-lg'
-                    : 'text-gray-500 hover:text-[#0F3F62]'
-                }`}
-              >
-                Full Audit
-              </button>
-            </div>
-            <span className="text-gray-500 text-sm">Read-only analysis · No write access</span>
-          </div>
+          {/* Left Column: Form */}
+          <div className="lg:col-span-7 space-y-12">
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-4 block">Automated Verification</span>
+              <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight mb-6">
+                Direct Contract <span className="text-slate-400">Analysis.</span>
+              </h1>
+              <p className="text-base text-slate-500 font-medium leading-relaxed">
+                Connect your deployed contract directly via blockchain explorer integration.
+                Our AI Super-Audit engine performs deep reasoning on verified source code.
+              </p>
+            </motion.div>
 
-          {/* Network Selector */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-gray-600 text-sm font-medium tracking-wide">NETWORK</label>
-              <span className="text-gray-500 text-sm">
-                Verified contracts · {selectedNetworkData?.name} (Mainnet)
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {networks.map((network) => (
-                <button
-                  key={network.id}
-                  onClick={() => handleNetworkChange(network.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${
-                    selectedNetwork === network.id
-                      ? 'border-[#0F3F62] bg-[#0F3F62]/10 text-[#0F3F62]'
-                      : 'border-gray-300 bg-transparent text-gray-600 hover:border-gray-400'
-                  }`}
-                >
-                  <span
-                    className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white"
-                    style={{ backgroundColor: network.color }}
-                  >
-                    {network.shortName.slice(0, 3)}
-                  </span>
-                  <span className="text-sm font-medium">{network.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Contract Address Input */}
-          <div className="mb-6">
-            <label className="text-gray-600 text-sm font-medium tracking-wide block mb-3">
-              CONTRACT ADDRESS
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={contractAddress}
-                onChange={(e) => handleAddressChange(e.target.value)}
-                placeholder="0x1234... paste your contract"
-                className={`w-full bg-gray-50 border rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none transition-colors font-mono pr-12 ${
-                  validationStatus === 'valid'
-                    ? 'border-green-500 focus:border-green-400'
-                    : validationStatus === 'invalid' || validationStatus === 'error'
-                    ? 'border-red-500 focus:border-red-400'
-                    : 'border-gray-300 focus:border-[#0F3F62]'
-                }`}
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                {validationStatus === 'validating' && (
-                  <Loader2 className="w-5 h-5 text-[#0F3F62] animate-spin" />
-                )}
-                {validationStatus === 'valid' && (
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                )}
-                {(validationStatus === 'invalid' || validationStatus === 'error') && (
-                  <XCircle className="w-5 h-5 text-red-500" />
-                )}
+            <div className="card-premium !p-8 space-y-10 border-black/[0.04] bg-white/50 backdrop-blur-xl">
+              {/* Scan Mode */}
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Analysis Mode</label>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { id: 'quick', label: 'Quick Scan', desc: 'Focus on surface vulnerabilities' },
+                    { id: 'full', label: 'Full Audit', desc: 'Deep economic logic checks' }
+                  ].map(mode => (
+                    <button
+                      key={mode.id}
+                      onClick={() => setScanMode(mode.id as ScanMode)}
+                      className={`text-left p-4 rounded-xl border transition-all ${scanMode === mode.id
+                        ? 'bg-indigo-50 border-indigo-200 shadow-sm'
+                        : 'border-black/[0.05] hover:bg-slate-50'
+                        }`}
+                    >
+                      <div className={`font-black text-xs uppercase tracking-wide ${scanMode === mode.id ? 'text-indigo-700' : 'text-slate-900'}`}>
+                        {mode.label}
+                      </div>
+                      <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                        {mode.desc}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Contract Info */}
-            {contractInfo && validationStatus === 'valid' && fetchedSource && (
-              <div className="mt-3 space-y-3">
-                {/* Main contract info */}
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                      <p className="text-green-600 font-medium">{contractInfo.contractName}</p>
-                      {fetchedSource.cached && (
-                        <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">Cached</span>
-                      )}
-                    </div>
-                    {contractInfo.explorerUrl && (
-                      <a
-                        href={contractInfo.explorerUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#0F3F62] hover:underline flex items-center gap-1 text-sm"
-                      >
-                        View on Explorer <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
+              {/* Network Grid */}
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Deployment Ecosystem</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {networks.map(network => (
+                    <button
+                      key={network.id}
+                      onClick={() => handleNetworkChange(network.id)}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${selectedNetwork === network.id
+                        ? 'bg-white border-indigo-600 shadow-md scale-[1.02]'
+                        : 'border-black/[0.05] bg-slate-50/50 hover:bg-white'
+                        }`}
+                    >
+                      <div className="w-6 h-6 rounded-md flex items-center justify-center text-[8px] font-black text-white shadow-sm" style={{ backgroundColor: network.color }}>
+                        {network.shortName}
+                      </div>
+                      <span className={`text-[10px] font-black uppercase tracking-wider ${selectedNetwork === network.id ? 'text-slate-900' : 'text-slate-400'}`}>
+                        {network.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Address Input */}
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Contract Address</label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-400 transition-colors">
+                    <Shield size={18} strokeWidth={2.5} />
                   </div>
-                  <p className="text-gray-500 text-sm">{contractInfo.compiler}</p>
-
-                  {/* Files count */}
-                  <div className="flex items-center gap-2 mt-2 text-gray-500 text-sm">
-                    <FileCode className="w-4 h-4" />
-                    <span>{fetchedSource.fileCount} source file{fetchedSource.fileCount !== 1 ? 's' : ''} fetched</span>
+                  <input
+                    type="text"
+                    value={contractAddress}
+                    onChange={(e) => handleAddressChange(e.target.value)}
+                    placeholder="0x..."
+                    className={`w-full bg-slate-50 border rounded-xl py-4 pl-12 pr-12 text-sm font-mono tracking-wider focus:outline-none transition-all ${validationStatus === 'valid' ? 'border-emerald-200 bg-emerald-50/20' :
+                      validationStatus === 'invalid' ? 'border-rose-200 bg-rose-50/20' :
+                        'border-black/[0.05] focus:bg-white focus:border-indigo-500 focus:shadow-lg focus:shadow-indigo-500/5'
+                      }`}
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                    {validationStatus === 'validating' && <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />}
+                    {validationStatus === 'valid' && <CheckCircle className="w-5 h-5 text-emerald-500 transition-all scale-110" />}
+                    {validationStatus === 'invalid' && <XCircle className="w-5 h-5 text-rose-500 transition-all scale-110" />}
                   </div>
                 </div>
-
-                {/* Proxy warning */}
-                {contractInfo.isProxy && (
-                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                      <span className="text-yellow-600 text-sm font-medium">Proxy Contract Detected</span>
-                    </div>
-                    {contractInfo.implementationAddress && (
-                      <p className="text-gray-500 text-sm mt-1 ml-6">
-                        Implementation: {contractInfo.implementationName || contractInfo.implementationAddress.slice(0, 10) + '...'}
-                      </p>
-                    )}
-                  </div>
-                )}
+                {error && <p className="text-[10px] text-rose-500 font-bold uppercase tracking-widest">{error}</p>}
               </div>
-            )}
 
-            {/* Error Message */}
-            {error && (
-              <p className="text-red-500 text-sm mt-2">{error}</p>
-            )}
-
-            {/* Helper Text */}
-            {!error && validationStatus === 'idle' && (
-              <p className="text-gray-500 text-sm mt-2">
-                We run an AI surface scan on the verified source code from the selected chain's explorer.
-              </p>
-            )}
-          </div>
-
-          {/* Submit Button */}
-          <button
-            onClick={handleStartScan}
-            disabled={validationStatus !== 'valid' || isStarting}
-            className={`w-full relative group ${
-              validationStatus !== 'valid' || isStarting ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-[#0F3F62]/20 to-[#1a5a8a]/20 rounded-xl blur-md group-hover:blur-lg transition-all" />
-            <div className="relative bg-[#0F3F62] hover:bg-[#1a5a8a] text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#0F3F62]/30">
-              {isStarting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Starting Scan...
-                </>
-              ) : (
-                <>
-                  Start {scanMode === 'quick' ? 'Quick Scan' : 'Full Audit'}
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
+              {/* Action */}
+              <button
+                onClick={handleStartScan}
+                disabled={validationStatus !== 'valid' || isStarting}
+                className="w-full btn-primary !py-5 shadow-2xl shadow-indigo-500/20"
+              >
+                {isStarting ? (
+                  <>
+                    <Loader2 size={18} strokeWidth={3} className="animate-spin" />
+                    Synchronizing...
+                  </>
+                ) : (
+                  <>
+                    Initiate Security Sweep
+                    <ArrowRight size={18} strokeWidth={3} />
+                  </>
+                )}
+              </button>
             </div>
-          </button>
-        </div>
+          </div>
 
-        {/* Footer - Trusted Ecosystems */}
-        <div className="mt-16 text-center">
-          <p className="text-gray-500 text-sm tracking-widest mb-6">TRUSTED ACROSS EVM ECOSYSTEMS</p>
-          <div className="flex items-center justify-center gap-8 text-gray-400">
-            {networks.map((network) => (
-              <span key={network.id} className="text-sm font-medium tracking-wide">
-                {network.name.toUpperCase()}
-              </span>
-            ))}
+          {/* Right Column: Dynamic Feedback */}
+          <div className="lg:col-span-5 pt-10">
+            <AnimatePresence mode="wait">
+              {contractInfo && validationStatus === 'valid' && fetchedSource ? (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-8"
+                >
+                  <div className="card-premium !p-0 overflow-hidden border-emerald-100 bg-emerald-50/10">
+                    <div className="p-6 border-b border-black/[0.03] bg-white/50 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                          <FileCode size={20} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-slate-900 tracking-tight">{contractInfo.contractName}</h3>
+                          <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest">Verified Source Sync</p>
+                        </div>
+                      </div>
+                      {contractInfo.explorerUrl && (
+                        <a href={contractInfo.explorerUrl} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-emerald-100 rounded-lg transition-all text-emerald-600">
+                          <ExternalLink size={16} strokeWidth={2.5} />
+                        </a>
+                      )}
+                    </div>
+                    <div className="p-8 space-y-6">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compiler Version</span>
+                        <span className="text-[10px] font-mono text-slate-900 font-bold">{contractInfo.compiler}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Source Count</span>
+                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{fetchedSource.fileCount} Assets</span>
+                      </div>
+                      {contractInfo.isProxy && (
+                        <div className="p-4 rounded-xl bg-amber-50 border border-amber-100/50 flex items-start gap-4">
+                          <div className="mt-0.5"><AlertTriangle size={14} className="text-amber-500" strokeWidth={3} /></div>
+                          <div>
+                            <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Proxy Implementation</p>
+                            <p className="text-[9px] text-amber-600/70 font-bold uppercase tracking-widest leading-relaxed mt-1">
+                              Analysis will follow implementation at {contractInfo.implementationAddress?.slice(0, 10)}...
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Trust Badge */}
+                  <div className="card-premium !p-6 flex items-center gap-6 bg-white/40">
+                    <div className="w-12 h-12 rounded-2xl glass-liquid border-white/40 flex items-center justify-center text-indigo-500">
+                      <Sparkles size={24} strokeWidth={2} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-900 tracking-tight uppercase tracking-wider">High Fidelity Mode</h4>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Full context window enabled for {contractInfo.contractName}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-center justify-center text-center p-20 border-2 border-dashed border-black/[0.03] rounded-[40px]"
+                >
+                  <div className="w-20 h-20 rounded-[32px] bg-white shadow-premium flex items-center justify-center mb-8 border border-black/[0.02]">
+                    <Shield size={32} className="text-indigo-100" strokeWidth={1} />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-3 opacity-60">Ready for Sweep</h3>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] leading-relaxed max-w-[200px]">
+                    Input a verified contract address to begin the AI analysis sequence.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
-
-// Floating Icon Component
-function FloatingIcon({ shortName, color, position }: { shortName: string; color: string; position: string }) {
-  return (
-    <div className={`absolute ${position} z-0 opacity-60`}>
-      <div
-        className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-sm shadow-lg"
-        style={{
-          backgroundColor: `${color}20`,
-          border: `2px solid ${color}40`
-        }}
-      >
-        {shortName}
-      </div>
+      </main>
     </div>
   )
 }

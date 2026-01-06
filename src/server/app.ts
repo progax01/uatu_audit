@@ -142,18 +142,20 @@ async function handleRequest(req: any, res: any) {
     // Pre-audit questionnaire routes
     if (await handlePreAuditRoutes(req, res, parsed)) return;
 
-    // SPA fallback - serve index.html for all non-API routes (client-side routing)
-    const spaRoutes = ['/dashboard', '/settings', '/audit', '/connect', '/configure', '/review', '/scan', '/create-project', '/add-components', '/preaudit-questionnaire', '/pricing', '/features', '/how-it-works', '/supported-chains', '/docs', '/use-cases', '/about'];
-    const isSpaRoute = spaRoutes.some(route => parsed.pathname === route || parsed.pathname.startsWith(route + '/'));
+    // SPA fallback - serve index.html for all non-API GET requests (catch-all for client-side routing)
+    if (req.method === "GET") {
+      const apiPrefixes = ['/api/', '/auth/', '/github/', '/jobs/', '/report/', '/scan/', '/organization/', '/preaudit/', '/healthz'];
+      const isApiRequest = apiPrefixes.some(prefix => parsed.pathname.startsWith(prefix));
 
-    if (req.method === "GET" && isSpaRoute) {
-      const uiPath = path.join(__dirname, "../../dist-ui/index.html");
-      if (await fs.pathExists(uiPath)) {
-        const content = await fs.readFile(uiPath, "utf8");
-        res.setHeader("Content-Type", "text/html; charset=utf-8");
-        res.writeHead(200);
-        res.end(content);
-        return;
+      if (!isApiRequest) {
+        const uiPath = path.join(__dirname, "../../dist-ui/index.html");
+        if (await fs.pathExists(uiPath)) {
+          const content = await fs.readFile(uiPath, "utf8");
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.writeHead(200);
+          res.end(content);
+          return;
+        }
       }
     }
 

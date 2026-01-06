@@ -1,6 +1,6 @@
 import { motion, Variants } from 'framer-motion';
 import {
-  ArrowRight, Zap, Check, Sparkles, ShieldAlert, Fingerprint
+  ArrowRight, Activity, Check, Shield, ShieldAlert, Fingerprint
 } from 'lucide-react';
 import {
   PremiumShield, PremiumRadar, PremiumCode,
@@ -62,8 +62,8 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                   variants={itemVariants}
                   className="inline-flex items-center gap-2.5 px-4 py-2 bg-indigo-50/50 border border-indigo-100/50 backdrop-blur-sm rounded-full text-[10px] font-extrabold uppercase tracking-[0.25em] text-indigo-600 mb-10"
                 >
-                  <Sparkles size={12} />
-                  <span>Next Generation Security</span>
+                  <Shield size={12} />
+                  <span>High-Assurance Auditing</span>
                 </motion.div>
 
                 <motion.h1
@@ -91,8 +91,8 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                       Secure Project <ArrowRight size={16} strokeWidth={3} />
                     </Link>
                   )}
-                  <Link to="/how-it-works" className="btn-ghost min-w-[200px]">
-                    How It Works
+                  <Link to="/quick-scan" className="btn-ghost min-w-[200px] border-slate-200 text-slate-600 bg-slate-50/30">
+                    QuickScan <Activity size={14} className="ml-1 opacity-50" />
                   </Link>
                 </motion.div>
 
@@ -298,7 +298,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                     <p className="text-slate-400 font-medium leading-relaxed flex-grow mb-12 text-sm">{p.desc}</p>
                     {p.ext ? (
                       <a href={p.link} target="_blank" rel="noopener noreferrer" className="btn-ghost w-full">
-                        Launch {p.title.split(' ')[1]} <Zap size={14} className="opacity-50" />
+                        Launch {p.title.split(' ')[1]} <ArrowRight size={14} className="opacity-50" />
                       </a>
                     ) : (
                       <Link to={p.link} className="btn-primary w-full">
@@ -416,7 +416,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
 
                     <div className="flex items-center gap-5 p-6 bg-white border border-black/[0.02] rounded-[24px] shadow-sm translate-x-4">
                       <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-600">
-                        <Zap size={24} strokeWidth={2.5} />
+                        <Activity size={24} strokeWidth={2.5} />
                       </div>
                       <div>
                         <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 mb-1">Threat Feed</div>
@@ -542,52 +542,70 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
           </div>
         </section>
 
-        {/* Integrations & Trust */}
-        <section className="py-24 bg-white border-t border-black/[0.02]">
-          <div className="max-w-7xl mx-auto px-6 lg:px-10">
-            <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
-              <div className="max-w-sm">
-                <h3 className="text-xl font-black tracking-tight mb-2">Protocol Native.</h3>
-                <p className="text-xs text-slate-400 font-medium leading-relaxed">Integrated directly into your existing development toolchain and CI/CD pipelines.</p>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-6">
-                {[
-                  { id: 'H', name: 'Hardhat', color: 'bg-yellow-500', text: 'text-yellow-600' },
-                  { id: 'F', name: 'Foundry', color: 'bg-orange-500', text: 'text-orange-600' },
-                  { id: 'G', name: 'GitHub', color: 'bg-slate-900', text: 'text-slate-900' },
-                  { id: 'J', name: 'Jenkins', color: 'bg-red-500', text: 'text-red-600' }
-                ].map(tool => (
-                  <div key={tool.name} className="flex items-center gap-4 px-6 py-4 bg-[#FAFAFA] border border-black/[0.03] rounded-2xl group hover:border-indigo-100 transition-all">
-                    <div className={`w-8 h-8 rounded-lg ${tool.color} flex items-center justify-center text-white text-[10px] font-black italic shadow-lg shadow-black/5`}>{tool.id}</div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-900 transition-colors">{tool.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* Infrastructure & Ecosystem Section */}
+        <section className="py-32 bg-white border-y border-black/[0.01] overflow-hidden relative">
+          <div className="absolute inset-0 bg-dot-pattern opacity-[0.05]" />
 
-        {/* Global Multi-Chain Section */}
-        <section className="py-40 bg-[#FAFAFA] border-y border-black/[0.02] relative overflow-hidden">
-          <div className="absolute inset-0 bg-dot-pattern opacity-[0.2]" />
-          <div className="max-w-7xl mx-auto px-6 lg:px-10 relative z-10">
-            <div className="text-center mb-24">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-6 block">Ecosystem Connectivity</span>
-              <h2 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight mb-6">Trusted Across All <span className="text-slate-300">Protocols.</span></h2>
-              <p className="text-sm text-slate-400 max-w-xl mx-auto font-medium leading-relaxed">Seamlessly integrated with the world's leading blockchain infrastructures and decentralized development toolchains.</p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-8 lg:gap-10">
-              {supportedChains.map((chain) => (
-                <div key={chain.name} className="flex flex-col items-center gap-4 group cursor-default">
+          <div className="max-w-7xl mx-auto px-6 lg:px-10 mb-20 relative z-10 text-center flex flex-col items-center">
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-6 block">Ecosystem Connectivity</span>
+            <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-8">Engineering Powerhouse <br /><span className="text-slate-300">for the Global Multi-Chain.</span></h2>
+
+            {/* Static Frameworks Row */}
+            <div className="flex flex-wrap justify-center gap-3 mb-16">
+              {[
+                { name: 'Hardhat', color: '#F8D12F', id: 'H' },
+                { name: 'Foundry', color: '#F36722', id: 'F' },
+                { name: 'Jest', color: '#99425B', id: 'J' },
+                { name: 'Node.js', color: '#339933', id: 'N' },
+                { name: 'Next.js', color: '#000000', id: 'N' },
+                { name: 'GitHub', color: '#181717', id: 'G' },
+                { name: 'Jenkins', color: '#D24939', id: 'J' },
+              ].map((tool) => (
+                <div key={tool.name} className="flex items-center gap-2 px-4 py-2 bg-slate-50/50 border border-black/[0.03] rounded-xl hover:border-indigo-100/50 transition-all cursor-default">
                   <div
-                    className="w-20 h-20 rounded-[28px] bg-white border border-black/[0.03] flex items-center justify-center p-5 shadow-sm group-hover:shadow-xl group-hover:border-indigo-100/50 group-hover:-translate-y-1 transition-all duration-500 relative overflow-hidden"
+                    className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black text-white italic shadow-sm"
+                    style={{ backgroundColor: tool.color }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <chain.icon size={36} color={chain.color} />
+                    {tool.id}
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-900 transition-colors">{chain.name}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tool.name}</span>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="relative">
+            {/* Gradient Fades for Marquee */}
+            <div className="absolute inset-y-0 left-0 w-64 bg-gradient-to-r from-white via-white to-transparent z-10 pointer-events-none" />
+            <div className="absolute inset-y-0 right-0 w-64 bg-gradient-to-l from-white via-white to-transparent z-10 pointer-events-none" />
+
+            <div className="flex overflow-hidden">
+              <motion.div
+                animate={{ x: [0, -2000] }}
+                transition={{ repeat: Infinity, duration: 60, ease: "linear" }}
+                className="flex gap-4 items-center py-2"
+              >
+                {[...supportedChains, ...supportedChains, ...supportedChains].map((chain, idx) => (
+                  <div key={`${chain.name}-${idx}`} className="flex-shrink-0">
+                    <div
+                      className="flex items-center gap-4 px-6 py-3.5 bg-white border rounded-[22px] group transition-all duration-500 hover:shadow-lg hover:shadow-indigo-500/5"
+                      style={{
+                        borderColor: `${chain.color}15`,
+                        boxShadow: `0 4px 20px -10px ${chain.color}15`
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center p-1.5 transition-transform duration-500 group-hover:scale-110">
+                        {/* @ts-ignore */}
+                        <chain.icon size={22} color={chain.color} />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-black tracking-tight text-slate-800">{chain.name}</span>
+                        <span className="text-[8px] font-bold uppercase tracking-widest text-slate-300 group-hover:text-indigo-400 transition-colors">Mainnet</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </motion.div>
             </div>
           </div>
         </section>

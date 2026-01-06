@@ -1,121 +1,157 @@
 import { useState } from 'react'
-import { ArrowLeft, Save, Globe, Key, ShieldCheck, Link2 } from 'lucide-react'
+import OrganizationProfile from './OrganizationProfile'
+import { Save, Globe, Key, ShieldCheck, Link2, Building2, CreditCard } from 'lucide-react'
+import { motion } from 'framer-motion'
 
-interface SettingsProps {
-  onHomeClick: () => void
-  onBack: () => void
-}
-
-export default function Settings({ onHomeClick, onBack }: SettingsProps) {
-  const [isSaving, setIsStarting] = useState(false)
+export default function Settings() {
+  const [isSaving, setIsSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState<'general' | 'organization' | 'security' | 'billing'>('general')
 
   const handleSave = async () => {
-    setIsStarting(true)
-    // Simulate API call
+    setIsSaving(true)
     await new Promise(resolve => setTimeout(resolve, 1000))
-    setIsStarting(false)
+    setIsSaving(false)
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={onBack}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-500" />
-          </button>
-          <h1 className="text-xl font-bold text-[#0F3F62]">Global Settings</h1>
+    <div className="max-w-4xl mx-auto space-y-12">
+      <div className="flex items-center justify-between mb-12">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight capitalize">{activeTab} Control Plane</h1>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 opacity-60">Management system / global configuration</p>
         </div>
-        <button 
+        <button
           onClick={handleSave}
-          className="flex items-center gap-2 bg-[#0F3F62] hover:bg-[#1a5a8a] text-white px-6 py-2 rounded-lg text-sm font-semibold transition-all shadow-lg shadow-blue-900/10 disabled:opacity-50"
           disabled={isSaving}
+          className="btn-primary py-2.5 px-8"
         >
-          <Save className="w-4 h-4" />
-          {isSaving ? 'Saving...' : 'Save Changes'}
+          <Save size={14} strokeWidth={3} />
+          {isSaving ? 'Synchronizing...' : 'Commit Changes'}
         </button>
-      </header>
+      </div>
 
-      <main className="max-w-4xl mx-auto p-8">
-        <div className="space-y-8">
-          {/* Third Party Connections */}
-          <section>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Link2 className="w-5 h-5 text-[#0F3F62]" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Connections</h2>
-                <p className="text-sm text-gray-500">Configure third-party app integrations for better liability mapping.</p>
-              </div>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100 overflow-hidden">
-              <div className="p-6 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center font-bold text-gray-400">G</div>
-                  <div>
-                    <h3 className="font-bold text-gray-900">Gnosis Safe</h3>
-                    <p className="text-sm text-gray-500">Auto-verify multi-sig owners from safe addresses.</p>
-                  </div>
-                </div>
-                <button className="text-sm font-bold text-[#0F3F62] hover:underline">Connect</button>
-              </div>
-              <div className="p-6 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center font-bold text-gray-400">O</div>
-                  <div>
-                    <h3 className="font-bold text-gray-900">Chainlink Oracles</h3>
-                    <p className="text-sm text-gray-500">Automatically trust off-chain price feeds from Chainlink.</p>
-                  </div>
-                </div>
-                <button className="text-sm font-bold text-[#0F3F62] hover:underline">Connect</button>
-              </div>
-            </div>
-          </section>
-
-          {/* Global Preferences */}
-          <section>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                <ShieldCheck className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Audit Preferences</h2>
-                <p className="text-sm text-gray-500">Set global rules for your organization's security posture.</p>
-              </div>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-gray-900">Auto-Trust OpenZeppelin</h3>
-                  <p className="text-sm text-gray-500">Always classify OpenZeppelin library calls as EXTERNAL liability.</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0F3F62]"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-gray-100 pt-6">
-                <div>
-                  <h3 className="font-bold text-gray-900">Block Merge on Failure</h3>
-                  <p className="text-sm text-gray-500">Update GitHub Check status to 'failure' if score is below threshold.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-gray-400">THRESHOLD:</span>
-                  <input type="number" defaultValue={80} className="w-16 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-sm font-bold text-[#0F3F62]" />
-                </div>
-              </div>
-            </div>
-          </section>
+      <div className="flex gap-12">
+        {/* Local Tab Nav */}
+        <div className="w-64 shrink-0 space-y-2">
+          {[
+            { id: 'general', label: 'General Preferences', icon: Globe },
+            { id: 'organization', label: 'Organization Profile', icon: Building2 },
+            { id: 'security', label: 'Security & Keys', icon: Key },
+            { id: 'billing', label: 'Billing & Plans', icon: CreditCard },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all border ${activeTab === tab.id
+                ? 'bg-white text-indigo-700 border-indigo-100 shadow-sm'
+                : 'text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-900'
+                }`}
+            >
+              <tab.icon size={14} strokeWidth={2.5} />
+              {tab.label}
+            </button>
+          ))}
         </div>
-      </main>
+
+        {/* Tab Content */}
+        <div className="flex-1 min-w-0">
+          {activeTab === 'general' && (
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-10">
+              <section>
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 rounded-2xl glass-liquid border-white/40 flex items-center justify-center text-indigo-600 shadow-sm">
+                    <Link2 size={20} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900 tracking-tight">Active Safe-Connect</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Integration mapping & resource bounds</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {[
+                    { name: 'Gnosis Safe', desc: 'Auto-verify multi-sig owners from connected safe addresses.', icon: 'G' },
+                    { name: 'Chainlink Oracles', desc: 'Automatically trust off-chain price feeds from decentralized oracles.', icon: 'O' }
+                  ].map(conn => (
+                    <div key={conn.name} className="card-premium !p-6 flex items-center justify-between group hover:border-indigo-100 transition-all">
+                      <div className="flex items-center gap-6">
+                        <div className="w-12 h-12 rounded-xl bg-slate-50 border border-black/[0.03] flex items-center justify-center font-black text-slate-400 group-hover:bg-white group-hover:text-indigo-600 transition-all">
+                          {conn.icon}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-slate-900 tracking-tight">{conn.name}</h3>
+                          <p className="text-[10px] text-slate-400 font-medium leading-relaxed max-w-sm mt-0.5">{conn.desc}</p>
+                        </div>
+                      </div>
+                      <button className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700 transition-colors">Connect</button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 rounded-2xl glass-liquid border-white/40 flex items-center justify-center text-emerald-600 shadow-sm">
+                    <ShieldCheck size={20} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900 tracking-tight">Audit Logic Preferences</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Automated verification & threshold controls</p>
+                  </div>
+                </div>
+
+                <div className="card-premium !p-8 space-y-8">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 tracking-tight">Auto-Trust Verified Libraries</h3>
+                      <p className="text-[10px] text-slate-400 font-medium leading-relaxed mt-0.5">Automatically classify OpenZeppelin / Solady calls as EXTERNAL liability.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <div className="w-10 h-5 bg-slate-100 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-200 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-8 border-t border-black/[0.03]">
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 tracking-tight">Gate Merge on Critical</h3>
+                      <p className="text-[10px] text-slate-400 font-medium leading-relaxed mt-0.5">Fail CI/CD pipeline if security score falls below specified threshold.</p>
+                    </div>
+                    <div className="flex items-center gap-3 px-3 py-1.5 bg-slate-50 border border-black/[0.03] rounded-lg">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Score Limit:</span>
+                      <input type="number" defaultValue={80} className="w-10 bg-transparent border-none p-0 text-sm font-black text-indigo-600 focus:ring-0 text-center" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </motion.div>
+          )}
+
+          {activeTab === 'organization' && (
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+              <OrganizationProfile />
+            </motion.div>
+          )}
+
+          {activeTab === 'security' && (
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-10">
+              <div className="p-20 border-2 border-dashed border-black/[0.03] rounded-[40px] text-center">
+                <Key size={40} className="text-slate-200 mx-auto mb-6" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Key Management Offline</p>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'billing' && (
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-10 font-bold">
+              <div className="p-20 border-2 border-dashed border-black/[0.03] rounded-[40px] text-center">
+                <CreditCard size={40} className="text-slate-200 mx-auto mb-6" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Billing Cycle Not Synchronized</p>
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
-

@@ -1,7 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
-import Breadcrumbs from './Breadcrumbs';
 
 interface LayoutProps {
     isAuthed: boolean;
@@ -13,7 +12,6 @@ export default function Layout({ isAuthed, onLogin }: LayoutProps) {
         <div className="min-h-screen flex flex-col bg-white">
             <Header isAuthed={isAuthed} onLogin={onLogin} />
             <main className="flex-grow pt-20">
-                <Breadcrumbs />
                 <Outlet />
             </main>
             <Footer />

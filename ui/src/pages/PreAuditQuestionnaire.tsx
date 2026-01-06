@@ -315,14 +315,6 @@ export default function PreAuditQuestionnaire({
       </header>
 
       <div className="relative z-10 max-w-5xl mx-auto px-6 py-8">
-        {/* Back Button */}
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-gray-500 hover:text-[#0F3F62] transition-colors mb-6 group"
-        >
-          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-medium">Back to Dashboard</span>
-        </button>
 
         {/* Title */}
         <div className="mb-8">
@@ -354,10 +346,9 @@ export default function PreAuditQuestionnaire({
 
           return (
             <div key={priority} className="mb-8">
-              <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${
-                priority === 'HIGH' ? 'text-red-700' :
-                priority === 'MEDIUM' ? 'text-amber-700' : 'text-gray-600'
-              }`}>
+              <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${priority === 'HIGH' ? 'text-red-700' :
+                  priority === 'MEDIUM' ? 'text-amber-700' : 'text-gray-600'
+                }`}>
                 {priority === 'HIGH' && <AlertTriangle className="w-5 h-5" />}
                 {priority} Priority
                 {priority === 'HIGH' && <span className="text-sm font-normal">(Required)</span>}
@@ -373,9 +364,8 @@ export default function PreAuditQuestionnaire({
                   return (
                     <div
                       key={question.id}
-                      className={`border rounded-xl overflow-hidden transition-all ${
-                        answer ? 'border-green-200 bg-green-50/30' : 'border-gray-200 bg-white'
-                      }`}
+                      className={`border rounded-xl overflow-hidden transition-all ${answer ? 'border-green-200 bg-green-50/30' : 'border-gray-200 bg-white'
+                        }`}
                     >
                       {/* Question Header */}
                       <button
@@ -427,18 +417,16 @@ export default function PreAuditQuestionnaire({
                                 <button
                                   key={option.value}
                                   onClick={() => handleAnswer(question.id, option.value)}
-                                  className={`w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all text-left ${
-                                    answer?.selectedOption === option.value
+                                  className={`w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all text-left ${answer?.selectedOption === option.value
                                       ? 'border-[#0F3F62] bg-[#0F3F62]/5'
                                       : 'border-gray-200 hover:border-gray-300 bg-white'
-                                  }`}
+                                    }`}
                                 >
                                   <div className="flex items-center gap-3">
-                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                      answer?.selectedOption === option.value
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${answer?.selectedOption === option.value
                                         ? 'border-[#0F3F62] bg-[#0F3F62]'
                                         : 'border-gray-300'
-                                    }`}>
+                                      }`}>
                                       {answer?.selectedOption === option.value && (
                                         <div className="w-2 h-2 rounded-full bg-white" />
                                       )}
@@ -459,21 +447,19 @@ export default function PreAuditQuestionnaire({
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleScopeOverride(question.id, 'INTERNAL')}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                  (answer?.scopeOverride || question.suggestedScope) === 'INTERNAL'
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${(answer?.scopeOverride || question.suggestedScope) === 'INTERNAL'
                                     ? 'bg-[#0F3F62] text-white'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
+                                  }`}
                               >
                                 Internal
                               </button>
                               <button
                                 onClick={() => handleScopeOverride(question.id, 'EXTERNAL')}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                  (answer?.scopeOverride || question.suggestedScope) === 'EXTERNAL'
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${(answer?.scopeOverride || question.suggestedScope) === 'EXTERNAL'
                                     ? 'bg-[#0F3F62] text-white'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
+                                  }`}
                               >
                                 External
                               </button>
