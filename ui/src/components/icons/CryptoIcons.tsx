@@ -38,18 +38,6 @@ export const StellarIcon = ({ className, size = 24, color }: ChainIconProps) => 
     <SiStellar className={className} size={size} color={color} />
 );
 
-// Partisia (Custom SVG)
-export const PartisiaIcon = ({ className, size = 24, color }: ChainIconProps) => (
-    <svg
-        className={className}
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill={color || "currentColor"}
-    >
-        <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" />
-    </svg>
-);
 
 // Arbitrum doesn't have a simple-icons entry, so we'll use a custom SVG
 export const ArbitrumIcon = ({ className, size = 24, color }: ChainIconProps) => (
@@ -97,7 +85,7 @@ export const AvalancheIcon = ({ className, size = 24, color }: ChainIconProps) =
 
 export interface ChainInfo {
     name: string;
-    icon: IconType | ((props: ChainIconProps) => JSX.Element);
+    icon: IconType | ((props: ChainIconProps) => React.ReactNode);
     color: string;
     status: 'supported' | 'beta' | 'coming-soon';
 }
@@ -109,7 +97,6 @@ export const supportedChains: ChainInfo[] = [
     { name: 'BSC', icon: BSCIcon, color: '#F3BA2F', status: 'supported' },
     { name: 'Arbitrum', icon: ArbitrumIcon, color: '#28A0F0', status: 'supported' },
     { name: 'Stellar', icon: StellarIcon, color: '#000000', status: 'supported' },
-    { name: 'Partisia', icon: PartisiaIcon, color: '#5C61FF', status: 'supported' },
     { name: 'Optimism', icon: OptimismIcon, color: '#FF0420', status: 'supported' },
     { name: 'Base', icon: BaseIcon, color: '#0052FF', status: 'supported' },
     { name: 'Avalanche', icon: AvalancheIcon, color: '#E84142', status: 'beta' },

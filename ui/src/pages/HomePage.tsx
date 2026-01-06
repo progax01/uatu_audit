@@ -8,7 +8,7 @@ import {
 } from '../components/IconSystem';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
-import { supportedChains, SolanaIcon, StellarIcon, PartisiaIcon } from '../components/icons/CryptoIcons';
+import { supportedChains, SolanaIcon, StellarIcon } from '../components/icons/CryptoIcons';
 import MouseTooltip from '../components/MouseTooltip';
 
 interface HomePageProps {
@@ -102,12 +102,12 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                   className="mt-20 pt-16 border-t border-black/[0.03] flex items-center gap-16"
                 >
                   {[
-                    { label: 'Audits', value: '12K+' },
-                    { label: 'Vulns Found', value: '850+' },
-                    { label: 'TVL Secured', value: '$4.2B' },
+                    { label: 'Security Standard', value: 'OWASP' },
+                    { label: 'Threat Framework', value: 'STRIDE' },
+                    { label: 'Compliance Level', value: 'ISO/IEC' },
                   ].map((stat) => (
                     <div key={stat.label}>
-                      <div className="text-3xl font-black text-slate-900 mb-1">{stat.value}</div>
+                      <div className="text-2xl font-black text-indigo-600 mb-1 tracking-tighter">{stat.value}</div>
                       <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{stat.label}</div>
                     </div>
                   ))}
@@ -434,43 +434,110 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
           </div>
         </section>
 
-        {/* Rust & Specialty Ecosystems */}
+        {/* Rust & WASM Security Deep-Dive */}
         <section className="py-40 bg-[#FAFAFA] border-t border-black/[0.02]">
           <div className="max-w-7xl mx-auto px-6 lg:px-10">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-8 block">Rust & WASM Security</span>
                 <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-6">Specialized Audits for <br /><span className="text-slate-300">High-Performance Chains.</span></h2>
-                <p className="text-lg text-slate-500 font-medium leading-relaxed mb-12">
-                  Uatu provides deep-level bytecode analysis and formal verification for Rust-based ecosystems, ensuring deterministic safety for the next generation of blockchains.
+                <p className="text-base text-slate-500 font-medium leading-relaxed mb-12">
+                  Uatu provides depth-level state and storage analysis for Rust-based ecosystems. We transition beyond logical checks into deterministic bytecode verification for BPF and Soroban runtimes.
                 </p>
-                <div className="space-y-6">
+                <div className="space-y-8">
                   {[
-                    { name: 'Solana', icon: SolanaIcon, desc: 'Advanced BPF and Program-Level security analysis.' },
-                    { name: 'Stellar', icon: StellarIcon, desc: 'Soroban smart contract safety & formal verification.' },
-                    { name: 'Partisia', icon: PartisiaIcon, desc: 'Zero-knowledge and MPC contract auditing.' }
+                    { name: 'Solana (BPF)', icon: SolanaIcon, desc: 'Advanced account-data validation and BPF instruction analysis.' },
+                    { name: 'Stellar (Soroban)', icon: StellarIcon, desc: 'Contract storage isolation and host-function security.' },
                   ].map((chain) => (
                     <div key={chain.name} className="flex gap-6 items-start group">
                       <div className="w-12 h-12 rounded-xl glass-liquid border-slate-100 flex items-center justify-center shrink-0 group-hover:border-indigo-100 transition-all">
                         <chain.icon size={22} color="#5C61FF" />
                       </div>
                       <div>
-                        <h4 className="text-lg font-black text-slate-900 mb-1">{chain.name} Security</h4>
-                        <p className="text-sm text-slate-400 font-medium">{chain.desc}</p>
+                        <h4 className="text-base font-black text-slate-900 mb-1">{chain.name} Engineering</h4>
+                        <p className="text-xs text-slate-400 font-medium leading-relaxed">{chain.desc}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="relative aspect-square lg:aspect-video rounded-[40px] glass-liquid border-white/20 p-1 bg-gradient-to-br from-indigo-500/5 to-transparent">
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
-                <div className="w-full h-full flex items-center justify-center p-12">
-                  <div className="text-center">
-                    <PremiumCode size={80} className="text-indigo-200 mb-8 mx-auto" strokeWidth={1} />
-                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Binary Analysis Active</div>
+
+              {/* Security Terminal Visualization */}
+              <div className="card-premium !p-0 bg-slate-950 border-white/5 shadow-2xl overflow-hidden font-mono text-[10px] relative">
+                <div className="bg-white/5 border-b border-white/5 px-6 py-4 flex items-center justify-between">
+                  <div className="flex gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-rose-500/20" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500/20" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/20" />
+                  </div>
+                  <span className="text-slate-500 text-[9px] uppercase tracking-widest font-black">uatu_node_rust_v2.0</span>
+                </div>
+                <div className="p-8 space-y-4">
+                  <div className="flex gap-3">
+                    <span className="text-indigo-400">➜</span>
+                    <span className="text-slate-400">Initializing Solana BPF Analysis...</span>
+                  </div>
+                  <div className="space-y-2 pl-4">
+                    <div className="flex justify-between items-center group">
+                      <span className="text-slate-500">[01] Account State Verification</span>
+                      <span className="text-emerald-400 uppercase font-black text-[8px]">Passed</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">[02] Storage Slot Collision Check</span>
+                      <span className="text-emerald-400 uppercase font-black text-[8px]">Passed</span>
+                    </div>
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ repeat: Infinity, duration: 2, repeatType: "reverse" }}
+                      className="flex justify-between items-center"
+                    >
+                      <span className="text-indigo-300">[03] Computational Entropy Analysis</span>
+                      <span className="text-indigo-400 uppercase font-black text-[8px]">In Progress...</span>
+                    </motion.div>
+                    <div className="flex justify-between items-center opacity-30">
+                      <span className="text-slate-500">[04] Host Function Boundary Check</span>
+                      <span className="text-slate-600 uppercase font-black text-[8px]">Queued</span>
+                    </div>
+                  </div>
+                  <div className="pt-4 border-t border-white/5">
+                    <div className="text-slate-400 mb-2">// OWASP-STRIDE Mapping Active</div>
+                    <div className="flex gap-2 text-[8px]">
+                      <span className="px-2 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded">TAMPERING</span>
+                      <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded">REPUDIATION</span>
+                      <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded">DDoS</span>
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Compliance & Deliverables */}
+        <section className="py-32 bg-white relative overflow-hidden">
+          <div className="max-w-7xl mx-auto px-6 lg:px-10">
+            <div className="flex flex-col lg:flex-row items-end justify-between gap-12 mb-20">
+              <div className="max-w-2xl">
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-6 block">Deliverables & Standards</span>
+                <h2 className="text-3xl lg:text-4xl font-black tracking-tight">Enterprise Compliance <br /><span className="text-slate-300">for High-Stakes Protocols.</span></h2>
+              </div>
+              <p className="text-sm text-slate-400 font-medium max-w-sm mb-2">We provide formalized security artifacts that meet institutional and regulatory standards for digital asset infrastructure.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {[
+                { title: 'Compliance Certs', desc: 'Finalized verification certificates for mainnet launch readiness.' },
+                { title: 'Arch Analysis', desc: 'In-depth backend architecture and logic flow vulnerability reports.' },
+                { title: 'Frontend Integrity', desc: 'Reports on UI consistency and provider-level security patterns.' },
+                { title: 'STRIDE Audits', desc: 'Comprehensive mapping against OWASP-STRIDE of decentralized code.' },
+              ].map((d, i) => (
+                <div key={d.title} className="card-premium !p-8 bg-slate-50/30 group hover:bg-white transition-all">
+                  <div className="text-2xl font-black text-slate-200 group-hover:text-indigo-600 transition-colors mb-6">0{i + 1}</div>
+                  <h4 className="text-sm font-black text-slate-900 mb-2 uppercase tracking-tight">{d.title}</h4>
+                  <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{d.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -483,89 +550,42 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                 <h3 className="text-xl font-black tracking-tight mb-2">Protocol Native.</h3>
                 <p className="text-xs text-slate-400 font-medium leading-relaxed">Integrated directly into your existing development toolchain and CI/CD pipelines.</p>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-12 lg:gap-20 opacity-30 invert">
-                {/* Mock Integrations Icons / Labels */}
-                <div className="flex items-center gap-3 grayscale">
-                  <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white text-[10px] font-black italic">H</div>
-                  <span className="text-[10px] font-black uppercase tracking-widest">Hardhat</span>
-                </div>
-                <div className="flex items-center gap-3 grayscale">
-                  <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white text-[10px] font-black italic">F</div>
-                  <span className="text-[10px] font-black uppercase tracking-widest">Foundry</span>
-                </div>
-                <div className="flex items-center gap-3 grayscale">
-                  <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white text-[10px] font-black italic">G</div>
-                  <span className="text-[10px] font-black uppercase tracking-widest">GitHub</span>
-                </div>
-                <div className="flex items-center gap-3 grayscale">
-                  <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white text-[10px] font-black italic">J</div>
-                  <span className="text-[10px] font-black uppercase tracking-widest">Jenkins</span>
-                </div>
+              <div className="flex flex-wrap items-center justify-center gap-6">
+                {[
+                  { id: 'H', name: 'Hardhat', color: 'bg-yellow-500', text: 'text-yellow-600' },
+                  { id: 'F', name: 'Foundry', color: 'bg-orange-500', text: 'text-orange-600' },
+                  { id: 'G', name: 'GitHub', color: 'bg-slate-900', text: 'text-slate-900' },
+                  { id: 'J', name: 'Jenkins', color: 'bg-red-500', text: 'text-red-600' }
+                ].map(tool => (
+                  <div key={tool.name} className="flex items-center gap-4 px-6 py-4 bg-[#FAFAFA] border border-black/[0.03] rounded-2xl group hover:border-indigo-100 transition-all">
+                    <div className={`w-8 h-8 rounded-lg ${tool.color} flex items-center justify-center text-white text-[10px] font-black italic shadow-lg shadow-black/5`}>{tool.id}</div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-900 transition-colors">{tool.name}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </section>
 
-        {/* Testimonials / Social Proof */}
-        <section className="py-40 bg-white relative overflow-hidden">
-          <div className="max-w-7xl mx-auto px-6 lg:px-10">
-            <div className="text-center mb-32">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-6 block">Social Proof</span>
-              <h2 className="text-5xl lg:text-[72px] font-black tracking-[-0.05em] leading-[0.9]">Trusted by <br /><span className="text-slate-200">Industry Leaders.</span></h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-              {[
-                { quote: "Uatu is the first tool that actually caught a reentrancy edge case our manual auditors missed. It's now mandatory for all our PRs.", author: "Marcus Thorne", role: "Lead Dev, SolarDeFi" },
-                { quote: "The speed of UatuAudit is incredible. We went from waiting days for audit results to getting them in minutes during our sprint.", author: "Elena Rossi", role: "CTO, Nexus Protocol" },
-                { quote: "A unified command center for Web3 security. Analyzer and Build integration makes it the most powerful suite on the market.", author: "Dr. Julian Vance", role: "Security Researcher" },
-              ].map((t, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1, duration: 0.8 }}
-                  className="card-premium p-10 bg-[#FAFAFA]/50 border-black/[0.01] hover:bg-white transition-all duration-700"
-                >
-                  <div className="flex gap-1 mb-8">
-                    {[1, 2, 3, 4, 5].map(s => <Sparkles key={s} size={10} className="text-amber-400" />)}
-                  </div>
-                  <p className="text-lg font-medium text-slate-800 leading-relaxed mb-10 italic">"{t.quote}"</p>
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-black text-[10px] uppercase">
-                      {t.author.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div>
-                      <div className="text-xs font-black text-slate-900 uppercase tracking-wider">{t.author}</div>
-                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{t.role}</div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Global Multi-Chain Section */}
-        <section className="py-32 bg-slate-900 border-y border-black relative overflow-hidden">
-          <div className="absolute inset-0 bg-dot-pattern opacity-[0.05] invert" />
-          <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/10 to-transparent" />
+        <section className="py-40 bg-[#FAFAFA] border-y border-black/[0.02] relative overflow-hidden">
+          <div className="absolute inset-0 bg-dot-pattern opacity-[0.2]" />
           <div className="max-w-7xl mx-auto px-6 lg:px-10 relative z-10">
-            <div className="text-center mb-16">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 mb-4 block">Ecosystem Connectivity</span>
-              <h2 className="text-3xl lg:text-4xl font-black text-white tracking-tight mb-6">Trusted Across All <span className="opacity-40">Protocols.</span></h2>
-              <p className="text-sm text-slate-400 max-w-xl mx-auto font-medium">Seamlessly integrated with the world's leading blockchain infrastructures and development toolchains.</p>
+            <div className="text-center mb-24">
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-6 block">Ecosystem Connectivity</span>
+              <h2 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight mb-6">Trusted Across All <span className="text-slate-300">Protocols.</span></h2>
+              <p className="text-sm text-slate-400 max-w-xl mx-auto font-medium leading-relaxed">Seamlessly integrated with the world's leading blockchain infrastructures and decentralized development toolchains.</p>
             </div>
-            <div className="flex flex-wrap justify-center gap-12 lg:gap-20 opacity-40 hover:opacity-80 transition-opacity duration-700">
+            <div className="flex flex-wrap justify-center gap-8 lg:gap-10">
               {supportedChains.map((chain) => (
                 <div key={chain.name} className="flex flex-col items-center gap-4 group cursor-default">
                   <div
-                    className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center p-4 group-hover:bg-white/10 group-hover:border-white/10 transition-all duration-500"
+                    className="w-20 h-20 rounded-[28px] bg-white border border-black/[0.03] flex items-center justify-center p-5 shadow-sm group-hover:shadow-xl group-hover:border-indigo-100/50 group-hover:-translate-y-1 transition-all duration-500 relative overflow-hidden"
                   >
-                    <chain.icon size={32} color={chain.color} />
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <chain.icon size={36} color={chain.color} />
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 group-hover:text-white transition-colors">{chain.name}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-900 transition-colors">{chain.name}</span>
                 </div>
               ))}
             </div>

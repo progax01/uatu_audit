@@ -5,9 +5,13 @@ export default function MouseTooltip() {
     const mouseX = useMotionValue(0);
     const mouseY = useMotionValue(0);
 
-    const springConfig = { damping: 25, stiffness: 200 };
-    const sx = useSpring(mouseX, springConfig);
-    const sy = useSpring(mouseY, springConfig);
+    // Precise follow for the dot
+    const dotX = useSpring(mouseX, { damping: 40, stiffness: 800 });
+    const dotY = useSpring(mouseY, { damping: 40, stiffness: 800 });
+
+    // Lagging follow for the glow/ring
+    const glowX = useSpring(mouseX, { damping: 25, stiffness: 150 });
+    const glowY = useSpring(mouseY, { damping: 25, stiffness: 150 });
 
     const [isVisible, setIsVisible] = useState(false);
 
@@ -25,17 +29,39 @@ export default function MouseTooltip() {
     if (!isVisible) return null;
 
     return (
-        <motion.div
-            style={{
-                left: sx,
-                top: sy,
-                position: 'fixed',
-                pointerEvents: 'none',
-                zIndex: 9999,
-                translateX: '-50%',
-                translateY: '-50%',
-            }}
-            className="hidden lg:block w-32 h-32 bg-indigo-500/5 blur-[40px] rounded-full"
-        />
+        <div className="fixed inset-0 pointer-events-none z-[9999] hidden lg:block">
+            {/* Surgical Center Dot */}
+            <motion.div
+                style={{
+                    left: dotX,
+                    top: dotY,
+                    translateX: '-50%',
+                    translateY: '-50%',
+                }}
+                className="absolute w-1.5 h-1.5 bg-indigo-600 rounded-full shadow-[0_0_10px_rgba(79,70,229,0.8)]"
+            />
+
+            {/* Lagging Glow Ring */}
+            <motion.div
+                style={{
+                    left: glowX,
+                    top: glowY,
+                    translateX: '-50%',
+                    translateY: '-50%',
+                }}
+                className="absolute w-24 h-24 border border-indigo-500/10 rounded-full bg-indigo-500/5 blur-[20px]"
+            />
+
+            {/* Interactive Outer Ring */}
+            <motion.div
+                style={{
+                    left: glowX,
+                    top: glowY,
+                    translateX: '-50%',
+                    translateY: '-50%',
+                }}
+                className="absolute w-12 h-12 border border-indigo-500/20 rounded-full scale-[1.2]"
+            />
+        </div>
     );
 }
