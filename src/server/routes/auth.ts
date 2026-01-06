@@ -14,16 +14,28 @@ export function getSessionId(req: any): string | null {
 }
 
 // Set session cookie
-export function setSessionCookie(res: any, sessionId: string) {
+export function setSessionCookie(res: any, sessionId: string, req?: any) {
+  // Check if request came over HTTPS (direct or via proxy)
+  const isSecure = req?.headers['x-forwarded-proto'] === 'https' ||
+                   req?.connection?.encrypted ||
+                   process.env.NODE_ENV === 'production';
+  const secureFlag = isSecure ? '; Secure' : '';
+
   res.setHeader(
     "Set-Cookie",
-    `session_id=${sessionId}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`
+    `session_id=${sessionId}; HttpOnly${secureFlag}; SameSite=Lax; Path=/; Max-Age=2592000`
   ); // 30 days
+  logger.info("Session cookie set", { sessionId: sessionId.substring(0, 8) + '...', isSecure });
 }
 
 // Clear session cookie
-export function clearSessionCookie(res: any) {
-  res.setHeader("Set-Cookie", "session_id=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0");
+export function clearSessionCookie(res: any, req?: any) {
+  const isSecure = req?.headers['x-forwarded-proto'] === 'https' ||
+                   req?.connection?.encrypted ||
+                   process.env.NODE_ENV === 'production';
+  const secureFlag = isSecure ? '; Secure' : '';
+
+  res.setHeader("Set-Cookie", `session_id=; HttpOnly${secureFlag}; SameSite=Lax; Path=/; Max-Age=0`);
 }
 
 async function tokenPath(sessionId: string) {
@@ -189,7 +201,7 @@ export async function handleAuthRoutes(
       // Create new session for this user
       const sessionId = uuidv4();
       await saveToken(sessionId, t.access_token, userId);
-      setSessionCookie(res, sessionId);
+      setSessionCookie(res, sessionId, req);
 
       logger.info("Session created successfully", { sessionId, userId });
 
@@ -255,7 +267,7 @@ export async function handleAuthRoutes(
 
       const sessionId = uuidv4();
       await saveToken(sessionId, t.access_token, userId);
-      setSessionCookie(res, sessionId);
+      setSessionCookie(res, sessionId, req);
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.end(
@@ -303,7 +315,7 @@ export async function handleAuthRoutes(
     if (sessionId) {
       await deleteToken(sessionId);
     }
-    clearSessionCookie(res);
+    clearSessionCookie(res, req);
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ ok: true }));
     return true;
