@@ -1,21 +1,34 @@
 import { useState } from 'react'
-import { Shield, Search, Calendar, Filter, Globe, Activity, ArrowRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import {
+    Shield, Search, Calendar, Filter, Globe, Activity, ArrowRight,
+    Zap, Cpu, Database, Link as LinkIcon, Compass, Lock
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import logo from '../assets/logo.svg'
 import MouseTooltip from '../components/MouseTooltip'
 import { supportedChains } from '../components/icons/CryptoIcons'
 
 const publicReports = [
-    { id: 'QA-29381', name: 'Uniswap V3 Factory', address: '0x1F98431c8aD98523631AE4a59f267346ea31F984', network: 'Ethereum', score: 98, date: '2025-05-12', status: 'Secure', category: 'DEX' },
-    { id: 'QA-29382', name: 'Aave V3 Reserve', address: '0x794a61358D6845594F94dc1DB02A252b5b4814aD', network: 'Arbitrum', score: 96, date: '2025-05-11', status: 'Secure', category: 'Lending' },
-    { id: 'QA-29383', name: 'Curve Tricrypto', address: '0xD533a949740bb3306d119CC777fa900bA034cd52', network: 'Ethereum', score: 92, date: '2025-05-10', status: 'Review Needed', category: 'AMM' },
-    { id: 'QA-29384', name: 'Lido stETH Proxy', address: '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84', network: 'Ethereum', score: 99, date: '2025-05-09', status: 'Secure', category: 'Staking' },
-    { id: 'QA-29385', name: 'GMX Vault v2', address: '0x489ee077994B6658eAfA855C308275EAd8097C4A', network: 'Arbitrum', score: 94, date: '2025-05-08', status: 'Secure', category: 'Derivatives' },
-    { id: 'QA-29386', name: 'Stargate Bridge', address: '0x231B05877543da787E7BC8AdCC55Ab492e8609DE', network: 'Base', score: 88, date: '2025-05-07', status: 'Mitigated', category: 'Bridge' },
+    { id: 'token-analysis', name: 'Sovereign Token (SOV)', address: '0x7a2...488D', network: 'Ethereum', score: 92, date: '2026-01-06', status: 'Secure', category: 'Token', icon: Zap, iconColor: 'text-amber-500', bg: 'bg-amber-50' },
+    { id: 'QA-29381', name: 'Uniswap V4 Router', address: '0x1F98431c8aD98523631AE4a59f267346ea31F984', network: 'Ethereum', score: 99, date: '2025-12-20', status: 'Secure', category: 'DEX', icon: Compass, iconColor: 'text-pink-500', bg: 'bg-pink-50' },
+    { id: 'QA-29382', name: 'Aave V3 Reserve', address: '0x794a61358D6845594F94dc1DB02A252b5b4814aD', network: 'Arbitrum', score: 96, date: '2025-11-15', status: 'Secure', category: 'Lending', icon: Cpu, iconColor: 'text-indigo-500', bg: 'bg-indigo-50' },
+    { id: 'QA-29383', name: 'Curve Tricrypto', address: '0xD533a...cd52', network: 'Ethereum', score: 92, date: '2025-11-10', status: 'Review Needed', category: 'AMM', icon: Database, iconColor: 'text-emerald-500', bg: 'bg-emerald-50' },
+    { id: 'QA-29384', name: 'Lido stETH Proxy', address: '0xae7ab...fE84', network: 'Ethereum', score: 99, date: '2025-11-05', status: 'Secure', category: 'Staking', icon: Lock, iconColor: 'text-sky-500', bg: 'bg-sky-50' },
+    { id: 'QA-29385', name: 'GMX Vault v2', address: '0x489ee...7C4A', network: 'Arbitrum', score: 94, date: '2025-10-28', status: 'Secure', category: 'Derivatives', icon: Activity, iconColor: 'text-rose-500', bg: 'bg-rose-50' },
+    { id: 'QA-29386', name: 'Stargate Bridge', address: '0x231B0...09DE', network: 'Base', score: 88, date: '2025-10-20', status: 'Mitigated', category: 'Bridge', icon: LinkIcon, iconColor: 'text-slate-500', bg: 'bg-slate-50' },
 ]
 
 export default function PublicAudits() {
     const [searchTerm, setSearchTerm] = useState('')
+    const navigate = useNavigate()
+
+    const filteredReports = publicReports.filter(report =>
+        report.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.network.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.address.toLowerCase().includes(searchTerm.toLowerCase())
+    )
 
     return (
         <div className="min-h-screen bg-white selection:bg-indigo-500/10 flex flex-col font-sans">
@@ -98,15 +111,16 @@ export default function PublicAudits() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-black/[0.02]">
-                            {publicReports.map((report) => {
+                            {filteredReports.map((report) => {
                                 const chain = supportedChains.find(c => c.name === report.network);
+                                const Icon = report.icon || Shield;
                                 return (
                                     <tr key={report.id} className="group hover:bg-slate-50/30 transition-colors">
                                         <td className="px-10 py-10">
                                             <div className="flex items-center gap-6">
-                                                <div className="w-14 h-14 rounded-[20px] bg-slate-50 border border-black/[0.03] flex items-center justify-center text-slate-300 relative overflow-hidden group-hover:border-indigo-100/50 transition-colors">
-                                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent" />
-                                                    <Shield size={24} className="relative z-10 group-hover:text-indigo-600 transition-colors duration-500" />
+                                                <div className={`w-14 h-14 rounded-[20px] ${report.bg || 'bg-slate-50'} border border-black/[0.03] flex items-center justify-center relative overflow-hidden group-hover:border-indigo-100/50 transition-colors`}>
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-black/5 to-transparent" />
+                                                    <Icon size={24} className={`relative z-10 ${report.iconColor || 'text-slate-300'} group-hover:scale-110 transition-transform duration-500`} />
                                                 </div>
                                                 <div>
                                                     <div className="text-[15px] font-black text-slate-900 tracking-tight group-hover:text-indigo-600 transition-colors">{report.name}</div>
@@ -161,7 +175,10 @@ export default function PublicAudits() {
                                             </div>
                                         </td>
                                         <td className="px-10 py-10 text-right">
-                                            <button className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-slate-900 text-white rounded-[14px] text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap hover:bg-indigo-600 transition-all shadow-xl shadow-slate-900/5 hover:shadow-indigo-500/20 group/btn">
+                                            <button
+                                                onClick={() => navigate(`/audit/${report.id}`)}
+                                                className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-slate-900 text-white rounded-[14px] text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap hover:bg-indigo-600 transition-all shadow-xl shadow-slate-900/5 hover:shadow-indigo-500/20 group/btn"
+                                            >
                                                 View Report
                                                 <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                                             </button>

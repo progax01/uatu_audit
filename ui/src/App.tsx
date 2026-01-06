@@ -28,6 +28,8 @@ import ProjectCreate from './pages/ProjectCreate';
 import AddComponents from './pages/AddComponents';
 import PreAuditQuestionnaire from './pages/PreAuditQuestionnaire';
 
+import ProjectDetails from './pages/ProjectDetails';
+
 // Project types matching backend
 type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit';
 type ComponentType = 'github-repo' | 'deployed-contract' | 'dapp-url' | 'library-source' | 'manual-upload';
@@ -138,6 +140,18 @@ function App() {
           {/* Standalone Public Tools (Standalone Headers) */}
           <Route path="/quick-scan" element={<QuickScan />} />
           <Route path="/public-audits" element={<PublicAudits />} />
+          <Route path="/audit/:jobId" element={
+            <AuditDetails
+              onHomeClick={() => window.location.href = '/'}
+              onBack={() => {
+                if (window.history.length > 1) {
+                  window.history.back();
+                } else {
+                  window.location.href = '/public-audits';
+                }
+              }}
+            />
+          } />
 
           {/* App Pages - Wrap all with DashboardLayout */}
           <Route element={
@@ -146,18 +160,14 @@ function App() {
                 <Routes>
                   <Route path="/dashboard" element={
                     <Dashboard
-                      onViewAudit={(id) => window.location.href = `/audit/${id}`}
+                      onViewAudit={(slug) => window.location.href = `/project/${slug}`}
                       onNewAudit={() => window.location.href = '/create-project'}
                     />
                   } />
+                  <Route path="/project/:slug" element={<ProjectDetails />} />
                   <Route path="/settings" element={<Settings />} />
-                  <Route path="/audit/:jobId" element={
-                    <AuditDetails
-                      jobId={jobId}
-                      onHomeClick={() => window.location.href = '/'}
-                      onBack={() => window.location.href = '/dashboard'}
-                    />
-                  } />
+                  <Route path="/project/:slug" element={<ProjectDetails />} />
+                  <Route path="/settings" element={<Settings />} />
                   <Route path="/connect" element={
                     <ConnectSource
                       onNext={() => window.location.href = '/configure'}
@@ -249,8 +259,10 @@ function App() {
             </ProtectedRoute>
           }>
             <Route path="/dashboard" />
+            <Route path="/project/:slug" />
             <Route path="/settings" />
-            <Route path="/audit/:jobId" />
+            <Route path="/project/:slug" />
+            <Route path="/settings" />
             <Route path="/connect" />
             <Route path="/configure" />
             <Route path="/review" />

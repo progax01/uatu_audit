@@ -1,0 +1,32 @@
+{
+    "projectName": "Uniswap V4 Router",
+    "jobId": "QA-29381",
+    "auditType": "DEX Protocol Audit",
+    "network": "Ethereum Mainnet",
+    "contractAddress": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+    "compiler": "solc 0.8.23",
+    "sloc": 8900,
+    "scanTime": "2025-12-20T14:30:00Z",
+    "score": 99,
+    "grade": "A+",
+    "status": "Secure",
+    "findings": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 2
+    },
+    "vulnerabilities": [
+        {
+            "id": "U4-001",
+            "severity": "low",
+            "title": "Gas Optimization in Hook Dispatch",
+            "location": "PoolManager.sol",
+            "description": "Redundant check-in hook dispatch logic could save ~400 gas per swap if moved to a bitmask verification pattern.",
+            "impact": "LOW - Operational cost inefficiency.",
+            "likelihood": "HIGH - Affects every swap with multiple hooks.",
+            "recommendation": "Refactor hook flags into a single storage slot and use bitwise XOR for verification."
+        }
+    ],
+    "questions": []
+}

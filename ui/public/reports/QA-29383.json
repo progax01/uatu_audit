@@ -1,0 +1,48 @@
+{
+    "projectName": "Curve Tricrypto",
+    "jobId": "QA-29383",
+    "auditType": "AMM Protocol Audit",
+    "network": "Ethereum Mainnet",
+    "contractAddress": "0xD533a949740bb3306d119CC777fa900bA034cd52",
+    "compiler": "vyper 0.3.7",
+    "sloc": 3450,
+    "scanTime": "2025-11-10T09:00:00Z",
+    "score": 92,
+    "grade": "A-",
+    "status": "Review Needed",
+    "findings": {
+        "critical": 0,
+        "high": 1,
+        "medium": 2,
+        "low": 5
+    },
+    "vulnerabilities": [
+        {
+            "id": "C-001",
+            "severity": "high",
+            "title": "Complex Reentrancy in Swap Path",
+            "location": "CurveCryptoSwap.vy:exchange()",
+            "description": "A sophisticated reentrancy vector exists in the cross-pair exchange logic where transient state is not correctly reset before external calls to exotic tokens with non-standard behavior.",
+            "impact": "HIGH - Potential for incorrect balance accounting leading to fund drainage.",
+            "likelihood": "LOW - Requires specific combination of illiquid tokens and malicious contracts.",
+            "recommendation": "Implement non-reentrant decorators and ensure all internal state updates occur before external calls."
+        },
+        {
+            "id": "C-002",
+            "severity": "medium",
+            "title": "Slippage Parameter Overflow",
+            "location": "CurvePricing.vy",
+            "description": "Fixed-point arithmetic during slippage calculation can overflow when dealing with extremely large trade volumes, resulting in a denial-of-service for whale transactions.",
+            "impact": "MEDIUM - Disruption of large-volume liquidity flows.",
+            "likelihood": "MEDIUM - Highly likely for extreme price swings on low liquidity pairs.",
+            "recommendation": "Use Vyper's built-in safe math and add explicit range checks for pricing scalars."
+        }
+    ],
+    "questions": [
+        {
+            "id": "q1",
+            "question": "Have the non-standard ERC20 behaviors been accounted for in the internal balance cache?",
+            "category": "Accounting"
+        }
+    ]
+}

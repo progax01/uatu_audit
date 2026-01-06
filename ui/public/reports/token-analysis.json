@@ -1,0 +1,122 @@
+{
+    "projectName": "Sovereign Token (SOV)",
+    "jobId": "token-analysis",
+    "auditType": "Smart Contract Audit",
+    "score": 92,
+    "grade": "A-",
+    "status": "completed",
+    "timestamp": "2026-01-06T22:00:00Z",
+    "contractAddress": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+    "network": "Ethereum Mainnet",
+    "compiler": "solc 0.8.20",
+    "sloc": 1240,
+    "scanTime": "2026-01-06T14:20:00Z",
+    "findings": {
+        "critical": 0,
+        "high": 1,
+        "medium": 2,
+        "low": 5
+    },
+    "vulnerabilities": [
+        {
+            "id": "V-001",
+            "severity": "high",
+            "title": "Centralized Minting Control",
+            "description": "The contract owner has the ability to mint an unlimited amount of tokens to any address. This poses a significant risk of rug pull if the owner account is compromised or malicious.",
+            "location": "SovereignToken.sol:mint()",
+            "impact": "CRITICAL - Total supply dilution and value extraction.",
+            "likelihood": "MEDIUM - Requires owner compromise or malice.",
+            "recommendation": "Transfer ownership to a multi-sig wallet or a governance contract with a timelock."
+        },
+        {
+            "id": "V-002",
+            "severity": "medium",
+            "title": "Missing Zero Address Validation",
+            "description": "Functions like `transferOwnership` and `setMinter` do not validate if the new address is the zero address (0x0), which could lead to accidental loss of control.",
+            "location": "Ownable.sol",
+            "impact": "HIGH - Permanent loss of contract administrative rights.",
+            "likelihood": "LOW - Operational error during configuration.",
+            "recommendation": "Implement `require(newAddress != address(0))` checks in all administrative setter functions."
+        }
+    ],
+    "functions_analysis": [
+        {
+            "name": "mint(address to, uint256 amount)",
+            "status": "Warning",
+            "logic": "Calculates total supply and checks for owner privilege. Lacks decentralization guards.",
+            "coverage": "100%"
+        },
+        {
+            "name": "transfer(address to, uint256 amount)",
+            "status": "Secure",
+            "logic": "Standard ERC20 transfer logic. Correct balance subtraction and emission.",
+            "coverage": "100%"
+        },
+        {
+            "name": "burn(uint256 amount)",
+            "status": "Secure",
+            "logic": "Reduces total supply and msg.sender balance. Implementation is standard.",
+            "coverage": "98.5%"
+        }
+    ],
+    "test_suites": [
+        {
+            "category": "Automated Unit Tests",
+            "passed": 142,
+            "failed": 0,
+            "status": "Passed"
+        },
+        {
+            "category": "Property-Based Fuzzing",
+            "passed": 12,
+            "failed": 0,
+            "status": "Passed"
+        },
+        {
+            "category": "Formal Verification",
+            "passed": 4,
+            "failed": 0,
+            "status": "Passed"
+        },
+        {
+            "category": "Staging Simulation",
+            "passed": 8,
+            "failed": 0,
+            "status": "Passed"
+        }
+    ],
+    "questions": [
+        {
+            "id": "q1",
+            "component_id": "SovereignToken.sol:owner",
+            "component_label": "Token Owner",
+            "question": "Is the SOV token owner intended to be a single EOA or a multi-sig?",
+            "suggested_scope": "EXTERNAL"
+        },
+        {
+            "id": "q2",
+            "component_id": "LiquidityPool.sol",
+            "component_label": "Liquidity Pool",
+            "question": "Are the initial liquidity tokens locked in a verifiable vault?",
+            "suggested_scope": "INTERNAL"
+        }
+    ],
+    "permissions": [
+        {
+            "role": "Owner",
+            "address": "0x123...abc",
+            "abilities": [
+                "Minting",
+                "Pausing",
+                "Blacklisting"
+            ]
+        },
+        {
+            "role": "Minter",
+            "address": "0x456...def",
+            "abilities": [
+                "Minting"
+            ]
+        }
+    ]
+}

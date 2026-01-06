@@ -17,8 +17,8 @@ export default function Settings() {
     <div className="max-w-4xl mx-auto space-y-12">
       <div className="flex items-center justify-between mb-12">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight capitalize">{activeTab} Control Plane</h1>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 opacity-60">Management system / global configuration</p>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight capitalize">{activeTab} Control Plane</h1>
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1 opacity-60">System Configuration Node</p>
         </div>
         <button
           onClick={handleSave}
@@ -137,7 +137,7 @@ export default function Settings() {
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-10">
               <div className="p-20 border-2 border-dashed border-black/[0.03] rounded-[40px] text-center">
                 <Key size={40} className="text-slate-200 mx-auto mb-6" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Key Management Offline</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vault Access Restricted: Sync Required</p>
               </div>
             </motion.div>
           )}
@@ -146,7 +146,7 @@ export default function Settings() {
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-10 font-bold">
               <div className="p-20 border-2 border-dashed border-black/[0.03] rounded-[40px] text-center">
                 <CreditCard size={40} className="text-slate-200 mx-auto mb-6" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Billing Cycle Not Synchronized</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Billing Cluster: Establishing Connectivity...</p>
               </div>
             </motion.div>
           )}

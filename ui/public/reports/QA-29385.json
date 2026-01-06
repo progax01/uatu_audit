@@ -1,0 +1,32 @@
+{
+    "projectName": "GMX Vault v2",
+    "jobId": "QA-29385",
+    "auditType": "Derivatives Protocol Audit",
+    "network": "Arbitrum One",
+    "contractAddress": "0x489ee077994B663D02Ff2275646197368096c7C4A",
+    "compiler": "solc 0.8.21",
+    "sloc": 12500,
+    "scanTime": "2025-10-28T16:45:00Z",
+    "score": 94,
+    "grade": "A-",
+    "status": "Secure",
+    "findings": {
+        "critical": 0,
+        "high": 1,
+        "medium": 2,
+        "low": 8
+    },
+    "vulnerabilities": [
+        {
+            "id": "G2-001",
+            "severity": "high",
+            "title": "Skew Imbalance Liquidation Risk",
+            "location": "PositionManager.sol",
+            "description": "Extremely high skew between long and short positions on specific markets can result in pricing lag that traders might exploit for arbitrage or to force unfair liquidations.",
+            "impact": "HIGH - Loss of liquidity provider funds due to unbalanced market risk.",
+            "likelihood": "MEDIUM - Common during major market trend reversals.",
+            "recommendation": "Implement dynamic funding rates that increase exponentially with skew and enforce minimum position durations."
+        }
+    ],
+    "questions": []
+}

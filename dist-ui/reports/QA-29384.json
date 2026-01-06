@@ -1,0 +1,32 @@
+{
+    "projectName": "Lido stETH Proxy",
+    "jobId": "QA-29384",
+    "auditType": "Staking Protocol Audit",
+    "network": "Ethereum Mainnet",
+    "contractAddress": "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84",
+    "compiler": "solc 0.8.20",
+    "sloc": 4200,
+    "scanTime": "2025-11-05T08:15:00Z",
+    "score": 99,
+    "grade": "A+",
+    "status": "Secure",
+    "findings": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 1
+    },
+    "vulnerabilities": [
+        {
+            "id": "L-001",
+            "severity": "low",
+            "title": "Oracle Update Latency",
+            "location": "LidoOracle.sol",
+            "description": "Small latency in beacon chain state updates could lead to sub-optimal rebase calculations in extremely fast-moving markets.",
+            "impact": "LOW - Minor discrepancy in stETH reward distribution.",
+            "likelihood": "LOW - Requires specific beacon chain congestion.",
+            "recommendation": "Increase frequency of oracle heartbeat or implement a multi-source state verification."
+        }
+    ],
+    "questions": []
+}

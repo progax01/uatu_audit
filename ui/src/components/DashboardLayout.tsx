@@ -28,8 +28,8 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
 
     const navItems = [
         { id: 'overview', label: 'Command Center', icon: Layout, path: '/dashboard' },
-        { id: 'protocols', label: 'Protocols', icon: Shield, path: '/dashboard' }, // Simulated for now
-        { id: 'organization', label: 'Organization', icon: Building2, path: '/settings' }, // Links to settings tab
+        { id: 'protocols', label: 'Nodes & Protocols', icon: Shield, path: '/dashboard#protocols' },
+        { id: 'organization', label: 'Management', icon: Building2, path: '/settings' },
         { id: 'settings', label: 'Preferences', icon: Settings, path: '/settings' },
     ]
 
@@ -151,7 +151,7 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.3, ease: 'easeOut' }}
-                            className="p-10 h-full"
+                            className="p-8 h-full"
                         >
                             {children}
                         </motion.div>

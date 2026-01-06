@@ -1,0 +1,32 @@
+{
+    "projectName": "Stargate Bridge",
+    "jobId": "QA-29386",
+    "auditType": "Cross-Chain Bridge Audit",
+    "network": "Base",
+    "contractAddress": "0x231B057475d973C0f3aa67bd2afadF0BbE4c09DE",
+    "compiler": "solc 0.8.20",
+    "sloc": 7800,
+    "scanTime": "2025-10-20T10:00:00Z",
+    "score": 88,
+    "grade": "B+",
+    "status": "Mitigated",
+    "findings": {
+        "critical": 0,
+        "high": 1,
+        "medium": 4,
+        "low": 12
+    },
+    "vulnerabilities": [
+        {
+            "id": "S1-001",
+            "severity": "high",
+            "title": "LayerZero Communication Lag",
+            "location": "StargateBridge.sol",
+            "description": "Cross-chain message delays during periods of extreme Base network congestion can lead to temporary liquidity fragmentation where funds are locked on the source chain longer than the protocol timeout.",
+            "impact": "HIGH - Temporary denial of service and user fund locking.",
+            "likelihood": "MEDIUM - Dependent on network congestion and LayerZero relay availability.",
+            "recommendation": "Implement a retry mechanism with dynamic timeouts and a manual override for institutional relayers."
+        }
+    ],
+    "questions": []
+}

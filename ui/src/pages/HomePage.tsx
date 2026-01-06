@@ -1,6 +1,7 @@
 import { motion, Variants } from 'framer-motion';
 import {
-  ArrowRight, Activity, Check, Shield, ShieldAlert, Fingerprint
+  ArrowRight, Activity, Check, Shield, ShieldAlert, Fingerprint,
+  Bell, Info, Wallet, Eye, Zap, ShieldCheck
 } from 'lucide-react';
 import {
   PremiumShield, PremiumRadar, PremiumCode,
@@ -324,10 +325,15 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                     { step: '03', title: 'Formal Verification', desc: 'Mathematical proofs of business logic correctness.' },
                     { step: '04', title: 'Live Pulse', desc: 'Continuous on-chain monitoring and runtime assertions.' },
                   ].map((s) => (
-                    <div key={s.step} className="card-premium !p-6 bg-slate-50/50">
-                      <div className="text-[10px] font-black text-indigo-600 mb-2">{s.step}</div>
-                      <h4 className="text-base font-black text-slate-900 mb-2">{s.title}</h4>
-                      <p className="text-xs text-slate-400 leading-relaxed font-medium">{s.desc}</p>
+                    <div key={s.step} className="card-premium !p-6 bg-slate-50/50 relative overflow-hidden group">
+                      <div className="absolute -right-4 -bottom-4 text-8xl font-black text-slate-900/[0.06] select-none group-hover:text-indigo-600/[0.08] transition-colors duration-700">
+                        {s.step}
+                      </div>
+                      <div className="relative z-10">
+                        <div className="text-[10px] font-black text-indigo-600 mb-2">{s.step}</div>
+                        <h4 className="text-base font-black text-slate-900 mb-2">{s.title}</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed font-medium">{s.desc}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -338,10 +344,145 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                 <p className="text-base text-slate-400 font-medium leading-relaxed mb-10">
                   Uatu doesn't just scan; it verifies. Our engine combines classic static analysis with modern formal methods to provide a deterministic safety guarantee for your protocol.
                 </p>
-                <div className="inline-flex items-center gap-4 px-6 py-3 bg-slate-900 text-white rounded-xl text-[11px] font-black uppercase tracking-wider">
-                  <ShieldAlert size={14} className="text-indigo-400" />
+                <div className="inline-flex items-center gap-4 px-6 py-3 bg-slate-900 text-white rounded-xl text-[11px] font-black uppercase tracking-wider relative overflow-hidden group">
+                  <div className="flex items-center gap-3">
+                    <ShieldAlert size={14} className="text-indigo-400" />
+                    <Bell size={14} className="text-indigo-400/50 group-hover:text-indigo-400 transition-colors" />
+                    <Info size={14} className="text-indigo-400/30 group-hover:text-indigo-400 transition-colors" />
+                  </div>
+                  <div className="w-px h-4 bg-white/10 mx-1" />
                   Deterministic Safety Guarantee
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Wallet Security Sentinel: Real-Time Protection */}
+        <section className="py-40 relative bg-white overflow-hidden">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-emerald-500/5 blur-[160px] rounded-full pointer-events-none" />
+
+          <div className="max-w-7xl mx-auto px-6 lg:px-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+              <div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  className="inline-flex items-center gap-2.5 px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-100/50 rounded-full text-[10px] font-black uppercase tracking-[0.25em] mb-10"
+                >
+                  <Wallet size={12} />
+                  <span>Wallet Security Sentinel</span>
+                </motion.div>
+
+                <h2 className="text-4xl lg:text-5xl font-black tracking-tight mb-8 leading-tight">
+                  Deterministic Protection <br />
+                  for <span className="text-indigo-600">Every Transaction.</span>
+                </h2>
+
+                <p className="text-lg text-slate-500 font-medium leading-relaxed mb-12">
+                  Targeted analysis for institutional and high-net-worth individual wallets. Uatu monitors every outgoing call, signature request, and state change in real-time.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                  {[
+                    { icon: Eye, title: 'Live Watchtower', desc: 'Real-time monitoring of wallet activity and external contract interactions.' },
+                    { icon: ShieldCheck, title: 'Signature Audit', desc: 'Pre-flight analysis of EIP-712 and permit signatures before broadcast.' },
+                    { icon: Zap, title: 'Drainer Detection', desc: 'AI-powered detection of malicious approval requests and phishing vectors.' },
+                    { icon: Activity, title: 'Exposure Tracking', desc: 'Live metrics on protocol risk exposure and token approval health.' },
+                  ].map((f, i) => (
+                    <div key={i} className="flex gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 border border-black/[0.03] flex items-center justify-center text-indigo-500 shrink-0">
+                        <f.icon size={18} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-slate-900 mb-1">{f.title}</h4>
+                        <p className="text-[11px] text-slate-400 font-bold leading-relaxed">{f.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="card-premium bg-slate-950 border-white/5 shadow-2xl overflow-hidden p-0 relative group">
+                  <div className="bg-white/5 border-b border-white/5 px-8 py-5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                        <Wallet size={18} className="text-indigo-500" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-black text-white uppercase tracking-widest leading-none mb-1">Institutional Custody</div>
+                        <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none italic">0x71C...a4E9</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                      <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Sentinel Active</span>
+                    </div>
+                  </div>
+
+                  <div className="p-8 space-y-6">
+                    <div className="space-y-4">
+                      <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Live Activity Feed</div>
+
+                      {[
+                        { type: 'SWAP', target: 'Uniswap V3', amount: '12,050.00 USDC', status: 'Safe', risk: 'Low' },
+                        { type: 'APPROVE', target: 'Unknown Contract', amount: 'Unlimited stETH', status: 'Blocked', risk: 'Critical' },
+                        { type: 'TRANSFER', target: 'Cold Wallet (Root)', amount: '5.0 ETH', status: 'Safe', risk: 'Low' },
+                      ].map((tx, idx) => (
+                        <div key={idx} className={`p-5 rounded-2xl border flex items-center justify-between transition-all hover:bg-white/10 ${tx.status === 'Blocked' ? 'bg-rose-500/10 border-rose-500/20' : 'bg-white/5 border-white/10'
+                          }`}>
+                          <div className="flex items-center gap-4">
+                            <div className={`p-2 rounded-lg ${tx.status === 'Blocked' ? 'bg-rose-500/20 text-rose-500' : 'bg-indigo-500/20 text-indigo-500'}`}>
+                              {tx.status === 'Blocked' ? <ShieldAlert size={14} /> : <Zap size={14} />}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-black text-white">{tx.type}</span>
+                                <span className="text-[9px] font-bold text-slate-500">{tx.target}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-300 font-mono mt-0.5">{tx.amount}</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-[9px] font-black uppercase tracking-widest mb-1 ${tx.status === 'Blocked' ? 'text-rose-500' : 'text-indigo-400'
+                              }`}>{tx.status}</div>
+                            <div className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Risk: {tx.risk}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-6 border-t border-white/5 flex items-center justify-between">
+                      <div className="flex -space-x-3">
+                        {[1, 2, 3].map(i => (
+                          <div key={i} className="w-8 h-8 rounded-full border-2 border-slate-950 bg-slate-800 flex items-center justify-center">
+                            <ShieldCheck size={12} className="text-indigo-400" />
+                          </div>
+                        ))}
+                      </div>
+                      <button className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-300 transition-colors">View All Audits →</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Floating Micro-Element */}
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute -bottom-6 -right-6 bg-white border border-black/[0.1] p-5 rounded-3xl shadow-2xl z-20"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                      <Shield size={20} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Total Secured</div>
+                      <div className="text-sm font-black text-slate-900">$1.24B+</div>
+                    </div>
+                  </div>
+                </motion.div>
               </div>
             </div>
           </div>

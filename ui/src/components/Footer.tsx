@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Github, Twitter } from 'lucide-react';
+import { Github, Twitter, Linkedin } from 'lucide-react';
 import logo from '../assets/logo.svg';
 
 export default function Footer() {
@@ -18,7 +18,7 @@ export default function Footer() {
                         </p>
                         <div className="flex items-center gap-4">
                             <a
-                                href="https://github.com"
+                                href="https://github.com/Wasserstoff-Innovation"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-10 h-10 rounded-xl bg-white border border-black/[0.04] flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-600/20 transition-all"
@@ -26,12 +26,20 @@ export default function Footer() {
                                 <Github size={18} />
                             </a>
                             <a
-                                href="https://twitter.com"
+                                href="https://x.com/Uatuhq"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-10 h-10 rounded-xl bg-white border border-black/[0.04] flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-600/20 transition-all"
                             >
                                 <Twitter size={18} />
+                            </a>
+                            <a
+                                href="https://www.linkedin.com/company/uatu"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-10 h-10 rounded-xl bg-white border border-black/[0.04] flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-600/20 transition-all"
+                            >
+                                <Linkedin size={18} />
                             </a>
                         </div>
                     </div>

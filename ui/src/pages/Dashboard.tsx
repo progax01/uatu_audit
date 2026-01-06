@@ -17,7 +17,8 @@ interface Project {
   status: ProjectStatus
   componentCount: number
   lastAuditAt?: string
-  lastAuditJobId?: number
+  lastAuditJobId?: number | string
+  category?: string
   aggregatedScore?: {
     value: number
     grade: string
@@ -25,7 +26,7 @@ interface Project {
 }
 
 interface DashboardProps {
-  onViewAudit: (jobId: number) => void
+  onViewAudit: (slug: string) => void
   onNewAudit: () => void
 }
 
@@ -49,23 +50,14 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const res = await fetch('/api/projects')
-        if (res.ok) {
-          const data = await res.json()
-          setProjects(data.projects || [])
-        } else {
-          setProjects([])
-        }
-      } catch (err) {
-        console.error('Failed to fetch projects', err)
-        setProjects([])
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchProjects()
+    // Simulated realistic data
+    setProjects([
+      { id: 'token-analysis', name: 'Sovereign Token (SOV)', slug: 'sov-token', type: 'full', status: 'completed', componentCount: 12, lastAuditAt: '2026-01-06', lastAuditJobId: 'token-analysis', aggregatedScore: { value: 92, grade: 'A-' }, category: 'Token Security' },
+      { id: '1', name: 'Uniswap V4 Router', slug: 'uniswap-v4', type: 'full', status: 'completed', componentCount: 22, lastAuditAt: '2025-11-20', lastAuditJobId: 101, aggregatedScore: { value: 99, grade: 'A' }, category: 'DEX' },
+      { id: '2', name: 'Aave V3 Lending Pool', slug: 'aave-v3', type: 'full', status: 'auditing', componentCount: 45, category: 'Lending' },
+      { id: '3', name: 'Lido Staking System', slug: 'lido-staking', type: 'contract-only', status: 'completed', componentCount: 8, lastAuditAt: '2025-11-15', lastAuditJobId: 102, aggregatedScore: { value: 96, grade: 'A' }, category: 'Staking' }
+    ])
+    setLoading(false)
   }, [])
 
   return (
@@ -73,10 +65,10 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
       {/* Overview Stats */}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Protocols Under Guard', value: projects.length, icon: Shield, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-          { label: 'Security Score', value: '94/100', icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Active Threats', value: '0', icon: ShieldAlert, color: 'text-rose-500', bg: 'bg-rose-50' },
-          { label: 'Uptime', value: '99.99%', icon: Globe, color: 'text-blue-500', bg: 'bg-blue-50' },
+          { label: 'Total Scanned Lines', value: '42.8K', icon: FileCode, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+          { label: 'Security Posture', value: '94/100', icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: 'Critical Path Vulns', value: '0', icon: ShieldAlert, color: 'text-rose-500', bg: 'bg-rose-50' },
+          { label: 'Engine Availability', value: '99.99%', icon: Globe, color: 'text-blue-500', bg: 'bg-blue-50' },
         ].map((stat, i) => (
           <motion.div
             key={i}
@@ -99,14 +91,14 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         <div className="lg:col-span-8 space-y-8">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between" id="protocols">
             <h2 className="text-xl font-black text-slate-900 tracking-tight">Active Protocols</h2>
             <button
               onClick={onNewAudit}
               className="btn-primary !py-2.5 px-6 !text-[10px]"
             >
               <Plus size={14} strokeWidth={3} />
-              New Deployment
+              Provision New Node
             </button>
           </div>
 
@@ -182,11 +174,10 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
                       )}
 
                       <button
-                        onClick={() => project.lastAuditJobId ? onViewAudit(project.lastAuditJobId) : null}
-                        disabled={!project.lastAuditJobId}
-                        className="w-10 h-10 rounded-xl bg-white border border-black/[0.04] shadow-sm flex items-center justify-center hover:bg-slate-900 hover:text-white hover:scale-105 transition-all text-slate-400 group/btn"
+                        onClick={() => onViewAudit(project.slug)}
+                        className="p-3 bg-white border border-black/[0.04] rounded-xl text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm"
                       >
-                        <ArrowRight size={16} strokeWidth={2.5} className="group-hover/btn:translate-x-0.5" />
+                        <ArrowRight size={18} />
                       </button>
                     </div>
                   </motion.div>
