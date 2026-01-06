@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import {
-    Shield, Search, Code, Cpu, Activity, Terminal,
-    Lock, Eye, Zap, Users, FileText, Webhook
+    Shield, Search, Cpu, Activity, Terminal,
+    Lock, Users, FileText, Webhook
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
@@ -134,65 +134,66 @@ export default function FeaturesPage() {
                 keywords={['features', 'smart contract security', 'vulnerability detection', 'AI audit']}
             />
 
-            <div className="min-h-screen bg-base relative">
+            <div className="min-h-screen bg-[#FAFAFA] selection:bg-indigo-500/10 text-slate-900 font-sans overflow-x-hidden">
                 {/* Hero Section */}
-                <section className="pt-32 pb-20">
-                    <div className="max-w-7xl mx-auto px-10 text-center">
+                <section className="pt-48 pb-24 relative overflow-hidden text-center">
+                    <div className="absolute inset-0 z-0 bg-dot-pattern opacity-30" />
+                    <div className="max-w-7xl mx-auto px-6 lg:px-10 relative z-10">
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="inline-flex items-center gap-3 px-5 py-2.5 bg-white border border-black/[0.04] shadow-sm rounded-full text-indigo-600 text-[10px] font-black uppercase tracking-[0.25em] mb-10"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="inline-flex items-center gap-2.5 px-4 py-2 bg-indigo-50/50 border border-indigo-100/50 backdrop-blur-sm rounded-full text-[10px] font-extrabold uppercase tracking-[0.25em] text-indigo-600 mb-10"
                         >
-                            <Shield size={14} />
+                            <Shield size={12} />
                             Complete Security Suite
                         </motion.div>
 
                         <motion.h1
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="text-6xl lg:text-7xl font-black text-slate-900 leading-[0.9] mb-8 tracking-[-0.05em]"
+                            transition={{ delay: 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                            className="text-6xl lg:text-[100px] font-black leading-[0.85] tracking-[-0.07em] mb-12"
                         >
-                            Everything You Need <br />
-                            <span className="text-indigo-600">To Ship Secure Code</span>
+                            Engineered for <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-b from-indigo-500 to-indigo-800">Elite Performance.</span>
                         </motion.h1>
 
                         <motion.p
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                            className="text-xl text-slate-500 max-w-3xl mx-auto mb-12 leading-relaxed"
+                            transition={{ delay: 0.2, duration: 0.8 }}
+                            className="text-xl lg:text-2xl text-slate-400 font-medium max-w-3xl mx-auto mb-16 leading-relaxed"
                         >
-                            From AI-powered vulnerability detection to continuous monitoring and compliance reports,
-                            UatuAudit provides a complete security audit platform for smart contracts and DApps.
+                            A comprehensive security audit platform built for high-assurance Web3 teams.
+                            From AI-powered detection to continuous mainnet monitoring.
                         </motion.p>
                     </div>
                 </section>
 
                 {/* Features Grid */}
-                <section className="pb-32">
-                    <div className="max-w-7xl mx-auto px-10">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <section className="pb-40 relative">
+                    <div className="max-w-7xl mx-auto px-6 lg:px-10">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                             {features.map((feature, index) => (
                                 <motion.div
                                     key={feature.title}
-                                    initial={{ opacity: 0, y: 40 }}
+                                    initial={{ opacity: 0, y: 30 }}
                                     whileInView={{ opacity: 1, y: 0 }}
                                     viewport={{ once: true }}
-                                    transition={{ delay: index * 0.05 }}
-                                    className="card p-10 group hover:shadow-xl transition-all duration-500"
+                                    transition={{ delay: index * 0.05, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                                    className="card-premium p-12 group hover:border-black/[0.1] transition-all duration-700 bg-white/60 backdrop-blur-3xl"
                                 >
-                                    <div className={`w-16 h-16 rounded-2xl ${feature.bgColor} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500`}>
-                                        <feature.icon className={feature.color} size={28} strokeWidth={1.5} />
+                                    <div className={`w-16 h-16 rounded-[22px] bg-white border border-black/[0.03] shadow-sm flex items-center justify-center mb-10 group-hover:scale-110 group-hover:shadow-xl transition-all duration-500 ${feature.color}`}>
+                                        <feature.icon size={28} strokeWidth={2} />
                                     </div>
 
-                                    <h3 className="text-2xl font-black text-slate-900 mb-4">{feature.title}</h3>
-                                    <p className="text-slate-600 leading-relaxed mb-6">{feature.description}</p>
+                                    <h3 className="text-3xl font-black text-slate-900 mb-6 tracking-tight">{feature.title}</h3>
+                                    <p className="text-slate-400 font-medium leading-relaxed mb-10 text-pretty">{feature.description}</p>
 
-                                    <div className="space-y-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-8 border-t border-black/[0.03]">
                                         {feature.details.map((detail, i) => (
-                                            <div key={i} className="flex items-center gap-2 text-sm text-slate-500">
-                                                <div className={`w-1.5 h-1.5 rounded-full ${feature.bgColor}`} />
+                                            <div key={i} className="flex items-center gap-3 text-xs font-bold text-slate-500 uppercase tracking-widest">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                                                 {detail}
                                             </div>
                                         ))}
@@ -204,16 +205,17 @@ export default function FeaturesPage() {
                 </section>
 
                 {/* CTA Section */}
-                <section className="py-32 bg-gradient-to-br from-indigo-600 to-purple-600 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
-                    <div className="max-w-4xl mx-auto px-10 text-center relative z-10">
-                        <h2 className="text-5xl font-black text-white mb-6">Experience All Features</h2>
-                        <p className="text-xl text-indigo-100 mb-10">Start with a free quick scan and explore the full platform.</p>
+                <section className="py-56 relative overflow-hidden bg-slate-900">
+                    <div className="absolute inset-0 bg-dot-pattern opacity-[0.05] invert" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/10 to-transparent" />
+                    <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+                        <h2 className="text-6xl lg:text-[80px] font-black text-white tracking-[-0.06em] mb-12 leading-[0.9]">Ship With <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-indigo-200 underline decoration-indigo-500/30 decoration-8">Titanium</span> Assurance.</h2>
+                        <p className="text-xl text-slate-400 font-medium mb-16 max-w-2xl mx-auto">Join the teams building the next generation of decentralized infrastructure.</p>
                         <Link
                             to="/dashboard"
-                            className="inline-flex items-center gap-3 bg-white text-indigo-600 px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-500"
+                            className="btn-primary py-6 px-16 text-sm"
                         >
-                            Start Free Trial
+                            Get Started Now
                         </Link>
                     </div>
                 </section>

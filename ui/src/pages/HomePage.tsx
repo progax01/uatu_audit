@@ -1,8 +1,11 @@
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import {
-  ArrowRight, Shield, Code, Cpu, Activity, Terminal,
-  Zap, Check, Github, BarChart3, Blocks
+  ArrowRight, Zap, Check, Sparkles, ShieldAlert, Fingerprint
 } from 'lucide-react';
+import {
+  PremiumShield, PremiumRadar, PremiumCode,
+  PremiumAnalytics, PremiumBlocks
+} from '../components/IconSystem';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { supportedChains } from '../components/icons/CryptoIcons';
@@ -12,258 +15,292 @@ interface HomePageProps {
   onLogin: () => void;
 }
 
-const products = [
-  {
-    name: 'UatuAudit',
-    tagline: 'Security First',
-    description: 'AI-powered security audits for smart contracts and DApps. Detect vulnerabilities before deployment.',
-    icon: Shield,
-    color: 'from-indigo-500 to-purple-500',
-    features: ['50+ Vulnerability Types', 'AI Analysis', 'Real-time Alerts', 'Compliance Reports'],
-    link: '/',
-    external: false,
-  },
-  {
-    name: 'Uatu Analyzer',
-    tagline: 'Analytics & Insights',
-    description: 'Query platform with real on-chain data creation using subgraphs. Complete analytics for your DApps.',
-    icon: BarChart3,
-    color: 'from-emerald-500 to-teal-500',
-    features: ['Subgraph Creation', 'Real-time Queries', 'Custom Analytics', 'Data Visualization'],
-    link: 'https://dashboard.uatu.xyz',
-    external: true,
-  },
-  {
-    name: 'Uatu Build',
-    tagline: 'Build in Minutes',
-    description: 'Create contracts and DApps with ease. No-code builder for deploying production-ready applications.',
-    icon: Blocks,
-    color: 'from-amber-500 to-orange-500',
-    features: ['No-Code Builder', 'Smart Templates', 'One-Click Deploy', 'Multi-Chain Support'],
-    link: 'https://build.uatu.xyz',
-    external: true,
-  },
-];
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15 }
+  }
+};
 
-const auditTypes = [
-  {
-    name: 'Quick Scan',
-    time: '5-10 minutes',
-    description: 'Fast surface-level analysis',
-    price: 'Free',
-    features: ['Basic vulnerabilities', 'Dependency check', 'Public repos only'],
-  },
-  {
-    name: 'Full Audit',
-    time: '30-60 minutes',
-    description: 'Comprehensive deep analysis',
-    price: 'From $99/mo',
-    features: ['All vulnerabilities', 'Logic flow analysis', 'Private repos', 'Compliance reports'],
-  },
-];
-
-const auditCapabilities = [
-  {
-    icon: Code,
-    title: 'Smart Contracts',
-    description: 'Deep analysis of Solidity, Vyper, and other smart contract languages',
-  },
-  {
-    icon: Cpu,
-    title: 'Frontend DApps',
-    description: 'Security review of Web3 integrations and wallet connections',
-  },
-  {
-    icon: Terminal,
-    title: 'Backend Services',
-    description: 'API security, database checks, and infrastructure review',
-  },
-  {
-    icon: Activity,
-    title: 'Live Monitoring',
-    description: 'Real-time alerts for deployed contracts and continuous scanning',
-  },
-];
-
-const vulnerabilities = [
-  'Reentrancy Attacks',
-  'Integer Overflow/Underflow',
-  'Access Control Issues',
-  'Gas Optimization Problems',
-  'Logic Errors & Edge Cases',
-  'Timestamp Dependencies',
-  'Denial of Service',
-  'Front-Running Vulnerabilities',
-  'And 50+ more...',
-];
-
-const integrations = [
-  { name: 'GitHub Actions', logo: Github },
-  { name: 'GitLab CI', logo: Terminal },
-  { name: 'Slack', logo: Activity },
-  { name: 'Discord', logo: Activity },
-  { name: 'Webhooks', logo: Zap },
-  { name: 'REST API', logo: Code },
-];
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] }
+  }
+};
 
 export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
   return (
     <>
       <SEO
-        title="Uatu - Complete Web3 Security, Analytics & Build Platform"
-        description="AI-powered security audits, real-time analytics with subgraphs, and no-code DApp builder. Complete platform for Web3 development across 15+ blockchains."
-        keywords={['smart contract audit', 'web3 analytics', 'dapp builder', 'blockchain security', 'subgraph', 'no-code']}
+        title="Uatu - The Ultimate Web3 Security & Development Control Center"
+        description="Enterprise-grade AI security audits, real-time analytics, and no-code DApp building. The unified command center for Web3 sovereignty."
       />
 
-      <div className="min-h-screen bg-base relative selection:bg-indigo-500/20">
-        {/* Decorative Atmosphere */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-          <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-500/[0.03] blur-[140px] rounded-full animate-pulse" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-500/[0.02] blur-[120px] rounded-full" />
-        </div>
+      <div className="min-h-screen bg-[#FAFAFA] selection:bg-indigo-500/10 text-slate-900 font-sans overflow-x-hidden">
 
-        {/* Hero Section */}
-        <section className="relative min-h-screen flex items-center pt-24 overflow-hidden">
-          <div className="max-w-7xl mx-auto px-10 w-full">
-            <div className="text-center max-w-5xl mx-auto">
-              {/* Badge */}
+        {/* Hero Section: The Command Center */}
+        <section className="relative pt-40 pb-20 lg:pt-56 lg:pb-40 overflow-hidden border-b border-black/[0.02]">
+          {/* Subtle Background Elements */}
+          <div className="absolute inset-0 z-0 bg-dot-pattern opacity-30" />
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-indigo-500/5 blur-[160px] rounded-full" />
+
+          <div className="max-w-7xl mx-auto px-6 lg:px-10 relative z-10">
+            <div className="flex flex-col lg:flex-row items-center gap-20 lg:gap-32">
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="inline-flex items-center gap-3 px-5 py-2.5 bg-white border border-black/[0.04] shadow-sm rounded-full text-indigo-600 text-[10px] font-black uppercase tracking-[0.25em] mb-10"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="flex-[1.2] text-center lg:text-left"
               >
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                </span>
-                Complete Web3 Development Platform
+                <motion.div
+                  variants={itemVariants}
+                  className="inline-flex items-center gap-2.5 px-4 py-2 bg-indigo-50/50 border border-indigo-100/50 backdrop-blur-sm rounded-full text-[10px] font-extrabold uppercase tracking-[0.25em] text-indigo-600 mb-10"
+                >
+                  <Sparkles size={12} />
+                  <span>Next Generation Security</span>
+                </motion.div>
+
+                <motion.h1
+                  variants={itemVariants}
+                  className="text-6xl lg:text-[100px] font-black leading-[0.85] tracking-[-0.07em] mb-10"
+                >
+                  Total <span className="text-slate-200 block lg:inline">Sovereignty</span> <br />
+                  Over Your <span className="text-transparent bg-clip-text bg-gradient-to-b from-indigo-500 to-indigo-800">Code.</span>
+                </motion.h1>
+
+                <motion.p
+                  variants={itemVariants}
+                  className="text-xl lg:text-2xl text-slate-400 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium mb-14 lg:pr-10"
+                >
+                  Audit, analyze, and build with titanium confidence. Uatu is the unified command center for Web3 teams seeking elite security and real-time observability.
+                </motion.p>
+
+                <motion.div variants={itemVariants} className="flex flex-wrap justify-center lg:justify-start gap-5">
+                  {isAuthed ? (
+                    <Link to="/dashboard" className="btn-primary min-w-[220px]">
+                      Go to Dashboard <ArrowRight size={16} strokeWidth={3} />
+                    </Link>
+                  ) : (
+                    <Link to="/dashboard" className="btn-primary min-w-[220px]">
+                      Secure Project <ArrowRight size={16} strokeWidth={3} />
+                    </Link>
+                  )}
+                  <Link to="/how-it-works" className="btn-ghost min-w-[200px]">
+                    How It Works
+                  </Link>
+                </motion.div>
+
+                {/* Live Stats Bar */}
+                <motion.div
+                  variants={itemVariants}
+                  className="mt-20 pt-16 border-t border-black/[0.03] flex items-center gap-16"
+                >
+                  {[
+                    { label: 'Audits', value: '12K+' },
+                    { label: 'Vulns Found', value: '850+' },
+                    { label: 'TVL Secured', value: '$4.2B' },
+                  ].map((stat) => (
+                    <div key={stat.label}>
+                      <div className="text-3xl font-black text-slate-900 mb-1">{stat.value}</div>
+                      <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{stat.label}</div>
+                    </div>
+                  ))}
+                </motion.div>
               </motion.div>
 
-              {/* Headline */}
-              <motion.h1
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="text-6xl lg:text-8xl font-black text-slate-900 leading-[0.9] mb-8 tracking-[-0.06em]"
-              >
-                Audit. Analyze. <br />
-                Build. <br />
-                <span className="text-indigo-600">Ship Secure.</span>
-              </motion.h1>
-
-              {/* Subheadline */}
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="text-2xl text-slate-500 max-w-3xl mx-auto mb-12 leading-relaxed"
-              >
-                AI-powered security audits, real-time analytics with subgraphs, and no-code DApp builder.
-                Everything you need for Web3 development.
-              </motion.p>
-
-              {/* CTAs */}
+              {/* Product Visual: 2D Command UI Mockup */}
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="flex flex-col sm:flex-row gap-6 justify-center mb-16"
+                initial={{ opacity: 0, scale: 0.98, x: 50 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+                className="flex-1 w-full max-w-2xl perspective-1000"
               >
-                <Link
-                  to="/dashboard"
-                  className="inline-flex items-center justify-center gap-3 bg-indigo-600 text-white px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 hover:shadow-indigo-500/30 hover:bg-indigo-700 transition-all duration-500 group"
-                >
-                  Start Free Audit
-                  <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <Link
-                  to="/how-it-works"
-                  className="inline-flex items-center justify-center gap-3 bg-white text-slate-900 px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border-2 border-slate-200 hover:border-indigo-600 transition-all duration-500"
-                >
-                  Explore Platform
-                </Link>
-              </motion.div>
+                <div className="relative group lg:rotate-[-2deg] lg:hover:rotate-0 transition-transform duration-700">
+                  {/* Glass Card Shadow Depth */}
+                  <div className="absolute inset-0 bg-indigo-500/5 rounded-[40px] blur-3xl group-hover:bg-indigo-500/10 transition-all duration-700 -z-10" />
 
-              {/* Trust Indicators */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="flex flex-wrap justify-center gap-12 text-center"
-              >
-                <div>
-                  <div className="text-3xl font-black text-slate-900 mb-1">10,000+</div>
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Audits Completed</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-black text-slate-900 mb-1">500+</div>
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Vulnerabilities Found</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-black text-slate-900 mb-1">15+</div>
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Blockchains Supported</div>
+                  {/* The "Command" Window */}
+                  <div className="relative bg-white border border-black/[0.04] rounded-[40px] shadow-2xl overflow-hidden backdrop-blur-3xl">
+                    {/* Header bar */}
+                    <div className="bg-slate-50/80 border-b border-black/[0.02] px-8 py-5 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex gap-2">
+                          <div className="w-3 h-3 rounded-full bg-red-400/20" />
+                          <div className="w-3 h-3 rounded-full bg-amber-400/20" />
+                          <div className="w-3 h-3 rounded-full bg-emerald-400/20" />
+                        </div>
+                        <span className="ml-6 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Uatu Command v4.2</span>
+                      </div>
+                      <div className="px-4 py-1.5 bg-white border border-black/[0.04] rounded-full text-[9px] font-black text-emerald-500 uppercase tracking-[0.3em] flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Live Monitoring
+                      </div>
+                    </div>
+
+                    {/* Content area */}
+                    <div className="p-10 space-y-10">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                          <h4 className="text-lg font-black text-slate-800 tracking-tight">Security Engine Running</h4>
+                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Target: ERC-20 Proxy Contract</p>
+                        </div>
+                        <div className="w-14 h-14 rounded-2xl bg-indigo-600 shadow-xl shadow-indigo-600/20 flex items-center justify-center text-white">
+                          <PremiumRadar size={28} />
+                        </div>
+                      </div>
+
+                      {/* Mock Progress Bars */}
+                      <div className="space-y-6">
+                        {[
+                          { name: 'Symbolic Analysis', color: 'bg-indigo-600', w: '85%', delay: 1 },
+                          { name: 'Control Flow Graph', color: 'bg-emerald-500', w: '65%', delay: 1.2 },
+                          { name: 'Reentrancy Hooks', color: 'bg-indigo-600', w: '100%', delay: 1.4 },
+                        ].map(p => (
+                          <div key={p.name} className="space-y-2.5">
+                            <div className="flex justify-between text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400">
+                              <span>{p.name}</span>
+                              <span className="text-slate-900">{p.w}</span>
+                            </div>
+                            <div className="h-2 w-full bg-slate-50 rounded-full overflow-hidden border border-black/[0.02]">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: p.w }}
+                                transition={{ duration: 2, delay: p.delay, ease: [0.16, 1, 0.3, 1] }}
+                                className={`h-full ${p.color}`}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Mock Vulnerability List */}
+                      <div className="pt-4 flex gap-4">
+                        <div className="flex-1 p-5 bg-red-50/50 border border-red-100/50 rounded-3xl">
+                          <div className="flex items-center gap-2.5 mb-2">
+                            <ShieldAlert size={14} className="text-red-500" />
+                            <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Critical Alert</span>
+                          </div>
+                          <div className="text-xs text-red-950 font-bold leading-relaxed">Shadow-Variable Shadowing Found in Line 142</div>
+                        </div>
+                        <div className="w-[100px] p-5 bg-slate-50 border border-black/[0.02] rounded-3xl flex flex-col items-center justify-center text-center">
+                          <span className="text-xl font-black text-slate-800">12</span>
+                          <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mt-1">Modules</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Floating Micro-Cards */}
+                  <motion.div
+                    animate={{ y: [0, -15, 0] }}
+                    transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute -right-10 top-1/3 bg-white border border-black/[0.04] p-6 rounded-[24px] shadow-2xl z-20 flex items-center gap-4"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                      <Check size={18} strokeWidth={3} />
+                    </div>
+                    <div>
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Audit Status</div>
+                      <div className="text-xs font-black text-slate-900 uppercase">Verified Secure</div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    animate={{ y: [0, 15, 0] }}
+                    transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                    className="absolute -left-16 bottom-1/4 bg-white border border-black/[0.04] p-6 rounded-[24px] shadow-2xl z-20 flex items-center gap-4"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                      <PremiumAnalytics size={20} />
+                    </div>
+                    <div>
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">On-Chain Data</div>
+                      <div className="text-xs font-black text-slate-900 uppercase">Sync Live</div>
+                    </div>
+                  </motion.div>
                 </div>
               </motion.div>
             </div>
           </div>
         </section>
 
-        {/* Uatu Ecosystem Products */}
-        <section className="py-32 bg-gradient-to-br from-slate-900 to-slate-800 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-5" />
-          <div className="max-w-7xl mx-auto px-10 relative z-10">
-            <div className="text-center mb-20">
-              <h2 className="text-5xl font-black text-white mb-6">Complete Web3 Ecosystem</h2>
-              <p className="text-xl text-slate-300 max-w-3xl mx-auto">
-                Three powerful products working together to secure, analyze, and build your Web3 applications
-              </p>
+        {/* Product Trinity: Ecosystem */}
+        <section className="py-40 bg-white relative border-b border-black/[0.02]">
+          <div className="max-w-7xl mx-auto px-6 lg:px-10">
+            <div className="text-center mb-32">
+              <motion.span
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-6 block"
+              >
+                The Unified Command
+              </motion.span>
+              <h2 className="text-5xl lg:text-[72px] font-black tracking-[-0.05em] mb-10">Integrated Ecosystem.</h2>
+              <p className="text-xl lg:text-2xl text-slate-400 font-medium max-w-3xl mx-auto leading-relaxed">One platform. Three powerful tools. Complete control over your Web3 lifecycle from inception to mainnet.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {products.map((product, i) => (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+              {[
+                {
+                  id: 'audit',
+                  title: 'UatuAudit',
+                  tag: 'Security Scan',
+                  desc: 'Enterprise-grade bytecode and logic analysis for any smart contract. Identify flaws before they become exploits.',
+                  icon: PremiumShield,
+                  color: 'text-indigo-600',
+                  link: '/dashboard',
+                  ext: false
+                },
+                {
+                  id: 'analyzer',
+                  title: 'Uatu Analyzer',
+                  tag: 'Data Indexing',
+                  desc: 'Real-time on-chain analytics and automated subgraph creation. Turn raw data into actionable insights.',
+                  icon: PremiumAnalytics,
+                  color: 'text-emerald-600',
+                  link: 'https://dashboard.uatu.xyz',
+                  ext: true
+                },
+                {
+                  id: 'build',
+                  title: 'Uatu Build',
+                  tag: 'DApp Builder',
+                  desc: 'Ship secure contracts and frontends in minutes with our no-code environment. Security-hardened by design.',
+                  icon: PremiumBlocks,
+                  color: 'text-amber-600',
+                  link: 'https://build.uatu.xyz',
+                  ext: true
+                }
+              ].map((p, i) => (
                 <motion.div
-                  key={product.name}
-                  initial={{ opacity: 0, y: 40 }}
+                  key={p.id}
+                  initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="relative group"
+                  transition={{ delay: i * 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  className="group"
                 >
-                  <div className="card p-8 bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/10 transition-all duration-500 h-full flex flex-col">
-                    <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${product.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500`}>
-                      <product.icon className="text-white" size={28} strokeWidth={1.5} />
+                  <div className="card-premium h-full flex flex-col items-start text-left hover:border-black/[0.1] transition-all duration-700">
+                    <div className="w-16 h-16 rounded-[22px] bg-[#FDFCF8] border border-black/[0.03] flex items-center justify-center text-slate-800 mb-10 group-hover:scale-110 group-hover:bg-white group-hover:shadow-xl transition-all duration-500">
+                      <p.icon size={28} />
                     </div>
-
-                    <div className="mb-2">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{product.tagline}</span>
+                    <div className="flex items-center gap-3 mb-5">
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 group-hover:text-indigo-600 transition-colors">{p.tag}</span>
                     </div>
-                    <h3 className="text-3xl font-black text-white mb-4">{product.name}</h3>
-                    <p className="text-slate-300 mb-6 leading-relaxed flex-grow">{product.description}</p>
-
-                    <div className="space-y-2 mb-8">
-                      {product.features.map((feature) => (
-                        <div key={feature} className="flex items-center gap-2 text-sm text-slate-400">
-                          <Check size={14} className="text-emerald-400" strokeWidth={3} />
-                          {feature}
-                        </div>
-                      ))}
-                    </div>
-
-                    {product.external ? (
-                      <a
-                        href={product.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`block text-center py-4 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] bg-gradient-to-br ${product.color} text-white hover:scale-105 transition-all duration-300 shadow-lg`}
-                      >
-                        Launch {product.name.split(' ')[1]}
+                    <h3 className="text-3xl font-black mb-8 tracking-tight">{p.title}</h3>
+                    <p className="text-slate-400 font-medium leading-relaxed flex-grow mb-12 text-sm">{p.desc}</p>
+                    {p.ext ? (
+                      <a href={p.link} target="_blank" rel="noopener noreferrer" className="btn-ghost w-full">
+                        Launch {p.title.split(' ')[1]} <Zap size={14} className="opacity-50" />
                       </a>
                     ) : (
-                      <Link
-                        to={product.link}
-                        className={`block text-center py-4 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] bg-gradient-to-br ${product.color} text-white hover:scale-105 transition-all duration-300 shadow-lg`}
-                      >
-                        Explore Audit
+                      <Link to={p.link} className="btn-primary w-full">
+                        Secure Code <ArrowRight size={14} strokeWidth={3} />
                       </Link>
                     )}
                   </div>
@@ -273,276 +310,180 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
           </div>
         </section>
 
-        {/* What We Audit - Enhanced */}
-        <section className="py-32 bg-white/40 relative">
-          <div className="max-w-7xl mx-auto px-10">
-            <div className="text-center mb-20">
-              <h2 className="text-5xl font-black text-slate-900 mb-6">Complete Security Coverage</h2>
-              <p className="text-xl text-slate-500 max-w-3xl mx-auto">
-                From smart contracts to full-stack DApps, we audit every layer of your application
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {auditCapabilities.map((item, i) => (
-                <motion.div
-                  key={item.title}
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="card p-8 text-center hover:shadow-xl transition-all duration-500 group"
-                >
-                  <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-                    <item.icon className="text-indigo-600" size={28} strokeWidth={1.5} />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-900 mb-3">{item.title}</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">{item.description}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Supported Blockchains */}
-        <section className="py-32 relative">
-          <div className="max-w-7xl mx-auto px-10">
-            <div className="text-center mb-20">
-              <h2 className="text-5xl font-black text-slate-900 mb-6">Multi-Chain Support</h2>
-              <p className="text-xl text-slate-500 max-w-3xl mx-auto">
-                Security audits, analytics, and deployment across 15+ major blockchain networks
-              </p>
-            </div>
-
-            <div className="flex flex-wrap justify-center gap-8 mb-12">
-              {supportedChains.slice(0, 7).map((chain, i) => {
-                const IconComponent = chain.icon;
-                return (
-                  <motion.div
-                    key={chain.name}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.05 }}
-                    className="flex flex-col items-center gap-3 p-6 rounded-2xl hover:bg-white/60 transition-all duration-300"
-                  >
-                    <div
-                      className="w-16 h-16 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: `${chain.color}15` }}
-                    >
-                      <IconComponent size={32} style={{ color: chain.color }} />
-                    </div>
-                    <span className="text-sm font-bold text-slate-900">{chain.name}</span>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            <div className="text-center">
-              <Link
-                to="/supported-chains"
-                className="inline-flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 transition-colors"
-              >
-                View All Supported Chains
-                <ArrowRight size={16} />
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* How It Works */}
-        <section className="py-32 bg-white/40 relative">
-          <div className="max-w-7xl mx-auto px-10">
-            <div className="text-center mb-20">
-              <h2 className="text-5xl font-black text-slate-900 mb-6">How It Works</h2>
-              <p className="text-xl text-slate-500 max-w-3xl mx-auto">
-                Four simple steps to comprehensive security audits with live monitoring
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              {[
-                { num: '01', title: 'Connect Repo', desc: 'Link GitHub or upload contracts' },
-                { num: '02', title: 'Configure', desc: 'Select audit scope and settings' },
-                { num: '03', title: 'AI Analyzes', desc: 'Deep scan with live alerts' },
-                { num: '04', title: 'Monitor', desc: 'Continuous protection & reports' },
-              ].map((step, i) => (
-                <motion.div
-                  key={step.num}
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="text-center"
-                >
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mx-auto mb-6">
-                    <span className="text-3xl font-black text-white">{step.num}</span>
-                  </div>
-                  <h3 className="text-xl font-black text-slate-900 mb-2">{step.title}</h3>
-                  <p className="text-sm text-slate-500">{step.desc}</p>
-                </motion.div>
-              ))}
-            </div>
-
-            <div className="text-center mt-16">
-              <Link
-                to="/how-it-works"
-                className="inline-flex items-center gap-3 bg-indigo-600 text-white px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-indigo-700 transition-all duration-500"
-              >
-                Learn More
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* Security Coverage */}
-        <section className="py-32 relative">
-          <div className="max-w-7xl mx-auto px-10">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+        {/* Security Feature Grid */}
+        <section className="py-40 relative bg-[#FAFAFA]">
+          <div className="max-w-7xl mx-auto px-6 lg:px-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-32 items-center">
               <div>
-                <h2 className="text-5xl font-black text-slate-900 mb-8">
-                  50+ Vulnerability <br />Types Detected
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-8 block">Defense in Depth</span>
+                <h2 className="text-5xl lg:text-[72px] font-black tracking-[-0.05em] mb-12 leading-[0.9]">
+                  Total Control <br />
+                  Over <span className="text-slate-200">Security.</span>
                 </h2>
-                <p className="text-xl text-slate-600 mb-10 leading-relaxed">
-                  Our AI engine identifies critical security issues across smart contracts, frontends,
-                  backends, and infrastructure with real-time alerts.
-                </p>
-                <Link
-                  to="/features"
-                  className="inline-flex items-center gap-3 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-indigo-700 transition-all duration-500"
-                >
-                  View All Features
-                  <ArrowRight size={14} strokeWidth={3} />
-                </Link>
-              </div>
-
-              <div className="card p-10">
-                <div className="space-y-3">
-                  {vulnerabilities.map((vuln, i) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-12">
+                  {[
+                    { icon: PremiumShield, title: 'Smart Contracts', text: 'Advanced bytecode & logic scanning.' },
+                    { icon: PremiumCode, title: 'Frontend Audits', text: 'Web3 provider & hook security.' },
+                    { icon: PremiumRadar, title: '24/7 Monitoring', text: 'Live on-chain threat alerting.' },
+                    { icon: PremiumBlocks, title: 'Build Integrity', text: 'Verified compile-time checks.' },
+                  ].map((f, i) => (
                     <motion.div
-                      key={vuln}
-                      initial={{ opacity: 0, x: 20 }}
+                      key={f.title}
+                      initial={{ opacity: 0, x: -20 }}
                       whileInView={{ opacity: 1, x: 0 }}
                       viewport={{ once: true }}
-                      transition={{ delay: i * 0.05 }}
-                      className="flex items-center gap-3 text-sm text-slate-700"
+                      transition={{ delay: i * 0.1, duration: 0.6 }}
+                      className="group"
                     >
-                      <Check size={16} className="text-emerald-500 shrink-0" strokeWidth={3} />
-                      {vuln}
+                      <div className="w-12 h-12 rounded-2xl bg-white border border-black/[0.03] flex items-center justify-center text-slate-400 mb-6 group-hover:bg-indigo-600 group-hover:text-white group-hover:shadow-lg transition-all duration-500">
+                        <f.icon size={20} />
+                      </div>
+                      <h4 className="text-lg font-black mb-2 tracking-tight">{f.title}</h4>
+                      <p className="text-sm text-slate-400 font-medium leading-relaxed">{f.text}</p>
                     </motion.div>
                   ))}
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-0 bg-indigo-500/5 blur-[120px] rounded-full" />
+                <div className="card-premium bg-white/40 backdrop-blur-3xl relative z-10 border-black/[0.02] p-12">
+                  <div className="space-y-8">
+                    <div className="flex items-center gap-5 p-6 bg-white border border-black/[0.02] rounded-[24px] shadow-sm transform hover:scale-105 transition-transform duration-500">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                        <Fingerprint size={24} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                        <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 mb-1">Vulnerability Scan</div>
+                        <div className="text-sm font-black text-slate-800 tracking-tight">Access Control Integrity</div>
+                      </div>
+                      <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-emerald-50 rounded-full">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Secure</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-5 p-6 bg-white border border-black/[0.02] rounded-[24px] shadow-sm translate-x-12 opacity-80">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
+                        <PremiumCode size={24} />
+                      </div>
+                      <div>
+                        <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 mb-1">Logic Check</div>
+                        <div className="text-sm font-black text-slate-800 tracking-tight">Reentrancy Guard</div>
+                      </div>
+                      <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full">
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                        <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest">Running</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-5 p-6 bg-white border border-black/[0.02] rounded-[24px] shadow-sm translate-x-4">
+                      <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-600">
+                        <Zap size={24} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                        <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 mb-1">Threat Feed</div>
+                        <div className="text-sm font-black text-slate-800 tracking-tight">Gas Limit Overflow</div>
+                      </div>
+                      <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-red-50 rounded-full">
+                        <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        <span className="text-[9px] font-black text-red-600 uppercase tracking-widest">Alert</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Audit Types Comparison */}
-        <section className="py-32 bg-white/40 relative">
-          <div className="max-w-7xl mx-auto px-10">
-            <div className="text-center mb-20">
-              <h2 className="text-5xl font-black text-slate-900 mb-6">Choose Your Audit Type</h2>
-              <p className="text-xl text-slate-500 max-w-3xl mx-auto">
-                From quick scans to comprehensive audits with continuous monitoring
-              </p>
+        {/* Testimonials / Social Proof */}
+        <section className="py-40 bg-white relative overflow-hidden">
+          <div className="max-w-7xl mx-auto px-6 lg:px-10">
+            <div className="text-center mb-32">
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-6 block">Social Proof</span>
+              <h2 className="text-5xl lg:text-[72px] font-black tracking-[-0.05em] leading-[0.9]">Trusted by <br /><span className="text-slate-200">Industry Leaders.</span></h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-              {auditTypes.map((type, i) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+              {[
+                { quote: "Uatu is the first tool that actually caught a reentrancy edge case our manual auditors missed. It's now mandatory for all our PRs.", author: "Marcus Thorne", role: "Lead Dev, SolarDeFi" },
+                { quote: "The speed of UatuAudit is incredible. We went from waiting days for audit results to getting them in minutes during our sprint.", author: "Elena Rossi", role: "CTO, Nexus Protocol" },
+                { quote: "A unified command center for Web3 security. Analyzer and Build integration makes it the most powerful suite on the market.", author: "Dr. Julian Vance", role: "Security Researcher" },
+              ].map((t, i) => (
                 <motion.div
-                  key={type.name}
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  key={i}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="card p-10"
+                  transition={{ delay: i * 0.1, duration: 0.8 }}
+                  className="card-premium p-10 bg-[#FAFAFA]/50 border-black/[0.01] hover:bg-white transition-all duration-700"
                 >
-                  <h3 className="text-3xl font-black text-slate-900 mb-2">{type.name}</h3>
-                  <div className="flex items-baseline gap-2 mb-4">
-                    <span className="text-2xl font-black text-indigo-600">{type.price}</span>
-                    <span className="text-sm text-slate-400">• {type.time}</span>
+                  <div className="flex gap-1 mb-8">
+                    {[1, 2, 3, 4, 5].map(s => <Sparkles key={s} size={10} className="text-amber-400" />)}
                   </div>
-                  <p className="text-slate-600 mb-6">{type.description}</p>
-                  <div className="space-y-2">
-                    {type.features.map((feature) => (
-                      <div key={feature} className="flex items-center gap-2 text-sm text-slate-600">
-                        <Check size={14} className="text-emerald-500" strokeWidth={3} />
-                        {feature}
-                      </div>
-                    ))}
+                  <p className="text-lg font-medium text-slate-800 leading-relaxed mb-10 italic">"{t.quote}"</p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-black text-[10px] uppercase">
+                      {t.author.split(' ').map(n => n[0]).join('')}
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-900 uppercase tracking-wider">{t.author}</div>
+                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{t.role}</div>
+                    </div>
                   </div>
                 </motion.div>
               ))}
             </div>
-
-            <div className="text-center mt-12">
-              <Link
-                to="/pricing"
-                className="inline-flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 transition-colors"
-              >
-                View Full Pricing
-                <ArrowRight size={16} />
-              </Link>
-            </div>
           </div>
         </section>
 
-        {/* Integrations */}
-        <section className="py-32 relative">
-          <div className="max-w-7xl mx-auto px-10">
-            <div className="text-center mb-20">
-              <h2 className="text-5xl font-black text-slate-900 mb-6">Seamless Integration</h2>
-              <p className="text-xl text-slate-500 max-w-3xl mx-auto">
-                Integrate security audits into your existing workflow with zero configuration
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-              {integrations.map((integration, i) => (
-                <motion.div
-                  key={integration.name}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.05 }}
-                  className="card p-6 text-center hover:shadow-lg transition-all duration-300"
-                >
-                  <integration.logo size={32} className="text-slate-400 mx-auto mb-3" strokeWidth={1.5} />
-                  <p className="text-xs font-bold text-slate-900">{integration.name}</p>
-                </motion.div>
+        {/* Global Multi-Chain Section */}
+        <section className="py-40 bg-slate-900 border-y border-black relative overflow-hidden">
+          <div className="absolute inset-0 bg-dot-pattern opacity-[0.05] invert" />
+          <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/10 to-transparent" />
+          <div className="max-w-7xl mx-auto px-6 lg:px-10 relative z-10 text-center">
+            <h2 className="text-4xl lg:text-[56px] font-black text-white tracking-[-0.05em] mb-24">Unified Security Over 15+ Networks.</h2>
+            <div className="flex flex-wrap justify-center gap-16 lg:gap-24 opacity-60 hover:opacity-100 transition-opacity duration-700">
+              {supportedChains.map((chain) => (
+                <div key={chain.name} className="flex flex-col items-center gap-5 group cursor-default">
+                  <div
+                    className="w-20 h-20 rounded-[28px] bg-white/5 border border-white/5 flex items-center justify-center p-5 group-hover:bg-white/10 group-hover:border-white/10 group-hover:shadow-2xl group-hover:shadow-indigo-500/20 transition-all duration-500 transform group-hover:-translate-y-3"
+                  >
+                    <chain.icon size={40} color={chain.color} />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 group-hover:text-white transition-colors">{chain.name}</span>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
         {/* Final CTA */}
-        <section className="py-32 bg-gradient-to-br from-indigo-600 to-purple-600 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
-          <div className="max-w-4xl mx-auto px-10 text-center relative z-10">
-            <h2 className="text-6xl font-black text-white mb-6">
-              Ready to Secure Your Web3 Project?
-            </h2>
-            <p className="text-2xl text-indigo-100 mb-12">
-              Start with a free audit, explore analytics, or build your first DApp today.
-            </p>
+        <section className="py-56 bg-[#FAFAFA] relative overflow-hidden">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-500/5 blur-[120px] rounded-full" />
+          <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+            <h2 className="text-6xl lg:text-[110px] font-black tracking-[-0.08em] mb-12 leading-[0.8]">Ready to Claim <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-indigo-800 underline decoration-indigo-200 decoration-8">Sovereignty?</span></h2>
+            <p className="text-xl lg:text-2xl text-slate-400 font-medium mb-16 max-w-2xl mx-auto">Join the high-assurance teams building the future of decentralized finance on Uatu.</p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-3 bg-white text-indigo-600 px-12 py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-500"
-              >
-                Start Free Audit
-              </Link>
-              <a
-                href="https://dashboard.uatu.xyz"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 bg-transparent border-2 border-white text-white px-12 py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white hover:text-indigo-600 transition-all duration-500"
-              >
-                Explore Analytics
-              </a>
+              {isAuthed ? (
+                <Link to="/dashboard" className="btn-primary py-6 px-16 text-sm">
+                  Go to Dashboard <ArrowRight size={18} strokeWidth={3} />
+                </Link>
+              ) : (
+                <>
+                  <Link to="/dashboard" className="btn-primary py-6 px-16 text-sm">
+                    Secure Your Project <ArrowRight size={18} strokeWidth={3} />
+                  </Link>
+                  <button onClick={onLogin} className="btn-ghost py-6 px-16 text-sm">
+                    Get Started Now
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </section>
+
       </div>
     </>
   );

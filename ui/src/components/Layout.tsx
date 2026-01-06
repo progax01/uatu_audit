@@ -10,10 +10,10 @@ interface LayoutProps {
 
 export default function Layout({ isAuthed, onLogin }: LayoutProps) {
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col bg-white">
             <Header isAuthed={isAuthed} onLogin={onLogin} />
-            <Breadcrumbs />
-            <main className="flex-grow">
+            <main className="flex-grow pt-20">
+                <Breadcrumbs />
                 <Outlet />
             </main>
             <Footer />

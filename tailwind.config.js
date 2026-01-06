@@ -7,37 +7,25 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Preserving existing color scheme from index.html
-        uatu: {
-          bg: '#0b1020',
-          card: '#121a33',
-          line: '#2e3a70',
-          accent: '#0a7cff',
-          muted: '#9fb0e3',
-          text: '#eaf0ff',
-          border: '#24356e',
-          input: '#0f1630',
-          'input-border': '#223069',
-          'code-bg': '#0b122b',
-          'code-border': '#253469',
-          'code-text': '#d7e0ff',
+        base: "var(--base-bg)",
+        surface: "var(--base-surface)",
+        brand: {
+          primary: "var(--brand-primary)",
+          soft: "var(--brand-primary-soft)",
+          emerald: "var(--brand-emerald)",
+          amber: "var(--brand-amber)",
+          rose: "var(--brand-rose)",
         },
-        // Status colors
-        status: {
-          success: '#10B981',
-          error: '#EF4444',
-          warning: '#F59E0B',
-          pending: '#6B7280',
-        }
       },
       fontFamily: {
-        sans: ['ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+        heading: ['"Plus Jakarta Sans"', 'sans-serif'],
       },
-      borderRadius: {
-        'uatu': '16px',
-        'uatu-sm': '10px',
-        'uatu-xs': '6px',
-      },
+      boxShadow: {
+        'premium': "var(--shadow-premium)",
+        'md': "var(--shadow-md)",
+        'lg': "var(--shadow-lg)",
+      }
     },
   },
   plugins: [],
