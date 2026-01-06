@@ -14,7 +14,7 @@
 
   /* Premium Alabaster Card */
   .card {
-    @apply bg-white border border-black/[0.03] rounded-[32px] p-8 shadow-premium transition-all duration-500 hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)];
+    @apply bg-white border border-black/[0.03] rounded-[32px] p-8 shadow-sm transition-all duration-500;
   }
 
   /* Refined Primary Button */
@@ -34,5 +34,23 @@
 
   .select {
     @apply bg-white text-slate-900 border border-black/[0.06] rounded-2xl px-5 py-4 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/30 transition-all duration-300 text-sm cursor-pointer;
+  }
+}
+
+@layer utilities {
+
+  /* Shimmer animation for skeletons */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s infinite linear;
   }
 }
