@@ -86,8 +86,15 @@ export async function handleAuthRoutes(
 ): Promise<boolean> {
   const GH_CLIENT_ID = process.env.GITHUB_CLIENT_ID || "";
   const GH_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || "";
-  const PUBLIC_URL = process.env.UATU_PUBLIC_URL || `http://localhost:${PORT}`;
+
+  // Auto-detect public URL from request host header in production
+  const hostHeader = req.headers.host || req.headers[':authority'] || '';
+  const isProduction = hostHeader.includes('audit.uatu.xyz') || hostHeader.includes('uatu.xyz');
+  const PUBLIC_URL = process.env.UATU_PUBLIC_URL ||
+    (isProduction ? `https://${hostHeader}` : `http://localhost:${PORT}`);
   const GH_CALLBACK = process.env.GITHUB_OAUTH_CALLBACK || `${PUBLIC_URL}/auth/github/callback`;
+
+  logger.info("OAuth URL configuration", { hostHeader, isProduction, PUBLIC_URL, GH_CALLBACK });
 
   const { v4: uuidv4 } = await import("uuid");
 
