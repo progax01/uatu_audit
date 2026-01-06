@@ -10,7 +10,7 @@ export default function Footer() {
                     {/* Brand */}
                     <div className="md:col-span-2">
                         <div className="flex items-center mb-8">
-                            <img src={logo} alt="Uatu Security Platform" className="h-10 object-contain" />
+                            <img src={logo} alt="Uatu Security" className="h-10 object-contain" />
                         </div>
                         <p className="text-slate-400 text-sm font-medium leading-relaxed max-w-sm mb-6">
                             AI-powered security audits for smart contracts and decentralized applications.

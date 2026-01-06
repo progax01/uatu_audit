@@ -2,66 +2,67 @@ import { motion } from 'framer-motion';
 import { Book, Github, Zap, Code, Settings, Shield, Terminal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
+import MouseTooltip from '../components/MouseTooltip';
 
 const docSections = [
     {
         icon: Zap,
-        title: 'Quick Start',
-        description: 'Get started with your first audit in under 5 minutes',
+        title: 'Rapid Deployment',
+        description: 'Initialize static analysis and formal verification pipelines in under 5 minutes.',
         links: [
-            { name: 'Installation', href: '#install' },
-            { name: 'First Audit', href: '#first-audit' },
-            { name: 'Understanding Results', href: '#results' },
+            { name: 'CI/CD Hooks', href: '#install' },
+            { name: 'Initial Scan Logic', href: '#first-audit' },
+            { name: 'Interpreting Findings', href: '#results' },
         ],
     },
     {
         icon: Github,
-        title: 'GitHub Integration',
-        description: 'Connect your repositories and automate security audits',
+        title: 'VCS Integration',
+        description: 'Connect GitHub, GitLab, or Bitbucket for automated PR security gates.',
         links: [
-            { name: 'OAuth Setup', href: '#oauth' },
-            { name: 'Repository Access', href: '#repo-access' },
+            { name: 'SSO & OAuth', href: '#oauth' },
+            { name: 'Registry Access', href: '#repo-access' },
             { name: 'Branch Protection', href: '#branch-protection' },
         ],
     },
     {
         icon: Code,
-        title: 'CI/CD Integration',
-        description: 'Integrate audits into your deployment pipeline',
+        title: 'Static Analysis',
+        description: 'Integrate Slither, Mythril, and Uatu AI into your deployment infrastructure.',
         links: [
             { name: 'GitHub Actions', href: '#github-actions' },
-            { name: 'GitLab CI', href: '#gitlab-ci' },
-            { name: 'Jenkins', href: '#jenkins' },
+            { name: 'Hardhat/Foundry', href: '#gitlab-ci' },
+            { name: 'Jenkins Pipelines', href: '#jenkins' },
         ],
     },
     {
         icon: Settings,
-        title: 'Configuration',
-        description: 'Customize audit settings and security rules',
+        title: 'Audit Governance',
+        description: 'Define custom security heuristics and severity thresholds for your protocol.',
         links: [
-            { name: 'Audit Types', href: '#audit-types' },
-            { name: 'Custom Rules', href: '#custom-rules' },
-            { name: 'Severity Levels', href: '#severity' },
+            { name: 'Sway/Solidity Rules', href: '#audit-types' },
+            { name: 'Heuristic Tuning', href: '#custom-rules' },
+            { name: 'Compliance Mapping', href: '#severity' },
         ],
     },
     {
         icon: Shield,
-        title: 'Security Standards',
-        description: 'Learn about our audit methodology and compliance',
+        title: 'Security Methodology',
+        description: 'Deep dive into our tiered approach: Manual Review + Automated Proofs.',
         links: [
-            { name: 'Audit Methodology', href: '#methodology' },
-            { name: 'Vulnerability Database', href: '#vulnerabilities' },
-            { name: 'Compliance Reports', href: '#compliance' },
+            { name: 'Formal Verification', href: '#methodology' },
+            { name: 'Vulnerability DB', href: '#vulnerabilities' },
+            { name: 'ISO/NIST Compliance', href: '#compliance' },
         ],
     },
     {
         icon: Book,
-        title: 'API Reference',
-        description: 'Complete API documentation for developers',
+        title: 'Audit API',
+        description: 'Programmatic access to audit metadata and security reporting engines.',
         links: [
             { name: 'Authentication', href: '#api-auth' },
-            { name: 'Endpoints', href: '#api-endpoints' },
-            { name: 'Webhooks', href: '#webhooks' },
+            { name: 'Report Endpoints', href: '#api-endpoints' },
+            { name: 'Event Webhooks', href: '#webhooks' },
         ],
     },
 ];
@@ -69,6 +70,7 @@ const docSections = [
 export default function DocumentationPage() {
     return (
         <>
+            <MouseTooltip />
             <SEO
                 title="Documentation - Complete Guide to UatuAudit"
                 description="Comprehensive documentation for UatuAudit: quick start guides, GitHub integration, CI/CD setup, API reference, and security standards."
@@ -93,20 +95,20 @@ export default function DocumentationPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-6xl lg:text-[100px] font-black leading-[0.85] tracking-[-0.07em] mb-12"
+                            className="text-4xl lg:text-7xl font-black tracking-tight mb-8"
                         >
-                            Master Your <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-b from-indigo-500 to-indigo-800">Sovereignty.</span>
+                            Secure Your <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-br from-indigo-500 to-indigo-700">Infrastructure.</span>
                         </motion.h1>
 
                         <motion.p
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2, duration: 0.8 }}
-                            className="text-xl lg:text-2xl text-slate-400 font-medium max-w-3xl mx-auto mb-16 leading-relaxed"
+                            className="text-lg lg:text-xl text-slate-400 font-medium max-w-3xl mx-auto mb-16 leading-relaxed"
                         >
-                            Comprehensive guides to building, auditing, and scaling with Uatu.
-                            From first scan to enterprise-wide infrastructure security.
+                            Technical guides for building, auditing, and scaling with high-assurance security.
+                            Comprehensive resources for the absolute safety of your digital infrastructure.
                         </motion.p>
                     </div>
                 </section>
@@ -152,9 +154,9 @@ export default function DocumentationPage() {
                 {/* Quick Start Section */}
                 <section className="py-40 bg-white relative border-y border-black/[0.02]">
                     <div className="max-w-5xl mx-auto px-6 lg:px-10">
-                        <div className="text-center mb-32">
+                        <div className="text-center mb-24">
                             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-6 block">The Workflow</span>
-                            <h2 className="text-6xl font-black text-slate-900 tracking-[-0.04em]">Quick Start Guide</h2>
+                            <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">Security Integration Guide</h2>
                         </div>
 
                         <div className="space-y-20">
@@ -199,8 +201,8 @@ export default function DocumentationPage() {
                 <section className="py-56 relative overflow-hidden">
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-500/5 blur-[120px] rounded-full" />
                     <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-                        <h2 className="text-6xl lg:text-[80px] font-black tracking-[-0.06em] mb-12 leading-[0.9]">Stuck on <span className="text-indigo-600">Complex</span> <br />Logic?</h2>
-                        <p className="text-xl text-slate-400 font-medium mb-16 max-w-2xl mx-auto">Our specialized security engineering team is available for deep manual reviews.</p>
+                        <h2 className="text-4xl lg:text-6xl font-black tracking-tight mb-10 leading-tight">Need Advanced <span className="text-indigo-600">Manual</span> <br />Verification?</h2>
+                        <p className="text-lg lg:text-xl text-slate-400 font-medium mb-14 max-w-2xl mx-auto">Our specialized security engineering team provides comprehensive manual peer reviews for high-stakes protocols.</p>
                         <div className="flex flex-col sm:flex-row gap-6 justify-center">
                             <Link
                                 to="/dashboard"

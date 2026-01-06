@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Layout, Settings, Plus, ArrowRight, Clock,
   FileCode, Globe, Package,
-  FolderGit2, ShieldCheck, Shield
+  FolderGit2, ShieldCheck, Shield, Activity
 } from 'lucide-react'
+import { PremiumShield } from '../components/IconSystem'
 import logo from '../assets/logo.svg'
+import MouseTooltip from '../components/MouseTooltip'
 
 type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit'
 type ProjectStatus = 'draft' | 'configured' | 'awaiting-preaudit' | 'auditing' | 'completed'
@@ -74,40 +76,41 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
 
   return (
     <div className="min-h-screen bg-base flex selection:bg-indigo-500/20">
+      <MouseTooltip />
       {/* Sidebar */}
-      <aside className="w-80 bg-white border-r border-black/[0.03] flex flex-col z-[100] shadow-[10px_0_30px_rgba(0,0,0,0.01)]">
+      <aside className="w-72 bg-white/80 backdrop-blur-2xl border-r border-black/[0.03] flex flex-col z-[100] shadow-sm">
         <div className="p-10 cursor-pointer flex items-center group" onClick={onHomeClick}>
-          <img src={logo} alt="Uatu Sovereignty Hub" className="h-10 object-contain group-hover:scale-105 transition-transform duration-500" />
+          <img src={logo} alt="Uatu Security" className="h-9 object-contain group-hover:scale-105 transition-all duration-700" />
         </div>
 
-        <nav className="flex-1 px-6 py-4 space-y-3">
-          <button className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl bg-indigo-50 text-indigo-700 font-black text-[10px] uppercase tracking-[0.2em] transition-all border border-indigo-100/50 shadow-sm shadow-indigo-500/5">
-            <Layout size={18} strokeWidth={1.5} />
+        <nav className="flex-1 px-4 py-4 space-y-2">
+          <button className="w-full flex items-center gap-3 px-5 py-3.5 rounded-xl bg-indigo-50 text-indigo-700 font-bold text-[11px] uppercase tracking-wider transition-all border border-indigo-100/50 shadow-sm shadow-indigo-500/5">
+            <Layout size={16} strokeWidth={2} />
             Command Center
           </button>
           <button
             onClick={onSettingsClick}
-            className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-400 hover:bg-slate-50 hover:text-slate-900 font-black text-[10px] uppercase tracking-[0.2em] transition-all"
+            className="w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-900 font-bold text-[11px] uppercase tracking-wider transition-all"
           >
-            <Settings size={18} strokeWidth={1.5} />
+            <Settings size={16} strokeWidth={2} />
             Protocols
           </button>
         </nav>
 
         <div className="p-8">
-          <div className="bg-slate-50 rounded-[32px] p-8 border border-black/[0.02] relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
-              <Activity size={80} className="text-indigo-900" />
+          <div className="glass-liquid rounded-3xl p-6 border-white/40 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-[0.05]">
+              <Activity size={60} className="text-indigo-900" />
             </div>
             <div className="flex items-center gap-3 mb-4 relative z-10">
-              <span className="relative flex h-2 w-2">
+              <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
               </span>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Active Pulse</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Security Pulse</span>
             </div>
-            <p className="text-[10px] text-slate-500 font-bold leading-relaxed uppercase tracking-[0.1em] relative z-10 max-w-[160px]">
-              Monitoring engineering standards across your connected infrastructure points.
+            <p className="text-[9px] text-slate-500 font-bold leading-relaxed uppercase tracking-[0.1em] relative z-10">
+              Continuous monitoring of engineering standards across your connected infrastructure.
             </p>
           </div>
         </div>
@@ -121,8 +124,8 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
         {/* Header */}
         <header className="h-28 flex items-center justify-between px-12 shrink-0 z-10 bg-white/70 backdrop-blur-xl border-b border-black/[0.03]">
           <div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-[-0.04em]">Security Control Plane</h1>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em] mt-2 italic opacity-60">Uatu Hub / Integrated Infrastructure</p>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Security Command Center</h1>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-2 opacity-60">Verified Infrastructure / Security Control Plane</p>
           </div>
           <div className="flex items-center gap-6">
             <button
@@ -130,7 +133,7 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
               className="btn-primary"
             >
               <Plus size={16} strokeWidth={3} />
-              Establish Sovereignty
+              Secure New Project
             </button>
           </div>
         </header>
@@ -155,7 +158,7 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
                     <ShieldCheck size={20} className="text-indigo-600/30" strokeWidth={1.5} />
                   </div>
                 </div>
-                <p className="tracking-[0.3em] uppercase opacity-40">Decrypting Sovereignty Hub...</p>
+                <p className="tracking-[0.3em] uppercase opacity-40">Synchronizing Security Data...</p>
               </motion.div>
             ) : projects.length === 0 ? (
               <motion.div
@@ -166,9 +169,9 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
                 <div className="w-24 h-24 bg-white border border-black/[0.04] shadow-premium rounded-[40px] flex items-center justify-center mb-10 transition-transform duration-700 hover:scale-110">
                   <FolderGit2 className="w-10 h-10 text-indigo-200" strokeWidth={1.5} />
                 </div>
-                <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">No Active Sovereignty.</h2>
-                <p className="text-slate-400 mb-12 font-medium leading-relaxed max-w-sm uppercase text-[10px] tracking-[0.2em] opacity-80">
-                  Your project command center is offline. Initialize your first node to begin monitoring.
+                <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">No Active Security.</h2>
+                <p className="text-slate-400 mb-10 font-medium leading-relaxed max-w-sm uppercase text-[9px] tracking-[0.2em] opacity-80">
+                  Your project command center is currently empty. Secure your first project to begin monitoring.
                 </p>
                 <button
                   onClick={onNewAudit}
@@ -196,7 +199,7 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
                         initial={{ opacity: 0, x: -30 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: idx * 0.08, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                        className="group relative card !p-10 !bg-white/60 !backdrop-blur-3xl flex items-center justify-between hover:translate-x-2"
+                        className="group relative card-premium !p-8 flex items-center justify-between hover:translate-x-1 shadow-sm hover:shadow-premium"
                       >
                         <div className="flex items-center gap-10">
                           <div className={`w-18 h-18 rounded-[28px] flex items-center justify-center bg-white border border-black/[0.03] shadow-sm transition-all duration-700 group-hover:scale-110 group-hover:shadow-indigo-500/10 ${typeConfig.colorClass}`}>
@@ -244,10 +247,10 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
                           ) : (
                             <div className="text-right flex flex-col items-end gap-2 pr-4 opacity-30 group-hover:opacity-100 transition-all duration-500">
                               <div className="text-[10px] font-black text-slate-900 uppercase tracking-[0.3em]">
-                                {project.status === 'auditing' ? 'Security Pulse Active' : 'Sovereignty Awaited'}
+                                {project.status === 'auditing' ? 'Security Scan Active' : 'Security Check Pending'}
                               </div>
                               <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                {project.status === 'auditing' ? 'Running Deterministic Scan...' : 'Command Pending'}
+                                {project.status === 'auditing' ? 'Running High-Assurance Scan...' : 'Command Queue Waiting'}
                               </div>
                             </div>
                           )}
@@ -255,7 +258,7 @@ export default function Dashboard({ onHomeClick, onSettingsClick, onViewAudit, o
                           <button
                             onClick={() => project.lastAuditJobId ? onViewAudit(project.lastAuditJobId) : null}
                             disabled={!project.lastAuditJobId}
-                            className="w-14 h-14 rounded-[22px] bg-white border border-black/[0.04] shadow-sm flex items-center justify-center hover:bg-slate-900 hover:text-white hover:scale-110 transition-all duration-500 text-slate-400 group/btn"
+                            className="w-14 h-14 rounded-2xl bg-white border border-black/[0.04] shadow-sm flex items-center justify-center hover:bg-slate-900 hover:text-white hover:scale-110 transition-all duration-500 text-slate-400 group/btn"
                           >
                             <ArrowRight size={20} strokeWidth={3} className="group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
                           </button>

@@ -2,39 +2,63 @@ import {
     SiEthereum,
     SiPolygon,
     SiBinance,
-    SiOptimism
+    SiOptimism,
+    SiSolana,
+    SiStellar
 } from 'react-icons/si';
 import { IconType } from 'react-icons';
 
 export interface ChainIconProps {
     className?: string;
     size?: number;
+    color?: string;
 }
 
-export const EthereumIcon = ({ className, size = 24 }: ChainIconProps) => (
-    <SiEthereum className={className} size={size} />
+export const EthereumIcon = ({ className, size = 24, color }: ChainIconProps) => (
+    <SiEthereum className={className} size={size} color={color} />
 );
 
-export const PolygonIcon = ({ className, size = 24 }: ChainIconProps) => (
-    <SiPolygon className={className} size={size} />
+export const PolygonIcon = ({ className, size = 24, color }: ChainIconProps) => (
+    <SiPolygon className={className} size={size} color={color} />
 );
 
-export const BSCIcon = ({ className, size = 24 }: ChainIconProps) => (
-    <SiBinance className={className} size={size} />
+export const BSCIcon = ({ className, size = 24, color }: ChainIconProps) => (
+    <SiBinance className={className} size={size} color={color} />
 );
 
-export const OptimismIcon = ({ className, size = 24 }: ChainIconProps) => (
-    <SiOptimism className={className} size={size} />
+export const OptimismIcon = ({ className, size = 24, color }: ChainIconProps) => (
+    <SiOptimism className={className} size={size} color={color} />
 );
 
-// Arbitrum doesn't have a simple-icons entry, so we'll use a custom SVG
-export const ArbitrumIcon = ({ className, size = 24 }: ChainIconProps) => (
+export const SolanaIcon = ({ className, size = 24, color }: ChainIconProps) => (
+    <SiSolana className={className} size={size} color={color} />
+);
+
+export const StellarIcon = ({ className, size = 24, color }: ChainIconProps) => (
+    <SiStellar className={className} size={size} color={color} />
+);
+
+// Partisia (Custom SVG)
+export const PartisiaIcon = ({ className, size = 24, color }: ChainIconProps) => (
     <svg
         className={className}
         width={size}
         height={size}
         viewBox="0 0 24 24"
-        fill="currentColor"
+        fill={color || "currentColor"}
+    >
+        <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" />
+    </svg>
+);
+
+// Arbitrum doesn't have a simple-icons entry, so we'll use a custom SVG
+export const ArbitrumIcon = ({ className, size = 24, color }: ChainIconProps) => (
+    <svg
+        className={className}
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill={color || "currentColor"}
     >
         <path d="M12 0L1.608 6v12L12 24l10.392-6V6L12 0zm0 2.115l8.892 5.135v10.3L12 22.885l-8.892-5.135v-10.3L12 2.115z" />
         <path d="M12 6.5l-5.5 3.175v6.35L12 19.5l5.5-3.175v-6.35L12 6.5z" />
@@ -42,7 +66,7 @@ export const ArbitrumIcon = ({ className, size = 24 }: ChainIconProps) => (
 );
 
 // Base chain (Coinbase)
-export const BaseIcon = ({ className, size = 24 }: ChainIconProps) => (
+export const BaseIcon = ({ className, size = 24, color }: ChainIconProps) => (
     <svg
         className={className}
         width={size}
@@ -52,19 +76,19 @@ export const BaseIcon = ({ className, size = 24 }: ChainIconProps) => (
     >
         <path
             d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H3.9565e-07C2.35281 87.8625 26.0432 110.034 54.921 110.034Z"
-            fill="currentColor"
+            fill={color || "currentColor"}
         />
     </svg>
 );
 
 // Avalanche
-export const AvalancheIcon = ({ className, size = 24 }: ChainIconProps) => (
+export const AvalancheIcon = ({ className, size = 24, color }: ChainIconProps) => (
     <svg
         className={className}
         width={size}
         height={size}
         viewBox="0 0 24 24"
-        fill="currentColor"
+        fill={color || "currentColor"}
     >
         <path d="M6.25 17.5h3.5L12 13l2.25 4.5h3.5L12 6.5l-5.75 11z" />
         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
@@ -80,9 +104,12 @@ export interface ChainInfo {
 
 export const supportedChains: ChainInfo[] = [
     { name: 'Ethereum', icon: EthereumIcon, color: '#627EEA', status: 'supported' },
+    { name: 'Solana', icon: SolanaIcon, color: '#14F195', status: 'supported' },
     { name: 'Polygon', icon: PolygonIcon, color: '#8247E5', status: 'supported' },
     { name: 'BSC', icon: BSCIcon, color: '#F3BA2F', status: 'supported' },
     { name: 'Arbitrum', icon: ArbitrumIcon, color: '#28A0F0', status: 'supported' },
+    { name: 'Stellar', icon: StellarIcon, color: '#000000', status: 'supported' },
+    { name: 'Partisia', icon: PartisiaIcon, color: '#5C61FF', status: 'supported' },
     { name: 'Optimism', icon: OptimismIcon, color: '#FF0420', status: 'supported' },
     { name: 'Base', icon: BaseIcon, color: '#0052FF', status: 'supported' },
     { name: 'Avalanche', icon: AvalancheIcon, color: '#E84142', status: 'beta' },

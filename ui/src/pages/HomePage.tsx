@@ -8,7 +8,8 @@ import {
 } from '../components/IconSystem';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
-import { supportedChains } from '../components/icons/CryptoIcons';
+import { supportedChains, SolanaIcon, StellarIcon, PartisiaIcon } from '../components/icons/CryptoIcons';
+import MouseTooltip from '../components/MouseTooltip';
 
 interface HomePageProps {
   isAuthed?: boolean;
@@ -35,15 +36,16 @@ const itemVariants: Variants = {
 export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
   return (
     <>
+      <MouseTooltip />
       <SEO
         title="Uatu - The Ultimate Web3 Security & Development Control Center"
-        description="Enterprise-grade AI security audits, real-time analytics, and no-code DApp building. The unified command center for Web3 sovereignty."
+        description="High-assurance AI security audits, real-time analytics, and no-code DApp infrastructure. The unified command center for Web3 security."
       />
 
       <div className="min-h-screen bg-[#FAFAFA] selection:bg-indigo-500/10 text-slate-900 font-sans overflow-x-hidden">
 
         {/* Hero Section: The Command Center */}
-        <section className="relative pt-40 pb-20 lg:pt-56 lg:pb-40 overflow-hidden border-b border-black/[0.02]">
+        <section className="relative pb-20 pt-16 lg:pb-40 overflow-hidden border-b border-black/[0.02]">
           {/* Subtle Background Elements */}
           <div className="absolute inset-0 z-0 bg-dot-pattern opacity-30" />
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-indigo-500/5 blur-[160px] rounded-full" />
@@ -66,17 +68,17 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
 
                 <motion.h1
                   variants={itemVariants}
-                  className="text-6xl lg:text-[100px] font-black leading-[0.85] tracking-[-0.07em] mb-10"
+                  className="text-4xl lg:text-7xl font-black leading-tight tracking-tight mb-8"
                 >
-                  Total <span className="text-slate-200 block lg:inline">Sovereignty</span> <br />
-                  Over Your <span className="text-transparent bg-clip-text bg-gradient-to-b from-indigo-500 to-indigo-800">Code.</span>
+                  High-Assurance <span className="text-slate-400 block lg:inline">Security</span> <br />
+                  for Web3 <span className="text-transparent bg-clip-text bg-gradient-to-br from-indigo-500 to-indigo-700">Infrastructure.</span>
                 </motion.h1>
 
                 <motion.p
                   variants={itemVariants}
-                  className="text-xl lg:text-2xl text-slate-400 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium mb-14 lg:pr-10"
+                  className="text-lg lg:text-xl text-slate-500 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium mb-12 lg:pr-10"
                 >
-                  Audit, analyze, and build with titanium confidence. Uatu is the unified command center for Web3 teams seeking elite security and real-time observability.
+                  Uatu provides mission-critical security auditing, real-time threat detection, and formal verification for high-stakes blockchain protocols.
                 </motion.p>
 
                 <motion.div variants={itemVariants} className="flex flex-wrap justify-center lg:justify-start gap-5">
@@ -240,8 +242,8 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
               >
                 The Unified Command
               </motion.span>
-              <h2 className="text-5xl lg:text-[72px] font-black tracking-[-0.05em] mb-10">Integrated Ecosystem.</h2>
-              <p className="text-xl lg:text-2xl text-slate-400 font-medium max-w-3xl mx-auto leading-relaxed">One platform. Three powerful tools. Complete control over your Web3 lifecycle from inception to mainnet.</p>
+              <h2 className="text-4xl lg:text-6xl font-black tracking-tight mb-8">Integrated Security Ecosystem.</h2>
+              <p className="text-lg lg:text-xl text-slate-400 font-medium max-w-3xl mx-auto leading-relaxed">A unified suite for the entire security lifecycle. From rigorous bytecode analysis to live on-chain monitoring.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
@@ -316,9 +318,9 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-32 items-center">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-8 block">Defense in Depth</span>
-                <h2 className="text-5xl lg:text-[72px] font-black tracking-[-0.05em] mb-12 leading-[0.9]">
-                  Total Control <br />
-                  Over <span className="text-slate-200">Security.</span>
+                <h2 className="text-4xl lg:text-6xl font-black tracking-tight mb-10 leading-[1.1]">
+                  Defense in Depth <br />
+                  for <span className="text-slate-300">Modern Architecture.</span>
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-12">
                   {[
@@ -397,6 +399,47 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
           </div>
         </section>
 
+        {/* Rust & Specialty Ecosystems */}
+        <section className="py-40 bg-[#FAFAFA] border-t border-black/[0.02]">
+          <div className="max-w-7xl mx-auto px-6 lg:px-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-8 block">Rust & WASM Security</span>
+                <h2 className="text-4xl lg:text-5xl font-black tracking-tight mb-8">Specialized Audits for <br /><span className="text-slate-300">High-Performance Chains.</span></h2>
+                <p className="text-lg text-slate-500 font-medium leading-relaxed mb-12">
+                  Uatu provides deep-level bytecode analysis and formal verification for Rust-based ecosystems, ensuring deterministic safety for the next generation of blockchains.
+                </p>
+                <div className="space-y-6">
+                  {[
+                    { name: 'Solana', icon: SolanaIcon, desc: 'Advanced BPF and Program-Level security analysis.' },
+                    { name: 'Stellar', icon: StellarIcon, desc: 'Soroban smart contract safety & formal verification.' },
+                    { name: 'Partisia', icon: PartisiaIcon, desc: 'Zero-knowledge and MPC contract auditing.' }
+                  ].map((chain) => (
+                    <div key={chain.name} className="flex gap-6 items-start group">
+                      <div className="w-12 h-12 rounded-xl glass-liquid border-slate-100 flex items-center justify-center shrink-0 group-hover:border-indigo-100 transition-all">
+                        <chain.icon size={22} color="#5C61FF" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-black text-slate-900 mb-1">{chain.name} Security</h4>
+                        <p className="text-sm text-slate-400 font-medium">{chain.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="relative aspect-square lg:aspect-video rounded-[40px] glass-liquid border-white/20 p-1 bg-gradient-to-br from-indigo-500/5 to-transparent">
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
+                <div className="w-full h-full flex items-center justify-center p-12">
+                  <div className="text-center">
+                    <PremiumCode size={80} className="text-indigo-200 mb-8 mx-auto" strokeWidth={1} />
+                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Binary Analysis Active</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Testimonials / Social Proof */}
         <section className="py-40 bg-white relative overflow-hidden">
           <div className="max-w-7xl mx-auto px-6 lg:px-10">
@@ -443,7 +486,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
           <div className="absolute inset-0 bg-dot-pattern opacity-[0.05] invert" />
           <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/10 to-transparent" />
           <div className="max-w-7xl mx-auto px-6 lg:px-10 relative z-10 text-center">
-            <h2 className="text-4xl lg:text-[56px] font-black text-white tracking-[-0.05em] mb-24">Unified Security Over 15+ Networks.</h2>
+            <h2 className="text-3xl lg:text-5xl font-black text-white tracking-tight mb-20">Secure Across All Ecosystems.</h2>
             <div className="flex flex-wrap justify-center gap-16 lg:gap-24 opacity-60 hover:opacity-100 transition-opacity duration-700">
               {supportedChains.map((chain) => (
                 <div key={chain.name} className="flex flex-col items-center gap-5 group cursor-default">
@@ -463,8 +506,8 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
         <section className="py-56 bg-[#FAFAFA] relative overflow-hidden">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-500/5 blur-[120px] rounded-full" />
           <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-            <h2 className="text-6xl lg:text-[110px] font-black tracking-[-0.08em] mb-12 leading-[0.8]">Ready to Claim <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-indigo-800 underline decoration-indigo-200 decoration-8">Sovereignty?</span></h2>
-            <p className="text-xl lg:text-2xl text-slate-400 font-medium mb-16 max-w-2xl mx-auto">Join the high-assurance teams building the future of decentralized finance on Uatu.</p>
+            <h2 className="text-5xl lg:text-7xl font-black tracking-tight mb-10 leading-tight">Secure Your <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-indigo-600">Infrastructure Today.</span></h2>
+            <p className="text-lg lg:text-xl text-slate-400 font-medium mb-14 max-w-2xl mx-auto">Join the elite engineering teams securing the future of decentralized finance with Uatu.</p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
               {isAuthed ? (
                 <Link to="/dashboard" className="btn-primary py-6 px-16 text-sm">

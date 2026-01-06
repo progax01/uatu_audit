@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Check, X, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
+import MouseTooltip from '../components/MouseTooltip';
 
 const plans = [
     {
@@ -66,6 +67,7 @@ const plans = [
 export default function PricingPage() {
     return (
         <>
+            <MouseTooltip />
             <SEO
                 title="Pricing - Transparent & Scalable Plans"
                 description="Choose the perfect plan for your security audit needs. From free quick scans to enterprise solutions with custom SLAs."
@@ -89,10 +91,10 @@ export default function PricingPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-6xl lg:text-[100px] font-black leading-[0.85] tracking-[-0.07em] mb-12"
+                            className="text-4xl lg:text-7xl font-black tracking-tight mb-8"
                         >
                             Scale With <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-b from-indigo-500 to-indigo-800">Confidence.</span>
+                            <span className="text-transparent bg-clip-text bg-gradient-to-br from-indigo-500 to-indigo-700">Deterministic Safety.</span>
                         </motion.h1>
 
                         <motion.p
@@ -208,8 +210,8 @@ export default function PricingPage() {
                 <section className="py-56 relative overflow-hidden">
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/5 blur-[120px] rounded-full" />
                     <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-                        <h2 className="text-6xl lg:text-[80px] font-black tracking-[-0.06em] mb-12 leading-[0.9]">Ready to <span className="text-indigo-600">Secure</span> <br />Your Code?</h2>
-                        <p className="text-xl text-slate-400 font-medium mb-16 max-w-2xl mx-auto">Start with a free quick scan today. No credit card required.</p>
+                        <h2 className="text-4xl lg:text-6xl font-black tracking-tight mb-10 leading-tight">Ready to <span className="text-indigo-600">Secure</span> <br />Your Infrastructure?</h2>
+                        <p className="text-lg lg:text-xl text-slate-400 font-medium mb-14 max-w-2xl mx-auto">Start with a high-assurance quick scan today. No credit card required.</p>
                         <Link
                             to="/dashboard"
                             className="btn-primary py-6 px-16 text-sm"

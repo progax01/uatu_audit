@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
+import MouseTooltip from '../components/MouseTooltip';
 
 const features = [
     {
@@ -128,6 +129,7 @@ const features = [
 export default function FeaturesPage() {
     return (
         <>
+            <MouseTooltip />
             <SEO
                 title="Features - Comprehensive Security Audit Platform"
                 description="Explore UatuAudit's powerful features: AI-powered vulnerability detection, continuous monitoring, compliance reports, and seamless CI/CD integration."
@@ -152,10 +154,10 @@ export default function FeaturesPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-6xl lg:text-[100px] font-black leading-[0.85] tracking-[-0.07em] mb-12"
+                            className="text-4xl lg:text-7xl font-black tracking-tight mb-8"
                         >
-                            Engineered for <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-b from-indigo-500 to-indigo-800">Elite Performance.</span>
+                            High-Assurance <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-br from-indigo-500 to-indigo-700">Security Infrastructure.</span>
                         </motion.h1>
 
                         <motion.p
@@ -209,8 +211,8 @@ export default function FeaturesPage() {
                     <div className="absolute inset-0 bg-dot-pattern opacity-[0.05] invert" />
                     <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/10 to-transparent" />
                     <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-                        <h2 className="text-6xl lg:text-[80px] font-black text-white tracking-[-0.06em] mb-12 leading-[0.9]">Ship With <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-indigo-200 underline decoration-indigo-500/30 decoration-8">Titanium</span> Assurance.</h2>
-                        <p className="text-xl text-slate-400 font-medium mb-16 max-w-2xl mx-auto">Join the teams building the next generation of decentralized infrastructure.</p>
+                        <h2 className="text-4xl lg:text-6xl font-black text-white tracking-tight mb-10 leading-tight">Secure Your <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-indigo-200">Digital Infrastructure.</span></h2>
+                        <p className="text-lg lg:text-xl text-slate-400 font-medium mb-14 max-w-2xl mx-auto">Join the teams building the next generation of decentralized finance with Uatu.</p>
                         <Link
                             to="/dashboard"
                             className="btn-primary py-6 px-16 text-sm"

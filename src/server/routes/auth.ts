@@ -86,8 +86,8 @@ export async function handleAuthRoutes(
 ): Promise<boolean> {
   const GH_CLIENT_ID = process.env.GITHUB_CLIENT_ID || "";
   const GH_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || "";
-  const GH_CALLBACK =
-    process.env.GITHUB_OAUTH_CALLBACK || `http://localhost:${PORT}/auth/github/callback`;
+  const PUBLIC_URL = process.env.UATU_PUBLIC_URL || `http://localhost:${PORT}`;
+  const GH_CALLBACK = process.env.GITHUB_OAUTH_CALLBACK || `${PUBLIC_URL}/auth/github/callback`;
 
   const { v4: uuidv4 } = await import("uuid");
 

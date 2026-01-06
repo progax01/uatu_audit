@@ -26,7 +26,7 @@ export default function Header({ isAuthed, onLogin }: HeaderProps) {
                     <img src={logo} alt="Uatu" className="h-8 transition-transform duration-500 group-hover:scale-110" />
                     <div className="flex flex-col">
                         <span className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-900 leading-tight">Uatu</span>
-                        <span className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-300">Sovereignty</span>
+                        <span className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-400">Security</span>
                     </div>
                 </Link>
 
