@@ -521,7 +521,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                   </div>
 
                   <p className="text-[10px] font-black text-slate-500 leading-relaxed uppercase tracking-widest italic border-t border-black/5 pt-6">
-                    Authentic Dossier: ISS-2026-UA
+                    Authentic Dossier: ISS-2026-AD
                   </p>
                 </div>
               </div>

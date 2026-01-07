@@ -14,7 +14,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-12">
+    <div className="w-full space-y-12">
       <div className="flex items-center justify-between mb-12">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight capitalize">{activeTab} Control Plane</h1>
@@ -35,9 +35,9 @@ export default function Settings() {
         <div className="w-64 shrink-0 space-y-2">
           {[
             { id: 'general', label: 'General Preferences', icon: Globe },
-            { id: 'organization', label: 'Organization Profile', icon: Building2 },
-            { id: 'security', label: 'Security & Keys', icon: Key },
-            { id: 'billing', label: 'Billing & Plans', icon: CreditCard },
+            { id: 'organization', label: 'Management', icon: Building2 },
+            { id: 'security', label: 'Credentials & API', icon: Key },
+            { id: 'billing', label: 'Subscription', icon: CreditCard },
           ].map(tab => (
             <button
               key={tab.id}
@@ -63,15 +63,15 @@ export default function Settings() {
                     <Link2 size={20} strokeWidth={2.5} />
                   </div>
                   <div>
-                    <h2 className="text-base font-black text-slate-900 tracking-tight">Active Safe-Connect</h2>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Integration mapping & resource bounds</p>
+                    <h2 className="text-base font-black text-slate-900 tracking-tight">Active Safe-Connect Integration</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Security Multisig & Resource Bounds</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
                   {[
-                    { name: 'Gnosis Safe', desc: 'Auto-verify multi-sig owners from connected safe addresses.', icon: 'G' },
-                    { name: 'Chainlink Oracles', desc: 'Automatically trust off-chain price feeds from decentralized oracles.', icon: 'O' }
+                    { name: 'Multisig Guardian', desc: 'Auto-verify multi-sig owners from connected safe addresses.', icon: 'M' },
+                    { name: 'Oracle Integrity Scan', desc: 'Automatically trust off-chain price feeds from decentralized oracles.', icon: 'O' }
                   ].map(conn => (
                     <div key={conn.name} className="card-premium !p-6 flex items-center justify-between group hover:border-indigo-100 transition-all">
                       <div className="flex items-center gap-6">

@@ -21,15 +21,24 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
 
     useEffect(() => {
         const path = location.pathname
-        if (path.includes('settings')) setActiveTab('settings')
-        else if (path.includes('organization')) setActiveTab('organization')
+        const params = new URLSearchParams(location.search)
+        const tab = params.get('tab')
+
+        if (path.includes('settings')) {
+            if (tab === 'organization') setActiveTab('organization')
+            else setActiveTab('settings')
+        }
+        else if (path.includes('dashboard')) {
+            if (location.hash === '#protocols') setActiveTab('protocols')
+            else setActiveTab('overview')
+        }
         else setActiveTab('overview')
     }, [location])
 
     const navItems = [
         { id: 'overview', label: 'Command Center', icon: Layout, path: '/dashboard' },
         { id: 'protocols', label: 'Nodes & Protocols', icon: Shield, path: '/dashboard#protocols' },
-        { id: 'organization', label: 'Management', icon: Building2, path: '/settings' },
+        { id: 'organization', label: 'Management', icon: Building2, path: '/settings?tab=organization' },
         { id: 'settings', label: 'Preferences', icon: Settings, path: '/settings' },
     ]
 
@@ -125,7 +134,7 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                             </button>
                             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 p-0.5 shadow-lg shadow-indigo-500/10">
                                 <div className="w-full h-full rounded-[10px] bg-slate-900 flex items-center justify-center text-white text-[10px] font-black">
-                                    UA
+                                    AD
                                 </div>
                             </div>
                         </div>
@@ -141,7 +150,7 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.3, ease: 'easeOut' }}
-                            className="px-16 py-12 h-full"
+                            className="px-10 py-8 h-full"
                         >
                             {children}
                         </motion.div>

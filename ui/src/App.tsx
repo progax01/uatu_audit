@@ -166,8 +166,6 @@ function App() {
                   } />
                   <Route path="/project/:slug" element={<ProjectDetails />} />
                   <Route path="/settings" element={<Settings />} />
-                  <Route path="/project/:slug" element={<ProjectDetails />} />
-                  <Route path="/settings" element={<Settings />} />
                   <Route path="/connect" element={
                     <ConnectSource
                       onNext={() => window.location.href = '/configure'}
@@ -257,20 +255,7 @@ function App() {
                 </Routes>
               </DashboardLayout>
             </ProtectedRoute>
-          }>
-            <Route path="/dashboard" />
-            <Route path="/project/:slug" />
-            <Route path="/settings" />
-            <Route path="/project/:slug" />
-            <Route path="/settings" />
-            <Route path="/connect" />
-            <Route path="/configure" />
-            <Route path="/review" />
-            <Route path="/scan" />
-            <Route path="/create-project" />
-            <Route path="/add-components" />
-            <Route path="/preaudit-questionnaire/:jobId" />
-          </Route>
+          } />
 
           {/* 404 Page */}
           <Route path="*" element={<NotFoundPage />} />

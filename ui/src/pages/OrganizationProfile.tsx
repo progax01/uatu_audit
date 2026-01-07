@@ -25,7 +25,7 @@ export default function OrganizationProfile() {
                     </div>
                     <div>
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight">Hatu Security Lab</h1>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 opacity-60">Enterprise ID: ORG-9283-UATU</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 opacity-60">Enterprise ID: AD-9283-CMD</p>
                     </div>
                 </div>
 
