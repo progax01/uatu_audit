@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shield, Coins, Users, Gamepad2, Lock, ArrowRight } from 'lucide-react';
+import { Shield, Coins, Users, Gamepad2, Lock, ArrowRight, Layers, Layout, Server, Database } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 
@@ -7,97 +7,97 @@ const useCases = [
     {
         icon: Coins,
         title: 'DeFi Protocols',
-        description: 'Secure your decentralized finance applications',
+        description: 'Secure your decentralized finance applications and institutional liquidity pools.',
         challenges: [
-            'Complex token economics',
-            'Flash loan vulnerabilities',
-            'Oracle manipulation risks',
-            'Liquidity pool exploits',
+            'Complex token economics & rebasing',
+            'Flash loan & sandwich attack vulnerabilities',
+            'Oracle manipulation & price feed risks',
+            'Liquidity pool & slippage exploits',
         ],
         solutions: [
             'Automated economic model analysis',
-            'Flash loan attack detection',
-            'Oracle integration security',
-            'LP contract verification',
+            'Simulated flash loan attack detection',
+            'Multi-source oracle verification',
+            'LP & staking logic formal review',
         ],
-        examples: ['DEXs', 'Lending Protocols', 'Yield Farming', 'Stablecoins'],
+        examples: ['DEXs', 'Lending Protocols', 'Yield Aggregators', 'Stablecoins'],
         color: 'from-emerald-500 to-teal-500',
     },
     {
-        icon: Shield,
-        title: 'NFT Marketplaces',
-        description: 'Protect your NFT platform and users',
+        icon: Layout,
+        title: 'Full-Stack DApps',
+        description: 'Security for the entire journey: from UI components to backend APIs and code.',
         challenges: [
-            'Minting vulnerabilities',
-            'Royalty bypass exploits',
-            'Metadata manipulation',
-            'Access control issues',
+            'Frontend XSS & injection attacks',
+            'Insecure Web3 provider connections',
+            'API authentication & data leaks',
+            'State-sync & race conditions',
         ],
         solutions: [
-            'ERC-721/1155 compliance checks',
-            'Royalty enforcement verification',
-            'Metadata security audit',
-            'Role-based access review',
+            'UI/UX security validation',
+            'Secure communication channel audit',
+            'Backend API & DB integrity checks',
+            'State-machine reachability analysis',
         ],
-        examples: ['NFT Marketplaces', 'Generative Art', 'Gaming NFTs', 'Collectibles'],
+        examples: ['DApp UI', 'Auth APIs', 'Session Logic', 'State Engines'],
+        color: 'from-indigo-500 to-blue-500',
+    },
+    {
+        icon: Layers,
+        title: 'Infrastructure & Bridges',
+        description: 'Hardened security for cross-chain communications and custody gateways.',
+        challenges: [
+            'Message replay & bridge exploits',
+            'Validator consensus vulnerabilities',
+            'Relayer manipulation risks',
+            'Multi-sig & threshold key logic',
+        ],
+        solutions: [
+            'Bridge contract formal verification',
+            'Consensus logic & relayer stress-tests',
+            'Threshold cryptography review',
+            'Gateway gas-limit exploit analysis',
+        ],
+        examples: ['Cross-Chain Bridges', 'Validators', 'Oracles', 'Relayers'],
+        color: 'from-blue-600 to-cyan-500',
+    },
+    {
+        icon: Shield,
+        title: 'NFT & Marketplaces',
+        description: 'Protect your digital assets, royalty engines, and secondary market users.',
+        challenges: [
+            'Minting logic & gas-war exploits',
+            'Royalty enforcement bypasses',
+            'Metadata manipulation & spoofing',
+            'Trade-offer & marketplace logic',
+        ],
+        solutions: [
+            'Standard compliance (721/1155)',
+            'Royalty engine & logic verification',
+            'Metadata integrity & CDN audit',
+            'Marketplace swap-logic formal review',
+        ],
+        examples: ['Marketplaces', 'Generative Art', 'Game Assets', 'Collectibles'],
         color: 'from-purple-500 to-pink-500',
     },
     {
-        icon: Users,
-        title: 'DAO & Governance',
-        description: 'Ensure fair and secure governance',
+        icon: Database,
+        title: 'Security Libraries',
+        description: 'Auditing the foundational SDKs and modular primitives your ecosystem builds on.',
         challenges: [
-            'Voting manipulation',
-            'Proposal execution risks',
-            'Treasury security',
-            'Delegation vulnerabilities',
+            'Modular logic inheritance flaws',
+            'Dependency poisoning & supply-chain',
+            'Shared-state corruption risks',
+            'Universal gas-efficiency trade-offs',
         ],
         solutions: [
-            'Governance logic verification',
-            'Timelock security analysis',
-            'Multi-sig wallet audit',
-            'Voting weight calculations',
+            'Library-specific edge-case audit',
+            'Supply-chain & dependency mapping',
+            'Abstract contract inheritance review',
+            'Modular unit & property tests',
         ],
-        examples: ['DAOs', 'Governance Tokens', 'Treasury Management', 'Voting Systems'],
-        color: 'from-blue-500 to-cyan-500',
-    },
-    {
-        icon: Gamepad2,
-        title: 'Gaming & Metaverse',
-        description: 'Secure in-game economies and assets',
-        challenges: [
-            'Item duplication exploits',
-            'Economic imbalance',
-            'Cross-chain bridge risks',
-            'In-game currency security',
-        ],
-        solutions: [
-            'Game logic security audit',
-            'Economic model verification',
-            'Bridge contract analysis',
-            'Asset minting controls',
-        ],
-        examples: ['Play-to-Earn', 'Metaverse Platforms', 'Virtual Worlds', 'Gaming Tokens'],
-        color: 'from-orange-500 to-red-500',
-    },
-    {
-        icon: Lock,
-        title: 'Token Contracts',
-        description: 'Launch secure and compliant tokens',
-        challenges: [
-            'Mint/burn vulnerabilities',
-            'Transfer restrictions',
-            'Tax mechanism exploits',
-            'Compliance requirements',
-        ],
-        solutions: [
-            'ERC-20 standard compliance',
-            'Tokenomics verification',
-            'Tax logic security',
-            'Regulatory compliance checks',
-        ],
-        examples: ['ERC-20 Tokens', 'Governance Tokens', 'Utility Tokens', 'Security Tokens'],
-        color: 'from-indigo-500 to-purple-500',
+        examples: ['SDKs', 'Foundational Libs', 'Modular Primitives', 'Shared Logic'],
+        color: 'from-orange-500 to-amber-500',
     },
 ];
 
@@ -187,28 +187,28 @@ export default function UseCasesPage() {
 
                                 <div className={index % 2 === 1 ? 'lg:order-1' : ''}>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="card p-6">
-                                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-4">
+                                        <div className="card-premium !p-8 border-rose-500/5 hover:border-rose-500/20 transition-all">
+                                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6">
                                                 Common Challenges
                                             </h3>
-                                            <ul className="space-y-2">
+                                            <ul className="space-y-4">
                                                 {useCase.challenges.map((challenge) => (
-                                                    <li key={challenge} className="text-sm text-slate-600 flex items-start gap-2">
-                                                        <span className="text-red-500 mt-1">•</span>
+                                                    <li key={challenge} className="text-sm font-bold text-slate-500 flex items-start gap-3">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 mt-1.5" />
                                                         {challenge}
                                                     </li>
                                                 ))}
                                             </ul>
                                         </div>
 
-                                        <div className="card p-6">
-                                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-4">
-                                                Our Solutions
+                                        <div className="card-premium !p-8 border-emerald-500/5 hover:border-emerald-500/20 transition-all">
+                                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6">
+                                                Advanced Solutions
                                             </h3>
-                                            <ul className="space-y-2">
+                                            <ul className="space-y-4">
                                                 {useCase.solutions.map((solution) => (
-                                                    <li key={solution} className="text-sm text-slate-600 flex items-start gap-2">
-                                                        <span className="text-emerald-500 mt-1">✓</span>
+                                                    <li key={solution} className="text-sm font-bold text-slate-700 flex items-start gap-3">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-1.5" />
                                                         {solution}
                                                     </li>
                                                 ))}

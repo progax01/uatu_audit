@@ -6,59 +6,59 @@ import MouseTooltip from '../components/MouseTooltip';
 
 const plans = [
     {
-        name: 'Free',
-        price: '$0',
-        period: 'forever',
-        description: 'Perfect for trying out UatuAudit',
+        name: 'Basic',
+        price: '$29',
+        period: 'per project',
+        description: 'Complete security for individual full-stack projects',
         features: [
-            { text: '5 quick scans per month', included: true },
-            { text: 'Basic vulnerability detection', included: true },
-            { text: 'Public repository support', included: true },
-            { text: 'Community support', included: true },
-            { text: 'Full audit reports', included: false },
-            { text: 'Private repositories', included: false },
-            { text: 'CI/CD integration', included: false },
-            { text: 'Priority support', included: false },
+            { text: 'Full-stack (Frontend, Backend, Contracts)', included: true },
+            { text: 'Up to 10,000 Source Lines of Code', included: true },
+            { text: '10 Security Scan Pushes / month', included: true },
+            { text: 'Core Vulnerability Detection', included: true },
+            { text: 'Private Repository Support', included: true },
+            { text: 'Detailed Remediation Guides', included: true },
+            { text: 'Email Support (24h SLA)', included: true },
+            { text: 'Custom Security Rules', included: false },
         ],
-        cta: 'Start Free',
+        cta: 'Select Basic',
         ctaLink: '/dashboard',
         popular: false,
     },
     {
-        name: 'Pro',
-        price: '$99',
-        period: 'per month',
-        description: 'For serious developers and small teams',
+        name: 'Professional',
+        price: '$299',
+        period: 'per project',
+        description: 'High-velocity security for mission-critical apps',
         features: [
-            { text: 'Unlimited quick scans', included: true },
-            { text: '20 full audits per month', included: true },
-            { text: 'Private repository support', included: true },
-            { text: 'Advanced AI analysis', included: true },
-            { text: 'CI/CD integration', included: true },
-            { text: 'Compliance reports', included: true },
-            { text: 'Email support', included: true },
-            { text: 'API access', included: true },
+            { text: 'End-to-End Dossier & Analysis', included: true },
+            { text: 'Up to 50,000 Source Lines of Code', included: true },
+            { text: '20 Security Scan Pushes / month', included: true },
+            { text: 'Real-time Security Alerts', included: true },
+            { text: 'GitHub Branch Protection Rules', included: true },
+            { text: 'Cross-chain Logic Verification', included: true },
+            { text: 'CI/CD Automated Pipelines', included: true },
+            { text: 'Priority Chat Support (1h SLA)', included: true },
         ],
-        cta: 'Start Pro Trial',
+        cta: 'Start Pro Audit',
         ctaLink: '/dashboard',
         popular: true,
     },
     {
         name: 'Enterprise',
         price: 'Custom',
-        period: 'contact us',
-        description: 'For organizations with advanced needs',
+        period: 'org-wide',
+        description: 'Elite defense for institutional-grade ecosystems',
         features: [
-            { text: 'Unlimited everything', included: true },
-            { text: 'Dedicated account manager', included: true },
-            { text: 'Custom security rules', included: true },
-            { text: 'On-premise deployment option', included: true },
-            { text: 'SLA guarantees', included: true },
-            { text: 'White-label reports', included: true },
-            { text: '24/7 priority support', included: true },
-            { text: 'Custom integrations', included: true },
+            { text: 'Unlimited SLOC & Pushes', included: true },
+            { text: 'Organizational Multi-Project View', included: true },
+            { text: 'Architecture Level Security Audit', included: true },
+            { text: 'SOC2 & Regulatory Compliance', included: true },
+            { text: 'Custom Threat Parameters', included: true },
+            { text: 'All-Branch Protection Matrix', included: true },
+            { text: 'On-premise / VPC Deployment', included: true },
+            { text: 'Dedicated Sentinel Engineer', included: true },
         ],
-        cta: 'Contact Sales',
+        cta: 'Contact Architecture Team',
         ctaLink: '#contact',
         popular: false,
     },
@@ -76,7 +76,7 @@ export default function PricingPage() {
 
             <div className="min-h-screen bg-[#FAFAFA] selection:bg-indigo-500/10 text-slate-900 font-sans overflow-x-hidden">
                 {/* Hero Section */}
-                <section className="pt-48 pb-24 relative overflow-hidden">
+                <section className="pt-32 pb-24 relative">
                     <div className="absolute inset-0 z-0 bg-dot-pattern opacity-30" />
                     <div className="max-w-7xl mx-auto px-6 lg:px-10 relative z-10 text-center">
                         <motion.div
@@ -136,7 +136,7 @@ export default function PricingPage() {
                                         <div className="flex items-baseline gap-2">
                                             <span className="text-4xl font-black text-slate-900 tracking-tighter">{plan.price}</span>
                                             {plan.price !== 'Custom' && (
-                                                <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">/{plan.period.split(' ')[1]}</span>
+                                                <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{plan.period}</span>
                                             )}
                                         </div>
                                     </div>

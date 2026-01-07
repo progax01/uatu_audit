@@ -8,16 +8,55 @@ import {
 import logo from '../assets/logo.svg'
 import { Link, useLocation } from 'react-router-dom'
 import MouseTooltip from './MouseTooltip'
+import { getStoredUser, type AuthUser } from '../services/authService'
 
 interface DashboardLayoutProps {
     children: ReactNode
     onLogout?: () => void
 }
 
+// Get user initials from name or wallet address
+function getUserInitials(user: AuthUser | null): string {
+    if (!user) return '??'
+
+    // Try display name first
+    if (user.displayName) {
+        const parts = user.displayName.trim().split(/\s+/)
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+        }
+        return user.displayName.slice(0, 2).toUpperCase()
+    }
+
+    // Try username
+    if (user.username) {
+        return user.username.slice(0, 2).toUpperCase()
+    }
+
+    // Try GitHub login
+    if (user.githubLogin) {
+        return user.githubLogin.slice(0, 2).toUpperCase()
+    }
+
+    // Fall back to wallet address
+    if (user.walletAddress) {
+        return user.walletAddress.slice(2, 4).toUpperCase()
+    }
+
+    return '??'
+}
+
 export default function DashboardLayout({ children, onLogout }: DashboardLayoutProps) {
     const location = useLocation()
     const [isSidebarCollapsed] = useState(false)
     const [activeTab, setActiveTab] = useState('overview')
+    const [user, setUser] = useState<AuthUser | null>(null)
+
+    // Load user on mount
+    useEffect(() => {
+        const storedUser = getStoredUser()
+        setUser(storedUser)
+    }, [])
 
     useEffect(() => {
         const path = location.pathname
@@ -132,11 +171,15 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                                 <Bell size={18} className="text-slate-400" />
                                 <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white" />
                             </button>
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 p-0.5 shadow-lg shadow-indigo-500/10">
-                                <div className="w-full h-full rounded-[10px] bg-slate-900 flex items-center justify-center text-white text-[10px] font-black">
-                                    AD
-                                </div>
-                            </div>
+                            <Link to="/settings" className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 p-0.5 shadow-lg shadow-indigo-500/10 hover:scale-105 transition-transform">
+                                {user?.avatarUrl ? (
+                                    <img src={user.avatarUrl} alt="" className="w-full h-full rounded-[10px] object-cover" />
+                                ) : (
+                                    <div className="w-full h-full rounded-[10px] bg-slate-900 flex items-center justify-center text-white text-[10px] font-black">
+                                        {getUserInitials(user)}
+                                    </div>
+                                )}
+                            </Link>
                         </div>
                     </div>
                 </header>

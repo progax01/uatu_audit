@@ -190,10 +190,10 @@ export default function HowItWorksPage() {
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-                            {['GitHub Actions', 'GitLab CI', 'Slack', 'Discord', 'Webhooks', 'REST API', 'Jenkins', 'Bitbucket'].map((tool) => (
-                                <div key={tool} className="card p-8 text-center hover:shadow-lg transition-all duration-300">
-                                    <p className="font-black text-slate-900 text-sm">{tool}</p>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+                            {['GitHub OAuth', 'GitHub Actions', 'VS Code Plugin', 'Manual Upload', 'Security CI/CD', 'GitLab', 'Sovereign CLI', 'Direct Connect'].map((tool) => (
+                                <div key={tool} className="card-premium !p-8 text-center hover:border-indigo-100 transition-all group">
+                                    <p className="font-black text-slate-900 text-[10px] uppercase tracking-widest group-hover:text-indigo-600 transition-colors">{tool}</p>
                                 </div>
                             ))}
                         </div>

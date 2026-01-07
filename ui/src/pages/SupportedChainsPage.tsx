@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Check, Clock, Loader } from 'lucide-react';
+import { Check, Clock, Loader, FileCode, Globe, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import {
@@ -151,39 +151,69 @@ export default function SupportedChainsPage() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            <div className="card p-8">
-                                <h3 className="text-xl font-black text-slate-900 mb-4">Smart Contracts</h3>
-                                <ul className="space-y-2 text-sm text-slate-600">
-                                    <li>• ERC-20 Tokens</li>
-                                    <li>• ERC-721 NFTs</li>
-                                    <li>• ERC-1155 Multi-tokens</li>
-                                    <li>• DeFi Protocols</li>
-                                    <li>• DAO Governance</li>
-                                    <li>• Staking Contracts</li>
+                            <div className="card-premium !p-10 group hover:border-indigo-100 transition-all">
+                                <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 mb-8 group-hover:scale-110 transition-transform duration-500">
+                                    <FileCode size={28} strokeWidth={2.5} />
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-900 mb-6 tracking-tight">Smart Contracts</h3>
+                                <ul className="space-y-4">
+                                    {[
+                                        'ERC-20 & BEP-20 Tokens',
+                                        'ERC-721 / 1155 NFTs',
+                                        'DeFi & Yield Protocols',
+                                        'DAO Governance Logic',
+                                        'Staking & Lockers',
+                                        'Custom Logic Layers'
+                                    ].map(item => (
+                                        <li key={item} className="flex items-center gap-3 text-sm font-bold text-slate-500 group-hover:text-slate-700 transition-colors">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-200" />
+                                            {item}
+                                        </li>
+                                    ))}
                                 </ul>
                             </div>
 
-                            <div className="card p-8">
-                                <h3 className="text-xl font-black text-slate-900 mb-4">DApp Components</h3>
-                                <ul className="space-y-2 text-sm text-slate-600">
-                                    <li>• Frontend Integration</li>
-                                    <li>• Web3 Connections</li>
-                                    <li>• Transaction Logic</li>
-                                    <li>• Wallet Interactions</li>
-                                    <li>• Event Handling</li>
-                                    <li>• State Management</li>
+                            <div className="card-premium !p-10 group hover:border-emerald-100 transition-all">
+                                <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 mb-8 group-hover:scale-110 transition-transform duration-500">
+                                    <Globe size={28} strokeWidth={2.5} />
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-900 mb-6 tracking-tight">DApp Ecosystem</h3>
+                                <ul className="space-y-4">
+                                    {[
+                                        'Frontend Security Audit',
+                                        'Web3 Provider Integrity',
+                                        'State Machine Analysis',
+                                        'Wallet Connection Logic',
+                                        'Private Key Handling',
+                                        'Session Vulnerabilities'
+                                    ].map(item => (
+                                        <li key={item} className="flex items-center gap-3 text-sm font-bold text-slate-500 group-hover:text-slate-700 transition-colors">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-200" />
+                                            {item}
+                                        </li>
+                                    ))}
                                 </ul>
                             </div>
 
-                            <div className="card p-8">
-                                <h3 className="text-xl font-black text-slate-900 mb-4">Infrastructure</h3>
-                                <ul className="space-y-2 text-sm text-slate-600">
-                                    <li>• Deployment Scripts</li>
-                                    <li>• Upgrade Mechanisms</li>
-                                    <li>• Access Controls</li>
-                                    <li>• Oracle Integrations</li>
-                                    <li>• Cross-chain Bridges</li>
-                                    <li>• Layer 2 Solutions</li>
+                            <div className="card-premium !p-10 group hover:border-blue-100 transition-all">
+                                <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 mb-8 group-hover:scale-110 transition-transform duration-500">
+                                    <Shield size={28} strokeWidth={2.5} />
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-900 mb-6 tracking-tight">Infrastructure</h3>
+                                <ul className="space-y-4">
+                                    {[
+                                        'Bridge Security Protocol',
+                                        'Multi-sig Configurations',
+                                        'Oracle Feed Validity',
+                                        'Deployment Pipelines',
+                                        'Upgradeability Logic',
+                                        'Cross-Chain Messaging'
+                                    ].map(item => (
+                                        <li key={item} className="flex items-center gap-3 text-sm font-bold text-slate-500 group-hover:text-slate-700 transition-colors">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-200" />
+                                            {item}
+                                        </li>
+                                    ))}
                                 </ul>
                             </div>
                         </div>

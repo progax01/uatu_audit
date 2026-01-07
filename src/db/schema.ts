@@ -1,0 +1,707 @@
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  bigint,
+  smallint,
+  boolean,
+  timestamp,
+  jsonb,
+  pgEnum,
+  serial,
+  uniqueIndex,
+  index,
+} from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+export const userTierEnum = pgEnum('user_tier', ['free', 'pro', 'enterprise']);
+
+export const projectTypeEnum = pgEnum('project_type', [
+  'full',
+  'contract-only',
+  'dapp-pentest',
+  'library-audit',
+]);
+
+export const projectStatusEnum = pgEnum('project_status', [
+  'draft',
+  'active',
+  'archived',
+  'deleted',
+]);
+
+export const componentTypeEnum = pgEnum('component_type', [
+  'github-repo',
+  'deployed-contract',
+  'dapp-url',
+  'library-source',
+  'manual-upload',
+]);
+
+export const componentStatusEnum = pgEnum('component_status', [
+  'pending',
+  'syncing',
+  'synced',
+  'error',
+]);
+
+export const jobStatusEnum = pgEnum('job_status', [
+  'pending',
+  'queued',
+  'cloning',
+  'analyzing',
+  'auditing',
+  'generating',
+  'completed',
+  'failed',
+  'cancelled',
+]);
+
+export const auditVisibilityEnum = pgEnum('audit_visibility', [
+  'private',
+  'public',
+  'unlisted',
+]);
+
+export const xpTransactionTypeEnum = pgEnum('xp_transaction_type', [
+  'earn',
+  'spend',
+  'refund',
+  'bonus',
+  'adjustment',
+]);
+
+export const walletTypeEnum = pgEnum('wallet_type', [
+  'ethereum',
+  'solana',
+  'cosmos',
+  'sui',
+  'aptos',
+]);
+
+// ============================================================================
+// USERS TABLE
+// ============================================================================
+
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    // GitHub OAuth fields (optional if using wallet auth)
+    githubId: varchar('github_id', { length: 50 }).unique(),
+    githubLogin: varchar('github_login', { length: 255 }),
+    githubEmail: varchar('github_email', { length: 255 }),
+    githubAvatarUrl: text('github_avatar_url'),
+    // Wallet auth fields
+    walletAddress: varchar('wallet_address', { length: 128 }).unique(),
+    walletType: walletTypeEnum('wallet_type'),
+    walletNonce: varchar('wallet_nonce', { length: 64 }), // For signature verification
+    // Profile fields
+    username: varchar('username', { length: 50 }).unique(), // Claimed username on Uatu
+    displayName: varchar('display_name', { length: 255 }),
+    email: varchar('email', { length: 255 }),
+    bio: text('bio'),
+    company: varchar('company', { length: 255 }),
+    website: varchar('website', { length: 500 }),
+    twitterHandle: varchar('twitter_handle', { length: 100 }),
+    avatarUrl: text('avatar_url'), // Custom avatar (overrides github avatar)
+    // XP and tier
+    xpBalance: bigint('xp_balance', { mode: 'number' }).notNull().default(0),
+    xpLifetime: bigint('xp_lifetime', { mode: 'number' }).notNull().default(0),
+    tier: userTierEnum('tier').notNull().default('free'),
+    monthlyAuditsUsed: smallint('monthly_audits_used').notNull().default(0),
+    monthlyAuditsResetAt: timestamp('monthly_audits_reset_at', { withTimezone: true }),
+    // Settings and timestamps
+    settings: jsonb('settings').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  },
+  (table) => ({
+    githubIdIdx: uniqueIndex('users_github_id_idx').on(table.githubId),
+    walletAddressIdx: uniqueIndex('users_wallet_address_idx').on(table.walletAddress),
+    usernameIdx: uniqueIndex('users_username_idx').on(table.username),
+    tierIdx: index('users_tier_idx').on(table.tier),
+  })
+);
+
+// ============================================================================
+// SESSIONS TABLE (JWT Refresh Tokens)
+// ============================================================================
+
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    refreshTokenHash: varchar('refresh_token_hash', { length: 128 }).notNull(),
+    refreshTokenFamily: uuid('refresh_token_family').notNull(),
+    // GitHub token (optional - only for GitHub auth)
+    githubTokenEncrypted: text('github_token_encrypted'),
+    githubTokenIv: varchar('github_token_iv', { length: 64 }),
+    // Auth method tracking
+    authMethod: varchar('auth_method', { length: 20 }).notNull().default('github'), // 'github' | 'wallet'
+    userAgent: text('user_agent'),
+    ipAddress: varchar('ip_address', { length: 45 }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index('sessions_user_id_idx').on(table.userId),
+    familyIdx: index('sessions_family_idx').on(table.refreshTokenFamily),
+    expiresAtIdx: index('sessions_expires_at_idx').on(table.expiresAt),
+  })
+);
+
+// ============================================================================
+// ORGANIZATIONS TABLE (Future-ready)
+// ============================================================================
+
+export const organizations = pgTable(
+  'organizations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slug: varchar('slug', { length: 100 }).unique().notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    avatarUrl: text('avatar_url'),
+    tier: userTierEnum('tier').notNull().default('free'),
+    xpBalance: bigint('xp_balance', { mode: 'number' }).notNull().default(0),
+    settings: jsonb('settings').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    slugIdx: uniqueIndex('organizations_slug_idx').on(table.slug),
+  })
+);
+
+// ============================================================================
+// ORGANIZATION MEMBERS TABLE
+// ============================================================================
+
+export const orgMemberRoleEnum = pgEnum('org_member_role', ['owner', 'admin', 'member', 'viewer']);
+
+export const organizationMembers = pgTable(
+  'organization_members',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    role: orgMemberRoleEnum('role').notNull().default('member'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgUserIdx: uniqueIndex('org_members_org_user_idx').on(table.organizationId, table.userId),
+  })
+);
+
+// ============================================================================
+// PROJECTS TABLE
+// ============================================================================
+
+export const projects = pgTable(
+  'projects',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slug: varchar('slug', { length: 100 }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    description: text('description'),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    organizationId: uuid('organization_id').references(() => organizations.id, {
+      onDelete: 'set null',
+    }),
+    type: projectTypeEnum('type').notNull().default('full'),
+    status: projectStatusEnum('status').notNull().default('draft'),
+    // Branding fields for audit reports
+    logoUrl: text('logo_url'),
+    websiteUrl: varchar('website_url', { length: 500 }),
+    primaryColor: varchar('primary_color', { length: 7 }), // Hex color e.g. #5C61FF
+    contractAddress: varchar('contract_address', { length: 128 }), // Main contract address
+    chainId: varchar('chain_id', { length: 50 }), // e.g. 'ethereum', 'polygon'
+    // Social/docs links
+    docsUrl: varchar('docs_url', { length: 500 }),
+    githubUrl: varchar('github_url', { length: 500 }),
+    twitterUrl: varchar('twitter_url', { length: 500 }),
+    discordUrl: varchar('discord_url', { length: 500 }),
+    // Audit report customization
+    reportConfig: jsonb('report_config').default({}), // Custom report settings
+    settings: jsonb('settings').notNull().default({}),
+    aggregatedScore: jsonb('aggregated_score'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userSlugIdx: uniqueIndex('projects_user_slug_idx').on(table.userId, table.slug),
+    userIdIdx: index('projects_user_id_idx').on(table.userId),
+    statusIdx: index('projects_status_idx').on(table.status),
+  })
+);
+
+// ============================================================================
+// COMPONENTS TABLE
+// ============================================================================
+
+export const components = pgTable(
+  'components',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    type: componentTypeEnum('type').notNull(),
+    displayName: varchar('display_name', { length: 255 }).notNull(),
+    status: componentStatusEnum('status').notNull().default('pending'),
+    config: jsonb('config').notNull().default({}),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    projectIdIdx: index('components_project_id_idx').on(table.projectId),
+  })
+);
+
+// ============================================================================
+// AUDIT JOBS TABLE
+// ============================================================================
+
+export const auditJobs = pgTable(
+  'audit_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    legacyId: serial('legacy_id').unique(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
+    componentId: uuid('component_id').references(() => components.id, { onDelete: 'set null' }),
+    repo: varchar('repo', { length: 500 }).notNull(),
+    branch: varchar('branch', { length: 255 }).notNull().default('main'),
+    commitSha: varchar('commit_sha', { length: 40 }),
+    status: jobStatusEnum('status').notNull().default('pending'),
+    progressPct: smallint('progress_pct').notNull().default(0),
+    progressMessage: text('progress_message'),
+    visibility: auditVisibilityEnum('visibility').notNull().default('private'),
+    xpCost: smallint('xp_cost'),
+    xpRefunded: boolean('xp_refunded').notNull().default(false),
+    errorMessage: text('error_message'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index('audit_jobs_user_id_idx').on(table.userId),
+    projectIdIdx: index('audit_jobs_project_id_idx').on(table.projectId),
+    statusIdx: index('audit_jobs_status_idx').on(table.status),
+    visibilityIdx: index('audit_jobs_visibility_idx').on(table.visibility),
+    createdAtIdx: index('audit_jobs_created_at_idx').on(table.createdAt),
+  })
+);
+
+// ============================================================================
+// AUDIT RESULTS TABLE
+// ============================================================================
+
+export const auditResults = pgTable(
+  'audit_results',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+    scoreValue: smallint('score_value'),
+    scoreLabel: varchar('score_label', { length: 50 }),
+    findings: jsonb('findings').notNull().default([]),
+    summary: text('summary'),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    jobIdIdx: uniqueIndex('audit_results_job_id_idx').on(table.jobId),
+  })
+);
+
+// ============================================================================
+// AUDIT REPORTS TABLE
+// ============================================================================
+
+export const auditReports = pgTable(
+  'audit_reports',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+    format: varchar('format', { length: 20 }).notNull(), // 'html', 'pdf', 'json'
+    filePath: text('file_path').notNull(),
+    fileSize: bigint('file_size', { mode: 'number' }),
+    checksum: varchar('checksum', { length: 64 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    jobIdIdx: index('audit_reports_job_id_idx').on(table.jobId),
+  })
+);
+
+// ============================================================================
+// PRE-AUDIT QUESTIONNAIRES TABLE
+// ============================================================================
+
+export const preauditQuestionnaires = pgTable(
+  'preaudit_questionnaires',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    jobIdIdx: uniqueIndex('preaudit_questionnaires_job_id_idx').on(table.jobId),
+  })
+);
+
+// ============================================================================
+// PRE-AUDIT QUESTIONS TABLE
+// ============================================================================
+
+export const preauditQuestions = pgTable(
+  'preaudit_questions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    questionKey: varchar('question_key', { length: 100 }).unique().notNull(),
+    questionText: text('question_text').notNull(),
+    questionType: varchar('question_type', { length: 50 }).notNull(), // 'text', 'textarea', 'select', 'multiselect'
+    options: jsonb('options'), // for select/multiselect types
+    required: boolean('required').notNull().default(false),
+    orderIndex: smallint('order_index').notNull().default(0),
+    category: varchar('category', { length: 100 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    questionKeyIdx: uniqueIndex('preaudit_questions_key_idx').on(table.questionKey),
+  })
+);
+
+// ============================================================================
+// PRE-AUDIT ANSWERS TABLE
+// ============================================================================
+
+export const preauditAnswers = pgTable(
+  'preaudit_answers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    questionnaireId: uuid('questionnaire_id')
+      .notNull()
+      .references(() => preauditQuestionnaires.id, { onDelete: 'cascade' }),
+    questionId: uuid('question_id')
+      .notNull()
+      .references(() => preauditQuestions.id, { onDelete: 'cascade' }),
+    answerValue: jsonb('answer_value').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    questionnaireQuestionIdx: uniqueIndex('preaudit_answers_q_q_idx').on(
+      table.questionnaireId,
+      table.questionId
+    ),
+  })
+);
+
+// ============================================================================
+// XP TRANSACTIONS TABLE
+// ============================================================================
+
+export const xpTransactions = pgTable(
+  'xp_transactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: xpTransactionTypeEnum('type').notNull(),
+    amount: bigint('amount', { mode: 'number' }).notNull(),
+    balanceAfter: bigint('balance_after', { mode: 'number' }).notNull(),
+    description: text('description').notNull(),
+    referenceType: varchar('reference_type', { length: 50 }), // 'audit_job', 'referral', etc.
+    referenceId: uuid('reference_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index('xp_transactions_user_id_idx').on(table.userId),
+    createdAtIdx: index('xp_transactions_created_at_idx').on(table.createdAt),
+    referenceIdx: index('xp_transactions_reference_idx').on(
+      table.referenceType,
+      table.referenceId
+    ),
+  })
+);
+
+// ============================================================================
+// XP RULES TABLE
+// ============================================================================
+
+export const xpRules = pgTable(
+  'xp_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ruleKey: varchar('rule_key', { length: 100 }).unique().notNull(),
+    description: text('description').notNull(),
+    xpAmount: bigint('xp_amount', { mode: 'number' }).notNull(),
+    maxOccurrences: smallint('max_occurrences'), // null = unlimited
+    cooldownMinutes: smallint('cooldown_minutes'), // null = no cooldown
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    ruleKeyIdx: uniqueIndex('xp_rules_key_idx').on(table.ruleKey),
+  })
+);
+
+// ============================================================================
+// TIER THRESHOLDS TABLE
+// ============================================================================
+
+export const tierThresholds = pgTable(
+  'tier_thresholds',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tier: userTierEnum('tier').unique().notNull(),
+    minXp: bigint('min_xp', { mode: 'number' }).notNull(),
+    monthlyFreeAudits: smallint('monthly_free_audits').notNull().default(0),
+    auditXpCostQuick: smallint('audit_xp_cost_quick').notNull(),
+    auditXpCostStandard: smallint('audit_xp_cost_standard').notNull(),
+    auditXpCostDeep: smallint('audit_xp_cost_deep').notNull(),
+    features: jsonb('features').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tierIdx: uniqueIndex('tier_thresholds_tier_idx').on(table.tier),
+  })
+);
+
+// ============================================================================
+// AUDIT TRAIL TABLE
+// ============================================================================
+
+export const auditTrail = pgTable(
+  'audit_trail',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    action: varchar('action', { length: 100 }).notNull(),
+    entityType: varchar('entity_type', { length: 50 }).notNull(),
+    entityId: uuid('entity_id'),
+    oldValue: jsonb('old_value'),
+    newValue: jsonb('new_value'),
+    ipAddress: varchar('ip_address', { length: 45 }),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index('audit_trail_user_id_idx').on(table.userId),
+    entityIdx: index('audit_trail_entity_idx').on(table.entityType, table.entityId),
+    createdAtIdx: index('audit_trail_created_at_idx').on(table.createdAt),
+  })
+);
+
+// ============================================================================
+// PUBLIC AUDIT SHOWCASE TABLE
+// ============================================================================
+
+export const publicAuditShowcase = pgTable(
+  'public_audit_showcase',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+    slug: varchar('slug', { length: 100 }).unique().notNull(),
+    title: varchar('title', { length: 255 }).notNull(),
+    description: text('description'),
+    featured: boolean('featured').notNull().default(false),
+    viewCount: bigint('view_count', { mode: 'number' }).notNull().default(0),
+    publishedAt: timestamp('published_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    slugIdx: uniqueIndex('public_audit_showcase_slug_idx').on(table.slug),
+    jobIdIdx: uniqueIndex('public_audit_showcase_job_id_idx').on(table.jobId),
+    featuredIdx: index('public_audit_showcase_featured_idx').on(table.featured),
+  })
+);
+
+// ============================================================================
+// RELATIONS
+// ============================================================================
+
+export const usersRelations = relations(users, ({ many }) => ({
+  sessions: many(sessions),
+  projects: many(projects),
+  auditJobs: many(auditJobs),
+  xpTransactions: many(xpTransactions),
+  organizationMemberships: many(organizationMembers),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  members: many(organizationMembers),
+  projects: many(projects),
+}));
+
+export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationMembers.organizationId],
+    references: [organizations.id],
+  }),
+  user: one(users, {
+    fields: [organizationMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  user: one(users, {
+    fields: [projects.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [projects.organizationId],
+    references: [organizations.id],
+  }),
+  components: many(components),
+  auditJobs: many(auditJobs),
+}));
+
+export const componentsRelations = relations(components, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [components.projectId],
+    references: [projects.id],
+  }),
+  auditJobs: many(auditJobs),
+}));
+
+export const auditJobsRelations = relations(auditJobs, ({ one, many }) => ({
+  user: one(users, {
+    fields: [auditJobs.userId],
+    references: [users.id],
+  }),
+  project: one(projects, {
+    fields: [auditJobs.projectId],
+    references: [projects.id],
+  }),
+  component: one(components, {
+    fields: [auditJobs.componentId],
+    references: [components.id],
+  }),
+  results: one(auditResults),
+  reports: many(auditReports),
+  questionnaire: one(preauditQuestionnaires),
+  publicShowcase: one(publicAuditShowcase),
+}));
+
+export const auditResultsRelations = relations(auditResults, ({ one }) => ({
+  job: one(auditJobs, {
+    fields: [auditResults.jobId],
+    references: [auditJobs.id],
+  }),
+}));
+
+export const auditReportsRelations = relations(auditReports, ({ one }) => ({
+  job: one(auditJobs, {
+    fields: [auditReports.jobId],
+    references: [auditJobs.id],
+  }),
+}));
+
+export const preauditQuestionnairesRelations = relations(preauditQuestionnaires, ({ one, many }) => ({
+  job: one(auditJobs, {
+    fields: [preauditQuestionnaires.jobId],
+    references: [auditJobs.id],
+  }),
+  answers: many(preauditAnswers),
+}));
+
+export const preauditAnswersRelations = relations(preauditAnswers, ({ one }) => ({
+  questionnaire: one(preauditQuestionnaires, {
+    fields: [preauditAnswers.questionnaireId],
+    references: [preauditQuestionnaires.id],
+  }),
+  question: one(preauditQuestions, {
+    fields: [preauditAnswers.questionId],
+    references: [preauditQuestions.id],
+  }),
+}));
+
+export const xpTransactionsRelations = relations(xpTransactions, ({ one }) => ({
+  user: one(users, {
+    fields: [xpTransactions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const publicAuditShowcaseRelations = relations(publicAuditShowcase, ({ one }) => ({
+  job: one(auditJobs, {
+    fields: [publicAuditShowcase.jobId],
+    references: [auditJobs.id],
+  }),
+}));
+
+// ============================================================================
+// TYPE EXPORTS
+// ============================================================================
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
+
+export type Organization = typeof organizations.$inferSelect;
+export type NewOrganization = typeof organizations.$inferInsert;
+
+export type Project = typeof projects.$inferSelect;
+export type NewProject = typeof projects.$inferInsert;
+
+export type Component = typeof components.$inferSelect;
+export type NewComponent = typeof components.$inferInsert;
+
+export type AuditJob = typeof auditJobs.$inferSelect;
+export type NewAuditJob = typeof auditJobs.$inferInsert;
+
+export type AuditResult = typeof auditResults.$inferSelect;
+export type NewAuditResult = typeof auditResults.$inferInsert;
+
+export type XpTransaction = typeof xpTransactions.$inferSelect;
+export type NewXpTransaction = typeof xpTransactions.$inferInsert;
+
+export type XpRule = typeof xpRules.$inferSelect;
+export type NewXpRule = typeof xpRules.$inferInsert;
+
+export type TierThreshold = typeof tierThresholds.$inferSelect;
+export type NewTierThreshold = typeof tierThresholds.$inferInsert;
+
+// Enum types
+export type WalletType = (typeof walletTypeEnum.enumValues)[number];
+export type UserTier = (typeof userTierEnum.enumValues)[number];
