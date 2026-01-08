@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import {
     Shield, Activity, Clock, ExternalLink,
     ChevronRight, Github, GitCommit, AlertTriangle
@@ -31,12 +31,7 @@ export default function ProjectDetails() {
 
     return (
         <div className="space-y-10">
-            {/* breadcrumbs */}
-            <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                <Link to="/dashboard" className="hover:text-indigo-600 transition-colors">Dashboard</Link>
-                <ChevronRight size={12} className="opacity-30" />
-                <span className="text-slate-900">Protocol Node</span>
-            </div>
+
 
             {/* Hero */}
             <div className="flex items-end justify-between">

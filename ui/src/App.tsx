@@ -37,6 +37,10 @@ import PreAuditQuestionnaire from './pages/PreAuditQuestionnaire';
 
 import ProjectDetails from './pages/ProjectDetails';
 import Onboarding from './pages/Onboarding';
+import Management from './pages/Management';
+import Nodes from './pages/Nodes';
+import Credentials from './pages/Credentials';
+import Subscription from './pages/Subscription';
 
 // Project types matching backend
 type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit';
@@ -156,183 +160,211 @@ function App() {
               onWalletSuccess={handleWalletSuccess}
             />
             <Routes>
-          {/* Marketing Pages with Layout */}
-          <Route element={<Layout isAuthed={isAuthed} onLogin={handleLogin} />}>
-            <Route path="/" element={<HomePage isAuthed={isAuthed} onLogin={handleLogin} />} />
-            <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/features" element={<FeaturesPage />} />
-            <Route path="/how-it-works" element={<HowItWorksPage />} />
-            <Route path="/supported-chains" element={<SupportedChainsPage />} />
-            <Route path="/docs" element={<DocumentationPage />} />
-            <Route path="/use-cases" element={<UseCasesPage />} />
-            <Route path="/about" element={<AboutPage />} />
-          </Route>
+              {/* Marketing Pages with Layout */}
+              <Route element={<Layout isAuthed={isAuthed} onLogin={handleLogin} />}>
+                <Route path="/" element={<HomePage isAuthed={isAuthed} onLogin={handleLogin} />} />
+                <Route path="/pricing" element={<PricingPage />} />
+                <Route path="/features" element={<FeaturesPage />} />
+                <Route path="/how-it-works" element={<HowItWorksPage />} />
+                <Route path="/supported-chains" element={<SupportedChainsPage />} />
+                <Route path="/docs" element={<DocumentationPage />} />
+                <Route path="/use-cases" element={<UseCasesPage />} />
+                <Route path="/about" element={<AboutPage />} />
+              </Route>
 
-          {/* Standalone Public Tools (Standalone Headers) */}
-          <Route path="/quick-scan" element={<QuickScan />} />
-          <Route path="/public-audits" element={<PublicAudits />} />
-          <Route path="/audit/:jobId" element={
-            <AuditDetails
-              onHomeClick={() => window.location.href = '/'}
-              onBack={() => {
-                if (window.history.length > 1) {
-                  window.history.back();
-                } else {
-                  window.location.href = '/public-audits';
-                }
-              }}
-            />
-          } />
-
-          {/* Onboarding - Protected but standalone (no dashboard layout) */}
-          <Route path="/onboarding" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <Onboarding />
-            </ProtectedRoute>
-          } />
-
-          {/* Protected App Pages with DashboardLayout */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <DashboardLayout onLogout={handleLogout}>
-                <Dashboard
-                  onViewAudit={(slug) => window.location.href = `/project/${slug}`}
-                  onNewAudit={() => window.location.href = '/create-project'}
-                />
-              </DashboardLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/project/:slug" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <DashboardLayout onLogout={handleLogout}>
-                <ProjectDetails />
-              </DashboardLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/settings" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <DashboardLayout onLogout={handleLogout}>
-                <Settings />
-              </DashboardLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/connect" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <DashboardLayout onLogout={handleLogout}>
-                <ConnectSource
-                  onNext={() => window.location.href = '/configure'}
-                  projectData={projectData}
-                  setProjectData={setProjectData}
-                />
-              </DashboardLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/configure" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <DashboardLayout onLogout={handleLogout}>
-                <ConfigureAudit
-                  onNext={() => window.location.href = '/review'}
-                  onBack={() => window.location.href = '/connect'}
-                  projectData={projectData}
-                  setProjectData={setProjectData}
-                />
-              </DashboardLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/review" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <DashboardLayout onLogout={handleLogout}>
-                <ReviewAndRun
-                  onBack={() => window.location.href = '/configure'}
-                  projectData={projectData}
-                  initialJobId={jobId}
-                />
-              </DashboardLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/scan" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <DashboardLayout onLogout={handleLogout}>
-                <ScanContract
-                  onBack={() => window.location.href = '/'}
-                  projectData={projectData}
-                  setProjectData={setProjectData}
-                  onStartAudit={(data) => {
-                    setProjectData(prev => ({
-                      ...prev,
-                      name: data.project,
-                      components: [{
-                        id: 'temp-scan',
-                        type: 'deployed-contract',
-                        displayName: data.project,
-                        status: 'synced',
-                        config: { address: data.project, branch: data.branch }
-                      }]
-                    }));
-                    setJobId(data.jobId);
-                    window.location.href = `/audit/${data.jobId}`;
-                  }}
-                />
-              </DashboardLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/create-project" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <DashboardLayout onLogout={handleLogout}>
-                <ProjectCreate
-                  onNext={(project) => {
-                    setProjectData({
-                      id: project.id,
-                      name: project.name,
-                      description: project.description,
-                      type: project.type,
-                      components: []
-                    });
-                    window.location.href = '/add-components';
-                  }}
-                  onBack={() => window.location.href = '/dashboard'}
+              {/* Standalone Public Tools (Standalone Headers) */}
+              <Route path="/quick-scan" element={<QuickScan />} />
+              <Route path="/public-audits" element={<PublicAudits />} />
+              <Route path="/audit/:jobId" element={
+                <AuditDetails
                   onHomeClick={() => window.location.href = '/'}
-                />
-              </DashboardLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/add-components" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <DashboardLayout onLogout={handleLogout}>
-                <AddComponents
-                  projectId={projectData?.id || ''}
-                  projectName={projectData?.name || ''}
-                  projectType={projectData?.type || 'full'}
-                  onNext={(components) => {
-                    setProjectData(prev => ({ ...prev, components }));
-                    window.location.href = '/configure';
-                  }}
-                  onBack={() => window.location.href = '/create-project'}
-                  onStartAudit={(jId) => {
-                    setJobId(jId);
-                    window.location.href = `/preaudit-questionnaire/${jId}`;
+                  onBack={() => {
+                    if (window.history.length > 1) {
+                      window.history.back();
+                    } else {
+                      window.location.href = '/public-audits';
+                    }
                   }}
                 />
-              </DashboardLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/preaudit-questionnaire/:jobId" element={
-            <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
-              <DashboardLayout onLogout={handleLogout}>
-                <PreAuditQuestionnaire
-                  jobId={jobId}
-                  projectName={projectData?.name || 'Untitled Project'}
-                  onComplete={() => window.location.href = `/audit/${jobId}`}
-                  onSkip={() => window.location.href = `/audit/${jobId}`}
-                  onBack={() => window.location.href = '/dashboard'}
-                  onHomeClick={() => window.location.href = '/'}
-                />
-              </DashboardLayout>
-            </ProtectedRoute>
-          } />
+              } />
 
-          {/* 404 Page */}
-          <Route path="*" element={<NotFoundPage />} />
+              {/* Onboarding - Protected but standalone (no dashboard layout) */}
+              <Route path="/onboarding" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <Onboarding />
+                </ProtectedRoute>
+              } />
+
+              {/* Protected App Pages with DashboardLayout */}
+              <Route path="/dashboard" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <Dashboard
+                      onViewAudit={(slug) => window.location.href = `/project/${slug}`}
+                      onNewAudit={() => window.location.href = '/create-project'}
+                    />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/project/:slug" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <ProjectDetails />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/management" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <Management />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/nodes" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <Nodes />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/credentials" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <Credentials />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/subscription" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <Subscription />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <Settings />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/connect" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <ConnectSource
+                      onNext={() => window.location.href = '/configure'}
+                      projectData={projectData}
+                      setProjectData={setProjectData}
+                    />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/configure" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <ConfigureAudit
+                      onNext={() => window.location.href = '/review'}
+                      onBack={() => window.location.href = '/connect'}
+                      projectData={projectData}
+                      setProjectData={setProjectData}
+                    />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/review" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <ReviewAndRun
+                      onBack={() => window.location.href = '/configure'}
+                      projectData={projectData}
+                      initialJobId={jobId}
+                    />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/scan" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <ScanContract
+                      onBack={() => window.location.href = '/'}
+                      projectData={projectData}
+                      setProjectData={setProjectData}
+                      onStartAudit={(data) => {
+                        setProjectData(prev => ({
+                          ...prev,
+                          name: data.project,
+                          components: [{
+                            id: 'temp-scan',
+                            type: 'deployed-contract',
+                            displayName: data.project,
+                            status: 'synced',
+                            config: { address: data.project, branch: data.branch }
+                          }]
+                        }));
+                        setJobId(data.jobId);
+                        window.location.href = `/audit/${data.jobId}`;
+                      }}
+                    />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/create-project" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <ProjectCreate
+                      onNext={(project) => {
+                        setProjectData({
+                          id: project.id,
+                          name: project.name,
+                          description: project.description,
+                          type: project.type,
+                          components: []
+                        });
+                        window.location.href = '/add-components';
+                      }}
+                      onBack={() => window.location.href = '/dashboard'}
+                      onHomeClick={() => window.location.href = '/'}
+                    />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/add-components" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <AddComponents
+                      projectId={projectData?.id || ''}
+                      projectName={projectData?.name || ''}
+                      projectType={projectData?.type || 'full'}
+                      onNext={(components) => {
+                        setProjectData(prev => ({ ...prev, components }));
+                        window.location.href = '/configure';
+                      }}
+                      onBack={() => window.location.href = '/create-project'}
+                      onStartAudit={(jId) => {
+                        setJobId(jId);
+                        window.location.href = `/preaudit-questionnaire/${jId}`;
+                      }}
+                    />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/preaudit-questionnaire/:jobId" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <DashboardLayout onLogout={handleLogout}>
+                    <PreAuditQuestionnaire
+                      jobId={jobId}
+                      projectName={projectData?.name || 'Untitled Project'}
+                      onComplete={() => window.location.href = `/audit/${jobId}`}
+                      onSkip={() => window.location.href = `/audit/${jobId}`}
+                      onBack={() => window.location.href = '/dashboard'}
+                      onHomeClick={() => window.location.href = '/'}
+                    />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+
+              {/* 404 Page */}
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </BrowserRouter>
         </HelmetProvider>

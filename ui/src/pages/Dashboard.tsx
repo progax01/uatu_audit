@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Plus, ArrowRight, Clock,
+  Terminal, ArrowRight, Plus,
   FileCode, Globe, Package,
-  ShieldCheck, Shield, Activity, ShieldAlert
+  ShieldCheck, Shield, Sparkles
 } from 'lucide-react'
+import { getStoredUser, authFetch } from '../services/authService'
 
 type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit'
 type ProjectStatus = 'draft' | 'configured' | 'awaiting-preaudit' | 'auditing' | 'completed'
@@ -31,180 +32,185 @@ interface DashboardProps {
 }
 
 const PROJECT_TYPE_CONFIG: Record<ProjectType, { label: string; icon: any; colorClass: string }> = {
-  'full': { label: 'Full Audit', icon: Shield, colorClass: 'text-indigo-600' },
-  'contract-only': { label: 'Contracts', icon: FileCode, colorClass: 'text-blue-600' },
-  'dapp-pentest': { label: 'DApp', icon: Globe, colorClass: 'text-emerald-600' },
-  'library-audit': { label: 'Library', icon: Package, colorClass: 'text-amber-600' }
+  'full': { label: 'Full Scan', icon: Shield, colorClass: 'text-indigo-600' },
+  'contract-only': { label: 'Contracts', icon: FileCode, colorClass: 'text-slate-400' },
+  'dapp-pentest': { label: 'dApp Unit', icon: Globe, colorClass: 'text-emerald-500' },
+  'library-audit': { label: 'Library Ops', icon: Package, colorClass: 'text-amber-500' }
 }
 
 const STATUS_CONFIG: Record<ProjectStatus, { label: string; colorClass: string }> = {
-  'draft': { label: 'Draft', colorClass: 'text-slate-400 bg-slate-50 border-slate-100' },
-  'configured': { label: 'Configured', colorClass: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
-  'awaiting-preaudit': { label: 'Awaiting Input', colorClass: 'text-amber-600 bg-amber-50 border-amber-100' },
-  'auditing': { label: 'Auditing', colorClass: 'text-indigo-600 bg-indigo-50 border-indigo-200 animate-pulse' },
-  'completed': { label: 'Completed', colorClass: 'text-emerald-600 bg-emerald-50 border-emerald-100' }
+  'draft': { label: 'DRAFT', colorClass: 'text-slate-400 bg-slate-100 border-slate-200' },
+  'configured': { label: 'CONFIGURED', colorClass: 'text-blue-600 bg-blue-50 border-blue-100' },
+  'awaiting-preaudit': { label: 'AWAITING', colorClass: 'text-amber-600 bg-amber-50 border-amber-100' },
+  'auditing': { label: 'AUDITING', colorClass: 'text-indigo-600 bg-indigo-50 border-indigo-100 animate-pulse' },
+  'completed': { label: 'COMPLETED', colorClass: 'text-emerald-600 bg-emerald-50 border-emerald-100' }
 }
 
 export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
-    // Sector-specific institutional nodes
-    setProjects([
-      { id: 'sov-token-v2', name: 'Sovereign Token (Mainnet)', slug: 'sov-token', type: 'full', status: 'completed', componentCount: 12, lastAuditAt: '2026-01-06', lastAuditJobId: 'QA-29383', aggregatedScore: { value: 98, grade: 'A+' }, category: 'Asset Core' },
-      { id: '1', name: 'Liquidity Router Alpha', slug: 'uniswap-v4', type: 'full', status: 'completed', componentCount: 22, lastAuditAt: '2025-11-20', lastAuditJobId: 'QA-29384', aggregatedScore: { value: 99, grade: 'A' }, category: 'Protocol Logic' },
-      { id: '2', name: 'Institutional Lending Hub', slug: 'aave-v3', type: 'full', status: 'auditing', componentCount: 45, category: 'Credit Market' },
-      { id: '3', name: 'Governance Staking Node', slug: 'lido-staking', type: 'contract-only', status: 'completed', componentCount: 8, lastAuditAt: '2025-11-15', lastAuditJobId: 102, aggregatedScore: { value: 96, grade: 'A' }, category: 'Consensus' }
-    ])
-    setLoading(false)
+    const storedUser = getStoredUser()
+    setUser(storedUser)
+
+    const loadProjects = async () => {
+      try {
+        const response = await authFetch('/api/projects')
+        if (response.ok) {
+          const data = await response.json()
+          const transformedProjects = (data.projects || []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+            type: p.type || 'full',
+            status: p.status || 'draft',
+            componentCount: p.componentCount || 0,
+            lastAuditAt: p.lastAuditAt,
+            lastAuditJobId: p.lastAuditJobId,
+            aggregatedScore: p.aggregatedScore,
+            category: p.category,
+          }))
+          setProjects(transformedProjects)
+        }
+      } catch (err) {
+        console.error('Failed to load projects', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadProjects()
   }, [])
 
-  return (
-    <div className="space-y-12">
-      {/* Overview Stats */}
-      <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {[
-          { label: 'Total Scanned Lines', value: '42.8K', icon: FileCode, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-          { label: 'Security Posture', value: '94/100', icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Critical Path Vulns', value: '0', icon: ShieldAlert, color: 'text-rose-500', bg: 'bg-rose-50' },
-          { label: 'Engine Availability', value: '99.99%', icon: Globe, color: 'text-blue-500', bg: 'bg-blue-50' },
-        ].map((stat, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="card-premium !p-6 flex items-center gap-6"
-          >
-            <div className={`w-12 h-12 rounded-2xl ${stat.bg} flex items-center justify-center ${stat.color}`}>
-              <stat.icon size={24} strokeWidth={2.5} />
-            </div>
-            <div>
-              <div className="text-2xl font-black text-slate-900 leading-none mb-1">{stat.value}</div>
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{stat.label}</div>
-            </div>
-          </motion.div>
-        ))}
-      </section>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        <div className="lg:col-span-8 space-y-8">
-          <div className="flex items-center justify-between" id="protocols">
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">Active Protocols</h2>
-            <button
-              onClick={onNewAudit}
-              className="btn-primary !py-2.5 px-6 !text-[10px]"
-            >
-              <Plus size={14} strokeWidth={3} />
-              Provision New Node
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            {loading ? (
-              [1, 2, 3].map(i => <div key={i} className="h-24 bg-slate-100/50 animate-pulse rounded-[24px] border border-black/[0.02]" />)
-            ) : projects.length === 0 ? (
-              <div className="p-20 border-2 border-dashed border-black/[0.03] rounded-[40px] text-center">
-                <Shield size={40} className="text-slate-200 mx-auto mb-6" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No protocols detected in sector</p>
-              </div>
-            ) : (
-              projects.map((project, idx) => {
-                const typeConfig = PROJECT_TYPE_CONFIG[project.type] || PROJECT_TYPE_CONFIG['full']
-                const statusConfig = STATUS_CONFIG[project.status] || STATUS_CONFIG['draft']
-                const TypeIcon = typeConfig.icon
-
-                return (
-                  <motion.div
-                    key={project.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05, duration: 0.5 }}
-                    className="group relative card-premium !p-5 flex items-center justify-between hover:bg-white transition-all shadow-sm border-black/[0.02]"
-                  >
-                    <div className="flex items-center gap-6">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-white border border-black/[0.03] shadow-sm transition-all duration-500 group-hover:scale-105 ${typeConfig.colorClass}`}>
-                        <TypeIcon size={20} strokeWidth={2} />
-                      </div>
-
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-3">
-                          <h3 className="font-black text-slate-900 text-base tracking-tight">{project.name}</h3>
-                          <div className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${statusConfig.colorClass}`}>
-                            {statusConfig.label}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-5 text-[9px] text-slate-400 font-bold uppercase tracking-widest opacity-60 mt-1">
-                          <span className="flex items-center gap-1.5">
-                            <Package size={12} strokeWidth={2.5} />
-                            {project.componentCount} Nodes
-                          </span>
-                          {project.lastAuditAt && (
-                            <span className="flex items-center gap-1.5">
-                              <Clock size={12} strokeWidth={2.5} />
-                              {new Date(project.lastAuditAt).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-10">
-                      {project.aggregatedScore ? (
-                        <div className="text-right flex flex-col items-end gap-1">
-                          <div className="text-xl font-black text-slate-900 tabular-nums">
-                            {project.aggregatedScore.value}
-                            <span className="text-[8px] text-slate-300 ml-1.5 font-bold uppercase tracking-widest">/ 100</span>
-                          </div>
-                          <div className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${project.aggregatedScore.grade === 'A' ? 'text-emerald-600 bg-emerald-50 border-emerald-100' :
-                            project.aggregatedScore.grade === 'B' ? 'text-indigo-600 bg-indigo-50 border-indigo-100' :
-                              'text-amber-600 bg-amber-50 border-amber-100'
-                            }`}>
-                            Grade {project.aggregatedScore.grade}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-right flex flex-col items-end gap-1 opacity-30 group-hover:opacity-100 transition-all">
-                          <div className="text-[8px] font-black text-slate-900 uppercase tracking-widest">
-                            {project.status === 'auditing' ? 'Security Scan Active' : 'Scan Pending'}
-                          </div>
-                        </div>
-                      )}
-
-                      <button
-                        onClick={() => onViewAudit(project.slug)}
-                        className="p-3 bg-white border border-black/[0.04] rounded-xl text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm"
-                      >
-                        <ArrowRight size={18} />
-                      </button>
-                    </div>
-                  </motion.div>
-                )
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Intelligence Sidebar (Optional/Extra) */}
-        <div className="lg:col-span-4 space-y-8">
-          <div className="card-premium !bg-slate-900 !border-slate-800 !p-8 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full" />
-            <div className="relative z-10">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 mb-6">
-                <ShieldCheck size={20} strokeWidth={2.5} />
-              </div>
-              <h3 className="text-lg font-black text-white tracking-tight mb-2">Immutable Verification</h3>
-              <p className="text-xs text-slate-400 leading-relaxed mb-6">Uatu AI has verified 12.4k lines of logic in the last 24 hours. No critical escapes detected.</p>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg border border-white/10 w-fit">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[9px] font-black text-white uppercase tracking-widest">Engine Nominal</span>
-              </div>
-            </div>
-          </div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-6">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Synchronizing Registry...</span>
         </div>
       </div>
+    )
+  }
+
+  return (
+    <div className="space-y-12 animate-reveal">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="px-3 py-1 bg-indigo-600 text-white rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg shadow-indigo-100">
+              <Sparkles size={10} className="fill-white" />
+              Sovereign Node Active
+            </div>
+            <span className="text-[9px] text-slate-300 font-bold uppercase tracking-widest leading-none border-l border-slate-200 pl-3">ID_CORE_{Math.random().toString(16).slice(2, 8).toUpperCase()}</span>
+          </div>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">
+            System <span className="text-indigo-600">Active.</span>
+          </h1>
+          <p className="text-slate-400 font-medium text-[13px] mt-4 max-w-xl leading-relaxed">
+            Welcome back, <span className="text-slate-900 font-bold">{user?.displayName?.split(' ')[0] || 'Operator'}</span>. Your protocol infrastructure is reporting <span className="text-slate-900 font-bold">{projects.length} monitored units</span>.
+          </p>
+        </div>
+        {projects.length > 0 && (
+          <button
+            onClick={onNewAudit}
+            className="btn-primary group h-12 px-8"
+          >
+            <Plus size={16} />
+            Deploy New Audit
+          </button>
+        )}
+      </div>
+
+      {projects.length === 0 ? (
+        <div className="card-premium relative overflow-hidden flex flex-col items-center justify-center text-center py-24">
+          <div className="absolute top-0 right-0 p-8 opacity-[0.02] -rotate-12">
+            <Shield size={300} strokeWidth={1} />
+          </div>
+
+          <div className="relative z-10 max-w-sm w-full flex flex-col items-center">
+            <div className="w-20 h-20 bg-slate-50 text-indigo-600 rounded-[32px] flex items-center justify-center mb-8 border border-black/[0.03] shadow-inner">
+              <Terminal size={32} strokeWidth={2.5} />
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-4 uppercase">Registry Standby</h2>
+            <p className="text-slate-400 font-medium leading-relaxed mb-10 text-[14px]">
+              No protocol units currently localized. Initialize your first security node to proceed with neural auditing.
+            </p>
+            <button
+              onClick={onNewAudit}
+              className="btn-primary w-full h-12 shadow-2xl shadow-indigo-100"
+            >
+              <Plus size={16} />
+              Deploy Initial Node
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          {projects.map((project) => (
+            <div
+              key={project.id}
+              onClick={() => onViewAudit(project.slug)}
+              className="card-premium group cursor-pointer"
+            >
+              <div className="flex items-start justify-between mb-12">
+                <div className={`w-16 h-16 rounded-[24px] bg-slate-50 border border-black/[0.02] flex items-center justify-center transition-all group-hover:bg-indigo-600 group-hover:text-white group-hover:shadow-2xl group-hover:shadow-indigo-200`}>
+                  {project.type && PROJECT_TYPE_CONFIG[project.type] ? (
+                    <div className={PROJECT_TYPE_CONFIG[project.type].colorClass}>
+                      {(() => {
+                        const Icon = PROJECT_TYPE_CONFIG[project.type].icon
+                        return <Icon size={28} strokeWidth={2} className="group-hover:text-white transition-colors" />
+                      })()}
+                    </div>
+                  ) : (
+                    <Shield size={28} strokeWidth={2} className="text-slate-400 group-hover:text-white" />
+                  )}
+                </div>
+                <div className={`px-4 py-2 rounded-2xl border text-[10px] font-black uppercase tracking-widest ${STATUS_CONFIG[project.status]?.colorClass || 'text-slate-400 bg-slate-50 border-slate-100'}`}>
+                  {STATUS_CONFIG[project.status]?.label || project.status}
+                </div>
+              </div>
+
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-3 group-hover:text-indigo-600 transition-colors">
+                {project.name}
+              </h3>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-10 flex items-center gap-3">
+                <span className="text-indigo-600/40">#</span> {project.category || 'Infrastructure'}
+                <span className="w-1 h-1 rounded-full bg-slate-200" />
+                {project.componentCount} Units
+              </p>
+
+              <div className="pt-10 border-t border-black/[0.03] flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-100">
+                    <ShieldCheck size={18} strokeWidth={3} />
+                  </div>
+                  <div>
+                    <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest leading-none mb-1.5">Health Grade</div>
+                    <div className="text-lg font-black text-slate-900 leading-none">
+                      {project.aggregatedScore?.value || 0}% <span className="text-emerald-500 ml-1">{project.aggregatedScore?.grade || 'A'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
+                  <ArrowRight size={18} strokeWidth={3} />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <button
+            onClick={onNewAudit}
+            className="group card-premium !bg-transparent border-4 border-dashed border-slate-100 hover:border-indigo-200 flex flex-col items-center justify-center text-center gap-6 transition-all hover:bg-white min-h-[300px]"
+          >
+            <div className="w-16 h-16 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white group-hover:shadow-2xl group-hover:shadow-indigo-200 transition-all">
+              <Plus size={32} strokeWidth={3} />
+            </div>
+            <div className="text-[12px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover:text-indigo-600 transition-all">Initialize_New_Node</div>
+          </button>
+        </div>
+      )}
     </div>
   )
 }

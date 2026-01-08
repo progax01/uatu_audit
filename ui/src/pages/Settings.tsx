@@ -1,11 +1,8 @@
 import { useState } from 'react'
-import OrganizationProfile from './OrganizationProfile'
-import { Save, Globe, Key, ShieldCheck, Link2, Building2, CreditCard } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Save, ShieldCheck, Link2, Cpu, Activity, Database, Check, RefreshCw, Zap } from 'lucide-react'
 
 export default function Settings() {
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'general' | 'organization' | 'security' | 'billing'>('general')
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -14,142 +11,143 @@ export default function Settings() {
   }
 
   return (
-    <div className="w-full space-y-12">
-      <div className="flex items-center justify-between mb-12">
+    <div className="w-full space-y-10 animate-reveal">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight capitalize">{activeTab} Control Plane</h1>
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1 opacity-60">System Configuration Node</p>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[9px] font-black uppercase tracking-widest border border-indigo-100 flex items-center gap-2">
+              <Cpu size={10} className="fill-indigo-600" />
+              Core Control
+            </div>
+          </div>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">System <span className="text-indigo-600">Parameters</span></h1>
+          <p className="text-slate-400 font-medium text-[13px] mt-2 max-w-xl leading-relaxed">
+            Configure your neural audit engine and manage external protocol integrations.
+          </p>
         </div>
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="btn-primary py-2.5 px-8"
+          className="btn-primary h-12 px-8"
         >
-          <Save size={14} strokeWidth={3} />
-          {isSaving ? 'Synchronizing...' : 'Commit Changes'}
+          {isSaving ? (
+            <RefreshCw size={16} className="animate-spin" />
+          ) : (
+            <Save size={16} />
+          )}
+          {isSaving ? 'Syncing...' : 'Save Configuration'}
         </button>
       </div>
 
-      <div className="flex gap-20">
-        {/* Local Tab Nav */}
-        <div className="w-64 shrink-0 space-y-2">
-          {[
-            { id: 'general', label: 'General Preferences', icon: Globe },
-            { id: 'organization', label: 'Management', icon: Building2 },
-            { id: 'security', label: 'Credentials & API', icon: Key },
-            { id: 'billing', label: 'Subscription', icon: CreditCard },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all border ${activeTab === tab.id
-                ? 'bg-white text-indigo-700 border-indigo-100 shadow-sm'
-                : 'text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-900'
-                }`}
-            >
-              <tab.icon size={14} strokeWidth={2.5} />
-              {tab.label}
-            </button>
-          ))}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="lg:col-span-2 space-y-10">
+          <section>
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-10 h-10 rounded-xl bg-slate-50 border border-black/[0.03] flex items-center justify-center text-slate-300">
+                <ShieldCheck size={20} strokeWidth={2.5} />
+              </div>
+              <h2 className="text-sm font-black text-slate-900 tracking-widest uppercase">Audit Logic Thresholds</h2>
+            </div>
+
+            <div className="card-premium overflow-hidden !p-0">
+              <div className="p-8 space-y-8">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1.5">
+                    <h3 className="text-base font-black text-slate-900 tracking-tight uppercase">Gate CI/CD on Critical Audit</h3>
+                    <p className="text-[12px] text-slate-400 font-medium leading-relaxed max-w-md">Prevent PR merges if the security vector score falls below defined protocol limits.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <div className="w-12 h-6 bg-slate-100 rounded-full peer peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:after:translate-x-6 after:shadow-lg border border-black/[0.03]"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between pt-8 border-t border-black/[0.03]">
+                  <div className="space-y-1.5">
+                    <h3 className="text-base font-black text-slate-900 tracking-tight uppercase">Auto-Trust Verified Libraries</h3>
+                    <p className="text-[12px] text-slate-400 font-medium leading-relaxed max-w-md">Automatically flag OpenZeppelin and Solady as verified zero-liability units.</p>
+                  </div>
+                  <span className="px-3 py-1 bg-emerald-50 border border-emerald-100 text-emerald-500 text-[9px] font-black rounded-full uppercase tracking-widest leading-none">Core Enabled</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-slate-50 border border-black/[0.03] flex items-center justify-center text-slate-300">
+                <Link2 size={18} strokeWidth={2.5} />
+              </div>
+              <h2 className="text-[11px] font-black text-slate-900 tracking-widest uppercase">Data Integrations</h2>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              {[
+                { name: 'Safe Global Auth', desc: 'Sync multi-sig owners for audit verification.', status: 'Connected', icon: Database },
+                { name: 'Chainlink Oracles', desc: 'Verify price feed manipulation resistance.', status: 'Disabled', icon: Activity }
+              ].map(item => (
+                <div key={item.name} className="card-premium flex items-center justify-between group !p-6">
+                  <div className="flex items-center gap-6">
+                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-black/[0.03] flex items-center justify-center text-slate-300 transition-all duration-500">
+                      <item.icon size={20} strokeWidth={2.5} />
+                    </div>
+                    <div className="space-y-0.5">
+                      <h3 className="text-base font-black text-slate-900 tracking-tight uppercase transition-colors">{item.name}</h3>
+                      <p className="text-[10px] text-slate-400 font-medium leading-relaxed uppercase tracking-wider">{item.desc}</p>
+                    </div>
+                  </div>
+                  <button className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${item.status === 'Connected' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-300 border border-black/[0.03] hover:bg-slate-900 hover:text-white'
+                    }`}>
+                    {item.status}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
 
-        {/* Tab Content */}
-        <div className="flex-1 min-w-0">
-          {activeTab === 'general' && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-10">
-              <section>
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-12 h-12 rounded-2xl glass-liquid border-white/40 flex items-center justify-center text-indigo-600 shadow-sm">
-                    <Link2 size={20} strokeWidth={2.5} />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-black text-slate-900 tracking-tight">Active Safe-Connect Integration</h2>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Security Multisig & Resource Bounds</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4">
-                  {[
-                    { name: 'Multisig Guardian', desc: 'Auto-verify multi-sig owners from connected safe addresses.', icon: 'M' },
-                    { name: 'Oracle Integrity Scan', desc: 'Automatically trust off-chain price feeds from decentralized oracles.', icon: 'O' }
-                  ].map(conn => (
-                    <div key={conn.name} className="card-premium !p-6 flex items-center justify-between group hover:border-indigo-100 transition-all">
-                      <div className="flex items-center gap-6">
-                        <div className="w-12 h-12 rounded-xl bg-slate-50 border border-black/[0.03] flex items-center justify-center font-black text-slate-400 group-hover:bg-white group-hover:text-indigo-600 transition-all">
-                          {conn.icon}
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-black text-slate-900 tracking-tight">{conn.name}</h3>
-                          <p className="text-[10px] text-slate-400 font-medium leading-relaxed max-w-sm mt-0.5">{conn.desc}</p>
-                        </div>
-                      </div>
-                      <button className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700 transition-colors">Connect</button>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-12 h-12 rounded-2xl glass-liquid border-white/40 flex items-center justify-center text-emerald-600 shadow-sm">
-                    <ShieldCheck size={20} strokeWidth={2.5} />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-black text-slate-900 tracking-tight">Audit Logic Preferences</h2>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Automated verification & threshold controls</p>
-                  </div>
-                </div>
-
-                <div className="card-premium !p-8 space-y-8">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-black text-slate-900 tracking-tight">Auto-Trust Verified Libraries</h3>
-                      <p className="text-[10px] text-slate-400 font-medium leading-relaxed mt-0.5">Automatically classify OpenZeppelin / Solady calls as EXTERNAL liability.</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
-                      <div className="w-10 h-5 bg-slate-100 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-200 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-8 border-t border-black/[0.03]">
-                    <div>
-                      <h3 className="text-sm font-black text-slate-900 tracking-tight">Gate Merge on Critical</h3>
-                      <p className="text-[10px] text-slate-400 font-medium leading-relaxed mt-0.5">Fail CI/CD pipeline if security score falls below specified threshold.</p>
-                    </div>
-                    <div className="flex items-center gap-3 px-3 py-1.5 bg-slate-50 border border-black/[0.03] rounded-lg">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Score Limit:</span>
-                      <input type="number" defaultValue={80} className="w-10 bg-transparent border-none p-0 text-sm font-black text-indigo-600 focus:ring-0 text-center" />
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </motion.div>
-          )}
-
-          {activeTab === 'organization' && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-              <OrganizationProfile />
-            </motion.div>
-          )}
-
-          {activeTab === 'security' && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-10">
-              <div className="p-20 border-2 border-dashed border-black/[0.03] rounded-[40px] text-center">
-                <Key size={40} className="text-slate-200 mx-auto mb-6" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vault Access Restricted: Sync Required</p>
+        <div className="space-y-8">
+          <div className="bg-slate-900 border border-black shadow-2xl p-8 rounded-[32px] text-white relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-[0.03] -rotate-12 transition-transform duration-1000">
+              <Zap size={120} strokeWidth={1} />
+            </div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
+                <span className="text-[9px] text-indigo-400 font-black uppercase tracking-widest">Global Scan Status</span>
               </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'billing' && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-10 font-bold">
-              <div className="p-20 border-2 border-dashed border-black/[0.03] rounded-[40px] text-center">
-                <CreditCard size={40} className="text-slate-200 mx-auto mb-6" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Billing Cluster: Establishing Connectivity...</p>
+              <h3 className="text-2xl font-black tracking-tight mb-4 uppercase">Neural Engine V4</h3>
+              <p className="text-[10px] text-slate-400 font-black leading-relaxed uppercase tracking-widest mb-8">
+                Latency: 12ms // Capacity: Optimal // Nodes: Reporting
+              </p>
+              <div className="space-y-6">
+                {[
+                  { label: 'Compute Power', value: '98.2%' },
+                  { label: 'Neural Precision', value: '99.9%' }
+                ].map(stat => (
+                  <div key={stat.label}>
+                    <div className="flex justify-between text-[9px] uppercase tracking-widest text-slate-500 mb-2.5 font-black">
+                      <span>{stat.label}</span>
+                      <span className="text-white">{stat.value}</span>
+                    </div>
+                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo-600 rounded-full transition-colors shadow-[0_0_8px_rgba(99,102,241,0.4)]" style={{ width: stat.value }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-            </motion.div>
-          )}
+            </div>
+          </div>
+
+          <div className="card-premium flex items-center gap-5 group shadow-xl !p-6">
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100 shadow-inner group-hover:bg-white transition-colors duration-500">
+              <Check size={20} strokeWidth={3} />
+            </div>
+            <div>
+              <div className="text-[10px] font-black text-slate-900 uppercase tracking-widest leading-none mb-1">Auto-Save: Active</div>
+              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Sync Pulse: 2m ago</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
