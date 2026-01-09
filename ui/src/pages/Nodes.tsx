@@ -1,235 +1,225 @@
-import { useState, useEffect } from 'react'
-import { Terminal, Plus, ChevronRight, Search, Cpu, Globe, Activity } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { authFetch } from '../services/authService'
-
-type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit'
-type ProjectStatus = 'draft' | 'configured' | 'awaiting-preaudit' | 'auditing' | 'completed'
-
-interface Project {
-    id: string
-    name: string
-    slug: string
-    type: ProjectType
-    status: ProjectStatus
-    componentCount: number
-    lastAuditAt?: string
-    aggregatedScore?: {
-        value: number
-        grade: string
-    }
-}
-
-const TYPE_MAP: Record<ProjectType, string> = {
-    'full': 'Full Protocol',
-    'contract-only': 'Smart Contracts',
-    'dapp-pentest': 'dApp Frontend',
-    'library-audit': 'Components'
-}
-
-const STATUS_MAP: Record<ProjectStatus, { label: string; color: string }> = {
-    'draft': { label: 'Draft', color: 'text-slate-400 bg-slate-50 border-slate-200' },
-    'configured': { label: 'Active', color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
-    'awaiting-preaudit': { label: 'Awaiting', color: 'text-amber-600 bg-amber-50 border-amber-100' },
-    'auditing': { label: 'Scanning', color: 'text-indigo-600 bg-indigo-50 border-indigo-200 animate-pulse' },
-    'completed': { label: 'Operational', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' }
-}
-
-function getTimeAgo(date?: string): string {
-    if (!date) return 'Never'
-    const diff = Date.now() - new Date(date).getTime()
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    if (hours < 1) return 'Just now'
-    if (hours < 24) return `${hours}h ago`
-    const days = Math.floor(hours / 24)
-    return `${days}d ago`
-}
+import { Radar, Activity, Plus, ArrowUpRight, AlertTriangle, Search, BarChart3, ShieldAlert, Globe } from 'lucide-react'
 
 export default function Nodes() {
-    const [projects, setProjects] = useState<Project[]>([])
-    const [loading, setLoading] = useState(true)
-    const [searchQuery, setSearchQuery] = useState('')
-
-    useEffect(() => {
-        const fetchProjects = async () => {
-            try {
-                const response = await authFetch('/api/projects')
-                if (response.ok) {
-                    const data = await response.json()
-                    const transformedProjects = (data.projects || []).map((p: any) => ({
-                        id: p.id,
-                        name: p.name,
-                        slug: p.slug,
-                        type: p.type || 'full',
-                        status: p.status || 'draft',
-                        componentCount: p.componentCount || 0,
-                        lastAuditAt: p.lastAuditAt,
-                        aggregatedScore: p.aggregatedScore,
-                    }))
-                    setProjects(transformedProjects)
-                }
-            } catch (err) {
-                console.error('Failed to fetch projects:', err)
-            } finally {
-                setLoading(false)
-            }
+    const watcherNodes = [
+        {
+            id: 'WN-01',
+            name: 'PancakeSwap-V3-Mainnet',
+            status: 'Observing',
+            network: 'BNB Chain',
+            scanned: '1.2M',
+            alerts: 14,
+            interval: '500ms',
+            load: '12%'
+        },
+        {
+            id: 'WN-02',
+            name: 'PancakeSwap-V3-Base',
+            status: 'Observing',
+            network: 'Base',
+            scanned: '840K',
+            alerts: 3,
+            interval: '1s',
+            load: '8%'
+        },
+        {
+            id: 'WN-03',
+            name: 'PancakeSwap-V3-Eth',
+            status: 'Standby',
+            network: 'Ethereum',
+            scanned: '0',
+            alerts: 0,
+            interval: '500ms',
+            load: '0%'
         }
+    ]
 
-        fetchProjects()
-    }, [])
-
-    const filteredProjects = projects.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.slug.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    const flaggedActivities = [
+        {
+            id: 1,
+            event: 'Large LP Withdrawal',
+            context: 'PancakeSwap V3 (WBNB/CAKE)',
+            severity: 'High',
+            time: '2m ago',
+            details: '0x42...42 withdrawn $2.4M liquidity in single block.',
+            status: 'Flagged'
+        },
+        {
+            id: 2,
+            event: 'Abnormal Slippage Swap',
+            context: 'CAKE/USDT Path',
+            severity: 'Medium',
+            time: '15m ago',
+            details: '15% slippage experienced on router call #9821.',
+            status: 'Logged'
+        },
+        {
+            id: 3,
+            event: 'Frontend Hash Mismatch',
+            context: 'pancakeswap.finance (CDN)',
+            severity: 'Critical',
+            time: '45m ago',
+            details: 'Cloudfront edge node 0x82 reported index.js hash diff.',
+            status: 'Alert Sent'
+        },
+        {
+            id: 4,
+            event: 'Unverified Router Call',
+            context: 'Universal Router',
+            severity: 'Low',
+            time: '2h ago',
+            details: 'Interaction with unverified implementation at 0x93...21.',
+            status: 'Ignored'
+        }
+    ]
 
     return (
         <div className="space-y-10 animate-reveal">
+            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <div className="flex items-center gap-2 mb-3">
                         <div className="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[9px] font-black uppercase tracking-widest border border-indigo-100 flex items-center gap-2">
-                            <Terminal size={10} className="fill-indigo-600" />
-                            Protocol Registry
+                            <Radar size={10} className="animate-pulse" />
+                            Live Surveillance Mode
                         </div>
                     </div>
-                    <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">Deployed <span className="text-indigo-600">Nodes</span></h1>
+                    <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">Watcher <span className="text-indigo-600">Nodes</span></h1>
                     <p className="text-slate-400 font-medium text-[13px] mt-2 max-w-xl leading-relaxed">
-                        Manage your decentralized infrastructure nodes and monitor their real-time security integrity.
+                        Deploy decentralized watchers to monitor on-chain transactions, frontend integrity, and contract state changes in real-time.
                     </p>
                 </div>
-                <Link to="/create-project" className={`btn-primary h-12 px-8 ${projects.length === 0 ? 'hidden' : ''}`}>
+                <button className="btn-primary h-12 px-8">
                     <Plus size={16} />
-                    Deploy New Node
-                </Link>
+                    Deploy New Watcher
+                </button>
             </div>
 
-            {projects.length > 0 && (
-                <div className="relative group">
-                    <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by Node ID, Name or Component..."
-                        className="w-full h-14 pl-16 pr-8 bg-white border border-black/[0.03] rounded-2xl font-black text-[12px] uppercase tracking-widest focus:outline-none focus:border-indigo-600/20 transition-all placeholder:text-slate-300 shadow-xl shadow-slate-100/30"
-                    />
-                </div>
-            )}
-
-            {loading && (
-                <div className="grid grid-cols-1 gap-6">
-                    {[1, 2, 3].map(i => (
-                        <div key={i} className="h-40 bg-white animate-pulse rounded-[40px] border border-black/[0.03]" />
-                    ))}
-                </div>
-            )}
-
-            {!loading && projects.length === 0 && (
-                <div className="card-premium relative overflow-hidden flex flex-col items-center justify-center text-center py-24">
-                    <div className="absolute top-0 right-0 p-8 opacity-[0.02] -rotate-12">
-                        <Terminal size={300} strokeWidth={1} />
-                    </div>
-
-                    <div className="relative z-10 max-w-sm w-full flex flex-col items-center">
-                        <div className="w-20 h-20 bg-slate-50 text-indigo-600 rounded-[32px] flex items-center justify-center mb-8 border border-black/[0.03] shadow-inner">
-                            <Cpu size={32} strokeWidth={2.5} />
+            {/* Watcher Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {watcherNodes.map((node) => (
+                    <div key={node.id} className="card-premium group hover:border-indigo-600/20 transition-all relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity -rotate-12 group-hover:rotate-0 duration-1000">
+                            <Radar size={120} strokeWidth={1} />
                         </div>
-                        <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-4 uppercase">Registry Standby</h2>
-                        <p className="text-slate-400 font-medium leading-relaxed mb-10 text-[14px]">
-                            You haven't deployed any protocol nodes yet. Deploy your first unit to start monitoring.
-                        </p>
-                        <Link to="/create-project" className="btn-primary w-full h-12 shadow-2xl shadow-indigo-100">
-                            <Plus size={16} />
-                            Deploy Initial Node
-                        </Link>
+
+                        <div className="relative z-10">
+                            <div className="flex items-center justify-between mb-8">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shadow-inner transition-all duration-500 ${node.status === 'Observing'
+                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                        : 'bg-slate-50 text-slate-300 border-black/[0.03]'
+                                    }`}>
+                                    <Activity size={22} strokeWidth={2.5} />
+                                </div>
+                                <div className="flex flex-col items-end">
+                                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">{node.network}</span>
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${node.status === 'Observing' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                                        <span className={`text-[10px] font-black uppercase tracking-widest ${node.status === 'Observing' ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                            {node.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h3 className="text-base font-black text-slate-900 tracking-tight uppercase mb-6 truncate">{node.name}</h3>
+
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div className="p-4 bg-slate-50/50 rounded-2xl border border-black/[0.02]">
+                                    <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Scanned TXs</div>
+                                    <div className="text-xl font-black text-slate-900 tracking-tighter">{node.scanned}</div>
+                                </div>
+                                <div className="p-4 bg-slate-50/50 rounded-2xl border border-black/[0.02]">
+                                    <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Alerts Flagged</div>
+                                    <div className="text-xl font-black text-indigo-600 tracking-tighter">{node.alerts}</div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-4 border-t border-black/[0.03]">
+                                <div className="flex items-center gap-2">
+                                    <Search size={12} className="text-slate-300" />
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{node.interval} Interval</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <BarChart3 size={12} className="text-slate-300" />
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{node.load} Node Load</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Live Alerts Table */}
+            <section>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600 border border-rose-100">
+                            <ShieldAlert size={16} />
+                        </div>
+                        <h2 className="text-sm font-black text-slate-900 tracking-widest uppercase">Flagged Protocol Activities</h2>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                        <Globe size={12} />
+                        Global Monitoring Active
                     </div>
                 </div>
-            )}
 
-            {!loading && filteredProjects.length > 0 && (
-                <div className="grid grid-cols-1 gap-8">
-                    {filteredProjects.map((project, idx) => {
-                        const statusConfig = STATUS_MAP[project.status] || STATUS_MAP['draft']
-                        const typeLabel = TYPE_MAP[project.type] || 'Protocol Unit'
-                        const health = project.aggregatedScore?.value || 0
-
-                        return (
-                            <motion.div
-                                key={project.id}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: idx * 0.05 }}
-                            >
-                                <Link
-                                    to={`/project/${project.slug}`}
-                                    className="card-premium group !p-8 flex items-center justify-between !rounded-[40px]"
-                                >
-                                    <div className="flex items-center gap-10">
-                                        <div className="w-16 h-16 rounded-[24px] bg-slate-900 flex items-center justify-center text-white shadow-2xl group-hover:bg-indigo-600 transition-all duration-500">
-                                            <Cpu size={28} strokeWidth={2.5} />
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-4 mb-2">
-                                                <h3 className="text-2xl font-black text-slate-900 tracking-tight">{project.name}</h3>
-                                                <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-widest border border-indigo-100">
-                                                    {project.slug}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                                                <span className="flex items-center gap-2"><Globe size={14} className="text-slate-300" /> {typeLabel}</span>
-                                                <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
-                                                <span className="flex items-center gap-2"><Activity size={14} className="text-slate-300" /> {project.componentCount} Components</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-12">
-                                        {project.aggregatedScore ? (
-                                            <div className="text-right">
-                                                <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1.5">Capacity Score</div>
-                                                <div className="flex items-center justify-end gap-5">
-                                                    <div className="text-4xl font-black text-slate-900 tabular-nums tracking-tighter leading-none">{health}%</div>
-                                                    <div className="w-1.5 h-10 bg-slate-50 rounded-full overflow-hidden border border-black/[0.02]">
-                                                        <div
-                                                            className={`w-full transition-all duration-1000 ${health > 90 ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : health > 70 ? 'bg-amber-500' : 'bg-rose-500'}`}
-                                                            style={{ height: `${health}%`, marginTop: `${100 - health}%` }}
-                                                        />
-                                                    </div>
+                <div className="card-premium overflow-hidden !p-0">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50/50 border-b border-black/[0.03]">
+                                <tr>
+                                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Security Event</th>
+                                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Protocol Context</th>
+                                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Severity</th>
+                                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Observation Registry</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-black/[0.03]">
+                                {flaggedActivities.map((alert) => (
+                                    <tr key={alert.id} className="hover:bg-slate-50/50 transition-colors group">
+                                        <td className="px-8 py-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-xl bg-white border border-black/[0.03] flex items-center justify-center shadow-sm group-hover:shadow-md transition-all ${alert.severity === 'Critical' ? 'text-rose-600 border-rose-100' :
+                                                        alert.severity === 'High' ? 'text-amber-600 border-amber-100' : 'text-slate-300'
+                                                    }`}>
+                                                    <AlertTriangle size={18} strokeWidth={2.5} />
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-black text-slate-900 uppercase tracking-tight">{alert.event}</div>
+                                                    <div className="text-[11px] text-slate-400 font-medium mt-0.5">{alert.details}</div>
                                                 </div>
                                             </div>
-                                        ) : (
-                                            <div className="text-right">
-                                                <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1.5">Last Interaction</div>
-                                                <div className="text-sm font-bold text-slate-600">{getTimeAgo(project.lastAuditAt)}</div>
-                                            </div>
-                                        )}
-                                        <div className="flex flex-col items-end gap-2">
-                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusConfig.color}`}>
-                                                {statusConfig.label}
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            <div className="text-xs font-black text-slate-600 uppercase tracking-tighter mb-1">{alert.context}</div>
+                                            <div className="text-[10px] text-slate-400 font-medium">{alert.time}</div>
+                                        </td>
+                                        <td className="px-8 py-6 text-center">
+                                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${alert.severity === 'Critical' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                                                    alert.severity === 'High' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                                        alert.severity === 'Medium' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                                            'bg-slate-50 text-slate-400 border-black/[0.03]'
+                                                }`}>
+                                                {alert.severity}
                                             </span>
-                                            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-[0.2em]">PULSE_GEN_2H_AGO</span>
-                                        </div>
-                                        <div className="w-14 h-14 rounded-[20px] bg-slate-50 border border-black/[0.03] flex items-center justify-center text-slate-300 group-hover:bg-indigo-600 group-hover:text-white group-hover:shadow-2xl transition-all duration-500">
-                                            <ChevronRight size={24} strokeWidth={3} />
-                                        </div>
-                                    </div>
-                                </Link>
-                            </motion.div>
-                        )
-                    })}
+                                        </td>
+                                        <td className="px-8 py-6 text-right">
+                                            <div className="flex items-center justify-end gap-3">
+                                                <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{alert.status}</span>
+                                                <button className="w-9 h-9 rounded-xl bg-slate-50 border border-black/[0.03] flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-white hover:shadow-xl transition-all">
+                                                    <ArrowUpRight size={16} strokeWidth={2.5} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            )}
-
-            {!loading && projects.length > 0 && filteredProjects.length === 0 && (
-                <div className="text-center py-24 card-premium">
-                    <p className="text-[13px] font-black text-slate-400 uppercase tracking-widest">No nodes match "{searchQuery}"</p>
-                </div>
-            )}
+            </section>
         </div>
     )
 }
-
-
-

@@ -15,6 +15,7 @@ import {
   handleScanRoutes,
   handleProjectRoutes,
   handlePreAuditRoutes,
+  handleBillingRoutes,
   getSessionId,
   loadUserId,
 } from "./routes/index.js";
@@ -138,6 +139,9 @@ async function handleRequest(req: any, res: any) {
     const sessionId = getSessionId(req);
     const userId = sessionId ? await loadUserId(sessionId) : undefined;
     if (await handleProjectRoutes(req, res, { userId: userId || undefined, sessionId: sessionId || undefined })) return;
+
+    // Billing routes (with user context)
+    if (await handleBillingRoutes(req, res, { userId: userId || undefined, sessionId: sessionId || undefined })) return;
 
     // Pre-audit questionnaire routes
     if (await handlePreAuditRoutes(req, res, parsed)) return;

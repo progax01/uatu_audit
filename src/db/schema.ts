@@ -84,6 +84,20 @@ export const walletTypeEnum = pgEnum('wallet_type', [
   'aptos',
 ]);
 
+export const purchaseStatusEnum = pgEnum('purchase_status', [
+  'pending',
+  'confirming',
+  'completed',
+  'failed',
+  'refunded',
+]);
+
+export const purchaseTierEnum = pgEnum('purchase_tier', [
+  'starter',
+  'pro',
+  'enterprise',
+]);
+
 // ============================================================================
 // USERS TABLE
 // ============================================================================
@@ -110,12 +124,20 @@ export const users = pgTable(
     website: varchar('website', { length: 500 }),
     twitterHandle: varchar('twitter_handle', { length: 100 }),
     avatarUrl: text('avatar_url'), // Custom avatar (overrides github avatar)
-    // XP and tier
+    // XP/Neurons and tier
     xpBalance: bigint('xp_balance', { mode: 'number' }).notNull().default(0),
     xpLifetime: bigint('xp_lifetime', { mode: 'number' }).notNull().default(0),
     tier: userTierEnum('tier').notNull().default('free'),
     monthlyAuditsUsed: smallint('monthly_audits_used').notNull().default(0),
     monthlyAuditsResetAt: timestamp('monthly_audits_reset_at', { withTimezone: true }),
+    // SLOC capacity (global pool across all projects)
+    slocBalance: bigint('sloc_balance', { mode: 'number' }).notNull().default(200), // Free tier starts with 200
+    slocUsed: bigint('sloc_used', { mode: 'number' }).notNull().default(0),
+    // AI report generation quota
+    aiCallsBalance: smallint('ai_calls_balance').notNull().default(3), // Free tier starts with 3
+    aiCallsUsed: smallint('ai_calls_used').notNull().default(0),
+    // Monthly reset for free tier quotas
+    monthlyQuotaResetAt: timestamp('monthly_quota_reset_at', { withTimezone: true }),
     // Settings and timestamps
     settings: jsonb('settings').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -452,6 +474,43 @@ export const xpTransactions = pgTable(
 );
 
 // ============================================================================
+// NEURON PURCHASES TABLE (USDT Wallet Payments)
+// ============================================================================
+
+export const neuronPurchases = pgTable(
+  'neuron_purchases',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    // Transaction details
+    txHash: varchar('tx_hash', { length: 100 }).unique().notNull(),
+    chainId: smallint('chain_id').notNull(), // 1=Ethereum, 137=Polygon, 42161=Arbitrum
+    fromAddress: varchar('from_address', { length: 128 }).notNull(),
+    // Payment details
+    tier: purchaseTierEnum('tier').notNull(),
+    amountUsdt: bigint('amount_usdt', { mode: 'number' }).notNull(), // In cents (e.g., 2900 = $29.00)
+    // Credits awarded
+    neuronsAwarded: bigint('neurons_awarded', { mode: 'number' }).notNull(),
+    slocAwarded: bigint('sloc_awarded', { mode: 'number' }).notNull(),
+    aiCallsAwarded: smallint('ai_calls_awarded').notNull(),
+    // Status tracking
+    status: purchaseStatusEnum('status').notNull().default('pending'),
+    errorMessage: text('error_message'),
+    // Timestamps
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  },
+  (table) => ({
+    userIdIdx: index('neuron_purchases_user_id_idx').on(table.userId),
+    txHashIdx: uniqueIndex('neuron_purchases_tx_hash_idx').on(table.txHash),
+    statusIdx: index('neuron_purchases_status_idx').on(table.status),
+    createdAtIdx: index('neuron_purchases_created_at_idx').on(table.createdAt),
+  })
+);
+
+// ============================================================================
 // XP RULES TABLE
 // ============================================================================
 
@@ -555,7 +614,15 @@ export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
   auditJobs: many(auditJobs),
   xpTransactions: many(xpTransactions),
+  neuronPurchases: many(neuronPurchases),
   organizationMemberships: many(organizationMembers),
+}));
+
+export const neuronPurchasesRelations = relations(neuronPurchases, ({ one }) => ({
+  user: one(users, {
+    fields: [neuronPurchases.userId],
+    references: [users.id],
+  }),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -702,6 +769,11 @@ export type NewXpRule = typeof xpRules.$inferInsert;
 export type TierThreshold = typeof tierThresholds.$inferSelect;
 export type NewTierThreshold = typeof tierThresholds.$inferInsert;
 
+export type NeuronPurchase = typeof neuronPurchases.$inferSelect;
+export type NewNeuronPurchase = typeof neuronPurchases.$inferInsert;
+
 // Enum types
 export type WalletType = (typeof walletTypeEnum.enumValues)[number];
 export type UserTier = (typeof userTierEnum.enumValues)[number];
+export type PurchaseStatus = (typeof purchaseStatusEnum.enumValues)[number];
+export type PurchaseTier = (typeof purchaseTierEnum.enumValues)[number];

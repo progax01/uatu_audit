@@ -1,9 +1,9 @@
 import { ReactNode, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-    Terminal, Settings,
+    FolderGit2, Settings,
     LogOut, Users,
-    Bell, ChevronRight, Hash, Cpu, CircleDollarSign
+    Bell, ChevronRight, Shield, Zap, FileSearch
 } from 'lucide-react'
 import logo from '../assets/logo.svg'
 import { Link, useLocation } from 'react-router-dom'
@@ -52,17 +52,32 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
     }, [location])
 
     const navItems = [
-        { id: 'overview', label: 'Command Center', icon: Terminal, path: '/dashboard' },
-        { id: 'nodes', label: 'Protocol Nodes', icon: Cpu, path: '/nodes' },
-        { id: 'management', label: 'Organization', icon: Users, path: '/management' },
-        { id: 'credentials', label: 'Security Keys', icon: Hash, path: '/credentials' },
-        { id: 'billing', label: 'Subscription', icon: CircleDollarSign, path: '/subscription' },
-        { id: 'settings', label: 'System Settings', icon: Settings, path: '/settings' },
+        { id: 'overview', label: 'Projects', icon: FolderGit2, path: '/dashboard' },
+        { id: 'nodes', label: 'Audit Reports', icon: FileSearch, path: '/nodes' },
+        { id: 'management', label: 'Team', icon: Users, path: '/management' },
+        { id: 'credentials', label: 'Security', icon: Shield, path: '/credentials' },
+        { id: 'billing', label: 'Usage & Billing', icon: Zap, path: '/subscription' },
+        { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
     ]
 
+    // Get readable page name
+    const getPageLabel = (path: string): string => {
+        const segment = path.split('/')[1]
+        const labels: Record<string, string> = {
+            dashboard: 'Projects',
+            nodes: 'Audit Reports',
+            management: 'Team',
+            credentials: 'Security',
+            subscription: 'Usage & Billing',
+            settings: 'Settings',
+            project: 'Project Details',
+        }
+        return labels[segment] || segment.charAt(0).toUpperCase() + segment.slice(1)
+    }
+
     const breadcrumbs = [
-        { label: 'Uatu OS', path: '/dashboard' },
-        ...(location.pathname !== '/dashboard' ? [{ label: location.pathname.split('/')[1].charAt(0).toUpperCase() + location.pathname.split('/')[1].slice(1), path: location.pathname }] : [])
+        { label: 'Home', path: '/dashboard' },
+        ...(location.pathname !== '/dashboard' ? [{ label: getPageLabel(location.pathname), path: location.pathname }] : [])
     ]
 
     const handleLogout = async () => {
@@ -109,7 +124,7 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                 <div className="p-8 border-t border-black/[0.02]">
                     <button onClick={handleLogout} className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-all group">
                         <LogOut size={18} strokeWidth={2} />
-                        <span className="text-[11px] font-black uppercase tracking-widest">Terminate Session</span>
+                        <span className="text-[11px] font-black uppercase tracking-widest">Sign Out</span>
                     </button>
                 </div>
             </aside>
@@ -127,23 +142,14 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                         ))}
                     </div>
 
-                    <div className="flex items-center gap-8">
-                        <div className="flex items-center gap-4 px-5 h-10 bg-slate-50 border border-black/[0.02] rounded-full">
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Network Live</span>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <button className="p-3 hover:bg-slate-50 rounded-2xl transition-all relative">
-                                <Bell size={18} className="text-slate-400" />
-                                <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white" />
-                            </button>
-                            <Link to="/settings" className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white text-[11px] font-black border border-white/10 hover:bg-indigo-600 transition-colors shadow-lg shadow-slate-200">
-                                {getUserInitials(user)}
-                            </Link>
-                        </div>
+                    <div className="flex items-center gap-4">
+                        <button className="p-3 hover:bg-slate-50 rounded-2xl transition-all relative">
+                            <Bell size={18} className="text-slate-400" />
+                            <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white" />
+                        </button>
+                        <Link to="/credentials" className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white text-[11px] font-black border border-white/10 hover:bg-indigo-600 transition-colors shadow-lg shadow-slate-200">
+                            {getUserInitials(user)}
+                        </Link>
                     </div>
                 </header>
 
