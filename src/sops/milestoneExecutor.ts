@@ -259,11 +259,12 @@ export class MilestoneExecutor {
 
       // Execute via Claude CLI with timeout
       const startTime = Date.now();
-      log.info(`\n⏳ Executing Claude CLI...`);
+      log.info(`\n⏳ Executing Claude CLI with Opus 4.5...`);
       const output = await executeClaude(fullPrompt, {
         timeout: config.timeout,
         jobId: parseInt(this.context.jobId) || undefined,
-        cwd: this.context.projectPath
+        cwd: this.context.projectPath,
+        model: 'claude-opus-4-5-20251101'
       });
       const executionTime = Date.now() - startTime;
 

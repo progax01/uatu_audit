@@ -55,6 +55,7 @@ export const jobStatusEnum = pgEnum('job_status', [
   'queued',
   'cloning',
   'analyzing',
+  'awaiting_clarification',
   'auditing',
   'generating',
   'completed',
@@ -445,6 +446,56 @@ export const preauditAnswers = pgTable(
 );
 
 // ============================================================================
+// CLARIFICATION PHASE ENUM (for two-stage clarifications)
+// ============================================================================
+
+export const clarificationPhaseEnum = pgEnum('clarification_phase', [
+  'pre_audit',   // Before scoring - context gathering
+  'post_audit',  // After scoring - dispute/challenge
+]);
+
+export const clarificationStatusEnum = pgEnum('clarification_status', [
+  'pending',
+  'answered',
+  'skipped',
+  'resolved',
+]);
+
+// ============================================================================
+// AUDIT CLARIFICATIONS TABLE (unified pre/post audit questions)
+// ============================================================================
+
+export const auditClarifications = pgTable(
+  'audit_clarifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+    phase: clarificationPhaseEnum('phase').notNull(),
+    questionKey: varchar('question_key', { length: 100 }).notNull(),
+    questionText: text('question_text').notNull(),
+    questionType: varchar('question_type', { length: 50 }).notNull(), // 'text', 'select', 'confirm'
+    options: jsonb('options'), // For select/multiselect types
+    context: jsonb('context'), // { file, line, findingId, snippet, category }
+    status: clarificationStatusEnum('status').notNull().default('pending'),
+    answerValue: jsonb('answer_value'),
+    // Score impact tracking (for post-audit disputes)
+    scoreImpact: jsonb('score_impact'), // { before, after, section }
+    answeredAt: timestamp('answered_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    jobIdIdx: index('audit_clarifications_job_id_idx').on(table.jobId),
+    phaseIdx: index('audit_clarifications_phase_idx').on(table.phase),
+    statusIdx: index('audit_clarifications_status_idx').on(table.status),
+    jobPhaseIdx: index('audit_clarifications_job_phase_idx').on(table.jobId, table.phase),
+  })
+);
+
+
+// ============================================================================
 // XP TRANSACTIONS TABLE
 // ============================================================================
 
@@ -686,6 +737,14 @@ export const auditJobsRelations = relations(auditJobs, ({ one, many }) => ({
   reports: many(auditReports),
   questionnaire: one(preauditQuestionnaires),
   publicShowcase: one(publicAuditShowcase),
+  clarifications: many(auditClarifications),
+}));
+
+export const auditClarificationsRelations = relations(auditClarifications, ({ one }) => ({
+  job: one(auditJobs, {
+    fields: [auditClarifications.jobId],
+    references: [auditJobs.id],
+  }),
 }));
 
 export const auditResultsRelations = relations(auditResults, ({ one }) => ({
@@ -777,3 +836,10 @@ export type WalletType = (typeof walletTypeEnum.enumValues)[number];
 export type UserTier = (typeof userTierEnum.enumValues)[number];
 export type PurchaseStatus = (typeof purchaseStatusEnum.enumValues)[number];
 export type PurchaseTier = (typeof purchaseTierEnum.enumValues)[number];
+export type ClarificationPhase = (typeof clarificationPhaseEnum.enumValues)[number];
+export type ClarificationStatus = (typeof clarificationStatusEnum.enumValues)[number];
+
+// Table types
+export type AuditClarification = typeof auditClarifications.$inferSelect;
+export type NewAuditClarification = typeof auditClarifications.$inferInsert;
+

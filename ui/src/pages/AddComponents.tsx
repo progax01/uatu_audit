@@ -47,13 +47,13 @@ const COMPONENT_TYPES = [
 ]
 
 const NETWORKS = [
-  { id: 'ethereum', name: 'Ethereum', chainId: 1 },
-  { id: 'arbitrum', name: 'Arbitrum One', chainId: 42161 },
-  { id: 'polygon', name: 'Polygon', chainId: 137 },
-  { id: 'base', name: 'Base', chainId: 8453 },
-  { id: 'optimism', name: 'Optimism', chainId: 10 },
-  { id: 'bsc', name: 'BNB Chain', chainId: 56 },
-  { id: 'avalanche', name: 'Avalanche', chainId: 43114 },
+  { id: 'ethereum', name: 'Ethereum', chainId: 1, explorer: 'https://etherscan.io' },
+  { id: 'arbitrum', name: 'Arbitrum One', chainId: 42161, explorer: 'https://arbiscan.io' },
+  { id: 'polygon', name: 'Polygon', chainId: 137, explorer: 'https://polygonscan.com' },
+  { id: 'base', name: 'Base', chainId: 8453, explorer: 'https://basescan.org' },
+  { id: 'optimism', name: 'Optimism', chainId: 10, explorer: 'https://optimistic.etherscan.io' },
+  { id: 'bsc', name: 'BNB Chain', chainId: 56, explorer: 'https://bscscan.com' },
+  { id: 'avalanche', name: 'Avalanche', chainId: 43114, explorer: 'https://snowtrace.io' },
 ]
 
 export default function AddComponents({
@@ -216,7 +216,7 @@ export default function AddComponents({
             isVerified: false,
             isProxy: false,
             sourceCached: false,
-            explorerUrl: `https://etherscan.io/address/${contractAddress}`
+            explorerUrl: `${network?.explorer || 'https://etherscan.io'}/address/${contractAddress}`
           }
         })
       })

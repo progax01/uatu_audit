@@ -1,27 +1,60 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { ArrowLeft, ArrowRight, Loader2, CheckCircle, XCircle, ExternalLink, FileCode, AlertTriangle, Sparkles, Shield } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowLeft, ArrowRight, Loader2, CheckCircle, XCircle, FileCode, AlertTriangle, Shield, Clock, Zap } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 import type { ProjectData } from '../App'
+
+interface QuickScanResult {
+  success: boolean
+  score: number
+  grade: string
+  riskLevel: string
+  vulnerabilities: Array<{
+    id: string
+    severity: string
+    title: string
+    description: string
+    location?: string
+    recommendation: string
+  }>
+  summary: string
+  scanDuration: number
+  contractAnalysis?: {
+    purpose: string
+    architecture: string
+    dependencies: string[]
+    accessControl: string
+    stateVariables: number
+    functions: number
+    externalCalls: number
+    sloc: number
+  }
+  contractName?: string
+  address?: string
+  network?: string
+  timestamp?: string
+  cached?: boolean
+}
 
 interface ScanContractProps {
   onBack: () => void
   onStartAudit: (data: { project: string; branch: string; jobId: number }) => void
+  onQuickScanComplete?: (result: QuickScanResult) => void
   projectData: ProjectData
   setProjectData: React.Dispatch<React.SetStateAction<ProjectData>>
 }
 
 type ScanMode = 'quick' | 'full'
-type Network = 'arbitrum' | 'ethereum' | 'polygon' | 'base' | 'bnb' | 'optimism'
+type Network = 'ethereum' | 'arbitrum' | 'polygon' | 'base' | 'bnb' | 'optimism'
 type ValidationStatus = 'idle' | 'validating' | 'valid' | 'invalid' | 'error'
 
-const networks: { id: Network; name: string; shortName: string; color: string }[] = [
-  { id: 'arbitrum', name: 'Arbitrum', shortName: 'ARB', color: '#28A0F0' },
-  { id: 'ethereum', name: 'Ethereum', shortName: 'ETH', color: '#627EEA' },
-  { id: 'polygon', name: 'Polygon', shortName: 'POLY', color: '#8247E5' },
-  { id: 'base', name: 'Base', shortName: 'BASE', color: '#0052FF' },
-  { id: 'bnb', name: 'BNB Chain', shortName: 'BNB', color: '#F3BA2F' },
-  { id: 'optimism', name: 'Optimism', shortName: 'OP', color: '#FF0420' },
+const networks: { id: Network; name: string; color: string }[] = [
+  { id: 'ethereum', name: 'Ethereum', color: '#627EEA' },
+  { id: 'arbitrum', name: 'Arbitrum', color: '#28A0F0' },
+  { id: 'polygon', name: 'Polygon', color: '#8247E5' },
+  { id: 'base', name: 'Base', color: '#0052FF' },
+  { id: 'bnb', name: 'BNB Chain', color: '#F3BA2F' },
+  { id: 'optimism', name: 'Optimism', color: '#FF0420' },
 ]
 
 interface ContractInfo {
@@ -29,31 +62,26 @@ interface ContractInfo {
   isVerified: boolean
   contractName?: string
   compiler?: string
-  explorerUrl?: string
   isProxy?: boolean
   implementationAddress?: string
-  implementationName?: string
 }
 
 interface FetchedSource {
   contractName: string
-  compiler: string
-  files: string[]
   fileCount: number
   isProxy: boolean
-  implementationAddress?: string
-  cached: boolean
 }
 
-export default function ScanContract({ onBack, onStartAudit, projectData: _projectData, setProjectData: _setProjectData }: ScanContractProps) {
+export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete }: ScanContractProps) {
   const [scanMode, setScanMode] = useState<ScanMode>('quick')
-  const [selectedNetwork, setSelectedNetwork] = useState<Network>('arbitrum')
+  const [selectedNetwork, setSelectedNetwork] = useState<Network>('ethereum')
   const [contractAddress, setContractAddress] = useState('')
   const [validationStatus, setValidationStatus] = useState<ValidationStatus>('idle')
   const [contractInfo, setContractInfo] = useState<ContractInfo | null>(null)
   const [fetchedSource, setFetchedSource] = useState<FetchedSource | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
+  const [quickScanResult, setQuickScanResult] = useState<QuickScanResult | null>(null)
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -61,9 +89,7 @@ export default function ScanContract({ onBack, onStartAudit, projectData: _proje
   const isValidAddressFormat = (address: string) => /^0x[a-fA-F0-9]{40}$/.test(address)
 
   const validateAndFetch = useCallback(async (address: string, network: Network) => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
+    if (abortControllerRef.current) abortControllerRef.current.abort()
     abortControllerRef.current = new AbortController()
 
     setValidationStatus('validating')
@@ -87,13 +113,13 @@ export default function ScanContract({ onBack, onStartAudit, projectData: _proje
       }
 
       if (!data.isContract) {
-        setError('Address is not a contract (EOA)')
+        setError('Address is not a contract')
         setValidationStatus('invalid')
         return
       }
 
       if (!data.isVerified) {
-        setError('Contract source code not verified on explorer')
+        setError('Contract not verified on explorer')
         setValidationStatus('invalid')
         setContractInfo(data)
         return
@@ -104,27 +130,19 @@ export default function ScanContract({ onBack, onStartAudit, projectData: _proje
         isVerified: data.isVerified,
         contractName: data.contractName,
         compiler: data.compiler,
-        explorerUrl: data.explorerUrl,
         isProxy: data.isProxy,
         implementationAddress: data.implementationAddress,
-        implementationName: data.implementationName,
       })
 
       setFetchedSource({
         contractName: data.contractName,
-        compiler: data.compiler,
-        files: data.files || [],
         fileCount: data.fileCount || 0,
         isProxy: data.isProxy || false,
-        implementationAddress: data.implementationAddress,
-        cached: data.cached || false,
       })
 
       setValidationStatus('valid')
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        return
-      }
+      if (err.name === 'AbortError') return
       setError('Failed to validate contract')
       setValidationStatus('error')
     }
@@ -132,9 +150,7 @@ export default function ScanContract({ onBack, onStartAudit, projectData: _proje
 
   const handleAddressChange = (address: string) => {
     setContractAddress(address)
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current)
-    }
+    if (debounceRef.current) clearTimeout(debounceRef.current)
     if (!address) {
       setValidationStatus('idle')
       setContractInfo(null)
@@ -146,9 +162,7 @@ export default function ScanContract({ onBack, onStartAudit, projectData: _proje
       setError(null)
       return
     }
-    debounceRef.current = setTimeout(() => {
-      validateAndFetch(address, selectedNetwork)
-    }, 500)
+    debounceRef.current = setTimeout(() => validateAndFetch(address, selectedNetwork), 500)
   }
 
   const handleNetworkChange = (network: Network) => {
@@ -158,54 +172,54 @@ export default function ScanContract({ onBack, onStartAudit, projectData: _proje
     setFetchedSource(null)
     setError(null)
     if (contractAddress && isValidAddressFormat(contractAddress)) {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
-      }
+      if (debounceRef.current) clearTimeout(debounceRef.current)
       validateAndFetch(contractAddress, network)
     }
   }
 
   useEffect(() => {
     return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
-      }
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      if (abortControllerRef.current) abortControllerRef.current.abort()
     }
   }, [])
 
   const handleStartScan = async () => {
-    if (!contractAddress || validationStatus !== 'valid') {
-      return
-    }
+    if (!contractAddress || validationStatus !== 'valid') return
 
     setIsStarting(true)
     setError(null)
+    setQuickScanResult(null)
 
     try {
       const response = await fetch('/scan/enqueue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          address: contractAddress,
-          network: selectedNetwork,
-          scanMode,
-        }),
+        body: JSON.stringify({ address: contractAddress, network: selectedNetwork, scanMode }),
       })
 
       const data = await response.json()
+      if (!response.ok) throw new Error(data.error || data.message || 'Failed to start scan')
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to start scan')
+      // For quick scans, result is returned directly
+      if (scanMode === 'quick' && data.quickScanResult) {
+        const result = {
+          ...data.quickScanResult,
+          contractName: contractInfo?.contractName,
+          address: contractAddress,
+          network: selectedNetwork,
+          cached: data.cached,
+        }
+        setQuickScanResult(result)
+        setIsStarting(false)
+        if (onQuickScanComplete) {
+          onQuickScanComplete(result)
+        }
+        return
       }
 
-      onStartAudit({
-        project: data.projectName,
-        branch: 'main',
-        jobId: data.job.id,
-      })
+      // For full audits, navigate to job polling page
+      onStartAudit({ project: data.projectName, branch: 'main', jobId: data.job.id })
     } catch (err: any) {
       setError(err.message || 'Failed to start scan')
       setIsStarting(false)
@@ -213,215 +227,275 @@ export default function ScanContract({ onBack, onStartAudit, projectData: _proje
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      {/* Step Indicator */}
-      <nav className="flex items-center gap-3 mb-10">
-        <button
-          onClick={onBack}
-          className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
-          <span className="text-indigo-600">Contract Analysis</span>
-        </div>
-      </nav>
+    <div className="max-w-2xl mx-auto animate-reveal">
+      {/* Back button */}
+      <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors mb-8">
+        <ArrowLeft size={16} />
+        <span className="text-xs font-bold">Back</span>
+      </button>
 
-      <main className="flex-1 overflow-y-auto px-10 py-16 z-10">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+      {/* Title */}
+      <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-8">
+        Scan <span className="text-indigo-600">Contract</span>
+      </h1>
 
-          {/* Left Column: Form */}
-          <div className="lg:col-span-7 space-y-12">
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-4 block">Automated Verification</span>
-              <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight mb-6">
-                Direct Contract <span className="text-slate-400">Analysis.</span>
-              </h1>
-              <p className="text-base text-slate-500 font-medium leading-relaxed">
-                Connect your deployed contract directly via blockchain explorer integration.
-                Our AI Super-Audit engine performs deep reasoning on verified source code.
-              </p>
-            </motion.div>
-
-            <div className="card-premium !p-8 space-y-10 border-black/[0.04] bg-white/50 backdrop-blur-xl">
-              {/* Scan Mode */}
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Analysis Mode</label>
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { id: 'quick', label: 'Quick Scan', desc: 'Focus on surface vulnerabilities' },
-                    { id: 'full', label: 'Full Audit', desc: 'Deep economic logic checks' }
-                  ].map(mode => (
-                    <button
-                      key={mode.id}
-                      onClick={() => setScanMode(mode.id as ScanMode)}
-                      className={`text-left p-4 rounded-xl border transition-all ${scanMode === mode.id
-                        ? 'bg-indigo-50 border-indigo-200 shadow-sm'
-                        : 'border-black/[0.05] hover:bg-slate-50'
-                        }`}
-                    >
-                      <div className={`font-black text-xs uppercase tracking-wide ${scanMode === mode.id ? 'text-indigo-700' : 'text-slate-900'}`}>
-                        {mode.label}
-                      </div>
-                      <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                        {mode.desc}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Network Grid */}
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Deployment Ecosystem</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {networks.map(network => (
-                    <button
-                      key={network.id}
-                      onClick={() => handleNetworkChange(network.id)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${selectedNetwork === network.id
-                        ? 'bg-white border-indigo-600 shadow-md scale-[1.02]'
-                        : 'border-black/[0.05] bg-slate-50/50 hover:bg-white'
-                        }`}
-                    >
-                      <div className="w-6 h-6 rounded-md flex items-center justify-center text-[8px] font-black text-white shadow-sm" style={{ backgroundColor: network.color }}>
-                        {network.shortName}
-                      </div>
-                      <span className={`text-[10px] font-black uppercase tracking-wider ${selectedNetwork === network.id ? 'text-slate-900' : 'text-slate-400'}`}>
-                        {network.name}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Address Input */}
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Contract Address</label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-400 transition-colors">
-                    <Shield size={18} strokeWidth={2.5} />
-                  </div>
-                  <input
-                    type="text"
-                    value={contractAddress}
-                    onChange={(e) => handleAddressChange(e.target.value)}
-                    placeholder="0x..."
-                    className={`w-full bg-slate-50 border rounded-xl py-4 pl-12 pr-12 text-sm font-mono tracking-wider focus:outline-none transition-all ${validationStatus === 'valid' ? 'border-emerald-200 bg-emerald-50/20' :
-                      validationStatus === 'invalid' ? 'border-rose-200 bg-rose-50/20' :
-                        'border-black/[0.05] focus:bg-white focus:border-indigo-500 focus:shadow-lg focus:shadow-indigo-500/5'
-                      }`}
-                  />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    {validationStatus === 'validating' && <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />}
-                    {validationStatus === 'valid' && <CheckCircle className="w-5 h-5 text-emerald-500 transition-all scale-110" />}
-                    {validationStatus === 'invalid' && <XCircle className="w-5 h-5 text-rose-500 transition-all scale-110" />}
-                  </div>
-                </div>
-                {error && <p className="text-[10px] text-rose-500 font-bold uppercase tracking-widest">{error}</p>}
-              </div>
-
-              {/* Action */}
+      {/* Form */}
+      <div className="space-y-6">
+        {/* Network Selection */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 mb-3">Network</label>
+          <div className="flex flex-wrap gap-2">
+            {networks.map(network => (
               <button
-                onClick={handleStartScan}
-                disabled={validationStatus !== 'valid' || isStarting}
-                className="w-full btn-primary !py-5 shadow-2xl shadow-indigo-500/20"
+                key={network.id}
+                onClick={() => handleNetworkChange(network.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all ${
+                  selectedNetwork === network.id
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
               >
-                {isStarting ? (
-                  <>
-                    <Loader2 size={18} strokeWidth={3} className="animate-spin" />
-                    Synchronizing...
-                  </>
-                ) : (
-                  <>
-                    Initiate Security Sweep
-                    <ArrowRight size={18} strokeWidth={3} />
-                  </>
-                )}
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: network.color }} />
+                {network.name}
               </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Contract Address */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 mb-3">Contract Address</label>
+          <div className="relative">
+            <input
+              type="text"
+              value={contractAddress}
+              onChange={(e) => handleAddressChange(e.target.value)}
+              placeholder="0x..."
+              className={`w-full h-12 px-4 pr-12 rounded-xl border text-sm font-mono transition-all focus:outline-none ${
+                validationStatus === 'valid'
+                  ? 'border-emerald-300 bg-emerald-50'
+                  : validationStatus === 'invalid' || validationStatus === 'error'
+                  ? 'border-rose-300 bg-rose-50'
+                  : 'border-slate-200 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50'
+              }`}
+            />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2">
+              {validationStatus === 'validating' && <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />}
+              {validationStatus === 'valid' && <CheckCircle className="w-5 h-5 text-emerald-500" />}
+              {(validationStatus === 'invalid' || validationStatus === 'error') && <XCircle className="w-5 h-5 text-rose-500" />}
             </div>
           </div>
+          {error && <p className="text-xs text-rose-500 mt-2">{error}</p>}
+        </div>
 
-          {/* Right Column: Dynamic Feedback */}
-          <div className="lg:col-span-5 pt-10">
-            <AnimatePresence mode="wait">
-              {contractInfo && validationStatus === 'valid' && fetchedSource ? (
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-8"
-                >
-                  <div className="card-premium !p-0 overflow-hidden border-emerald-100 bg-emerald-50/10">
-                    <div className="p-6 border-b border-black/[0.03] bg-white/50 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-                          <FileCode size={20} strokeWidth={2.5} />
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-black text-slate-900 tracking-tight">{contractInfo.contractName}</h3>
-                          <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest">Verified Source Sync</p>
-                        </div>
-                      </div>
-                      {contractInfo.explorerUrl && (
-                        <a href={contractInfo.explorerUrl} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-emerald-100 rounded-lg transition-all text-emerald-600">
-                          <ExternalLink size={16} strokeWidth={2.5} />
-                        </a>
-                      )}
-                    </div>
-                    <div className="p-8 space-y-6">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compiler Version</span>
-                        <span className="text-[10px] font-mono text-slate-900 font-bold">{contractInfo.compiler}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Source Count</span>
-                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{fetchedSource.fileCount} Assets</span>
-                      </div>
-                      {contractInfo.isProxy && (
-                        <div className="p-4 rounded-xl bg-amber-50 border border-amber-100/50 flex items-start gap-4">
-                          <div className="mt-0.5"><AlertTriangle size={14} className="text-amber-500" strokeWidth={3} /></div>
-                          <div>
-                            <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Proxy Implementation</p>
-                            <p className="text-[9px] text-amber-600/70 font-bold uppercase tracking-widest leading-relaxed mt-1">
-                              Analysis will follow implementation at {contractInfo.implementationAddress?.slice(0, 10)}...
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+        {/* Contract Info (when valid) */}
+        {validationStatus === 'valid' && contractInfo && fetchedSource && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <FileCode size={18} className="text-emerald-600" />
+              <span className="font-bold text-emerald-900">{contractInfo.contractName}</span>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-emerald-700">
+              <span>{contractInfo.compiler}</span>
+              <span>{fetchedSource.fileCount} files</span>
+            </div>
+            {contractInfo.isProxy && (
+              <div className="flex items-center gap-2 mt-3 text-xs text-amber-600">
+                <AlertTriangle size={14} />
+                <span>Proxy contract - will analyze implementation</span>
+              </div>
+            )}
+          </motion.div>
+        )}
 
-                  {/* Trust Badge */}
-                  <div className="card-premium !p-6 flex items-center gap-6 bg-white/40">
-                    <div className="w-12 h-12 rounded-2xl glass-liquid border-white/40 flex items-center justify-center text-indigo-500">
-                      <Sparkles size={24} strokeWidth={2} />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-slate-900 tracking-tight uppercase tracking-wider">High Fidelity Mode</h4>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Full context window enabled for {contractInfo.contractName}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex flex-col items-center justify-center text-center p-20 border-2 border-dashed border-black/[0.03] rounded-[40px]"
-                >
-                  <div className="w-20 h-20 rounded-[32px] bg-white shadow-premium flex items-center justify-center mb-8 border border-black/[0.02]">
-                    <Shield size={32} className="text-indigo-100" strokeWidth={1} />
-                  </div>
-                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-3 opacity-60">Ready for Sweep</h3>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] leading-relaxed max-w-[200px]">
-                    Input a verified contract address to begin the AI analysis sequence.
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+        {/* Scan Mode */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 mb-3">Scan Mode</label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setScanMode('quick')}
+              className={`p-4 rounded-xl border text-left transition-all ${
+                scanMode === 'quick'
+                  ? 'bg-indigo-50 border-indigo-200'
+                  : 'border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <div className={`text-sm font-bold ${scanMode === 'quick' ? 'text-indigo-700' : 'text-slate-900'}`}>
+                Quick Scan
+              </div>
+              <div className="text-xs text-slate-400 mt-1">Surface vulnerabilities</div>
+            </button>
+            <button
+              onClick={() => setScanMode('full')}
+              className={`p-4 rounded-xl border text-left transition-all ${
+                scanMode === 'full'
+                  ? 'bg-indigo-50 border-indigo-200'
+                  : 'border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <div className={`text-sm font-bold ${scanMode === 'full' ? 'text-indigo-700' : 'text-slate-900'}`}>
+                Full Audit
+              </div>
+              <div className="text-xs text-slate-400 mt-1">Deep logic analysis</div>
+            </button>
           </div>
         </div>
-      </main>
+
+        {/* Submit */}
+        <button
+          onClick={handleStartScan}
+          disabled={validationStatus !== 'valid' || isStarting}
+          className="w-full btn-primary h-12 mt-4"
+        >
+          {isStarting ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              {scanMode === 'quick' ? 'Scanning...' : 'Starting...'}
+            </>
+          ) : (
+            <>
+              Start Scan
+              <ArrowRight size={16} />
+            </>
+          )}
+        </button>
+
+        {/* Quick Scan Result */}
+        {quickScanResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-8 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Shield className={`w-8 h-8 ${
+                  quickScanResult.riskLevel === 'SAFE' ? 'text-emerald-500' :
+                  quickScanResult.riskLevel === 'LOW' ? 'text-emerald-400' :
+                  quickScanResult.riskLevel === 'MEDIUM' ? 'text-amber-500' :
+                  quickScanResult.riskLevel === 'HIGH' ? 'text-orange-500' :
+                  'text-rose-500'
+                }`} />
+                <div>
+                  <h3 className="font-bold text-slate-900">Quick Scan Complete</h3>
+                  <p className="text-xs text-slate-500">{quickScanResult.contractName || contractInfo?.contractName}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {quickScanResult.cached && (
+                  <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg flex items-center gap-1">
+                    <Zap size={12} />
+                    Cached
+                  </span>
+                )}
+                <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg flex items-center gap-1">
+                  <Clock size={12} />
+                  {(quickScanResult.scanDuration / 1000).toFixed(1)}s
+                </span>
+              </div>
+            </div>
+
+            {/* Score */}
+            <div className="flex items-center gap-6 mb-6">
+              <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black ${
+                quickScanResult.score >= 80 ? 'bg-emerald-100 text-emerald-700' :
+                quickScanResult.score >= 60 ? 'bg-amber-100 text-amber-700' :
+                quickScanResult.score >= 40 ? 'bg-orange-100 text-orange-700' :
+                'bg-rose-100 text-rose-700'
+              }`}>
+                {quickScanResult.score}
+              </div>
+              <div>
+                <div className={`text-lg font-bold ${
+                  quickScanResult.riskLevel === 'SAFE' ? 'text-emerald-600' :
+                  quickScanResult.riskLevel === 'LOW' ? 'text-emerald-500' :
+                  quickScanResult.riskLevel === 'MEDIUM' ? 'text-amber-600' :
+                  quickScanResult.riskLevel === 'HIGH' ? 'text-orange-600' :
+                  'text-rose-600'
+                }`}>
+                  {quickScanResult.riskLevel} Risk
+                </div>
+                <p className="text-sm text-slate-600 mt-1">{quickScanResult.summary}</p>
+              </div>
+            </div>
+
+            {/* Vulnerabilities */}
+            {quickScanResult.vulnerabilities.length > 0 && (
+              <div className="border-t border-slate-100 pt-4">
+                <h4 className="text-sm font-bold text-slate-700 mb-3">
+                  {quickScanResult.vulnerabilities.length} Issues Found
+                </h4>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {quickScanResult.vulnerabilities.map((vuln, idx) => (
+                    <div key={idx} className={`p-3 rounded-lg border ${
+                      vuln.severity === 'critical' ? 'bg-rose-50 border-rose-200' :
+                      vuln.severity === 'high' ? 'bg-orange-50 border-orange-200' :
+                      vuln.severity === 'medium' ? 'bg-amber-50 border-amber-200' :
+                      vuln.severity === 'low' ? 'bg-blue-50 border-blue-200' :
+                      'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-2 py-0.5 text-xs font-bold rounded ${
+                          vuln.severity === 'critical' ? 'bg-rose-200 text-rose-800' :
+                          vuln.severity === 'high' ? 'bg-orange-200 text-orange-800' :
+                          vuln.severity === 'medium' ? 'bg-amber-200 text-amber-800' :
+                          vuln.severity === 'low' ? 'bg-blue-200 text-blue-800' :
+                          'bg-slate-200 text-slate-800'
+                        }`}>
+                          {vuln.severity.toUpperCase()}
+                        </span>
+                        <span className="text-sm font-medium text-slate-900">{vuln.title}</span>
+                      </div>
+                      <p className="text-xs text-slate-600">{vuln.description}</p>
+                      {vuln.location && (
+                        <p className="text-xs text-slate-500 mt-1 font-mono">{vuln.location}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Contract Analysis */}
+            {quickScanResult.contractAnalysis && (
+              <div className="border-t border-slate-100 pt-4 mt-4">
+                <h4 className="text-sm font-bold text-slate-700 mb-3">Contract Analysis</h4>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-2 bg-slate-50 rounded-lg">
+                    <span className="text-slate-500">Purpose:</span>
+                    <p className="text-slate-700 font-medium">{quickScanResult.contractAnalysis.purpose}</p>
+                  </div>
+                  <div className="p-2 bg-slate-50 rounded-lg">
+                    <span className="text-slate-500">Architecture:</span>
+                    <p className="text-slate-700 font-medium">{quickScanResult.contractAnalysis.architecture}</p>
+                  </div>
+                  <div className="p-2 bg-slate-50 rounded-lg">
+                    <span className="text-slate-500">SLOC:</span>
+                    <p className="text-slate-700 font-medium">{quickScanResult.contractAnalysis.sloc}</p>
+                  </div>
+                  <div className="p-2 bg-slate-50 rounded-lg">
+                    <span className="text-slate-500">Functions:</span>
+                    <p className="text-slate-700 font-medium">{quickScanResult.contractAnalysis.functions}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Scan Again Button */}
+            <button
+              onClick={() => setQuickScanResult(null)}
+              className="w-full mt-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              Scan Another Contract
+            </button>
+          </motion.div>
+        )}
+      </div>
     </div>
   )
 }

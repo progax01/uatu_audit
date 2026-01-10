@@ -31,6 +31,9 @@ import {
 import { runPreAuditScan, savePreAuditEvidence, loadPreAuditEvidence } from "./preAuditScanService.js";
 import { createQuestionnaire, saveQuestionnaire, loadQuestionnaire } from "./preAuditQuestionGenerator.js";
 import type { ComponentFingerprint } from "../types/project.js";
+import { scanForEmpathyPatterns, generateEmpathyQuestions } from "./empathyRules.js";
+import clarificationService from "./clarificationService.js";
+import { updateJobClarificationStatus } from "./jobQueue.js";
 
 // Helper to check cancellation and throw if cancelled
 function checkCancellation(jobId: number | undefined) {
@@ -84,11 +87,15 @@ function calculateScoreFromFindings(findings: any[]): { value: number; grade: st
 }
 
 /**
- * Simplified 3-Phase Audit Pipeline
+ * 7-Phase Audit Pipeline
  *
- * Phase 1: Context Preparation (Clone + Bootstrap + Write Context Files)
- * Phase 2: Single Claude CLI Audit (One mega-prompt does everything)
- * Phase 3: Report Generation (results.json → HTML/PDF)
+ * Phase 1 (M1): Context Ingestion - Clone repo, analyze structure, write context files
+ * Phase 2: Clarification - Generate empathy questions, await user input
+ * Phase 3 (M2): Static Analysis - Pattern-based vulnerability detection
+ * Phase 4 (M3): Logic Simulation - Chain-of-thought reasoning for attack scenarios
+ * Phase 5 (M4): Test Generation - Generate executable PoC tests for critical findings
+ * Phase 6 (M5): Final Consolidation - Combine findings, calculate weighted score
+ * Phase 7: Report Generation - Generate HTML/PDF reports and certificate
  */
 export async function runAll(params: {
   repo: string;
@@ -104,37 +111,82 @@ export async function runAll(params: {
   const { branchPath, contextPath, sopPath, runsPath } = await resolveWorkspace(project, branch);
 
   const log = createJobLogger(jobId, project, branch);
-  log.info("Starting simplified 3-phase audit pipeline", { project, branch, repo, ai, testStyles });
+  log.info("Starting 7-phase audit pipeline", { project, branch, repo, ai, testStyles });
+
+  // Get existing run metadata if resuming
+  let existingProgress = null;
+  let timestamp = null;
+
+  if (jobId) {
+    const job = await getJob(jobId);
+    if (job?.runTimestamp) {
+      timestamp = job.runTimestamp;
+      const runPath = path.join(runsPath, timestamp);
+      const { loadProgress } = await import("./progressService.js");
+      existingProgress = await loadProgress(runPath);
+      if (existingProgress) {
+        log.info("Resuming from existing run", { timestamp, overall: existingProgress.overall_pct });
+      }
+    }
+  }
 
   // ============================================================
   // PHASE 1: Context Preparation
   // ============================================================
   log.info("=== PHASE 1: Context Preparation ===");
 
-  // Step 1.1: Clone/Refresh Repository
-  log.info("Step 1.1: Cloning/refreshing repository");
-  checkCancellation(jobId);
-  await withRetry(() => cloneOrRefresh(repo, branchPath, branch, accessToken));
-  log.info("Step 1.1: Repository ready");
-
-  // Step 1.2: Create run directory
-  const timestamp = Date.now().toString();
+  if (!timestamp) {
+    timestamp = Date.now().toString();
+  }
   const runPath = path.join(runsPath, timestamp);
-  log.info("Step 1.2: Creating run directory", { runPath, timestamp });
-  await fs.ensureDir(runPath);
-  await new Promise(resolve => setTimeout(resolve, 100));
+
+  // Step 1.1: Clone/Refresh Repository
+  // M1 progress breakdown: 10%=project-detection, 25%=dependency-fingerprint, 40%=context-built, 50%=ready-marked, 50-100%=MilestoneExecutor
+  const m1_phase = existingProgress?.phases.find(p => p.name === 'm1_context');
+  const m1_pct = m1_phase?.pct ?? 0;
+  const skipM1Fully = m1_pct >= 100;      // Skip everything - M1 fully complete
+  const skipBootstrap = m1_pct >= 50;     // Skip bootstrap - context already built
+
+  if (skipM1Fully) {
+    log.info("Step 1.1 - 1.5: Skipping Context Preparation (M1 at 100%)");
+  } else if (skipBootstrap) {
+    log.info(`Step 1.1 - 1.4: Partial skip - M1 at ${m1_pct}%, skipping bootstrap`);
+    // Still ensure repo is fresh
+    checkCancellation(jobId);
+    await withRetry(() => cloneOrRefresh(repo, branchPath, branch, accessToken));
+    log.info("Step 1.1: Repository refreshed");
+    await fs.ensureDir(runPath);
+  } else {
+    log.info("Step 1.1: Cloning/refreshing repository");
+    checkCancellation(jobId);
+    await withRetry(() => cloneOrRefresh(repo, branchPath, branch, accessToken));
+    log.info("Step 1.1: Repository ready");
+
+    // Step 1.2: Create run directory
+    log.info("Step 1.2: Ensuring run directory", { runPath, timestamp });
+    await fs.ensureDir(runPath);
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
 
   // Create job-specific file logger for UI streaming
   const jobFileLog = createJobFileLogger(runPath);
-  jobFileLog.info("Job started", { project, branch, repo, jobId, timestamp });
+  if (!skipBootstrap && !skipM1Fully) {
+    jobFileLog.info("Job started", { project, branch, repo, jobId, timestamp });
+  } else {
+    jobFileLog.info("Job resumed", { project, branch, repo, jobId, timestamp, m1_pct });
+  }
 
   // Step 1.3: Initialize progress tracking
-  log.info("Step 1.3: Initializing progress tracking");
-  jobFileLog.info("Initializing progress tracking");
-  await saveProgress(runPath, newProgress(project, branch, timestamp));
-  if (jobId) {
-    await attachRunTimestamp(jobId, timestamp);
-    log.info("Step 1.3: Progress initialized", { jobId, timestamp });
+  if (!existingProgress) {
+    log.info("Step 1.3: Initializing progress tracking");
+    jobFileLog.info("Initializing progress tracking");
+    await saveProgress(runPath, newProgress(project, branch, timestamp));
+    if (jobId) {
+      await attachRunTimestamp(jobId, timestamp);
+      log.info("Step 1.3: Progress initialized", { jobId, timestamp });
+    }
+  } else {
+    log.info("Step 1.3: Progress already exists, reusing history");
   }
 
   const onProgress: ProgressHook = async ({ phase, step, pct }: { phase: any; step: any; pct: any }) => {
@@ -152,9 +204,7 @@ export async function runAll(params: {
     }
   };
 
-  // Step 1.4: Run Bootstrap SOP (project structure analysis)
-  log.info("Step 1.4: Running Bootstrap SOP");
-  checkCancellation(jobId);
+  // Move common inputs before the skip check so they are available for later phases
   const sopInputs = {
     projectPath: branchPath,
     contextPath,
@@ -165,147 +215,155 @@ export async function runAll(params: {
     jobId
   };
 
-  await withRetry(() =>
-    withTimeout(
-      () => bootstrapSOP.execute(sopInputs, onProgress),
-      5 * 60 * 1000,
-      "Bootstrap SOP timed out"
-    )
-  );
-  log.info("Step 1.4: Bootstrap SOP completed");
+  // Step 1.4: Run Bootstrap SOP (project structure analysis)
+  // Skip if M1 >= 50% (bootstrap already ran and wrote context files)
+  if (skipBootstrap || skipM1Fully) {
+    log.info(`Step 1.4: Skipping Bootstrap SOP (M1 at ${m1_pct}%)`);
+  } else {
+    log.info("Step 1.4: Running Bootstrap SOP");
+    checkCancellation(jobId);
+
+    await withRetry(() =>
+      withTimeout(
+        () => bootstrapSOP.execute(sopInputs, onProgress),
+        5 * 60 * 1000,
+        "Bootstrap SOP timed out"
+      )
+    );
+    log.info("Step 1.4: Bootstrap SOP completed");
+  }
 
   // Step 1.5: Write context files for single-prompt audit
-  log.info("Step 1.5: Writing context files");
-  checkCancellation(jobId);
+  // Skip if M1 >= 50% (context files already written)
+  if (skipBootstrap || skipM1Fully) {
+    log.info(`Step 1.5: Skipping context file writing (M1 at ${m1_pct}%)`);
+  } else {
+    log.info("Step 1.5: Writing context files");
+    checkCancellation(jobId);
 
-  const contextWriterOptions = {
-    projectPath: branchPath,
-    contextPath,
-    selectedFiles,
-    testStyles: (testStyles || ["behavioral", "stride"]) as ("behavioral" | "stride" | "owasp")[],
-    repo,
-    branch
-  };
+    const contextWriterOptions = {
+      projectPath: branchPath,
+      contextPath,
+      selectedFiles,
+      testStyles: (testStyles || ["behavioral", "stride"]) as ("behavioral" | "stride" | "owasp")[],
+      repo,
+      branch
+    };
 
-  await writeFilesStructure(contextWriterOptions);
-  log.info("Step 1.5a: files_structure.md written");
+    await writeFilesStructure(contextWriterOptions);
+    log.info("Step 1.5a: files_structure.md written");
 
-  await writeTestRequirements(contextWriterOptions);
-  log.info("Step 1.5b: test_requirements.md written");
+    await writeTestRequirements(contextWriterOptions);
+    log.info("Step 1.5b: test_requirements.md written");
 
-  await writeMilestones(contextPath, "NOT_STARTED");
-  log.info("Step 1.5c: milestones.md written");
+    await writeMilestones(contextPath, "NOT_STARTED");
+    log.info("Step 1.5c: milestones.md written");
 
-  // Get commit hash for metadata
-  const commitHash = await getCommitHash(branchPath);
-  log.info("Step 1.5d: Got commit hash", { commitHash });
+    // Get commit hash for metadata
+    const commitHash = await getCommitHash(branchPath);
+    log.info("Step 1.5d: Got commit hash", { commitHash });
 
-  await initResultsJson(contextPath, repo, branch, commitHash || undefined);
-  log.info("Step 1.5e: results.json initialized", { repo, branch, commitHash });
+    await initResultsJson(contextPath, repo, branch, commitHash || undefined);
+    log.info("Step 1.5e: results.json initialized", { repo, branch, commitHash });
+  }
 
   // Note: m1_context progress is handled by bootstrap.ts (0-50%) and MilestoneExecutor (50-100%)
   log.info("=== PHASE 1 COMPLETE ===");
 
   // ============================================================
-  // PHASE 1.5: Pre-Audit Questionnaire (Interactive Human-in-the-Loop)
+  // PHASE 1.5: Technical Clarifications (Empathy-Driven)
   // ============================================================
-  log.info("=== PHASE 1.5: Pre-Audit Questionnaire ===");
+  log.info("=== PHASE 1.5: Technical Clarifications ===");
   checkCancellation(jobId);
 
-  // Check if pre-audit was already completed or skipped
-  const existingQuestionnaire = await loadQuestionnaire(contextPath);
-  const job = jobId ? await getJob(jobId) : null;
-  const preAuditStatus = job?.preAuditStatus;
+  // Check if clarifications already exist for this job
+  const hasClarifications = jobId ? await clarificationService.hasPendingClarifications(String(jobId), "pre_audit") : false;
 
-  if (preAuditStatus === 'completed' || preAuditStatus === 'skipped') {
-    log.info("Pre-audit questionnaire already processed", { status: preAuditStatus });
-  } else if (existingQuestionnaire?.status === 'COMPLETED' || existingQuestionnaire?.status === 'SKIPPED') {
-    log.info("Pre-audit questionnaire already completed", { status: existingQuestionnaire.status });
-  } else {
-    // Run deterministic scanners for evidence collection
-    log.info("Step 1.5a: Running deterministic scanners...");
-    const toolLogs = await runDeterministicScanners(branchPath);
-    log.info("Scanners completed", { logLength: toolLogs.length });
-
-    // Create fingerprint from project structure
-    const projectStructure = await fs.readJson(path.join(contextPath, "project-structure.json")).catch(() => null);
-    const fingerprint: ComponentFingerprint = {
-      ecosystems: projectStructure?.ecosystems?.map((e: string) => ({ name: e, confidence: 0.9 })) || [],
-      stats: {
-        totalFiles: projectStructure?.stats?.totalFiles || 0,
-        totalLines: projectStructure?.stats?.totalLines || 0,
-        solidityFiles: projectStructure?.stats?.solidityFiles || 0,
-        rustFiles: projectStructure?.stats?.rustFiles || 0,
-        typescriptFiles: projectStructure?.stats?.typescriptFiles || 0,
-        javascriptFiles: projectStructure?.stats?.javascriptFiles || 0,
-        testFiles: projectStructure?.stats?.testFiles || 0,
-      },
-      dependencies: projectStructure?.dependencies || [],
-      contracts: projectStructure?.mainContracts?.map((c: any) => ({
-        name: c.name,
-        file: c.path,
-        isInterface: c.name?.startsWith('I') || false,
-        isLibrary: c.name?.includes('Lib') || false,
-        isAbstract: false,
-      })) || [],
-      contentHash: Date.now().toString(),
-      fingerprintedAt: new Date().toISOString(),
+  if (hasClarifications) {
+    log.info("Pending clarifications already exist, pausing for user input");
+    if (jobId) {
+      await updateJobClarificationStatus(jobId, 'pending');
+      await updateJobNote(jobId, 'Awaiting technical clarifications');
+      await onProgress({ phase: "clarification", step: "awaiting-user-input", pct: 50 });
+    }
+    return {
+      status: 'awaiting_clarification',
+      message: 'Audit paused: technical clarifications required',
+      timestamp,
+      runPath: path.join(runsPath, timestamp),
     };
+  }
 
-    // Run pre-audit scan to collect evidence
-    log.info("Step 1.5b: Running pre-audit evidence scan...");
-    const evidence = await runPreAuditScan(branchPath, fingerprint);
-    await savePreAuditEvidence(contextPath, evidence);
-    log.info("Pre-audit evidence collected", {
-      riskHotspots: evidence.riskHotspots.length,
-      adminPatterns: evidence.detectedPatterns.adminPatterns.length,
-      oracleUsage: evidence.detectedPatterns.oracleUsage.length,
-    });
+  // Load project structure analysis results
+  const psp = path.join(contextPath, "project-structure.json");
+  const drp = path.join(contextPath, "dependency-report.json");
 
-    // Generate questionnaire from evidence
-    log.info("Step 1.5c: Generating pre-audit questionnaire...");
-    const componentId = job?.componentId || 'main';
-    const questionnaire = createQuestionnaire(project, evidence, componentId);
-    await saveQuestionnaire(contextPath, questionnaire);
-    log.info("Pre-audit questionnaire generated", {
-      questionCount: questionnaire.questions.length,
-      status: questionnaire.status,
-    });
+  if (await fs.pathExists(psp) && jobId) {
+    log.info("Scanning for empathy patterns and unknown dependencies...");
+    const projectStructure = await fs.readJson(psp);
+    const dependencyReport = await fs.readJson(drp).catch(() => null);
 
-    // If there are questions, pause for user input (unless skipPreAudit is set)
-    const skipPreAudit = process.env.SKIP_PREAUDIT === 'true';
-    if (questionnaire.questions.length > 0 && !skipPreAudit) {
-      log.info("Pausing for pre-audit questionnaire - waiting for user input");
-      if (jobId) {
-        await updateJobPreAuditStatus(jobId, 'pending', project);
-        await updateJobNote(jobId, 'Awaiting pre-audit questionnaire responses');
+    const questions: any[] = [];
+
+    // 1. Scan critical files for empathy patterns
+    for (const cp of projectStructure.criticalPaths || []) {
+      const fullPath = path.join(branchPath, cp);
+      if (await fs.pathExists(fullPath)) {
+        const content = await fs.readFile(fullPath, 'utf-8');
+        const matches = scanForEmpathyPatterns(content, cp);
+        const empathyQuestions = generateEmpathyQuestions(matches);
+
+        for (const q of empathyQuestions) {
+          questions.push({
+            questionKey: q.questionKey,
+            questionText: q.questionText,
+            context: q.context,
+            options: q.options
+          });
+        }
       }
+    }
 
-      // Return early - the job will be resumed when user submits answers
-      // The worker will pick it up again when status changes from 'awaiting-preaudit'
-      log.info("=== JOB PAUSED FOR PRE-AUDIT QUESTIONNAIRE ===");
-      await onProgress({ phase: "preaudit", step: "awaiting-user-input", pct: 50 });
+    // 2. Add questions for unknown dependencies
+    if (dependencyReport?.summary?.unknown > 0) {
+      const unknownDeps = dependencyReport.unknownLibraries.map((d: any) => d.name).join(", ");
+      questions.push({
+        questionKey: 'unknown_dependencies',
+        questionText: `We detected unknown or internal dependencies: ${unknownDeps}. Should these be audited as well?`,
+        options: [
+          { label: 'Yes, audit them (standard risk)', value: 'audit_all', risk: 'medium', scoreImpact: 0 },
+          { label: 'No, trust them (verified internal)', value: 'trust_internal', risk: 'low', scoreImpact: +5 },
+          { label: 'Ignore them (outside scope)', value: 'ignore', risk: 'info', scoreImpact: 0 }
+        ],
+        context: {
+          category: 'TOKEN_HANDLING',
+          dependencies: dependencyReport.unknownLibraries
+        }
+      });
+    }
+
+    // 3. Save generated questions
+    if (questions.length > 0) {
+      log.info(`Generating ${questions.length} clarifications for job ${jobId}`);
+      await clarificationService.addBulkPreAuditQuestions(String(jobId), questions);
+
+      await updateJobClarificationStatus(jobId, 'pending');
+      await updateJobNote(jobId, 'Awaiting technical clarifications');
+      await onProgress({ phase: "clarification", step: "awaiting-user-input", pct: 50 });
 
       return {
-        status: 'awaiting-preaudit',
-        message: 'Pre-audit questionnaire generated, awaiting user responses',
-        questionCount: questionnaire.questions.length,
+        status: 'awaiting_clarification',
+        message: 'Pre-audit clarifications generated, awaiting user responses',
+        questionCount: questions.length,
         timestamp,
         runPath: path.join(runsPath, timestamp),
       };
-    } else {
-      // No questions or skipping pre-audit
-      log.info("Pre-audit questionnaire skipped or no questions generated");
-      if (jobId) {
-        await updateJobPreAuditStatus(jobId, 'skipped');
-      }
-      questionnaire.status = 'SKIPPED';
-      await saveQuestionnaire(contextPath, questionnaire);
     }
   }
 
-  await onProgress({ phase: "preaudit", step: "preaudit-complete", pct: 100 });
+  await onProgress({ phase: "clarification", step: "clarifications-complete", pct: 100 });
   log.info("=== PHASE 1.5 COMPLETE ===");
+
 
   // ============================================================
   // PHASE 2: Single Claude CLI Audit

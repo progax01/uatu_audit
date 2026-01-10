@@ -3,7 +3,7 @@ import fs from "fs-extra";
 import { getUatuHome } from "../constants/paths.js";
 import { killSessionByJobId } from "./ai/claudeCLIProvider.js";
 
-export type JobStatus = "pending" | "running" | "done" | "failed" | "awaiting-preaudit";
+export type JobStatus = "pending" | "running" | "done" | "failed" | "awaiting-preaudit" | "awaiting_clarification";
 export interface AuditJob {
   id: number;
   repo: string;
@@ -38,6 +38,30 @@ export interface AuditJob {
   // Pre-audit questionnaire state
   preAuditStatus?: 'pending' | 'completed' | 'skipped';
   preAuditQuestionnaireId?: string;
+}
+
+/**
+ * Update job's clarification status
+ */
+export async function updateJobClarificationStatus(
+  jobId: number,
+  status: 'pending' | 'answered' | 'skipped' | 'resolved'
+) {
+  await withQueueLock(async () => {
+    const q = await load();
+    const j = q.jobs.find(x => x.id === jobId);
+    if (!j) return;
+
+    // Update job status based on clarification status
+    if (status === 'pending' && j.status === 'running') {
+      j.status = 'awaiting_clarification';
+    } else if ((status === 'answered' || status === 'skipped' || status === 'resolved') && j.status === 'awaiting_clarification') {
+      j.status = 'pending'; // Set back to pending so claimNext picks it up
+      j.note = 'Clarifications answered, resuming...';
+    }
+
+    await save(q);
+  });
 }
 
 interface QueueFile { nextId: number; jobs: AuditJob[]; }
@@ -86,9 +110,9 @@ async function load(): Promise<QueueFile> {
     try {
       const raw = await fs.readJson(QPATH).catch(() => ({}));
       // Enforce structure on read (belt & suspenders)
-      const q: QueueFile = { 
+      const q: QueueFile = {
         nextId: Number.isInteger(raw.nextId) ? raw.nextId : 1,
-        jobs: Array.isArray(raw.jobs) ? raw.jobs : [] 
+        jobs: Array.isArray(raw.jobs) ? raw.jobs : []
       };
       return q;
     } catch (error) {
@@ -119,7 +143,7 @@ async function writeJsonAtomic(file: string, data: unknown) {
   }
 }
 
-async function save(q: QueueFile) { 
+async function save(q: QueueFile) {
   await writeJsonAtomic(QPATH, q);
 }
 
@@ -129,7 +153,7 @@ export async function enqueue(job: Omit<AuditJob, "id" | "status" | "createdAt">
 
     // Always create a new job - users should be able to re-run audits
     const key = `${job.repo}@${job.branch}@${job.commit ?? "-"}`;
-    
+
     // Check if there's an existing job for logging purposes
     const existing = q.jobs.find(j => j.status !== "failed" && j.key === key);
     if (existing) {
@@ -147,12 +171,12 @@ export async function enqueue(job: Omit<AuditJob, "id" | "status" | "createdAt">
     };
     q.jobs.push(newJob);
     await save(q);
-    
+
     console.log(`New job created: ID ${newJob.id} for ${key}`);
-    
+
     // Optional: Clean up old completed jobs to prevent queue bloat
     await cleanupOldJobs(q);
-    
+
     return newJob;
   });
 }
@@ -163,31 +187,31 @@ export async function claimNext(): Promise<AuditJob | null> {
       // Serialize claim to avoid concurrent writers stepping on each other
       const j = await withQueueLock(async () => {
         const q = await load();
-      const now = new Date();
-      
-      // Find pending job that's ready to run (respects backoff)
-        const job = q.jobs.find(x => 
-        x.status === "pending" && 
-        (!x.nextRunAt || new Date(x.nextRunAt) <= now)
-      );
+        const now = new Date();
+
+        // Find pending job that's ready to run (respects backoff)
+        const job = q.jobs.find(x =>
+          x.status === "pending" &&
+          (!x.nextRunAt || new Date(x.nextRunAt) <= now)
+        );
         if (!job) return null;
-      
-      // Guardrail: Max 5 attempts before permanent failure
+
+        // Guardrail: Max 5 attempts before permanent failure
         const attempts = (job.attempts || 0) + 1;
-      if (attempts > 5) {
+        if (attempts > 5) {
           job.status = "failed";
           job.errorMessage = `Max attempts (${attempts}) exceeded`;
           job.finishedAt = new Date().toISOString();
-        await save(q);
+          await save(q);
           return undefined; // Try next iteration
-      }
-      
-        job.status = "running"; 
-        job.startedAt = new Date().toISOString(); 
+        }
+
+        job.status = "running";
+        job.startedAt = new Date().toISOString();
         job.pct = 0;
         job.attempts = attempts;
-      
-      await save(q); 
+
+        await save(q);
         return job;
       });
       if (j === undefined) continue;
@@ -316,40 +340,40 @@ export async function cancelJob(jobId: number): Promise<{ success: boolean; mess
 async function cleanupOldJobs(q: QueueFile): Promise<void> {
   const maxCompletedJobs = parseInt(process.env.UATU_MAX_COMPLETED_JOBS || '50');
   const maxJobAge = parseInt(process.env.UATU_MAX_JOB_AGE_DAYS || '7');
-  
+
   if (maxCompletedJobs <= 0 && maxJobAge <= 0) {
     return; // Cleanup disabled
   }
-  
+
   const now = new Date();
   const cutoffDate = new Date(now.getTime() - (maxJobAge * 24 * 60 * 60 * 1000));
-  
+
   const initialCount = q.jobs.length;
-  
+
   // Remove jobs that are too old
   if (maxJobAge > 0) {
     q.jobs = q.jobs.filter(job => {
-      if (job.status === 'pending' || job.status === 'running') {
-        return true; // Never remove active jobs
+      if (job.status === 'pending' || job.status === 'running' || job.status === 'awaiting-preaudit' || job.status === 'awaiting_clarification') {
+        return true; // Never remove active or awaiting jobs
       }
-      
+
       const jobDate = new Date(job.finishedAt || job.createdAt);
       return jobDate > cutoffDate;
     });
   }
-  
+
   // Keep only the most recent completed jobs if we have too many
   if (maxCompletedJobs > 0) {
     const completedJobs = q.jobs
       .filter(job => job.status === 'done' || job.status === 'failed')
       .sort((a, b) => new Date(b.finishedAt || b.createdAt).getTime() - new Date(a.finishedAt || a.createdAt).getTime());
-    
+
     const activeJobs = q.jobs.filter(job => job.status === 'pending' || job.status === 'running');
     const recentCompleted = completedJobs.slice(0, maxCompletedJobs);
-    
+
     q.jobs = [...activeJobs, ...recentCompleted];
   }
-  
+
   const finalCount = q.jobs.length;
   if (finalCount < initialCount) {
     console.log(`Cleaned up ${initialCount - finalCount} old jobs (${finalCount} remaining)`);

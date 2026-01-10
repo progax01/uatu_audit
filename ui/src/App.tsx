@@ -34,6 +34,7 @@ import AuditDetails from './pages/AuditDetails';
 import ProjectCreate from './pages/ProjectCreate';
 import AddComponents from './pages/AddComponents';
 import PreAuditQuestionnaire from './pages/PreAuditQuestionnaire';
+import AuditClarifications from './pages/AuditClarifications';
 
 import ProjectDetails from './pages/ProjectDetails';
 import Onboarding from './pages/Onboarding';
@@ -286,7 +287,7 @@ function App() {
                 <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
                   <DashboardLayout onLogout={handleLogout}>
                     <ScanContract
-                      onBack={() => window.location.href = '/'}
+                      onBack={() => window.location.href = '/dashboard'}
                       projectData={projectData}
                       setProjectData={setProjectData}
                       onStartAudit={(data) => {
@@ -360,6 +361,19 @@ function App() {
                       onHomeClick={() => window.location.href = '/'}
                     />
                   </DashboardLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/clarifications/:jobId" element={
+                <ProtectedRoute isAuthed={isAuthed} isLoading={isAuthLoading}>
+                  <AuditClarifications
+                    jobId={window.location.pathname.split('/').pop() || ''}
+                    projectName={projectData?.name || 'Untitled Project'}
+                    phase="pre_audit"
+                    onComplete={() => window.location.href = `/audit/${window.location.pathname.split('/').pop()}`}
+                    onBack={() => window.history.back()}
+                    onHomeClick={() => window.location.href = '/'}
+                  />
                 </ProtectedRoute>
               } />
 

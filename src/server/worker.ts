@@ -23,7 +23,7 @@ export async function startWorker(workerId: number) {
       jobLog.info(`Worker processing job`, { workerId });
 
       try {
-        const { htmlPath, score, grade } = await runAll({
+        const result = await runAll({
           repo: job.repo,
           project: job.project,
           branch: job.branch,
@@ -33,6 +33,14 @@ export async function startWorker(workerId: number) {
           jobId: job.id,
           accessToken: job.accessToken,
         });
+
+        // If job returned a pause status, don't mark as complete
+        if (result && (result.status === 'awaiting_clarification' || result.status === 'awaiting-preaudit')) {
+          jobLog.info(`Job paused: ${result.status}`, { workerId });
+          continue;
+        }
+
+        const { htmlPath, score, grade } = result;
 
         await complete(job.id, true, htmlPath);
         jobLog.info(`Job completed successfully`, {

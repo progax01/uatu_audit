@@ -96,16 +96,44 @@ function getCLIPath(): string {
   // Try to find claude in PATH
   try {
     const command = process.platform === 'win32' ? 'where claude' : 'which claude';
-    const path = execSync(command, { stdio: 'pipe', encoding: 'utf8' }).trim();
-    if (path) {
-      log.debug(`Claude CLI found at: ${path}`);
-      return path;
+    const foundPath = execSync(command, { stdio: 'pipe', encoding: 'utf8' }).trim();
+    if (foundPath) {
+      log.debug(`Claude CLI found at: ${foundPath}`);
+      return foundPath;
     }
   } catch (error) {
-    // Not in PATH
+    // Not in PATH - try common locations
+  }
+
+  // Check common installation locations (especially for daemon mode where PATH is limited)
+  const homeDir = process.env.HOME || '/Users/' + (process.env.USER || 'user');
+  const commonPaths = [
+    // NVM installations (check multiple node versions)
+    `${homeDir}/.nvm/versions/node/v24.12.0/bin/claude`,
+    `${homeDir}/.nvm/versions/node/v22.0.0/bin/claude`,
+    `${homeDir}/.nvm/versions/node/v20.0.0/bin/claude`,
+    // Global npm
+    '/usr/local/bin/claude',
+    '/opt/homebrew/bin/claude',
+    `${homeDir}/.npm-global/bin/claude`,
+    // Yarn global
+    `${homeDir}/.yarn/bin/claude`,
+    // pnpm global
+    `${homeDir}/.local/share/pnpm/claude`,
+  ];
+
+  for (const candidatePath of commonPaths) {
+    try {
+      execSync(`test -f "${candidatePath}"`, { stdio: 'pipe' });
+      log.info(`Claude CLI found at common location: ${candidatePath}`);
+      return candidatePath;
+    } catch {
+      // Try next path
+    }
   }
 
   // Last resort: just return 'claude' and let it fail if not found
+  log.warn('Claude CLI not found in any common location');
   return 'claude';
 }
 

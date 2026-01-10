@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
-import { ArrowRight, Loader2, CheckCircle, Share2, Search, Cpu, Shield, Globe, Activity } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowRight, Loader2, CheckCircle, Search, Cpu, Globe, Activity, Shield, AlertTriangle, XCircle, RefreshCw, FileCode, ExternalLink, Code } from 'lucide-react'
+import { motion } from 'framer-motion'
 import logo from '../assets/logo.svg'
 import MouseTooltip from '../components/MouseTooltip'
 import { Link } from 'react-router-dom'
@@ -8,6 +8,34 @@ import { supportedChains } from '../components/icons/CryptoIcons'
 
 type Network = 'arbitrum' | 'ethereum' | 'polygon' | 'base' | 'bnb' | 'optimism'
 type ValidationStatus = 'idle' | 'validating' | 'valid' | 'invalid' | 'error'
+
+interface QuickScanVulnerability {
+    id: string
+    severity: 'critical' | 'high' | 'medium' | 'low' | 'info'
+    title: string
+    description: string
+    location?: string
+    recommendation: string
+}
+
+interface QuickScanResult {
+    success: boolean
+    score: number
+    grade: string
+    riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'SAFE'
+    vulnerabilities: QuickScanVulnerability[]
+    summary: string
+    scanDuration: number
+}
+
+interface ContractInfo {
+    contractName: string
+    compiler: string
+    files: string[]
+    fileCount: number
+    isProxy: boolean
+    explorerUrl: string
+}
 
 const networks: { id: Network; name: string; shortName: string; color: string }[] = [
     { id: 'ethereum', name: 'Ethereum', shortName: 'ETH', color: '#627EEA' },
@@ -18,19 +46,30 @@ const networks: { id: Network; name: string; shortName: string; color: string }[
     { id: 'optimism', name: 'Optimism', shortName: 'OP', color: '#FF0420' },
 ]
 
+const SEVERITY_CONFIG = {
+    critical: { color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200' },
+    high: { color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+    medium: { color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+    low: { color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
+    info: { color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' },
+}
+
 export default function QuickScan() {
     const [selectedNetwork, setSelectedNetwork] = useState<Network>('ethereum')
     const [contractAddress, setContractAddress] = useState('')
     const [validationStatus, setValidationStatus] = useState<ValidationStatus>('idle')
     const [error, setError] = useState<string | null>(null)
     const [isStarting, setIsStarting] = useState(false)
-    const [scanResult, setScanResult] = useState<any>(null)
+    const [scanResult, setScanResult] = useState<QuickScanResult | null>(null)
+    const [jobId, setJobId] = useState<number | null>(null)
+    const [contractInfo, setContractInfo] = useState<ContractInfo | null>(null)
 
     const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
     const validateAndFetch = useCallback(async (address: string, network: Network) => {
         setValidationStatus('validating')
         setError(null)
+        setContractInfo(null)
         try {
             const response = await fetch('/scan/validate-and-fetch', {
                 method: 'POST',
@@ -44,14 +83,26 @@ export default function QuickScan() {
                 return
             }
             setValidationStatus('valid')
+            setContractInfo({
+                contractName: data.contractName,
+                compiler: data.compiler,
+                files: data.files || [],
+                fileCount: data.fileCount || 0,
+                isProxy: data.isProxy || false,
+                explorerUrl: data.explorerUrl
+            })
         } catch (err) {
             setError('Connection failed')
             setValidationStatus('error')
         }
     }, [])
 
-    const handleAddressChange = (address: string) => {
+    const handleAddressChange = (rawInput: string) => {
+        // Normalize: remove any existing 0x prefix, then add it back
+        const cleaned = rawInput.replace(/^0x/i, '').replace(/[^a-fA-F0-9]/g, '')
+        const address = cleaned ? `0x${cleaned}` : ''
         setContractAddress(address)
+
         if (debounceRef.current) clearTimeout(debounceRef.current)
         if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
             setValidationStatus('idle')
@@ -60,18 +111,61 @@ export default function QuickScan() {
         debounceRef.current = setTimeout(() => validateAndFetch(address, selectedNetwork), 500)
     }
 
+    const handleNetworkChange = (network: Network) => {
+        setSelectedNetwork(network)
+        setValidationStatus('idle')
+        setError(null)
+        setContractInfo(null)
+        if (contractAddress && /^0x[a-fA-F0-9]{40}$/.test(contractAddress)) {
+            if (debounceRef.current) clearTimeout(debounceRef.current)
+            validateAndFetch(contractAddress, network)
+        }
+    }
+
     const handleStartScan = async () => {
+        if (!contractAddress || validationStatus !== 'valid') return
+
         setIsStarting(true)
-        await new Promise(r => setTimeout(r, 2000))
-        setScanResult({
-            score: 94,
-            criticals: 0,
-            highs: 0,
-            mediums: 2,
-            timestamp: new Date().toISOString(),
-            riskLevel: 'LOW'
-        })
-        setIsStarting(false)
+        setError(null)
+        setScanResult(null)
+
+        try {
+            const response = await fetch('/scan/enqueue', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    address: contractAddress,
+                    network: selectedNetwork,
+                    scanMode: 'quick'
+                }),
+            })
+
+            const data = await response.json()
+            if (!response.ok) throw new Error(data.error || 'Failed to start scan')
+
+            setJobId(data.job?.id || null)
+
+            // Check if quick scan results are available (Gemini mode)
+            if (data.quickScanResult) {
+                setScanResult(data.quickScanResult)
+                setIsStarting(false)
+            } else {
+                // Fallback to full audit - redirect to audit page
+                window.location.href = `/audit/${data.job.id}`
+            }
+        } catch (err: any) {
+            setError(err.message || 'Failed to start scan')
+            setIsStarting(false)
+        }
+    }
+
+    const handleNewScan = () => {
+        setScanResult(null)
+        setJobId(null)
+        setContractAddress('')
+        setValidationStatus('idle')
+        setError(null)
+        setContractInfo(null)
     }
 
     return (
@@ -118,7 +212,7 @@ export default function QuickScan() {
                                     return (
                                         <button
                                             key={n.id}
-                                            onClick={() => setSelectedNetwork(n.id)}
+                                            onClick={() => handleNetworkChange(n.id)}
                                             className={`group px-5 py-4 rounded-[20px] border text-[10px] font-black uppercase tracking-widest transition-all text-left flex items-center gap-3 relative overflow-hidden ${isSelected ? 'bg-white shadow-xl shadow-slate-200/50' : 'bg-slate-50 border-black/[0.02] text-slate-400 hover:bg-white hover:border-black/[0.1]'}`}
                                             style={{ borderColor: isSelected ? `${n.color}40` : undefined }}
                                         >
@@ -144,8 +238,8 @@ export default function QuickScan() {
                                 <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300">0x</div>
                                 <input
                                     type="text"
-                                    value={contractAddress.replace(/^0x/, '')}
-                                    onChange={(e) => handleAddressChange('0x' + e.target.value)}
+                                    value={contractAddress.replace(/^0x/i, '')}
+                                    onChange={(e) => handleAddressChange(e.target.value)}
                                     placeholder="Enter verified contract address..."
                                     className="w-full bg-slate-50 border border-black/[0.03] rounded-[20px] py-6 pl-14 pr-12 text-xs font-mono font-bold focus:outline-none focus:bg-white focus:border-indigo-500/30 focus:shadow-2xl focus:shadow-indigo-500/5 transition-all placeholder:text-slate-200 text-slate-900"
                                 />
@@ -188,90 +282,208 @@ export default function QuickScan() {
                 </div>
 
                 {/* Right: Analysis Visualization */}
-                <div className="flex-1 bg-slate-50/50 p-12 relative flex items-center justify-center">
+                <div className="flex-1 bg-slate-50/50 p-12 relative flex items-center justify-center overflow-y-auto">
                     <div className="absolute inset-0 bg-dot-pattern opacity-[0.03] pointer-events-none" />
 
-                    <AnimatePresence mode="wait">
-                        {!scanResult ? (
-                            <motion.div
-                                key="empty"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                className="text-center max-w-md"
-                            >
-                                <div className="w-24 h-24 bg-white border border-black/[0.03] rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-xl shadow-slate-200/50 group hover:scale-105 transition-transform duration-500">
-                                    <Cpu size={40} className="text-indigo-600/20 group-hover:text-indigo-600 transition-colors duration-500" />
-                                </div>
-                                <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4 uppercase">System Awaiting Target</h2>
-                                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-sm mx-auto">
-                                    Formal Security Node idle. Input a verified contract address on the left to initiate the bytecode extraction and vulnerability mapping phase.
-                                </p>
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="result"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="w-full max-w-3xl"
-                            >
-                                <div className="bg-white rounded-[48px] border border-black/[0.03] p-16 shadow-[0_48px_128px_-32px_rgba(0,0,0,0.06)] relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2" />
-
-                                    <div className="flex items-start justify-between mb-16 relative z-10">
-                                        <div>
-                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-full text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-4">
-                                                <Shield size={10} /> Verified Security Artifact
-                                            </div>
-                                            <h3 className="text-4xl font-black text-slate-900 tracking-tighter leading-none mb-4">Audit Complete.</h3>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Protocol Trust Score verified by Uatu Security Engine</p>
+                    {scanResult ? (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="w-full max-w-2xl"
+                        >
+                            {/* Score Card */}
+                            <div className="bg-white rounded-3xl border border-black/[0.03] p-8 shadow-xl mb-6">
+                                <div className="flex items-start justify-between mb-6">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Shield size={16} className="text-indigo-600" />
+                                            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Quick Scan Complete</span>
                                         </div>
-                                        <div className="flex flex-col items-center">
-                                            <div className="w-28 h-28 rounded-[32px] bg-slate-900 flex flex-col items-center justify-center text-white relative shadow-2xl shadow-slate-900/30">
-                                                <div className="text-3xl font-black italic">{scanResult.score}</div>
-                                                <div className="text-[8px] font-black uppercase tracking-widest opacity-50">SCORE</div>
-                                                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-emerald-500 border-2 border-white flex items-center justify-center">
-                                                    <CheckCircle size={12} className="text-white" />
+                                        <h3 className="text-2xl font-black text-slate-900 tracking-tight">Security Assessment</h3>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className={`text-5xl font-black ${scanResult.score >= 70 ? 'text-emerald-600' : scanResult.score >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>
+                                            {scanResult.score}
+                                        </div>
+                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">/ 100</div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                                        scanResult.riskLevel === 'SAFE' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                        scanResult.riskLevel === 'LOW' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                                        scanResult.riskLevel === 'MEDIUM' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                        scanResult.riskLevel === 'HIGH' ? 'bg-orange-50 text-orange-600 border border-orange-100' :
+                                        'bg-rose-50 text-rose-600 border border-rose-100'
+                                    }`}>
+                                        {scanResult.riskLevel} Risk
+                                    </div>
+                                    <div className="text-[10px] font-bold text-slate-400">
+                                        Completed in {(scanResult.scanDuration / 1000).toFixed(1)}s
+                                    </div>
+                                </div>
+
+                                <p className="text-sm text-slate-600 leading-relaxed">{scanResult.summary}</p>
+                            </div>
+
+                            {/* Vulnerabilities */}
+                            {scanResult.vulnerabilities.length > 0 && (
+                                <div className="bg-white rounded-3xl border border-black/[0.03] p-6 shadow-xl mb-6">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
+                                        {scanResult.vulnerabilities.length} Issue{scanResult.vulnerabilities.length !== 1 ? 's' : ''} Found
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {scanResult.vulnerabilities.map((vuln) => {
+                                            const config = SEVERITY_CONFIG[vuln.severity] || SEVERITY_CONFIG.info
+                                            return (
+                                                <div key={vuln.id} className={`p-4 rounded-xl border ${config.bg} ${config.border}`}>
+                                                    <div className="flex items-start justify-between mb-2">
+                                                        <span className={`text-xs font-black ${config.color}`}>{vuln.title}</span>
+                                                        <span className={`text-[9px] font-black uppercase tracking-widest ${config.color}`}>
+                                                            {vuln.severity}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-600 mb-2">{vuln.description}</p>
+                                                    {vuln.location && (
+                                                        <p className="text-[10px] font-mono text-slate-400 mb-2">Location: {vuln.location}</p>
+                                                    )}
+                                                    <p className="text-[10px] text-slate-500"><strong>Fix:</strong> {vuln.recommendation}</p>
                                                 </div>
-                                            </div>
-                                            <div className="mt-4 text-[9px] font-black text-emerald-600 uppercase tracking-widest">Post-Audit: CLEAR</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-3 gap-6 mb-16 relative z-10">
-                                        {[
-                                            { label: 'Criticals', value: scanResult.criticals, color: 'text-rose-600', bg: 'bg-rose-50/50' },
-                                            { label: 'High Risks', value: scanResult.highs, color: 'text-amber-600', bg: 'bg-amber-50/50' },
-                                            { label: 'Vulnerabilities', value: scanResult.mediums, color: 'text-indigo-600', bg: 'bg-indigo-50/50' },
-                                        ].map(v => (
-                                            <div key={v.label} className={`p-8 ${v.bg} rounded-[32px] border border-black/[0.01] group hover:scale-[1.02] transition-transform`}>
-                                                <div className="text-4xl font-black text-slate-900 mb-2 leading-none">{v.value}</div>
-                                                <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${v.color}`}>{v.label}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="flex flex-col gap-5 relative z-10">
-                                        <Link
-                                            to="/public-audits"
-                                            className="w-full bg-slate-900 hover:bg-indigo-600 text-white text-[11px] font-black uppercase tracking-[0.4em] py-6 rounded-[22px] text-center shadow-2xl shadow-slate-900/10 transition-all flex items-center justify-center gap-3 group"
-                                        >
-                                            Publish Ledger Entry <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                                        </Link>
-                                        <div className="flex items-center justify-center gap-8 mt-4">
-                                            <button className="flex items-center gap-2.5 text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-slate-900 transition-colors">
-                                                <Share2 size={14} /> Export Binary
-                                            </button>
-                                            <div className="w-[1px] h-4 bg-black/10" />
-                                            <button className="flex items-center gap-2.5 text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-slate-900 transition-colors">
-                                                <Globe size={14} /> Explorer View
-                                            </button>
-                                        </div>
+                                            )
+                                        })}
                                     </div>
                                 </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                            )}
+
+                            {/* Actions */}
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={handleNewScan}
+                                    className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <RefreshCw size={14} /> New Scan
+                                </button>
+                                {jobId && (
+                                    <Link
+                                        to={`/audit/${jobId}`}
+                                        className="flex-1 py-4 bg-slate-900 hover:bg-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all flex items-center justify-center gap-2"
+                                    >
+                                        View Full Report <ArrowRight size={14} />
+                                    </Link>
+                                )}
+                            </div>
+                        </motion.div>
+                    ) : contractInfo ? (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="w-full max-w-lg"
+                        >
+                            {/* Contract Info Card */}
+                            <div className="bg-white rounded-3xl border border-black/[0.03] p-8 shadow-xl">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                                        <CheckCircle size={24} className="text-emerald-500" />
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Contract Verified</div>
+                                        <h3 className="text-xl font-black text-slate-900 tracking-tight">{contractInfo.contractName}</h3>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 mb-8">
+                                    <div className="flex items-center justify-between py-3 border-b border-black/[0.03]">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compiler</span>
+                                        <span className="text-xs font-mono font-bold text-slate-700">{contractInfo.compiler}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between py-3 border-b border-black/[0.03]">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Source Files</span>
+                                        <span className="text-xs font-bold text-slate-700">{contractInfo.fileCount} file{contractInfo.fileCount !== 1 ? 's' : ''}</span>
+                                    </div>
+                                    {contractInfo.isProxy && (
+                                        <div className="flex items-center justify-between py-3 border-b border-black/[0.03]">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</span>
+                                            <span className="px-2 py-1 bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-amber-100">Proxy</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* File List */}
+                                {contractInfo.files.length > 0 && (
+                                    <div className="mb-8">
+                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Source Files</div>
+                                        <div className="space-y-2">
+                                            {contractInfo.files.slice(0, 5).map((file, i) => (
+                                                <div key={i} className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl">
+                                                    <FileCode size={14} className="text-slate-400" />
+                                                    <span className="text-xs font-mono text-slate-600 truncate">{file}</span>
+                                                </div>
+                                            ))}
+                                            {contractInfo.files.length > 5 && (
+                                                <div className="text-[10px] font-bold text-slate-400 text-center py-2">
+                                                    +{contractInfo.files.length - 5} more files
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <a
+                                    href={contractInfo.explorerUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 transition-all"
+                                >
+                                    <ExternalLink size={12} /> View on Explorer
+                                </a>
+                            </div>
+
+                            <div className="mt-6 text-center">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    Ready for security analysis
+                                </p>
+                            </div>
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-center max-w-md"
+                        >
+                            {isStarting ? (
+                                <>
+                                    <div className="w-24 h-24 bg-white border border-black/[0.03] rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-xl shadow-slate-200/50">
+                                        <Loader2 size={40} className="text-indigo-600 animate-spin" />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4 uppercase">Analyzing Contract</h2>
+                                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-sm mx-auto">
+                                        AI security engine scanning for vulnerabilities. This usually takes 30-60 seconds.
+                                    </p>
+                                </>
+                            ) : validationStatus === 'validating' ? (
+                                <>
+                                    <div className="w-24 h-24 bg-white border border-black/[0.03] rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-xl shadow-slate-200/50">
+                                        <Loader2 size={40} className="text-indigo-600 animate-spin" />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4 uppercase">Fetching Contract</h2>
+                                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-sm mx-auto">
+                                        Retrieving source code from block explorer...
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-24 h-24 bg-white border border-black/[0.03] rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-xl shadow-slate-200/50 group hover:scale-105 transition-transform duration-500">
+                                        <Cpu size={40} className="text-indigo-600/20 group-hover:text-indigo-600 transition-colors duration-500" />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4 uppercase">System Awaiting Target</h2>
+                                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-sm mx-auto">
+                                        Enter a verified contract address to run a free security scan powered by AI.
+                                    </p>
+                                </>
+                            )}
+                        </motion.div>
+                    )}
                 </div>
             </main>
         </div>

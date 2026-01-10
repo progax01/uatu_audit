@@ -24,46 +24,60 @@ const MILESTONE_INFO = {
     icon: '📥'
   },
   2: {
+    name: 'Clarification',
+    shortName: 'C1',
+    description: 'Awaiting user input on detected patterns',
+    color: 'from-amber-500 to-amber-600',
+    icon: '💬'
+  },
+  3: {
     name: 'Static Analysis',
     shortName: 'M2',
     description: 'Analyzing code patterns and potential vulnerabilities',
     color: 'from-purple-500 to-purple-600',
     icon: '🔍'
   },
-  3: {
+  4: {
     name: 'Logic Simulation',
     shortName: 'M3',
     description: 'Simulating execution paths and business logic',
     color: 'from-orange-500 to-orange-600',
     icon: '⚡'
   },
-  4: {
+  5: {
     name: 'Test Generation',
     shortName: 'M4',
     description: 'Generating PoC tests for identified vulnerabilities',
     color: 'from-green-500 to-green-600',
     icon: '🧪'
   },
-  5: {
+  6: {
     name: 'Final Consolidation',
     shortName: 'M5',
     description: 'Aggregating findings and generating report',
     color: 'from-indigo-500 to-indigo-600',
     icon: '📊'
+  },
+  7: {
+    name: 'Report Generation',
+    shortName: 'M6',
+    description: 'Finalizing technical dossier and certificate',
+    color: 'from-slate-700 to-slate-900',
+    icon: '📄'
   }
 }
 
 export default function MilestoneTracker({ milestones, currentMilestone }: MilestoneTrackerProps) {
-  // If no milestones provided, show all 5 as pending
+  // If no milestones provided, show all 7 as pending
   const displayMilestones: Milestone[] = milestones.length > 0
     ? milestones
-    : Array.from({ length: 5 }, (_, i) => ({
-        number: i + 1,
-        name: MILESTONE_INFO[(i + 1) as keyof typeof MILESTONE_INFO].name,
-        description: MILESTONE_INFO[(i + 1) as keyof typeof MILESTONE_INFO].description,
-        status: 'pending' as const,
-        progress: 0
-      }))
+    : Array.from({ length: 7 }, (_, i) => ({
+      number: i + 1,
+      name: MILESTONE_INFO[(i + 1) as keyof typeof MILESTONE_INFO].name,
+      description: MILESTONE_INFO[(i + 1) as keyof typeof MILESTONE_INFO].description,
+      status: 'pending' as const,
+      progress: 0
+    }))
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
@@ -72,7 +86,7 @@ export default function MilestoneTracker({ milestones, currentMilestone }: Miles
         {currentMilestone && (
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-            Milestone {currentMilestone} / 5
+            Milestone {currentMilestone} / 7
           </div>
         )}
       </div>
@@ -83,7 +97,6 @@ export default function MilestoneTracker({ milestones, currentMilestone }: Miles
           const isActive = milestone.status === 'running'
           const isComplete = milestone.status === 'completed'
           const isError = milestone.status === 'error'
-          const isPending = milestone.status === 'pending'
 
           return (
             <div key={milestone.number} className="relative">
@@ -92,35 +105,32 @@ export default function MilestoneTracker({ milestones, currentMilestone }: Miles
                 <div className="absolute left-[19px] top-10 w-0.5 h-8 bg-gray-200" />
               )}
 
-              <div className={`flex items-start gap-4 p-4 rounded-lg transition-all ${
-                isActive ? 'bg-blue-50 border border-blue-200' :
+              <div className={`flex items-start gap-4 p-4 rounded-lg transition-all ${isActive ? 'bg-blue-50 border border-blue-200' :
                 isComplete ? 'bg-gray-50' :
-                isError ? 'bg-red-50 border border-red-200' :
-                'bg-white'
-              }`}>
-                {/* Icon */}
-                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg transition-all ${
-                  isComplete ? 'bg-green-500 text-white' :
-                  isActive ? `bg-gradient-to-br ${info.color} text-white animate-pulse` :
-                  isError ? 'bg-red-500 text-white' :
-                  'bg-gray-200 text-gray-500'
+                  isError ? 'bg-red-50 border border-red-200' :
+                    'bg-white'
                 }`}>
+                {/* Icon */}
+                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg transition-all ${isComplete ? 'bg-green-500 text-white' :
+                  isActive ? `bg-gradient-to-br ${info.color} text-white animate-pulse` :
+                    isError ? 'bg-red-500 text-white' :
+                      'bg-gray-200 text-gray-500'
+                  }`}>
                   {isComplete ? <Check className="w-5 h-5" /> :
-                   isActive ? <Play className="w-4 h-4" /> :
-                   isError ? <AlertCircle className="w-5 h-5" /> :
-                   <span className="text-sm font-bold">{info.shortName}</span>
+                    isActive ? <Play className="w-4 h-4" /> :
+                      isError ? <AlertCircle className="w-5 h-5" /> :
+                        <span className="text-sm font-bold">{info.shortName}</span>
                   }
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <h4 className={`font-medium ${
-                      isActive ? 'text-blue-900' :
+                    <h4 className={`font-medium ${isActive ? 'text-blue-900' :
                       isComplete ? 'text-gray-700' :
-                      isError ? 'text-red-900' :
-                      'text-gray-500'
-                    }`}>
+                        isError ? 'text-red-900' :
+                          'text-gray-500'
+                      }`}>
                       {info.name}
                     </h4>
                     {milestone.duration !== undefined && (

@@ -1,11 +1,16 @@
 import path from "node:path";
 import fs from "fs-extra";
-import { loadProgress } from "../../services/progressService.js";
+import { loadProgress, setPhasePct } from "../../services/progressService.js";
 import { resolveWorkspace } from "../../services/workspaceService.js";
 import {
+  attachRunTimestamp,
+  updateJobPct,
+  updateJobNote,
+  updateJobPreAuditStatus,
+  updateJobClarificationStatus,
+  getJob,
   enqueue,
   listJobs,
-  getJob,
   cancelJob,
   cleanupJobs,
 } from "../../services/jobQueue.js";
@@ -13,6 +18,41 @@ import { getUatuHome } from "../../constants/paths.js";
 import { logger } from "../../utils/logger.js";
 import { readJobLogs } from "../../services/jobLogger.js";
 import { getSessionId, loadToken, loadUserId } from "./auth.js";
+import {
+  getPendingClarifications,
+  getAllClarifications,
+  submitAnswer,
+  skipClarification,
+  getClarificationCounts,
+} from "../../services/clarificationService.js";
+
+// Helper to update clarification progress based on answered/skipped ratio
+async function updateClarificationProgress(jobId: string, counts: { pending: number; answered: number; skipped: number; total: number }) {
+  try {
+    const job = await getJob(Number(jobId));
+    if (!job?.runTimestamp || !job.project || !job.branch) return;
+
+    const { runsPath } = await resolveWorkspace(job.project, job.branch);
+    const runPath = path.join(runsPath, job.runTimestamp);
+
+    // Calculate progress: (answered + skipped) / total * 100
+    const resolved = counts.answered + counts.skipped;
+    const pct = counts.total > 0 ? Math.round((resolved / counts.total) * 100) : 0;
+    const step = counts.pending > 0
+      ? `${resolved}/${counts.total} questions resolved`
+      : 'all-questions-resolved';
+
+    await setPhasePct(runPath, 'clarification', pct, step);
+
+    // Also update job overall pct
+    const progress = await loadProgress(runPath);
+    if (progress) {
+      await updateJobPct(Number(jobId), progress.overall_pct);
+    }
+  } catch (error) {
+    logger.error('Failed to update clarification progress', { jobId, error: String(error) });
+  }
+}
 
 // Job route handlers
 export async function handleJobRoutes(
@@ -73,11 +113,13 @@ export async function handleJobRoutes(
       overall_pct: 0,
       last_event: "Starting audit...",
       phases: [
-        { name: "bootstrap", pct: 0, step: "initializing" },
-        { name: "inventory", pct: 0, step: "waiting" },
-        { name: "analysis", pct: 0, step: "waiting" },
-        { name: "testgen", pct: 0, step: "waiting" },
-        { name: "execute", pct: 0, step: "waiting" },
+        { name: "m1_context", pct: 0, step: "initializing" },
+        { name: "clarification", pct: 0, step: "waiting" },
+        { name: "m2_static", pct: 0, step: "waiting" },
+        { name: "m3_logic", pct: 0, step: "waiting" },
+        { name: "m4_tests", pct: 0, step: "waiting" },
+        { name: "m5_final", pct: 0, step: "waiting" },
+        { name: "report", pct: 0, step: "waiting" },
       ],
     };
 
@@ -137,11 +179,13 @@ export async function handleJobRoutes(
       last_event: "Starting audit...",
       timestamp: new Date().toISOString(),
       phases: [
-        { name: "bootstrap", pct: 0, step: "initializing" },
-        { name: "inventory", pct: 0, step: "waiting" },
-        { name: "analysis", pct: 0, step: "waiting" },
-        { name: "testgen", pct: 0, step: "waiting" },
-        { name: "execute", pct: 0, step: "waiting" },
+        { name: "m1_context", pct: 0, step: "initializing" },
+        { name: "clarification", pct: 0, step: "waiting" },
+        { name: "m2_static", pct: 0, step: "waiting" },
+        { name: "m3_logic", pct: 0, step: "waiting" },
+        { name: "m4_tests", pct: 0, step: "waiting" },
+        { name: "m5_final", pct: 0, step: "waiting" },
+        { name: "report", pct: 0, step: "waiting" },
       ],
     };
 
@@ -154,7 +198,7 @@ export async function handleJobRoutes(
         const last = runs.at(-1);
 
         if (activeJob && (!activeJob.runTimestamp || !runs.includes(activeJob.runTimestamp))) {
-          res.write(`data: ${JSON.stringify(initialProgress)}\n\n`);
+          res.write(`data: ${JSON.stringify(initialProgress)} \n\n`);
           return;
         }
 
@@ -162,15 +206,15 @@ export async function handleJobRoutes(
           const rp = path.join(runsPath, last);
           const prog = await loadProgress(rp);
           if (prog) {
-            res.write(`data: ${JSON.stringify(prog)}\n\n`);
+            res.write(`data: ${JSON.stringify(prog)} \n\n`);
           } else {
-            res.write(`data: ${JSON.stringify(initialProgress)}\n\n`);
+            res.write(`data: ${JSON.stringify(initialProgress)} \n\n`);
           }
         } else {
-          res.write(`data: ${JSON.stringify(initialProgress)}\n\n`);
+          res.write(`data: ${JSON.stringify(initialProgress)} \n\n`);
         }
       } catch (error) {
-        res.write(`data: ${JSON.stringify({ error: String(error) })}\n\n`);
+        res.write(`data: ${JSON.stringify({ error: String(error) })} \n\n`);
       }
     };
 
@@ -276,10 +320,10 @@ export async function handleJobRoutes(
             timestamp: new Date().toISOString(),
           };
           await fs.writeJson(progressFile, cancelledProgress, { spaces: 2 });
-          logger.info(`Reset progress to 0% for cancelled job ${jobId}`);
+          logger.info(`Reset progress to 0 % for cancelled job ${jobId} `);
         }
       } catch (err) {
-        logger.error(`Failed to reset progress for job ${jobId}:`, err);
+        logger.error(`Failed to reset progress for job ${jobId}: `, err);
       }
     }
 
@@ -451,6 +495,126 @@ export async function handleJobRoutes(
       res.statusCode = 500;
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ ok: false, error: "Cleanup failed" }));
+      return true;
+    }
+  }
+
+  // GET /jobs/:jobId - Get a single job by ID
+  const singleJobMatch = parsed.pathname?.match(/^\/jobs\/(\d+)$/);
+  if (req.method === "GET" && singleJobMatch) {
+    const jobId = parseInt(singleJobMatch[1]);
+    const job = await getJob(jobId);
+    if (!job) {
+      res.statusCode = 404;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ ok: false, error: "Job not found" }));
+      return true;
+    }
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ ok: true, job }));
+    return true;
+  }
+
+  // ============================================================================
+  // CLARIFICATION ENDPOINTS
+  // ============================================================================
+
+  // GET /jobs/:jobId/clarifications - Get all clarifications for a job
+  const clarificationsMatch = parsed.pathname?.match(/^\/jobs\/([a-f0-9-]+)\/clarifications$/);
+  if (req.method === "GET" && clarificationsMatch) {
+    const jobId = clarificationsMatch[1];
+    const phase = parsed.query.phase as 'pre_audit' | 'post_audit' | undefined;
+    const pendingOnly = parsed.query.pending === 'true';
+
+    try {
+      const clarifications = pendingOnly
+        ? await getPendingClarifications(jobId, phase)
+        : await getAllClarifications(jobId, phase);
+      const counts = await getClarificationCounts(jobId);
+
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({
+        ok: true,
+        clarifications,
+        counts,
+        phase: phase || 'all'
+      }));
+      return true;
+    } catch (error) {
+      logger.error('Failed to get clarifications', { jobId, error: String(error) });
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ ok: false, error: 'Failed to get clarifications' }));
+      return true;
+    }
+  }
+
+  // POST /jobs/:jobId/clarifications/:id/answer - Submit an answer
+  const answerMatch = parsed.pathname?.match(/^\/jobs\/([a-f0-9-]+)\/clarifications\/([a-f0-9-]+)\/answer$/);
+  if (req.method === "POST" && answerMatch) {
+    const [, jobId, clarificationId] = answerMatch;
+
+    try {
+      const chunks: any[] = [];
+      for await (const c of req) chunks.push(c);
+      const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+      const { answer } = body;
+
+      if (answer === undefined) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ ok: false, error: 'Answer is required' }));
+        return true;
+      }
+
+      const updated = await submitAnswer(clarificationId, answer);
+      const counts = await getClarificationCounts(jobId);
+
+      // Update granular clarification progress
+      await updateClarificationProgress(jobId, counts);
+
+      // Check if all pending clarifications are resolved to resume job
+      if (counts.pending === 0) {
+        await updateJobClarificationStatus(Number(jobId), 'answered');
+      }
+
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ ok: true, clarification: updated, counts }));
+      return true;
+    } catch (error) {
+      logger.error('Failed to submit answer', { clarificationId, error: String(error) });
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ ok: false, error: 'Failed to submit answer' }));
+      return true;
+    }
+  }
+
+  // POST /jobs/:jobId/clarifications/:id/skip - Skip a clarification
+  const skipMatch = parsed.pathname?.match(/^\/jobs\/([a-f0-9-]+)\/clarifications\/([a-f0-9-]+)\/skip$/);
+  if (req.method === "POST" && skipMatch) {
+    const [, jobId, clarificationId] = skipMatch;
+
+    try {
+      const updated = await skipClarification(clarificationId);
+      const counts = await getClarificationCounts(jobId);
+
+      // Update granular clarification progress
+      await updateClarificationProgress(jobId, counts);
+
+      // Check if all pending clarifications are resolved to resume job
+      if (counts.pending === 0) {
+        await updateJobClarificationStatus(Number(jobId), 'skipped');
+      }
+
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ ok: true, clarification: updated, counts }));
+      return true;
+    } catch (error) {
+      logger.error('Failed to skip clarification', { clarificationId, error: String(error) });
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ ok: false, error: 'Failed to skip clarification' }));
       return true;
     }
   }

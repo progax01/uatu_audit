@@ -1,16 +1,18 @@
 import path from "node:path";
 import fs from "fs-extra";
 
-// Milestone-based progress (5 milestones + report generation)
-export type PhaseName = "m1_context" | "m2_static" | "m3_logic" | "m4_tests" | "m5_final" | "report";
+// 7-Phase Audit Pipeline (5 milestones + clarification + report = 100%)
+export type PhaseName = "m1_context" | "clarification" | "m2_static" | "m3_logic" | "m4_tests" | "m5_final" | "report";
 export const PHASE_WEIGHTS: Record<PhaseName, number> = {
-  m1_context: 16,  // M1 - Context Ingestion
-  m2_static: 16,   // M2 - Static Analysis
-  m3_logic: 16,    // M3 - Logic Simulation
-  m4_tests: 16,    // M4 - Test Generation
-  m5_final: 16,    // M5 - Final Consolidation
-  report: 20       // Report Generation
+  m1_context: 15,    // M1 - Context Ingestion
+  clarification: 10, // Awaiting user clarifications
+  m2_static: 15,     // M2 - Static Analysis
+  m3_logic: 14,      // M3 - Logic Simulation
+  m4_tests: 14,      // M4 - Test Generation
+  m5_final: 14,      // M5 - Final Consolidation
+  report: 18         // Report Generation
 };
+// Total weights: 15+10+15+14+14+14+18 = 100%
 
 export type PhaseProgress = { name: PhaseName; pct: number; step?: string };
 export type RunProgress = {
@@ -67,7 +69,7 @@ async function atomicWrite(file: string, data: unknown, maxRetries: number = 3) 
         const tmpPattern = `${path.basename(file)}.tmp.`;
         for (const f of tmpFiles) {
           if (f.startsWith(tmpPattern)) {
-            await fs.remove(path.join(path.dirname(file), f)).catch(() => {});
+            await fs.remove(path.join(path.dirname(file), f)).catch(() => { });
           }
         }
       } catch {
@@ -101,12 +103,13 @@ export function newProgress(project: string, branch: string, timestamp: string):
     project, branch, timestamp,
     overall_pct: 0,
     phases: [
-      { name: "m1_context", pct: 0 },  // M1 - Context Ingestion
-      { name: "m2_static", pct: 0 },   // M2 - Static Analysis
-      { name: "m3_logic", pct: 0 },    // M3 - Logic Simulation
-      { name: "m4_tests", pct: 0 },    // M4 - Test Generation
-      { name: "m5_final", pct: 0 },    // M5 - Final Consolidation
-      { name: "report", pct: 0 }       // Report Generation
+      { name: "m1_context", pct: 0 },     // M1 - Context Ingestion
+      { name: "clarification", pct: 0 },  // Awaiting Clarifications
+      { name: "m2_static", pct: 0 },      // M2 - Static Analysis
+      { name: "m3_logic", pct: 0 },       // M3 - Logic Simulation
+      { name: "m4_tests", pct: 0 },       // M4 - Test Generation
+      { name: "m5_final", pct: 0 },       // M5 - Final Consolidation
+      { name: "report", pct: 0 }          // Report Generation
     ]
   };
 }

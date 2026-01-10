@@ -5,7 +5,18 @@ import {
     ExternalLink, Fingerprint, CreditCard, Play
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useAccount, useDisconnect } from 'wagmi'
+import { useAccount, useDisconnect, useChainId } from 'wagmi'
+
+// Explorer URLs for different chains (all use Etherscan-compatible API)
+const CHAIN_EXPLORERS: Record<number, string> = {
+    1: 'https://etherscan.io',
+    42161: 'https://arbiscan.io',
+    137: 'https://polygonscan.com',
+    8453: 'https://basescan.org',
+    10: 'https://optimistic.etherscan.io',
+    56: 'https://bscscan.com',
+    43114: 'https://snowtrace.io',
+}
 
 interface ActivityLog {
     id: string
@@ -32,6 +43,8 @@ const ACTIVITY_ICONS: Record<string, typeof Shield> = {
 export default function Credentials() {
     const { address, isConnected } = useAccount()
     const { disconnect } = useDisconnect()
+    const chainId = useChainId()
+    const explorerUrl = CHAIN_EXPLORERS[chainId] || 'https://etherscan.io'
     const [copied, setCopied] = useState(false)
     const [loggingOut, setLoggingOut] = useState(false)
     const [passkeyEnabled, setPasskeyEnabled] = useState(false)
@@ -189,7 +202,7 @@ export default function Credentials() {
                                 <button onClick={copyAddress} className="p-1.5 hover:bg-white rounded-lg text-slate-400 hover:text-indigo-600 transition-all">
                                     {copied ? <Check size={14} /> : <Copy size={14} />}
                                 </button>
-                                <a href={`https://etherscan.io/address/${address}`} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-white rounded-lg text-slate-400 hover:text-indigo-600 transition-all">
+                                <a href={`${explorerUrl}/address/${address}`} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-white rounded-lg text-slate-400 hover:text-indigo-600 transition-all">
                                     <ExternalLink size={14} />
                                 </a>
                             </div>

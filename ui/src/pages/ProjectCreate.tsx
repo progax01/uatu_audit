@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ArrowLeft, Shield, FileCode, Globe, BookOpen, ChevronRight, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { authFetch } from '../services/authService'
 
 type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit'
 
@@ -56,7 +57,7 @@ export default function ProjectCreate({ onNext, onBack }: ProjectCreateProps) {
     setError(null)
 
     try {
-      const res = await fetch('/api/projects', {
+      const res = await authFetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

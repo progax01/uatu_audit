@@ -3,9 +3,10 @@ import { motion } from 'framer-motion'
 import {
   GitBranch, ArrowRight, Plus,
   FileCode, Globe, Package,
-  ShieldCheck, Shield, FolderGit2, Clock, Github
+  ShieldCheck, Shield, FolderGit2, Clock, Github, Zap, Search
 } from 'lucide-react'
 import { getStoredUser, authFetch } from '../services/authService'
+import { Link } from 'react-router-dom'
 
 type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit'
 type ProjectStatus = 'draft' | 'configured' | 'awaiting-preaudit' | 'auditing' | 'completed'
@@ -126,27 +127,59 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="card-premium relative overflow-hidden flex flex-col items-center justify-center text-center py-20"
+          className="card-premium relative overflow-hidden py-16"
         >
           <div className="absolute top-0 right-0 p-8 opacity-[0.02] -rotate-12">
-            <FolderGit2 size={300} strokeWidth={1} />
+            <Shield size={300} strokeWidth={1} />
           </div>
 
-          <div className="relative z-10 max-w-md w-full flex flex-col items-center">
-            <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-[32px] flex items-center justify-center mb-8 border border-black/[0.03]">
-              <FolderGit2 size={36} strokeWidth={2} />
+          <div className="relative z-10 max-w-3xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-3">Start Your First Audit</h2>
+              <p className="text-slate-400 font-medium text-[14px] max-w-md mx-auto">
+                Choose how you want to audit your smart contracts
+              </p>
             </div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-3">No Projects Yet</h2>
-            <p className="text-slate-400 font-medium leading-relaxed mb-8 text-[14px] max-w-sm">
-              Connect a GitHub repository to start auditing your smart contracts. We'll help you configure branch settings and audit preferences.
-            </p>
-            <button
-              onClick={onNewAudit}
-              className="btn-primary h-12 px-8 shadow-2xl shadow-indigo-100"
-            >
-              <Github size={16} />
-              Connect Repository
-            </button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Quick Scan Option */}
+              <Link
+                to="/quick-scan"
+                className="group p-8 bg-gradient-to-br from-indigo-50 to-white rounded-2xl border-2 border-indigo-100 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-50 transition-all cursor-pointer"
+              >
+                <div className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-indigo-200">
+                  <Zap size={24} strokeWidth={2.5} />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 mb-2">Quick Scan</h3>
+                <p className="text-slate-400 text-sm mb-4 leading-relaxed">
+                  Paste a contract address and get instant security analysis. No setup required.
+                </p>
+                <div className="flex items-center gap-2 text-indigo-600 text-sm font-bold">
+                  <Search size={14} />
+                  Scan by Address
+                  <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* New Project Option */}
+              <button
+                onClick={onNewAudit}
+                className="group p-8 bg-gradient-to-br from-slate-50 to-white rounded-2xl border-2 border-slate-200 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-50 transition-all cursor-pointer text-left"
+              >
+                <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-slate-200">
+                  <Github size={24} strokeWidth={2} />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 mb-2">New Project</h3>
+                <p className="text-slate-400 text-sm mb-4 leading-relaxed">
+                  Connect a GitHub repository for comprehensive audits with branch tracking.
+                </p>
+                <div className="flex items-center gap-2 text-slate-600 text-sm font-bold">
+                  <FolderGit2 size={14} />
+                  Setup Project
+                  <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                </div>
+              </button>
+            </div>
           </div>
         </motion.div>
       ) : (

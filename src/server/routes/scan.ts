@@ -19,6 +19,7 @@ import {
 import { enqueue } from "../../services/jobQueue.js";
 import { getUatuHome } from "../../constants/paths.js";
 import { logger } from "../../utils/logger.js";
+import { performQuickScan, loadContractSource, isQuickScanConfigured } from "../../services/quickScanService.js";
 
 const log = logger.child({ service: "scan-routes" });
 
@@ -40,9 +41,11 @@ async function parseBody(req: any): Promise<any> {
 
 /**
  * Get workspace path for scanned contracts
+ * Format: ~/.uatu/workspace/scans/{address}_{network}/
  */
 async function getScanWorkspace(network: string, address: string): Promise<string> {
-  const scanPath = path.join(getUatuHome(), "workspace", "scans", network, address.toLowerCase());
+  const folderName = `${address.toLowerCase()}_${network}`;
+  const scanPath = path.join(getUatuHome(), "workspace", "scans", folderName);
   await fs.ensureDir(scanPath);
   return scanPath;
 }
@@ -156,7 +159,57 @@ export async function handleScanRoutes(
         return true;
       }
 
-      log.info("Validating and fetching contract", { address, network });
+      // Check if already cached in workspace (skip re-fetching)
+      const workspacePath = await getScanWorkspace(network, address);
+      const metadataPath = path.join(workspacePath, "metadata.json");
+      const contractsPath = path.join(workspacePath, "contracts");
+
+      if (await fs.pathExists(metadataPath) && await fs.pathExists(contractsPath)) {
+        const metadata = await fs.readJson(metadataPath);
+
+        // Recursively find all .sol files (they may be nested in subdirs)
+        const findSolFilesRecursive = async (dir: string): Promise<string[]> => {
+          const results: string[] = [];
+          const entries = await fs.readdir(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+              results.push(...await findSolFilesRecursive(fullPath));
+            } else if (entry.name.endsWith('.sol')) {
+              results.push(entry.name);
+            }
+          }
+          return results;
+        };
+
+        const solFiles = await findSolFilesRecursive(contractsPath);
+
+        if (solFiles.length > 0) {
+          log.info("Using cached workspace - skipping fetch", { address, network, files: solFiles.length });
+
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({
+            isContract: true,
+            isVerified: true,
+            contractName: metadata.contractName,
+            compiler: metadata.compiler,
+            optimization: metadata.optimization,
+            runs: metadata.runs,
+            evmVersion: metadata.evmVersion,
+            licenseType: metadata.licenseType,
+            isProxy: metadata.isProxy || false,
+            implementationAddress: metadata.implementationAddress,
+            implementationName: metadata.implementationName,
+            files: solFiles,
+            fileCount: solFiles.length,
+            cached: true,
+            explorerUrl: metadata.explorerUrl || getExplorerUrl(address, network),
+          }));
+          return true;
+        }
+      }
+
+      log.info("Fetching contract from explorer", { address, network });
 
       const result = await validateAndFetchContract(address, network);
 
@@ -425,21 +478,141 @@ export async function handleScanRoutes(
       const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
       const projectName = `${contractName}-${shortAddress}`;
 
-      // Enqueue the job
+      // QUICK SCAN: Run immediately with Claude CLI (no job queue)
+      if (scanMode === "quick") {
+        log.info("Running quick scan with Claude CLI", { contractName, address });
+
+        const quickScanPath = path.join(workspacePath, "quick-scan-result.json");
+
+        // Check if we already have a cached quick scan result
+        if (await fs.pathExists(quickScanPath)) {
+          try {
+            const cachedResult = await fs.readJson(quickScanPath);
+            log.info("Using cached quick scan result", {
+              address,
+              network,
+              score: cachedResult.score,
+              timestamp: cachedResult.timestamp,
+            });
+
+            res.setHeader("Content-Type", "application/json");
+            res.end(
+              JSON.stringify({
+                success: true,
+                scanMode: "quick",
+                cached: true,
+                projectName,
+                workspacePath,
+                isProxy,
+                quickScanResult: cachedResult,
+              })
+            );
+            return true;
+          } catch (cacheError) {
+            log.warn("Failed to read cached result, running fresh scan", { error: cacheError });
+          }
+        }
+
+        // Check if Claude CLI is available
+        if (!isQuickScanConfigured()) {
+          log.error("Claude CLI not available");
+          res.statusCode = 503;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({
+            error: "Quick scan unavailable - Claude CLI not installed",
+            message: "Please install Claude CLI: npm install -g @anthropic-ai/claude-code"
+          }));
+          return true;
+        }
+
+        try {
+          // Load metadata for compiler info
+          let compiler: string | undefined;
+          let optimization: boolean | undefined;
+          let runs: number | undefined;
+          if (await fs.pathExists(metadataPath)) {
+            const metadata = await fs.readJson(metadataPath);
+            compiler = metadata.compiler;
+            optimization = metadata.optimization;
+            runs = metadata.runs;
+          }
+
+          // Load contract source and count SLOC
+          const sourceCode = await loadContractSource(workspacePath);
+          const sloc = sourceCode.split('\n').filter(line => line.trim() && !line.trim().startsWith('//')).length;
+
+          log.info("Contract analysis", { contractName, sloc, sourceLength: sourceCode.length });
+
+          // Run quick scan - for large contracts (>1000 SLOC), use file-based approach
+          const quickResult = await performQuickScan({
+            contractName,
+            sourceCode: sloc <= 1000 ? sourceCode : '', // Only pass code for small contracts
+            network,
+            address,
+            compiler,
+            optimization,
+            runs,
+            workspacePath: sloc > 1000 ? workspacePath : undefined, // Let Claude read files for large contracts
+          });
+
+          // Save quick scan results
+          await fs.writeJson(quickScanPath, {
+            ...quickResult,
+            contractName,
+            address,
+            network,
+            sloc,
+            timestamp: new Date().toISOString(),
+          }, { spaces: 2 });
+
+          log.info("Quick scan complete", {
+            contractName,
+            score: quickResult.score,
+            vulnerabilities: quickResult.vulnerabilities.length,
+            sloc,
+          });
+
+          res.setHeader("Content-Type", "application/json");
+          res.end(
+            JSON.stringify({
+              success: true,
+              scanMode: "quick",
+              cached: false,
+              projectName,
+              workspacePath,
+              isProxy,
+              quickScanResult: quickResult,
+            })
+          );
+          return true;
+        } catch (quickError: any) {
+          log.error("Quick scan failed", { error: quickError.message });
+          res.statusCode = 500;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({
+            error: "Quick scan failed",
+            message: quickError.message || "An error occurred during scanning"
+          }));
+          return true;
+        }
+      }
+
+      // FULL AUDIT: Enqueue to job queue (uses Claude)
       const job = await enqueue({
         repo: `scan://${network}/${address}`, // Special scan:// protocol
         project: projectName,
         branch: "main",
-        ai: scanMode === "full",
+        ai: true, // Always true for full audits
         testStyles: ["behavioral", "stride", "owasp"],
       });
 
-      log.info("Scan job enqueued", { jobId: job.id, projectName, isProxy });
+      log.info("Full audit job enqueued", { jobId: job.id, projectName, isProxy });
 
       res.setHeader("Content-Type", "application/json");
       res.end(
         JSON.stringify({
           success: true,
+          scanMode: "full",
           job,
           projectName,
           workspacePath,
