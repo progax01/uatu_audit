@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { ArrowLeft, ArrowRight, Loader2, CheckCircle, XCircle, FileCode, AlertTriangle, Shield, Clock, Zap } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, Loader2, CheckCircle, XCircle, FileCode, AlertTriangle } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 import type { ProjectData } from '../App'
@@ -72,7 +73,14 @@ interface FetchedSource {
   isProxy: boolean
 }
 
+interface ScanProgress {
+  pct: number
+  message: string
+  status: string
+}
+
 export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete }: ScanContractProps) {
+  const navigate = useNavigate()
   const [scanMode, setScanMode] = useState<ScanMode>('quick')
   const [selectedNetwork, setSelectedNetwork] = useState<Network>('ethereum')
   const [contractAddress, setContractAddress] = useState('')
@@ -81,7 +89,7 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
   const [fetchedSource, setFetchedSource] = useState<FetchedSource | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
-  const [quickScanResult, setQuickScanResult] = useState<QuickScanResult | null>(null)
+  const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null)
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -189,7 +197,7 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
 
     setIsStarting(true)
     setError(null)
-    setQuickScanResult(null)
+    setScanProgress(null)
 
     try {
       const response = await fetch('/scan/enqueue', {
@@ -198,31 +206,101 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
         body: JSON.stringify({ address: contractAddress, network: selectedNetwork, scanMode }),
       })
 
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || data.message || 'Failed to start scan')
+      // For quick scans, handle SSE streaming
+      if (scanMode === 'quick') {
+        const contentType = response.headers.get('content-type') || ''
 
-      // For quick scans, result is returned directly
-      if (scanMode === 'quick' && data.quickScanResult) {
-        const result = {
-          ...data.quickScanResult,
-          contractName: contractInfo?.contractName,
-          address: contractAddress,
-          network: selectedNetwork,
-          cached: data.cached,
+        // If it's SSE (new flow)
+        if (contentType.includes('text/event-stream')) {
+          const reader = response.body?.getReader()
+          if (!reader) throw new Error('No response body')
+
+          const decoder = new TextDecoder()
+          let buffer = ''
+
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6))
+
+                  // Update progress
+                  setScanProgress({
+                    pct: data.progressPct || 0,
+                    message: data.message || 'Processing...',
+                    status: data.status || 'pending',
+                  })
+
+                  // Handle completion
+                  if (data.status === 'completed' && data.redirectUrl) {
+                    setIsStarting(false)
+                    setScanProgress(null)
+                    navigate(data.redirectUrl)
+                    return
+                  }
+
+                  // Handle error
+                  if (data.status === 'failed') {
+                    throw new Error(data.error || data.message || 'Scan failed')
+                  }
+                } catch (parseError) {
+                  // Ignore JSON parse errors for malformed events
+                  console.warn('Failed to parse SSE event:', line)
+                }
+              }
+            }
+          }
         }
-        setQuickScanResult(result)
+        // If it's JSON (cached result or error)
+        else if (contentType.includes('application/json')) {
+          const data = await response.json()
+          if (!response.ok) throw new Error(data.error || data.message || 'Failed to start scan')
+
+          // Cached result - redirect directly
+          if (data.cached && data.redirectUrl) {
+            navigate(data.redirectUrl)
+            return
+          }
+
+          // Legacy inline result (shouldn't happen with new backend)
+          if (data.quickScanResult) {
+            const result = {
+              ...data.quickScanResult,
+              contractName: contractInfo?.contractName,
+              address: contractAddress,
+              network: selectedNetwork,
+              cached: data.cached,
+            }
+            if (onQuickScanComplete) {
+              onQuickScanComplete(result)
+            }
+            // Still redirect to audit page if we have a jobId
+            if (data.jobId) {
+              navigate(`/audit/${data.jobId}`)
+            }
+            return
+          }
+        }
+
         setIsStarting(false)
-        if (onQuickScanComplete) {
-          onQuickScanComplete(result)
-        }
         return
       }
 
       // For full audits, navigate to job polling page
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || data.message || 'Failed to start scan')
       onStartAudit({ project: data.projectName, branch: 'main', jobId: data.job.id })
     } catch (err: any) {
       setError(err.message || 'Failed to start scan')
       setIsStarting(false)
+      setScanProgress(null)
     }
   }
 
@@ -345,156 +423,57 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
           </div>
         </div>
 
-        {/* Submit */}
-        <button
-          onClick={handleStartScan}
-          disabled={validationStatus !== 'valid' || isStarting}
-          className="w-full btn-primary h-12 mt-4"
-        >
-          {isStarting ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              {scanMode === 'quick' ? 'Scanning...' : 'Starting...'}
-            </>
-          ) : (
-            <>
-              Start Scan
-              <ArrowRight size={16} />
-            </>
-          )}
-        </button>
-
-        {/* Quick Scan Result */}
-        {quickScanResult && (
+        {/* Submit / Progress */}
+        {isStarting && scanProgress ? (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-8 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm"
+            className="mt-4 p-6 bg-white border border-slate-200 rounded-2xl"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Shield className={`w-8 h-8 ${
-                  quickScanResult.riskLevel === 'SAFE' ? 'text-emerald-500' :
-                  quickScanResult.riskLevel === 'LOW' ? 'text-emerald-400' :
-                  quickScanResult.riskLevel === 'MEDIUM' ? 'text-amber-500' :
-                  quickScanResult.riskLevel === 'HIGH' ? 'text-orange-500' :
-                  'text-rose-500'
-                }`} />
-                <div>
-                  <h3 className="font-bold text-slate-900">Quick Scan Complete</h3>
-                  <p className="text-xs text-slate-500">{quickScanResult.contractName || contractInfo?.contractName}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {quickScanResult.cached && (
-                  <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg flex items-center gap-1">
-                    <Zap size={12} />
-                    Cached
-                  </span>
-                )}
-                <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg flex items-center gap-1">
-                  <Clock size={12} />
-                  {(quickScanResult.scanDuration / 1000).toFixed(1)}s
-                </span>
-              </div>
-            </div>
-
-            {/* Score */}
-            <div className="flex items-center gap-6 mb-6">
-              <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black ${
-                quickScanResult.score >= 80 ? 'bg-emerald-100 text-emerald-700' :
-                quickScanResult.score >= 60 ? 'bg-amber-100 text-amber-700' :
-                quickScanResult.score >= 40 ? 'bg-orange-100 text-orange-700' :
-                'bg-rose-100 text-rose-700'
-              }`}>
-                {quickScanResult.score}
-              </div>
+            <div className="flex items-center gap-3 mb-4">
+              <Loader2 size={20} className="text-indigo-500 animate-spin" />
               <div>
-                <div className={`text-lg font-bold ${
-                  quickScanResult.riskLevel === 'SAFE' ? 'text-emerald-600' :
-                  quickScanResult.riskLevel === 'LOW' ? 'text-emerald-500' :
-                  quickScanResult.riskLevel === 'MEDIUM' ? 'text-amber-600' :
-                  quickScanResult.riskLevel === 'HIGH' ? 'text-orange-600' :
-                  'text-rose-600'
-                }`}>
-                  {quickScanResult.riskLevel} Risk
-                </div>
-                <p className="text-sm text-slate-600 mt-1">{quickScanResult.summary}</p>
+                <p className="text-sm font-bold text-slate-900">Scanning Contract</p>
+                <p className="text-xs text-slate-500">{contractInfo?.contractName}</p>
               </div>
             </div>
 
-            {/* Vulnerabilities */}
-            {quickScanResult.vulnerabilities.length > 0 && (
-              <div className="border-t border-slate-100 pt-4">
-                <h4 className="text-sm font-bold text-slate-700 mb-3">
-                  {quickScanResult.vulnerabilities.length} Issues Found
-                </h4>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {quickScanResult.vulnerabilities.map((vuln, idx) => (
-                    <div key={idx} className={`p-3 rounded-lg border ${
-                      vuln.severity === 'critical' ? 'bg-rose-50 border-rose-200' :
-                      vuln.severity === 'high' ? 'bg-orange-50 border-orange-200' :
-                      vuln.severity === 'medium' ? 'bg-amber-50 border-amber-200' :
-                      vuln.severity === 'low' ? 'bg-blue-50 border-blue-200' :
-                      'bg-slate-50 border-slate-200'
-                    }`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`px-2 py-0.5 text-xs font-bold rounded ${
-                          vuln.severity === 'critical' ? 'bg-rose-200 text-rose-800' :
-                          vuln.severity === 'high' ? 'bg-orange-200 text-orange-800' :
-                          vuln.severity === 'medium' ? 'bg-amber-200 text-amber-800' :
-                          vuln.severity === 'low' ? 'bg-blue-200 text-blue-800' :
-                          'bg-slate-200 text-slate-800'
-                        }`}>
-                          {vuln.severity.toUpperCase()}
-                        </span>
-                        <span className="text-sm font-medium text-slate-900">{vuln.title}</span>
-                      </div>
-                      <p className="text-xs text-slate-600">{vuln.description}</p>
-                      {vuln.location && (
-                        <p className="text-xs text-slate-500 mt-1 font-mono">{vuln.location}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Progress bar */}
+            <div className="relative h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
+              <motion.div
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${scanProgress.pct}%` }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+              />
+            </div>
 
-            {/* Contract Analysis */}
-            {quickScanResult.contractAnalysis && (
-              <div className="border-t border-slate-100 pt-4 mt-4">
-                <h4 className="text-sm font-bold text-slate-700 mb-3">Contract Analysis</h4>
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-slate-500">Purpose:</span>
-                    <p className="text-slate-700 font-medium">{quickScanResult.contractAnalysis.purpose}</p>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-slate-500">Architecture:</span>
-                    <p className="text-slate-700 font-medium">{quickScanResult.contractAnalysis.architecture}</p>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-slate-500">SLOC:</span>
-                    <p className="text-slate-700 font-medium">{quickScanResult.contractAnalysis.sloc}</p>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <span className="text-slate-500">Functions:</span>
-                    <p className="text-slate-700 font-medium">{quickScanResult.contractAnalysis.functions}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Scan Again Button */}
-            <button
-              onClick={() => setQuickScanResult(null)}
-              className="w-full mt-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              Scan Another Contract
-            </button>
+            {/* Progress info */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-600">{scanProgress.message}</p>
+              <span className="text-xs font-bold text-indigo-600">{scanProgress.pct}%</span>
+            </div>
           </motion.div>
+        ) : (
+          <button
+            onClick={handleStartScan}
+            disabled={validationStatus !== 'valid' || isStarting}
+            className="w-full btn-primary h-12 mt-4"
+          >
+            {isStarting ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                {scanMode === 'quick' ? 'Initializing...' : 'Starting...'}
+              </>
+            ) : (
+              <>
+                Start Scan
+                <ArrowRight size={16} />
+              </>
+            )}
+          </button>
         )}
+
       </div>
     </div>
   )

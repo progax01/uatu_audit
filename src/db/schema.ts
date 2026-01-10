@@ -69,6 +69,11 @@ export const auditVisibilityEnum = pgEnum('audit_visibility', [
   'unlisted',
 ]);
 
+export const auditTypeEnum = pgEnum('audit_type', [
+  'quick',  // Quick scan - immediate results, public by default
+  'full',   // Full audit - queued job with phases
+]);
+
 export const xpTransactionTypeEnum = pgEnum('xp_transaction_type', [
   'earn',
   'spend',
@@ -311,6 +316,15 @@ export const auditJobs = pgTable(
     userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
     projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
     componentId: uuid('component_id').references(() => components.id, { onDelete: 'set null' }),
+    // Audit type: quick scan vs full audit
+    auditType: auditTypeEnum('audit_type').notNull().default('full'),
+    // Contract info for quick scans (no projectId required)
+    contractAddress: varchar('contract_address', { length: 128 }),
+    contractNetwork: varchar('contract_network', { length: 50 }),
+    contractName: varchar('contract_name', { length: 255 }),
+    isProxy: boolean('is_proxy').notNull().default(false),
+    implementationAddress: varchar('implementation_address', { length: 128 }),
+    // Repository info for full audits
     repo: varchar('repo', { length: 500 }).notNull(),
     branch: varchar('branch', { length: 255 }).notNull().default('main'),
     commitSha: varchar('commit_sha', { length: 40 }),
@@ -331,6 +345,10 @@ export const auditJobs = pgTable(
     statusIdx: index('audit_jobs_status_idx').on(table.status),
     visibilityIdx: index('audit_jobs_visibility_idx').on(table.visibility),
     createdAtIdx: index('audit_jobs_created_at_idx').on(table.createdAt),
+    auditTypeIdx: index('audit_jobs_audit_type_idx').on(table.auditType),
+    contractAddressIdx: index('audit_jobs_contract_address_idx').on(table.contractAddress),
+    // Composite index for public ledger queries
+    publicLedgerIdx: index('audit_jobs_public_ledger_idx').on(table.visibility, table.status, table.completedAt),
   })
 );
 
@@ -838,6 +856,9 @@ export type PurchaseStatus = (typeof purchaseStatusEnum.enumValues)[number];
 export type PurchaseTier = (typeof purchaseTierEnum.enumValues)[number];
 export type ClarificationPhase = (typeof clarificationPhaseEnum.enumValues)[number];
 export type ClarificationStatus = (typeof clarificationStatusEnum.enumValues)[number];
+export type AuditType = (typeof auditTypeEnum.enumValues)[number];
+export type JobStatus = (typeof jobStatusEnum.enumValues)[number];
+export type AuditVisibility = (typeof auditVisibilityEnum.enumValues)[number];
 
 // Table types
 export type AuditClarification = typeof auditClarifications.$inferSelect;

@@ -14,10 +14,13 @@ import MilestoneTracker from '../components/MilestoneTracker'
 import { Link } from 'react-router-dom'
 
 interface AuditDetailsProps {
-  jobId?: number
+  jobId?: number | string
   onHomeClick: () => void
   onBack: () => void
 }
+
+// Helper to detect UUID format
+const isUUID = (id: string) => /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)
 
 export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDetailsProps) {
   const { jobId: urlId } = useParams<{ jobId: string }>()
@@ -29,8 +32,82 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   const [jobInfo, setJobInfo] = useState<any>(null)
   const [progress, setProgress] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isQuickScan, setIsQuickScan] = useState(false)
 
   useEffect(() => {
+    // Fetch quick scan from public audits API (UUID format)
+    const fetchQuickScan = async () => {
+      if (!jobId || !isUUID(jobId)) return false;
+
+      try {
+        const response = await fetch(`/api/public-audits/${jobId}`);
+        if (!response.ok) return false;
+        const data = await response.json();
+
+        if (!data.ok || !data.audit) return false;
+
+        const { job, results } = data.audit;
+        setIsQuickScan(true);
+
+        // Map job info
+        setJobInfo({
+          id: job.id,
+          legacyId: job.legacyId,
+          project: job.contractName || `Contract ${job.contractAddress?.slice(0, 8)}`,
+          status: job.status,
+          auditType: job.auditType,
+          contractAddress: job.contractAddress,
+          contractNetwork: job.contractNetwork,
+          isProxy: job.isProxy,
+          implementationAddress: job.implementationAddress,
+          createdAt: job.createdAt,
+          completedAt: job.completedAt,
+        });
+
+        // Map results to auditData format
+        if (results) {
+          const metadata = results.metadata || {};
+          setAuditData({
+            projectName: job.contractName || `Contract ${job.contractAddress?.slice(0, 8)}`,
+            auditType: job.auditType === 'quick' ? 'Quick Scan' : 'Full Audit',
+            score: results.score,
+            grade: results.grade,
+            network: job.contractNetwork,
+            contractAddress: job.contractAddress,
+            sloc: metadata.contractAnalysis?.sloc,
+            compiler: metadata.compiler,
+            scanTime: metadata.scanDuration,
+            vulnerabilities: results.vulnerabilities?.map((v: any, idx: number) => ({
+              id: v.id || `vuln-${idx}`,
+              title: v.title,
+              severity: v.severity,
+              description: v.description,
+              location: v.location,
+              recommendation: v.recommendation,
+              impact: v.description,
+            })) || [],
+            findings: {
+              critical: results.vulnerabilities?.filter((v: any) => v.severity === 'critical').length || 0,
+              high: results.vulnerabilities?.filter((v: any) => v.severity === 'high').length || 0,
+              medium: results.vulnerabilities?.filter((v: any) => v.severity === 'medium').length || 0,
+              low: results.vulnerabilities?.filter((v: any) => v.severity === 'low').length || 0,
+            },
+            summary: results.summary,
+            contractAnalysis: metadata.contractAnalysis,
+            gasOptimizations: metadata.gasOptimizations,
+            bestPractices: metadata.bestPractices,
+            riskLevel: metadata.riskLevel,
+          });
+        }
+
+        return true;
+      } catch (err) {
+        console.error('Failed to fetch quick scan:', err);
+        return false;
+      }
+    };
+
+    // Fetch full audit job and progress (numeric ID format)
     const fetchJobAndProgress = async () => {
       if (!jobId || !/^\d+$/.test(jobId)) return;
 
@@ -64,13 +141,22 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       setLoading(true)
       setError(null)
       try {
-        const isTemplate = jobId && !/^\d+$/.test(jobId)
-        if (isTemplate) {
+        // Check if it's a UUID (quick scan)
+        if (jobId && isUUID(jobId)) {
+          const found = await fetchQuickScan();
+          if (!found) {
+            setError('Audit not found');
+          }
+        }
+        // Check if it's a template ID (non-numeric, non-UUID)
+        else if (jobId && !/^\d+$/.test(jobId)) {
           const response = await fetch(`/reports/${jobId}.json`)
           if (!response.ok) throw new Error('Report not found')
           const data = await response.json()
           setAuditData(data)
-        } else {
+        }
+        // Numeric ID (full audit)
+        else {
           await fetchJobAndProgress();
         }
       } catch (err: any) {
@@ -247,13 +333,45 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
 
         {auditData ? (
           <>
+            {/* Quick Scan Contract Info */}
+            {isQuickScan && auditData.contractAddress && (
+              <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 p-6 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-white/80 flex items-center justify-center text-indigo-500 shadow-sm">
+                      <Target size={24} strokeWidth={2} />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Contract Address</div>
+                      <div className="text-sm font-mono font-bold text-slate-900 mt-1">{auditData.contractAddress}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {jobInfo?.isProxy && (
+                      <span className="px-3 py-1.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-widest rounded-lg">
+                        Proxy Contract
+                      </span>
+                    )}
+                    <a
+                      href={`https://${auditData.network === 'ethereum' ? '' : auditData.network + '.'}etherscan.io/address/${auditData.contractAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-colors"
+                    >
+                      View on Explorer
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Balanced Technical Vitals Bar */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
               {[
-                { label: 'Network Deployment', value: auditData.network || 'Mainnet', icon: Globe, color: 'text-indigo-500' },
+                { label: 'Network Deployment', value: auditData.network ? auditData.network.charAt(0).toUpperCase() + auditData.network.slice(1) : 'Mainnet', icon: Globe, color: 'text-indigo-500' },
                 { label: 'Compilation Logic', value: auditData.compiler || '0.8.x', icon: Code2, color: 'text-slate-500' },
                 { label: 'Code Base Assets', value: `${auditData.sloc || 'N/A'} SLOC`, icon: Binary, color: 'text-slate-500' },
-                { label: 'Last Cycle Time', value: auditData.scanTime ? '22m 14s' : 'Queueing', icon: Timer, color: 'text-slate-500' }
+                { label: 'Scan Duration', value: auditData.scanTime ? `${(auditData.scanTime / 1000).toFixed(1)}s` : 'N/A', icon: Timer, color: 'text-slate-500' }
               ].map((spec, i) => (
                 <div key={i} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex items-center gap-5 group hover:border-indigo-100 transition-colors">
                   <div className={`w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center ${spec.color} group-hover:bg-white transition-colors`}>
@@ -322,14 +440,36 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         exit={{ opacity: 0 }}
                         className="space-y-6"
                       >
+                        {/* Summary Section for Quick Scans */}
+                        {isQuickScan && auditData.summary && (
+                          <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-sm mb-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <ShieldCheck size={20} className="text-indigo-500" />
+                              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Executive Summary</h3>
+                            </div>
+                            <p className="text-[13px] text-slate-700 leading-relaxed font-medium">{auditData.summary}</p>
+                          </div>
+                        )}
+
+                        {/* Vulnerabilities */}
                         {auditData.vulnerabilities?.map((v: any) => (
                           <div
                             key={v.id}
                             className="border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all"
                           >
-                            <div className={`px-8 py-6 border-b border-slate-100 flex items-center justify-between ${v.severity === 'high' ? 'bg-rose-50/50' : 'bg-amber-50/50'}`}>
+                            <div className={`px-8 py-6 border-b border-slate-100 flex items-center justify-between ${
+                              v.severity === 'critical' ? 'bg-rose-50/70' :
+                              v.severity === 'high' ? 'bg-rose-50/50' :
+                              v.severity === 'medium' ? 'bg-amber-50/50' :
+                              'bg-blue-50/50'
+                            }`}>
                               <div className="flex items-center gap-5">
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${v.severity === 'high' ? 'text-rose-500' : 'text-amber-500'}`}>
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                                  v.severity === 'critical' ? 'text-rose-600' :
+                                  v.severity === 'high' ? 'text-rose-500' :
+                                  v.severity === 'medium' ? 'text-amber-500' :
+                                  'text-blue-500'
+                                }`}>
                                   <AlertCircle size={24} strokeWidth={3} />
                                 </div>
                                 <div>
@@ -337,7 +477,12 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                   <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block mt-1">{v.location}</span>
                                 </div>
                               </div>
-                              <span className={`px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest ${v.severity === 'high' ? 'bg-rose-500 text-white' : 'bg-amber-500 text-white'}`}>
+                              <span className={`px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest ${
+                                v.severity === 'critical' ? 'bg-rose-600 text-white' :
+                                v.severity === 'high' ? 'bg-rose-500 text-white' :
+                                v.severity === 'medium' ? 'bg-amber-500 text-white' :
+                                'bg-blue-500 text-white'
+                              }`}>
                                 {v.severity}
                               </span>
                             </div>
@@ -372,7 +517,121 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                           </div>
                         ))}
 
-                        {/* Module & Function Analysis */}
+                        {/* Contract Analysis Section for Quick Scans */}
+                        {isQuickScan && auditData.contractAnalysis && (
+                          <div className="pt-8">
+                            <div className="flex items-center gap-4 mb-6">
+                              <div>
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Contract Analysis</h3>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Structural breakdown and complexity metrics</p>
+                              </div>
+                            </div>
+                            <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+                                <div className="p-4 bg-slate-50 rounded-xl">
+                                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">SLOC</div>
+                                  <div className="text-xl font-black text-slate-900">{auditData.contractAnalysis.sloc || 'N/A'}</div>
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-xl">
+                                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Functions</div>
+                                  <div className="text-xl font-black text-slate-900">{auditData.contractAnalysis.functions || 'N/A'}</div>
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-xl">
+                                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">State Variables</div>
+                                  <div className="text-xl font-black text-slate-900">{auditData.contractAnalysis.stateVariables || 'N/A'}</div>
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-xl">
+                                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">External Calls</div>
+                                  <div className="text-xl font-black text-slate-900">{auditData.contractAnalysis.externalCalls || 'N/A'}</div>
+                                </div>
+                              </div>
+                              <div className="space-y-4">
+                                {auditData.contractAnalysis.purpose && (
+                                  <div>
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Purpose</div>
+                                    <p className="text-[13px] text-slate-700 font-medium">{auditData.contractAnalysis.purpose}</p>
+                                  </div>
+                                )}
+                                {auditData.contractAnalysis.architecture && (
+                                  <div>
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Architecture</div>
+                                    <p className="text-[13px] text-slate-700 font-medium">{auditData.contractAnalysis.architecture}</p>
+                                  </div>
+                                )}
+                                {auditData.contractAnalysis.accessControl && (
+                                  <div>
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Access Control</div>
+                                    <p className="text-[13px] text-slate-700 font-medium">{auditData.contractAnalysis.accessControl}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Gas Optimizations Section for Quick Scans */}
+                        {isQuickScan && auditData.gasOptimizations && auditData.gasOptimizations.length > 0 && (
+                          <div className="pt-8">
+                            <div className="flex items-center gap-4 mb-6">
+                              <div>
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Gas Optimizations</h3>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Recommendations for reducing gas costs</p>
+                              </div>
+                            </div>
+                            <div className="space-y-4">
+                              {auditData.gasOptimizations.map((opt: any, idx: number) => (
+                                <div key={idx} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                  <div className="flex items-center gap-3 mb-3">
+                                    <Zap size={16} className="text-amber-500" />
+                                    <h4 className="text-sm font-black text-slate-900">{opt.title}</h4>
+                                    {opt.savings && (
+                                      <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-lg">
+                                        {opt.savings}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[13px] text-slate-600 font-medium">{opt.description}</p>
+                                  {opt.location && (
+                                    <p className="text-[11px] text-slate-400 font-mono mt-2">{opt.location}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Best Practices Section for Quick Scans */}
+                        {isQuickScan && auditData.bestPractices && auditData.bestPractices.length > 0 && (
+                          <div className="pt-8">
+                            <div className="flex items-center gap-4 mb-6">
+                              <div>
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Best Practices</h3>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Code quality and maintainability recommendations</p>
+                              </div>
+                            </div>
+                            <div className="space-y-4">
+                              {auditData.bestPractices.map((bp: any, idx: number) => (
+                                <div key={idx} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                  <div className="flex items-center gap-3 mb-3">
+                                    <CheckCircle2 size={16} className="text-indigo-500" />
+                                    <h4 className="text-sm font-black text-slate-900">{bp.title}</h4>
+                                    <span className={`px-2 py-1 text-[10px] font-bold rounded-lg ${
+                                      bp.status === 'passed' ? 'bg-emerald-100 text-emerald-700' :
+                                      bp.status === 'warning' ? 'bg-amber-100 text-amber-700' :
+                                      'bg-slate-100 text-slate-600'
+                                    }`}>
+                                      {bp.status || 'info'}
+                                    </span>
+                                  </div>
+                                  <p className="text-[13px] text-slate-600 font-medium">{bp.description}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Module & Function Analysis (for full audits only) */}
+                        {!isQuickScan && auditData.functions_analysis && (
                         <div className="pt-12">
                           <div className="flex items-center gap-4 mb-8">
                             <div>
@@ -411,8 +670,10 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                             </table>
                           </div>
                         </div>
+                        )}
 
-                        {/* Test Suite Ledger */}
+                        {/* Test Suite Ledger (for full audits only) */}
+                        {!isQuickScan && auditData.test_suites && (
                         <div className="pt-12">
                           <div className="flex items-center gap-4 mb-8">
                             <div>
@@ -440,6 +701,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                             ))}
                           </div>
                         </div>
+                        )}
                       </motion.div>
                     ) : activeTab === 'triage' ? (
                       <motion.div

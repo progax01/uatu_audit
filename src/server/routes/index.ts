@@ -7,3 +7,4 @@ export { handleScanRoutes } from "./scan.js";
 export { handleProjectRoutes } from "./projects.js";
 export { handlePreAuditRoutes } from "./preaudit.js";
 export { handleBillingRoutes } from "./billing.js";
+export { handlePublicAuditRoutes } from "./publicAudits.js";

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Loader2, CheckCircle, Search, Cpu, Globe, Activity, Shield, AlertTriangle, XCircle, RefreshCw, FileCode, ExternalLink, Code } from 'lucide-react'
 import { motion } from 'framer-motion'
 import logo from '../assets/logo.svg'
@@ -54,14 +55,34 @@ const SEVERITY_CONFIG = {
     info: { color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' },
 }
 
+// Helper to get explorer URL for different networks
+function getExplorerUrl(network: Network, address: string): string {
+    const explorers: Record<Network, string> = {
+        ethereum: 'https://etherscan.io',
+        arbitrum: 'https://arbiscan.io',
+        polygon: 'https://polygonscan.com',
+        base: 'https://basescan.org',
+        bnb: 'https://bscscan.com',
+        optimism: 'https://optimistic.etherscan.io',
+    }
+    return `${explorers[network]}/address/${address}`
+}
+
+interface ScanProgress {
+    pct: number
+    message: string
+}
+
 export default function QuickScan() {
+    const navigate = useNavigate()
     const [selectedNetwork, setSelectedNetwork] = useState<Network>('ethereum')
     const [contractAddress, setContractAddress] = useState('')
     const [validationStatus, setValidationStatus] = useState<ValidationStatus>('idle')
     const [error, setError] = useState<string | null>(null)
     const [isStarting, setIsStarting] = useState(false)
+    const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null)
     const [scanResult, setScanResult] = useState<QuickScanResult | null>(null)
-    const [jobId, setJobId] = useState<number | null>(null)
+    const [jobId, setJobId] = useState<string | null>(null)
     const [contractInfo, setContractInfo] = useState<ContractInfo | null>(null)
 
     const debounceRef = useRef<NodeJS.Timeout | null>(null)
@@ -82,15 +103,19 @@ export default function QuickScan() {
                 setValidationStatus('invalid')
                 return
             }
-            setValidationStatus('valid')
-            setContractInfo({
-                contractName: data.contractName,
-                compiler: data.compiler,
+
+            // Set contract info with fallbacks for all fields
+            const info: ContractInfo = {
+                contractName: data.contractName || `Contract ${address.slice(0, 8)}...`,
+                compiler: data.compiler || 'Unknown',
                 files: data.files || [],
                 fileCount: data.fileCount || 0,
                 isProxy: data.isProxy || false,
-                explorerUrl: data.explorerUrl
-            })
+                explorerUrl: data.explorerUrl || getExplorerUrl(network, address)
+            }
+
+            setContractInfo(info)
+            setValidationStatus('valid')
         } catch (err) {
             setError('Connection failed')
             setValidationStatus('error')
@@ -98,12 +123,15 @@ export default function QuickScan() {
     }, [])
 
     const handleAddressChange = (rawInput: string) => {
-        // Normalize: remove any existing 0x prefix, then add it back
-        const cleaned = rawInput.replace(/^0x/i, '').replace(/[^a-fA-F0-9]/g, '')
+        // Trim whitespace and normalize: remove any existing 0x prefix, then add it back
+        const trimmed = rawInput.trim()
+        const cleaned = trimmed.replace(/^0x/i, '').replace(/[^a-fA-F0-9]/g, '')
         const address = cleaned ? `0x${cleaned}` : ''
         setContractAddress(address)
 
         if (debounceRef.current) clearTimeout(debounceRef.current)
+        setContractInfo(null) // Clear previous contract info when address changes
+
         if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
             setValidationStatus('idle')
             return
@@ -128,6 +156,7 @@ export default function QuickScan() {
         setIsStarting(true)
         setError(null)
         setScanResult(null)
+        setScanProgress({ pct: 0, message: 'Initializing scan...' })
 
         try {
             const response = await fetch('/scan/enqueue', {
@@ -140,22 +169,96 @@ export default function QuickScan() {
                 }),
             })
 
-            const data = await response.json()
-            if (!response.ok) throw new Error(data.error || 'Failed to start scan')
+            const contentType = response.headers.get('content-type') || ''
 
-            setJobId(data.job?.id || null)
+            // Handle SSE streaming (new flow)
+            if (contentType.includes('text/event-stream')) {
+                const reader = response.body?.getReader()
+                if (!reader) throw new Error('No response body')
 
-            // Check if quick scan results are available (Gemini mode)
-            if (data.quickScanResult) {
-                setScanResult(data.quickScanResult)
-                setIsStarting(false)
-            } else {
-                // Fallback to full audit - redirect to audit page
-                window.location.href = `/audit/${data.job.id}`
+                const decoder = new TextDecoder()
+                let buffer = ''
+
+                while (true) {
+                    const { done, value } = await reader.read()
+                    if (done) break
+
+                    buffer += decoder.decode(value, { stream: true })
+                    const lines = buffer.split('\n')
+                    buffer = lines.pop() || ''
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6))
+
+                                setScanProgress({
+                                    pct: data.progressPct || 0,
+                                    message: data.message || 'Processing...',
+                                })
+
+                                if (data.jobId) setJobId(data.jobId)
+
+                                if (data.status === 'completed' && data.redirectUrl) {
+                                    setIsStarting(false)
+                                    setScanProgress(null)
+                                    navigate(data.redirectUrl)
+                                    return
+                                }
+
+                                if (data.status === 'failed') {
+                                    throw new Error(data.error || data.message || 'Scan failed')
+                                }
+                            } catch (parseError) {
+                                console.warn('Failed to parse SSE event:', line)
+                            }
+                        }
+                    }
+                }
             }
+            // Handle JSON response (cached result or error)
+            else if (contentType.includes('application/json')) {
+                const data = await response.json()
+                if (!response.ok) throw new Error(data.error || 'Failed to start scan')
+
+                setJobId(data.jobId || data.job?.id || null)
+
+                // Cached result - redirect directly
+                if (data.cached && data.redirectUrl) {
+                    navigate(data.redirectUrl)
+                    return
+                }
+
+                // Quick scan result with redirect - always redirect to audit page
+                if (data.quickScanResult) {
+                    const targetUrl = data.redirectUrl || (data.jobId ? `/audit/${data.jobId}` : null)
+                    if (targetUrl) {
+                        // Redirect without showing inline result
+                        setIsStarting(false)
+                        setScanProgress(null)
+                        navigate(targetUrl)
+                        return
+                    }
+                    // Fallback: show inline result only if no redirect URL
+                    setScanResult(data.quickScanResult)
+                    setIsStarting(false)
+                    setScanProgress(null)
+                    return
+                }
+
+                // Full audit fallback
+                if (data.job?.id) {
+                    navigate(`/audit/${data.job.id}`)
+                    return
+                }
+            }
+
+            setIsStarting(false)
+            setScanProgress(null)
         } catch (err: any) {
             setError(err.message || 'Failed to start scan')
             setIsStarting(false)
+            setScanProgress(null)
         }
     }
 
@@ -451,14 +554,41 @@ export default function QuickScan() {
                             animate={{ opacity: 1, y: 0 }}
                             className="text-center max-w-md"
                         >
-                            {isStarting ? (
-                                <>
+                            {isStarting && scanProgress ? (
+                                <div className="w-full max-w-sm mx-auto">
                                     <div className="w-24 h-24 bg-white border border-black/[0.03] rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-xl shadow-slate-200/50">
                                         <Loader2 size={40} className="text-indigo-600 animate-spin" />
                                     </div>
                                     <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4 uppercase">Analyzing Contract</h2>
+
+                                    {/* Progress bar */}
+                                    <div className="mb-6">
+                                        <div className="relative h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
+                                            <motion.div
+                                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${scanProgress.pct}%` }}
+                                                transition={{ duration: 0.5, ease: 'easeOut' }}
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{scanProgress.message}</p>
+                                            <span className="text-[10px] font-black text-indigo-600">{scanProgress.pct}%</span>
+                                        </div>
+                                    </div>
+
+                                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
+                                        AI security engine scanning for vulnerabilities.
+                                    </p>
+                                </div>
+                            ) : isStarting ? (
+                                <>
+                                    <div className="w-24 h-24 bg-white border border-black/[0.03] rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-xl shadow-slate-200/50">
+                                        <Loader2 size={40} className="text-indigo-600 animate-spin" />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4 uppercase">Initializing Scan</h2>
                                     <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-sm mx-auto">
-                                        AI security engine scanning for vulnerabilities. This usually takes 30-60 seconds.
+                                        Connecting to security analysis engine...
                                     </p>
                                 </>
                             ) : validationStatus === 'validating' ? (
@@ -471,6 +601,16 @@ export default function QuickScan() {
                                         Retrieving source code from block explorer...
                                     </p>
                                 </>
+                            ) : validationStatus === 'valid' && !contractInfo ? (
+                                <>
+                                    <div className="w-24 h-24 bg-white border border-emerald-100 rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-xl shadow-emerald-100/50">
+                                        <CheckCircle size={40} className="text-emerald-500" />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4 uppercase">Contract Verified</h2>
+                                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-sm mx-auto">
+                                        Click "Run Formal Analysis" to start the security scan.
+                                    </p>
+                                </>
                             ) : (
                                 <>
                                     <div className="w-24 h-24 bg-white border border-black/[0.03] rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-xl shadow-slate-200/50 group hover:scale-105 transition-transform duration-500">
@@ -478,7 +618,7 @@ export default function QuickScan() {
                                     </div>
                                     <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4 uppercase">System Awaiting Target</h2>
                                     <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-sm mx-auto">
-                                        Enter a verified contract address to run a free security scan powered by AI.
+                                        Formal security node idle. Input a verified contract address on the left to initiate the bytecode extraction and vulnerability mapping phase.
                                     </p>
                                 </>
                             )}

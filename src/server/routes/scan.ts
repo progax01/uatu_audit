@@ -20,6 +20,14 @@ import { enqueue } from "../../services/jobQueue.js";
 import { getUatuHome } from "../../constants/paths.js";
 import { logger } from "../../utils/logger.js";
 import { performQuickScan, loadContractSource, isQuickScanConfigured } from "../../services/quickScanService.js";
+import {
+  createQuickScanJob,
+  updateJobProgress,
+  completeQuickScanJob,
+  failQuickScanJob,
+  findExistingQuickScan,
+  getAuditWithResults,
+} from "../../repositories/auditJobRepository.js";
 
 const log = logger.child({ service: "scan-routes" });
 
@@ -478,21 +486,20 @@ export async function handleScanRoutes(
       const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
       const projectName = `${contractName}-${shortAddress}`;
 
-      // QUICK SCAN: Run immediately with Claude CLI (no job queue)
+      // QUICK SCAN: Run immediately with Claude CLI, save to database
       if (scanMode === "quick") {
         log.info("Running quick scan with Claude CLI", { contractName, address });
 
-        const quickScanPath = path.join(workspacePath, "quick-scan-result.json");
-
-        // Check if we already have a cached quick scan result
-        if (await fs.pathExists(quickScanPath)) {
-          try {
-            const cachedResult = await fs.readJson(quickScanPath);
-            log.info("Using cached quick scan result", {
+        // Check if we already have a completed quick scan for this contract
+        const existingJob = await findExistingQuickScan(address, network);
+        if (existingJob) {
+          const existingResult = await getAuditWithResults(existingJob.id);
+          if (existingResult?.results) {
+            log.info("Using existing quick scan from database", {
+              jobId: existingJob.id,
               address,
               network,
-              score: cachedResult.score,
-              timestamp: cachedResult.timestamp,
+              score: existingResult.results.scoreValue,
             });
 
             res.setHeader("Content-Type", "application/json");
@@ -501,15 +508,22 @@ export async function handleScanRoutes(
                 success: true,
                 scanMode: "quick",
                 cached: true,
+                jobId: existingJob.id,
                 projectName,
                 workspacePath,
                 isProxy,
-                quickScanResult: cachedResult,
+                redirectUrl: `/audit/${existingJob.id}`,
+                quickScanResult: {
+                  success: true,
+                  score: existingResult.results.scoreValue,
+                  grade: existingResult.results.scoreLabel,
+                  vulnerabilities: existingResult.results.findings,
+                  summary: existingResult.results.summary,
+                  ...(existingResult.results.metadata as Record<string, unknown> || {}),
+                },
               })
             );
             return true;
-          } catch (cacheError) {
-            log.warn("Failed to read cached result, running fresh scan", { error: cacheError });
           }
         }
 
@@ -525,23 +539,84 @@ export async function handleScanRoutes(
           return true;
         }
 
+        // Load metadata for compiler info
+        let compiler: string | undefined;
+        let optimization: boolean | undefined;
+        let runs: number | undefined;
+        let implementationAddress: string | undefined;
+        if (await fs.pathExists(metadataPath)) {
+          const metadata = await fs.readJson(metadataPath);
+          compiler = metadata.compiler;
+          optimization = metadata.optimization;
+          runs = metadata.runs;
+          implementationAddress = metadata.implementationAddress;
+        }
+
+        // Create audit job in database FIRST
+        const auditJob = await createQuickScanJob({
+          contractAddress: address,
+          contractNetwork: network,
+          contractName,
+          isProxy,
+          implementationAddress,
+        });
+
+        log.info("Created quick scan job", { jobId: auditJob.id, contractName, address });
+
+        // Setup SSE response for progress streaming
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no", // Disable nginx buffering
+        });
+
+        // Helper to send SSE event
+        const sendProgress = (data: any) => {
+          res.write(`data: ${JSON.stringify(data)}\n\n`);
+        };
+
+        // Send initial progress
+        sendProgress({
+          jobId: auditJob.id,
+          status: "pending",
+          progressPct: 5,
+          message: "Initializing scan...",
+        });
+
         try {
-          // Load metadata for compiler info
-          let compiler: string | undefined;
-          let optimization: boolean | undefined;
-          let runs: number | undefined;
-          if (await fs.pathExists(metadataPath)) {
-            const metadata = await fs.readJson(metadataPath);
-            compiler = metadata.compiler;
-            optimization = metadata.optimization;
-            runs = metadata.runs;
-          }
+          // Update progress: Fetching source
+          await updateJobProgress(auditJob.id, 10, "Fetching contract source...", "analyzing");
+          sendProgress({
+            jobId: auditJob.id,
+            status: "analyzing",
+            progressPct: 10,
+            message: "Fetching contract source...",
+          });
 
           // Load contract source and count SLOC
           const sourceCode = await loadContractSource(workspacePath);
           const sloc = sourceCode.split('\n').filter(line => line.trim() && !line.trim().startsWith('//')).length;
 
-          log.info("Contract analysis", { contractName, sloc, sourceLength: sourceCode.length });
+          log.info("Contract analysis", { jobId: auditJob.id, contractName, sloc, sourceLength: sourceCode.length });
+
+          // Update progress: Analyzing structure
+          await updateJobProgress(auditJob.id, 30, "Analyzing contract structure...");
+          sendProgress({
+            jobId: auditJob.id,
+            status: "analyzing",
+            progressPct: 30,
+            message: "Analyzing contract structure...",
+          });
+
+          // Update progress: Running security analysis
+          await updateJobProgress(auditJob.id, 50, "Running security analysis...", "auditing");
+          sendProgress({
+            jobId: auditJob.id,
+            status: "auditing",
+            progressPct: 50,
+            message: "Running security analysis with Claude Opus...",
+          });
 
           // Run quick scan - for large contracts (>1000 SLOC), use file-based approach
           const quickResult = await performQuickScan({
@@ -555,9 +630,33 @@ export async function handleScanRoutes(
             workspacePath: sloc > 1000 ? workspacePath : undefined, // Let Claude read files for large contracts
           });
 
-          // Save quick scan results
+          // Update progress: Saving results
+          await updateJobProgress(auditJob.id, 90, "Saving results...", "generating");
+          sendProgress({
+            jobId: auditJob.id,
+            status: "generating",
+            progressPct: 90,
+            message: "Saving results...",
+          });
+
+          // Save results to database
+          await completeQuickScanJob(auditJob.id, {
+            score: quickResult.score,
+            grade: quickResult.grade,
+            riskLevel: quickResult.riskLevel,
+            vulnerabilities: quickResult.vulnerabilities,
+            summary: quickResult.summary,
+            contractAnalysis: quickResult.contractAnalysis,
+            gasOptimizations: quickResult.gasOptimizations,
+            bestPractices: quickResult.bestPractices,
+            scanDuration: quickResult.scanDuration,
+          });
+
+          // Also save to file for backwards compatibility
+          const quickScanPath = path.join(workspacePath, "quick-scan-result.json");
           await fs.writeJson(quickScanPath, {
             ...quickResult,
+            jobId: auditJob.id,
             contractName,
             address,
             network,
@@ -566,33 +665,41 @@ export async function handleScanRoutes(
           }, { spaces: 2 });
 
           log.info("Quick scan complete", {
+            jobId: auditJob.id,
             contractName,
             score: quickResult.score,
             vulnerabilities: quickResult.vulnerabilities.length,
             sloc,
           });
 
-          res.setHeader("Content-Type", "application/json");
-          res.end(
-            JSON.stringify({
-              success: true,
-              scanMode: "quick",
-              cached: false,
-              projectName,
-              workspacePath,
-              isProxy,
-              quickScanResult: quickResult,
-            })
-          );
+          // Send completion event
+          sendProgress({
+            jobId: auditJob.id,
+            status: "completed",
+            progressPct: 100,
+            message: "Scan complete!",
+            redirectUrl: `/audit/${auditJob.id}`,
+            quickScanResult: quickResult,
+          });
+
+          res.end();
           return true;
         } catch (quickError: any) {
-          log.error("Quick scan failed", { error: quickError.message });
-          res.statusCode = 500;
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({
-            error: "Quick scan failed",
-            message: quickError.message || "An error occurred during scanning"
-          }));
+          log.error("Quick scan failed", { jobId: auditJob.id, error: quickError.message });
+
+          // Mark job as failed
+          await failQuickScanJob(auditJob.id, quickError.message);
+
+          // Send error event
+          sendProgress({
+            jobId: auditJob.id,
+            status: "failed",
+            progressPct: 0,
+            message: quickError.message || "Scan failed",
+            error: quickError.message,
+          });
+
+          res.end();
           return true;
         }
       }
