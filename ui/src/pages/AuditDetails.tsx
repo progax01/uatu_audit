@@ -112,7 +112,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       if (!jobId || !/^\d+$/.test(jobId)) return;
 
       try {
-        const jobRes = await fetch(`/api/jobs/${jobId}`);
+        const jobRes = await fetch(`/jobs/${jobId}`);
         if (!jobRes.ok) throw new Error('Job not found');
         const jobData = await jobRes.json();
         setJobInfo(jobData.job);
@@ -126,7 +126,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
 
         // If job is completed, fetch report
         if (jobData.job.status === 'completed' || jobData.job.status === 'done') {
-          const reportRes = await fetch(`/api/report/${jobId}`);
+          const reportRes = await fetch(`/report?project=${encodeURIComponent(jobData.job.project)}&branch=${encodeURIComponent(jobData.job.branch)}&format=json`);
           if (reportRes.ok) {
             const rData = await reportRes.json();
             setAuditData(rData);
