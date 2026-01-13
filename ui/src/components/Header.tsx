@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Github, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import logo from '../assets/logo.svg';
+import ThemeToggle from './ThemeToggle';
 
 interface HeaderProps {
     isAuthed?: boolean;
@@ -16,7 +17,7 @@ export default function Header({ isAuthed, onLogin }: HeaderProps) {
     const isActive = (path: string) => location.pathname === path;
 
     return (
-        <header className="fixed top-0 left-0 right-0 z-[100] h-20 flex items-center bg-white/70 backdrop-blur-xl border-b border-black/[0.02]">
+        <header className="fixed top-0 left-0 right-0 z-[100] h-20 flex items-center bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl border-b border-black/[0.02] dark:border-white/[0.05] transition-colors duration-300">
             <div className="max-w-7xl mx-auto px-6 lg:px-10 w-full flex items-center justify-between">
                 {/* Logo */}
                 <Link to="/" className="flex items-center group">
@@ -83,7 +84,8 @@ export default function Header({ isAuthed, onLogin }: HeaderProps) {
                 </nav>
 
                 {/* CTA Buttons */}
-                <div className="hidden lg:flex items-center gap-4">
+                <div className="hidden lg:flex items-center gap-3">
+                    <ThemeToggle />
                     {isAuthed ? (
                         <Link to="/dashboard" className="btn-primary py-2.5">
                             Dashboard
@@ -111,7 +113,7 @@ export default function Header({ isAuthed, onLogin }: HeaderProps) {
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    className="lg:hidden absolute top-20 left-0 right-0 bg-white border-b border-black/[0.04] shadow-2xl z-50 p-6"
+                    className="lg:hidden absolute top-20 left-0 right-0 bg-white dark:bg-slate-900 border-b border-black/[0.04] dark:border-white/[0.05] shadow-2xl z-50 p-6"
                 >
                     <nav className="flex flex-col gap-6">
                         {['Features', 'Pricing', 'Docs', 'How It Works'].map(item => (
@@ -119,12 +121,16 @@ export default function Header({ isAuthed, onLogin }: HeaderProps) {
                                 key={item}
                                 to={`/${item.toLowerCase().replace(/ /g, '-')}`}
                                 onClick={() => setMobileMenuOpen(false)}
-                                className="text-sm font-black text-slate-900 uppercase tracking-widest"
+                                className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest"
                             >
                                 {item}
                             </Link>
                         ))}
-                        <div className="pt-6 border-t border-black/[0.04]">
+                        <div className="pt-6 border-t border-black/[0.04] flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Theme</span>
+                                <ThemeToggle />
+                            </div>
                             <button
                                 onClick={() => { setMobileMenuOpen(false); onLogin?.(); }}
                                 className="w-full btn-primary"

@@ -4,69 +4,184 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Favicon -->
+  <!-- Favicon & App Icons -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon.svg" />
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon.svg" />
+  <link rel="mask-icon" href="/favicon.svg" color="#4F46E5" />
 
   <!-- Primary Meta Tags -->
-  <title>Uatu Security | AI-Powered Smart Contract Audits & Web3 Security</title>
-  <meta name="title" content="Uatu Security | AI-Powered Smart Contract Audits & Web3 Security" />
-  <meta name="description" content="Enterprise-grade AI security audits for smart contracts and DApps. Detect vulnerabilities before deployment with 99.8% accuracy. Trusted by leading Web3 protocols." />
-  <meta name="keywords" content="smart contract audit, blockchain security, solidity audit, defi security, web3 security, ethereum audit, solana audit, rust audit, AI security, vulnerability detection, code review, penetration testing, crypto security" />
-  <meta name="author" content="Uatu Security" />
-  <meta name="robots" content="index, follow" />
+  <title>Uatu - AI-Powered Smart Contract Security Audits | Web3 Security Platform</title>
+  <meta name="title" content="Uatu - AI-Powered Smart Contract Security Audits | Web3 Security Platform" />
+  <meta name="description" content="Secure your smart contracts with Uatu's AI-powered security audits. Detect vulnerabilities in Solidity, Rust, and Move contracts across Ethereum, Solana, and 9+ chains. Free quick scans available." />
+  <meta name="keywords" content="smart contract audit, blockchain security, solidity audit, defi security, web3 security, ethereum audit, solana audit, rust audit, move audit, AI security audit, vulnerability detection, code review, crypto security, smart contract scanner, blockchain audit, security analysis, uatu, uatu security, web3 audit platform" />
+  <meta name="author" content="Uatu" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="language" content="English" />
+  <meta name="revisit-after" content="1 days" />
+  <meta name="rating" content="general" />
+  <meta name="distribution" content="global" />
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://uatu.xyz/" />
+
+  <!-- Sitemap -->
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://audit.uatu.xyz/" />
-  <meta property="og:title" content="Uatu Security | AI-Powered Smart Contract Audits" />
-  <meta property="og:description" content="Enterprise-grade AI security audits for smart contracts and DApps. Detect vulnerabilities before deployment with 99.8% accuracy." />
-  <meta property="og:image" content="https://audit.uatu.xyz/og-image.png" />
-  <meta property="og:site_name" content="Uatu Security" />
+  <meta property="og:url" content="https://uatu.xyz/" />
+  <meta property="og:title" content="Uatu - AI-Powered Smart Contract Security Audits" />
+  <meta property="og:description" content="Secure your smart contracts with Uatu's AI-powered security audits. Detect vulnerabilities across Ethereum, Solana, and 9+ chains. Free quick scans available." />
+  <meta property="og:image" content="https://uatu.xyz/meta.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Uatu - Web3 Security Platform" />
+  <meta property="og:site_name" content="Uatu" />
   <meta property="og:locale" content="en_US" />
 
   <!-- Twitter -->
-  <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:url" content="https://audit.uatu.xyz/" />
-  <meta property="twitter:title" content="Uatu Security | AI-Powered Smart Contract Audits" />
-  <meta property="twitter:description" content="Enterprise-grade AI security audits for smart contracts and DApps. Detect vulnerabilities before deployment with 99.8% accuracy." />
-  <meta property="twitter:image" content="https://audit.uatu.xyz/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://uatu.xyz/" />
+  <meta name="twitter:title" content="Uatu - AI-Powered Smart Contract Security Audits" />
+  <meta name="twitter:description" content="Secure your smart contracts with Uatu's AI-powered security audits. Detect vulnerabilities across Ethereum, Solana, and 9+ chains. Free quick scans available." />
+  <meta name="twitter:image" content="https://uatu.xyz/meta.png" />
+  <meta name="twitter:image:alt" content="Uatu - Web3 Security Platform" />
   <meta name="twitter:creator" content="@Uatuhq" />
   <meta name="twitter:site" content="@Uatuhq" />
 
-  <!-- Additional SEO -->
-  <link rel="canonical" href="https://audit.uatu.xyz/" />
-  <meta name="theme-color" content="#5C61FF" />
-  <meta name="msapplication-TileColor" content="#5C61FF" />
+  <!-- Additional SEO & PWA -->
+  <meta name="theme-color" content="#4F46E5" />
+  <meta name="msapplication-TileColor" content="#4F46E5" />
+  <meta name="msapplication-TileImage" content="/favicon.svg" />
+  <meta name="application-name" content="Uatu" />
+  <meta name="apple-mobile-web-app-title" content="Uatu" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="format-detection" content="telephone=no" />
 
-  <!-- Structured Data -->
+  <!-- Geo Tags (if applicable) -->
+  <meta name="geo.region" content="US" />
+
+  <!-- Security Headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+
+  <!-- Structured Data - Organization -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "Uatu Security",
-    "applicationCategory": "SecurityApplication",
-    "operatingSystem": "Web",
-    "description": "Enterprise-grade AI security audits for smart contracts and DApps",
-    "url": "https://audit.uatu.xyz",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": "4.9",
-      "ratingCount": "127"
+    "@type": "Organization",
+    "name": "Uatu",
+    "url": "https://uatu.xyz",
+    "logo": "https://uatu.xyz/logo.svg",
+    "description": "AI-powered smart contract security audits for Web3",
+    "sameAs": [
+      "https://twitter.com/Uatuhq",
+      "https://github.com/uatu-security"
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "customer service",
+      "url": "https://uatu.xyz/support"
     }
   }
   </script>
 
+  <!-- Structured Data - WebSite with SearchAction -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Uatu",
+    "url": "https://uatu.xyz",
+    "description": "AI-powered smart contract security audits for Web3",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Uatu"
+    },
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://uatu.xyz/public-audits?search={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+
+  <!-- Structured Data - SoftwareApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Uatu Security Platform",
+    "applicationCategory": "SecurityApplication",
+    "operatingSystem": "Web",
+    "description": "AI-powered smart contract security audits. Detect vulnerabilities in Solidity, Rust, and Move contracts across 9+ blockchain networks.",
+    "url": "https://uatu.xyz",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+      "description": "Free quick scans available"
+    },
+    "featureList": [
+      "AI-powered vulnerability detection",
+      "Multi-chain support (Ethereum, Solana, Polygon, etc.)",
+      "Real-time security monitoring",
+      "Comprehensive audit reports",
+      "GitHub integration"
+    ]
+  }
+  </script>
+
+  <!-- Structured Data - Service -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "name": "Smart Contract Security Audit",
+    "provider": {
+      "@type": "Organization",
+      "name": "Uatu"
+    },
+    "description": "Professional AI-powered security audits for smart contracts and decentralized applications",
+    "serviceType": "Security Audit",
+    "areaServed": "Worldwide",
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Security Services",
+      "itemListElement": [
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Quick Scan",
+            "description": "Free instant AI security scan for smart contracts"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Full Audit",
+            "description": "Comprehensive security audit with detailed report"
+          }
+        }
+      ]
+    }
+  }
+  </script>
+
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+  <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+
   <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 </head>
 <body>
   <div id="root"></div>

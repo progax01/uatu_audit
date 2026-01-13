@@ -23,6 +23,7 @@ function parseQuery(query: any): {
   network?: string;
   search?: string;
   auditType?: "quick" | "full";
+  includeInProgress: boolean;
 } {
   return {
     page: Math.max(1, parseInt(String(query.page || "1"))),
@@ -30,6 +31,7 @@ function parseQuery(query: any): {
     network: query.network as string | undefined,
     search: query.search as string | undefined,
     auditType: query.auditType as "quick" | "full" | undefined,
+    includeInProgress: query.includeInProgress === "true",
   };
 }
 
@@ -44,9 +46,9 @@ export async function handlePublicAuditRoutes(
   // GET /api/public-audits - List public audits with pagination
   if (req.method === "GET" && parsed.pathname === "/api/public-audits") {
     try {
-      const { page, limit, network, search, auditType } = parseQuery(parsed.query);
+      const { page, limit, network, search, auditType, includeInProgress } = parseQuery(parsed.query);
 
-      log.info("Fetching public audits", { page, limit, network, search, auditType });
+      log.info("Fetching public audits", { page, limit, network, search, auditType, includeInProgress });
 
       const result = await getPublicAudits({
         page,
@@ -54,24 +56,37 @@ export async function handlePublicAuditRoutes(
         network,
         searchTerm: search,
         auditType,
+        includeInProgress,
       });
 
       // Transform audits for frontend
-      const audits = result.audits.map((audit) => ({
-        id: audit.id,
-        legacyId: audit.legacyId,
-        auditType: audit.auditType,
-        contractAddress: audit.contractAddress,
-        network: audit.contractNetwork,
-        contractName: audit.contractName,
-        isProxy: audit.isProxy,
-        repo: audit.repo,
-        createdAt: audit.createdAt,
-        completedAt: audit.completedAt,
-        score: audit.scoreValue,
-        grade: audit.scoreLabel,
-        summary: audit.summary,
-      }));
+      const audits = result.audits.map((audit) => {
+        // Normalize status: if completedAt is set, treat as completed regardless of status field
+        // This handles stuck jobs that have completedAt but wrong status
+        const normalizedStatus = audit.completedAt ? 'completed' : audit.status;
+        const normalizedProgressPct = audit.completedAt ? 100 : audit.progressPct;
+        const normalizedProgressMessage = audit.completedAt ? 'Scan complete' : audit.progressMessage;
+
+        return {
+          id: audit.id,
+          legacyId: audit.legacyId,
+          auditType: audit.auditType,
+          contractAddress: audit.contractAddress,
+          network: audit.contractNetwork,
+          contractName: audit.contractName,
+          isProxy: audit.isProxy,
+          repo: audit.repo,
+          createdAt: audit.createdAt,
+          completedAt: audit.completedAt,
+          score: audit.scoreValue,
+          grade: audit.scoreLabel,
+          summary: audit.summary,
+          // Include status fields for in-progress display (normalized)
+          status: normalizedStatus,
+          progressPct: normalizedProgressPct,
+          progressMessage: normalizedProgressMessage,
+        };
+      });
 
       res.setHeader("Content-Type", "application/json");
       res.end(
@@ -111,6 +126,10 @@ export async function handlePublicAuditRoutes(
             quickScans: stats.quickScans,
             fullAudits: stats.fullAudits,
             avgScore: stats.avgScore,
+            queuedCount: stats.queuedCount,
+            inProgressCount: stats.inProgressCount,
+            totalVulnerabilities: stats.totalVulnerabilities,
+            chainsSupported: stats.chainsSupported,
           },
         })
       );

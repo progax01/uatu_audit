@@ -5,6 +5,7 @@ import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { wagmiConfig } from './config/wagmi';
 import { initAuth, logout as authLogout, type AuthUser } from './services/authService';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Create a client for React Query (required by wagmi)
 const queryClient = new QueryClient();
@@ -150,10 +151,11 @@ function App() {
   };
 
   return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <HelmetProvider>
-          <BrowserRouter>
+    <ThemeProvider>
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          <HelmetProvider>
+            <BrowserRouter>
             <AuthModal
               isOpen={showAuthModal}
               onClose={() => setShowAuthModal(false)}
@@ -380,10 +382,11 @@ function App() {
               {/* 404 Page */}
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
-          </BrowserRouter>
-        </HelmetProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+            </BrowserRouter>
+          </HelmetProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
+    </ThemeProvider>
   );
 }
 

@@ -6,6 +6,7 @@ import logo from '../assets/logo.svg'
 import MouseTooltip from '../components/MouseTooltip'
 import { Link } from 'react-router-dom'
 import { supportedChains } from '../components/icons/CryptoIcons'
+import SEO, { pageSEO } from '../components/SEO'
 
 type Network = 'arbitrum' | 'ethereum' | 'polygon' | 'base' | 'bnb' | 'optimism'
 type ValidationStatus = 'idle' | 'validating' | 'valid' | 'invalid' | 'error'
@@ -272,7 +273,14 @@ export default function QuickScan() {
     }
 
     return (
-        <div className="min-h-screen bg-white selection:bg-indigo-500/10 flex flex-col font-sans overflow-hidden">
+        <>
+            <SEO
+                title={pageSEO.quickScan.title}
+                description={pageSEO.quickScan.description}
+                keywords={pageSEO.quickScan.keywords}
+                url="https://uatu.xyz/quick-scan"
+            />
+            <div className="min-h-screen bg-white selection:bg-indigo-500/10 flex flex-col font-sans overflow-hidden">
             <MouseTooltip />
 
             {/* Sticky Professional Header */}
@@ -627,5 +635,6 @@ export default function QuickScan() {
                 </div>
             </main>
         </div>
+        </>
     )
 }

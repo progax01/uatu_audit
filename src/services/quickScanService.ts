@@ -137,11 +137,11 @@ OUTPUT FORMAT (strict JSON, no markdown):
     {
       "id": "<V-001, V-002, etc>",
       "severity": "<critical|high|medium|low|info>",
-      "title": "<concise title>",
-      "description": "<detailed technical description>",
-      "location": "<function name or line range>",
-      "impact": "<what could happen if exploited>",
-      "recommendation": "<specific fix with code example if applicable>",
+      "title": "<concise, specific title for ONE issue>",
+      "description": "<detailed description of this SINGLE issue - NO numbered lists>",
+      "location": "<specific function name or line range for this issue>",
+      "impact": "<single focused impact statement - NO numbered lists>",
+      "recommendation": "<single focused fix recommendation - NO numbered lists>",
       "cweId": "<CWE ID if applicable>"
     }
   ],
@@ -175,6 +175,15 @@ IMPORTANT:
 - Account for compiler optimizations if enabled
 - Analyze the full attack surface including MEV
 - Output ONLY valid JSON - no explanations outside JSON
+
+CRITICAL FORMATTING RULES FOR VULNERABILITIES:
+- ONE issue per vulnerability entry - NEVER combine multiple issues into one card
+- NEVER use numbered lists (1. 2. 3.) or bullet points in description, impact, or recommendation
+- If you find multiple related issues (e.g., owner can do X, Y, and Z), create SEPARATE vulnerability entries for each
+- Each vulnerability card should be focused and atomic - addressing exactly ONE security concern
+- Write in clear prose paragraphs, not lists
+- Example: Instead of "Owner can: (1) upgrade contract (2) pause operations (3) withdraw funds"
+  Create THREE separate vulnerabilities: "Owner Can Upgrade Contract", "Owner Can Pause Operations", "Owner Can Withdraw Funds"
 
 PROGRESS REPORTING:
 Throughout your analysis, output status markers to show progress. Use this exact format:

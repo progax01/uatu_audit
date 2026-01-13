@@ -308,6 +308,12 @@ export const components = pgTable(
 // AUDIT JOBS TABLE
 // ============================================================================
 
+// UNIQUENESS CONSTRAINTS (enforced at application level):
+// - Quick Scans: Only one completed audit per (contractAddress, contractNetwork)
+//   Contract code is immutable on-chain, so re-scanning produces identical results
+// - Full Audits: Only one completed audit per (repo, branch, commitSha)
+//   Same commit = same code = same results
+// See: auditJobRepository.ts - findExistingQuickScan(), findExistingFullAudit()
 export const auditJobs = pgTable(
   'audit_jobs',
   {
@@ -319,12 +325,14 @@ export const auditJobs = pgTable(
     // Audit type: quick scan vs full audit
     auditType: auditTypeEnum('audit_type').notNull().default('full'),
     // Contract info for quick scans (no projectId required)
+    // UNIQUE: (contractAddress, contractNetwork) for completed quick scans
     contractAddress: varchar('contract_address', { length: 128 }),
     contractNetwork: varchar('contract_network', { length: 50 }),
     contractName: varchar('contract_name', { length: 255 }),
     isProxy: boolean('is_proxy').notNull().default(false),
     implementationAddress: varchar('implementation_address', { length: 128 }),
     // Repository info for full audits
+    // UNIQUE: (repo, branch, commitSha) for completed full audits
     repo: varchar('repo', { length: 500 }).notNull(),
     branch: varchar('branch', { length: 255 }).notNull().default('main'),
     commitSha: varchar('commit_sha', { length: 40 }),

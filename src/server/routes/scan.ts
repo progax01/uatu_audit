@@ -14,6 +14,7 @@ import {
   getCachedContractSource,
   isValidAddress,
   getExplorerUrl,
+  detectProxy,
   NETWORKS,
 } from "../../services/explorerService.js";
 import { enqueue } from "../../services/jobQueue.js";
@@ -29,7 +30,41 @@ import {
   findRunningQuickScan,
   getAuditWithResults,
   getJobStatus,
+  countRunningAudits,
+  countQueuedAudits,
+  setJobQueued,
+  getNextQueuedJob,
 } from "../../repositories/auditJobRepository.js";
+
+// Maximum concurrent audits allowed
+const MAX_CONCURRENT_AUDITS = 1;
+
+/**
+ * Process the next queued job if any
+ * Called after a scan completes (success or failure) to pick up the next job
+ */
+async function processNextQueuedJob(): Promise<void> {
+  try {
+    const runningCount = await countRunningAudits();
+    if (runningCount >= MAX_CONCURRENT_AUDITS) {
+      return; // Still have running jobs, wait
+    }
+
+    const nextJob = await getNextQueuedJob();
+    if (nextJob) {
+      log.info("Found queued job, updating status to pending for processing", {
+        jobId: nextJob.id,
+        contractName: nextJob.contractName,
+        contractAddress: nextJob.contractAddress,
+      });
+      // Update status to pending so it can be picked up on next scan request
+      // A full background processor would trigger the actual scan here
+      await updateJobProgress(nextJob.id, 0, "Ready to start...", "pending");
+    }
+  } catch (err) {
+    log.error("Error processing queue", { error: err });
+  }
+}
 
 const log = logger.child({ service: "scan-routes" });
 
@@ -226,12 +261,44 @@ export async function handleScanRoutes(
         return true;
       }
 
-      // Check if there's already a running quick scan for this contract
-      const runningJob = await findRunningQuickScan(address, network);
+      // First, validate the contract and check if it's a proxy
+      // For proxies, we always audit the implementation address (contract code is in implementation)
+      const validationResult = await validateContract(address, network);
+
+      if (!validationResult.isContract) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({
+          isContract: false,
+          isVerified: false,
+          error: "Address is not a contract"
+        }));
+        return true;
+      }
+
+      // Detect if it's a proxy contract
+      const proxyInfo = await detectProxy(address, network);
+      const isProxy = proxyInfo.isProxy;
+      const implementationAddress = proxyInfo.implementationAddress;
+      const effectiveAddress = isProxy && implementationAddress
+        ? implementationAddress
+        : address;
+
+      log.info("Contract validation and proxy detection", {
+        originalAddress: address,
+        effectiveAddress,
+        isProxy,
+        implementationAddress,
+        network,
+      });
+
+      // Check if there's already a running quick scan for the effective address (implementation for proxies)
+      const runningJob = await findRunningQuickScan(effectiveAddress, network);
       if (runningJob) {
-        log.info("Found running quick scan job", {
+        log.info("Found running quick scan job for effective address", {
           jobId: runningJob.id,
-          address,
+          originalAddress: address,
+          effectiveAddress,
           network,
           status: runningJob.status,
           progressPct: runningJob.progressPct,
@@ -240,10 +307,10 @@ export async function handleScanRoutes(
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({
           isContract: true,
-          isVerified: true,
+          isVerified: validationResult.isVerified,
           contractName: runningJob.contractName,
-          isProxy: runningJob.isProxy,
-          implementationAddress: runningJob.implementationAddress,
+          isProxy,
+          implementationAddress,
           // Signal that a scan is already running
           runningJob: {
             jobId: runningJob.id,
@@ -256,15 +323,16 @@ export async function handleScanRoutes(
         return true;
       }
 
-      // Check if there's an existing completed audit for this contract
-      const existingAudit = await findExistingQuickScan(address, network);
+      // Check if there's an existing completed audit for the effective address
+      const existingAudit = await findExistingQuickScan(effectiveAddress, network);
       let existingAuditInfo: any = null;
 
       if (existingAudit) {
         const auditData = await getAuditWithResults(existingAudit.id);
-        log.info("Found existing completed audit", {
+        log.info("Found existing completed audit for effective address", {
           jobId: existingAudit.id,
-          address,
+          originalAddress: address,
+          effectiveAddress,
           network,
           score: auditData?.results?.scoreValue,
         });
@@ -286,57 +354,71 @@ export async function handleScanRoutes(
       if (await fs.pathExists(metadataPath) && await fs.pathExists(contractsPath)) {
         const metadata = await fs.readJson(metadataPath);
 
-        // Recursively find all .sol files (they may be nested in subdirs)
-        const findSolFilesRecursive = async (dir: string): Promise<string[]> => {
-          const results: string[] = [];
-          const entries = await fs.readdir(dir, { withFileTypes: true });
-          for (const entry of entries) {
-            const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) {
-              results.push(...await findSolFilesRecursive(fullPath));
-            } else if (entry.name.endsWith('.sol')) {
-              results.push(entry.name);
-            }
-          }
-          return results;
-        };
+        // Validate that required fields exist in cached metadata
+        // If missing, we'll fall through to re-fetch from explorer API
+        const hasRequiredFields = metadata.contractName && metadata.compiler;
 
-        const solFiles = await findSolFilesRecursive(contractsPath);
-
-        if (solFiles.length > 0) {
-          log.info("Using cached workspace - skipping fetch", {
+        if (!hasRequiredFields) {
+          log.info("Cached metadata incomplete, will re-fetch from explorer", {
             address,
             network,
-            files: solFiles.length,
-            hasExistingAudit: !!existingAuditInfo,
+            hasContractName: !!metadata.contractName,
+            hasCompiler: !!metadata.compiler,
           });
-
-          const response: any = {
-            isContract: true,
-            isVerified: true,
-            contractName: metadata.contractName,
-            compiler: metadata.compiler,
-            optimization: metadata.optimization,
-            runs: metadata.runs,
-            evmVersion: metadata.evmVersion,
-            licenseType: metadata.licenseType,
-            isProxy: metadata.isProxy || false,
-            implementationAddress: metadata.implementationAddress,
-            implementationName: metadata.implementationName,
-            files: solFiles,
-            fileCount: solFiles.length,
-            cached: true,
-            explorerUrl: metadata.explorerUrl || getExplorerUrl(address, network),
+          // Fall through to re-fetch from explorer
+        } else {
+          // Recursively find all .sol files (they may be nested in subdirs)
+          const findSolFilesRecursive = async (dir: string): Promise<string[]> => {
+            const results: string[] = [];
+            const entries = await fs.readdir(dir, { withFileTypes: true });
+            for (const entry of entries) {
+              const fullPath = path.join(dir, entry.name);
+              if (entry.isDirectory()) {
+                results.push(...await findSolFilesRecursive(fullPath));
+              } else if (entry.name.endsWith('.sol')) {
+                results.push(entry.name);
+              }
+            }
+            return results;
           };
 
-          // Include existing audit info if available
-          if (existingAuditInfo) {
-            response.existingAudit = existingAuditInfo;
-          }
+          const solFiles = await findSolFilesRecursive(contractsPath);
 
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify(response));
-          return true;
+          if (solFiles.length > 0) {
+            log.info("Using cached workspace - skipping fetch", {
+              address,
+              network,
+              files: solFiles.length,
+              hasExistingAudit: !!existingAuditInfo,
+            });
+
+            const response: any = {
+              isContract: true,
+              isVerified: true,
+              contractName: metadata.contractName,
+              compiler: metadata.compiler,
+              optimization: metadata.optimization,
+              runs: metadata.runs,
+              evmVersion: metadata.evmVersion,
+              licenseType: metadata.licenseType,
+              isProxy: metadata.isProxy || false,
+              implementationAddress: metadata.implementationAddress,
+              implementationName: metadata.implementationName,
+              files: solFiles,
+              fileCount: solFiles.length,
+              cached: true,
+              explorerUrl: metadata.explorerUrl || getExplorerUrl(address, network),
+            };
+
+            // Include existing audit info if available
+            if (existingAuditInfo) {
+              response.existingAudit = existingAuditInfo;
+            }
+
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(response));
+            return true;
+          }
         }
       }
 
@@ -513,13 +595,15 @@ export async function handleScanRoutes(
 
       let contractName = "Contract";
       let isProxy = false;
+      let implementationAddressFromMeta: string | undefined;
 
       // Check if already saved to workspace
       if (await fs.pathExists(metadataPath)) {
         const metadata = await fs.readJson(metadataPath);
         contractName = metadata.contractName || "Contract";
         isProxy = metadata.isProxy || false;
-        log.info("Using existing workspace", { address, contractName });
+        implementationAddressFromMeta = metadata.implementationAddress;
+        log.info("Using existing workspace", { address, contractName, isProxy, implementationAddressFromMeta });
       } else {
         // Try to use cached source first (from validate-and-fetch)
         const cachedSource = getCachedContractSource(address, network);
@@ -605,16 +689,62 @@ export async function handleScanRoutes(
         }
       }
 
+      // For proxy contracts, always use implementation address for audits
+      // The actual code/logic is in the implementation, not the proxy
+      const effectiveAddress = isProxy && implementationAddressFromMeta
+        ? implementationAddressFromMeta
+        : address;
+
       // Create project name from contract
-      const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
+      const shortAddress = `${effectiveAddress.slice(0, 6)}...${effectiveAddress.slice(-4)}`;
       const projectName = `${contractName}-${shortAddress}`;
+
+      log.info("Effective address for audit", {
+        originalAddress: address,
+        effectiveAddress,
+        isProxy,
+        implementationAddress: implementationAddressFromMeta,
+      });
 
       // QUICK SCAN: Run immediately with Claude CLI, save to database
       if (scanMode === "quick") {
-        log.info("Running quick scan with Claude CLI", { contractName, address });
+        log.info("Running quick scan with Claude CLI", { contractName, effectiveAddress });
 
-        // Check if we already have a completed quick scan for this contract
-        const existingJob = await findExistingQuickScan(address, network);
+        // Check if there's already a running quick scan for the effective address (implementation for proxies)
+        // This prevents duplicate scans from being started
+        const runningJob = await findRunningQuickScan(effectiveAddress, network);
+        if (runningJob) {
+          log.info("Quick scan already in progress for effective address", {
+            jobId: runningJob.id,
+            originalAddress: address,
+            effectiveAddress,
+            network,
+            status: runningJob.status,
+            progressPct: runningJob.progressPct,
+          });
+
+          // Return info about the running job
+          res.setHeader("Content-Type", "application/json");
+          res.end(
+            JSON.stringify({
+              success: true,
+              scanMode: "quick",
+              alreadyRunning: true,
+              jobId: runningJob.id,
+              projectName,
+              status: runningJob.status,
+              progressPct: runningJob.progressPct,
+              progressMessage: runningJob.progressMessage,
+              message: isProxy
+                ? "A scan is already in progress for this implementation contract"
+                : "A scan is already in progress for this contract",
+            })
+          );
+          return true;
+        }
+
+        // Check if we already have a completed quick scan for the effective address
+        const existingJob = await findExistingQuickScan(effectiveAddress, network);
         if (existingJob) {
           const existingResult = await getAuditWithResults(existingJob.id);
           if (existingResult?.results) {
@@ -675,16 +805,60 @@ export async function handleScanRoutes(
           implementationAddress = metadata.implementationAddress;
         }
 
+        // Check queue - if another audit is running, queue this one
+        const runningCount = await countRunningAudits();
+        if (runningCount >= MAX_CONCURRENT_AUDITS) {
+          const queuedCount = await countQueuedAudits();
+          const queuePosition = queuedCount + 1;
+
+          // Create job with pending status (will be set to queued)
+          // For proxies, we use implementation address as the contract address
+          const queuedJob = await createQuickScanJob({
+            contractAddress: effectiveAddress,
+            contractNetwork: network,
+            contractName,
+            isProxy,
+            implementationAddress: isProxy ? effectiveAddress : undefined,
+          });
+
+          // Update to queued status
+          await setJobQueued(queuedJob.id, queuePosition);
+
+          log.info("Quick scan queued - another audit is running", {
+            jobId: queuedJob.id,
+            queuePosition,
+            runningCount,
+            contractName,
+            effectiveAddress,
+            isProxy,
+          });
+
+          // Return JSON response (not SSE) for queued jobs
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({
+            success: true,
+            queued: true,
+            jobId: queuedJob.id,
+            queuePosition,
+            message: `Audit queued - another scan is in progress (position ${queuePosition})`,
+            contractName,
+            network,
+            isProxy,
+          }));
+          return true;
+        }
+
         // Create audit job in database FIRST
+        // For proxies, we use implementation address as the contract address
         const auditJob = await createQuickScanJob({
-          contractAddress: address,
+          contractAddress: effectiveAddress,
           contractNetwork: network,
           contractName,
           isProxy,
-          implementationAddress,
+          implementationAddress: isProxy ? effectiveAddress : undefined,
         });
 
-        log.info("Created quick scan job", { jobId: auditJob.id, contractName, address });
+        log.info("Created quick scan job", { jobId: auditJob.id, contractName, effectiveAddress, isProxy });
 
         // Setup SSE response for progress streaming
         res.writeHead(200, {
@@ -770,6 +944,19 @@ export async function handleScanRoutes(
             runs,
             workspacePath: sloc > 1000 ? workspacePath : undefined,
             onProgress: (phase, pct, message) => {
+              // Handle heartbeat - send keep-alive without updating phases
+              if (phase === 'HEARTBEAT') {
+                sendProgress({
+                  jobId: auditJob.id,
+                  status: "auditing",
+                  progressPct: calculateOverallProgress(),
+                  message: currentMessage,
+                  heartbeat: true,
+                  phases: phases.map(p => ({ name: p.name, label: p.label, status: p.status, pct: p.pct })),
+                });
+                return;
+              }
+
               // Update the matching phase
               const phaseObj = phases.find(p => p.name === phase);
               if (phaseObj) {
@@ -801,7 +988,9 @@ export async function handleScanRoutes(
                 });
 
                 // Update DB progress
-                updateJobProgress(auditJob.id, overallPct, message, "auditing").catch(() => {});
+                updateJobProgress(auditJob.id, overallPct, message, "auditing").catch(err => {
+                  log.error('Failed to update job progress', { err, jobId: auditJob.id });
+                });
               }
             },
             onLog: (line) => {
@@ -882,6 +1071,11 @@ export async function handleScanRoutes(
             logs: logs.slice(-20),
           });
 
+          // Process next queued job (if any)
+          processNextQueuedJob().catch(err => {
+            log.error("Failed to process queue after completion", { error: err });
+          });
+
           res.end();
           return true;
         } catch (quickError: any) {
@@ -899,6 +1093,11 @@ export async function handleScanRoutes(
             error: quickError.message,
             phases: phases.map(p => ({ name: p.name, label: p.label, status: p.status, pct: p.pct })),
             logs: logs.slice(-20),
+          });
+
+          // Process next queued job (if any)
+          processNextQueuedJob().catch(err => {
+            log.error("Failed to process queue after failure", { error: err });
           });
 
           res.end();

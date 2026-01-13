@@ -1,7 +1,7 @@
 /* Uatu Alabaster Neo-Premium - System V4 Design */
 
 :root {
-  /* -- Core Palette -- */
+  /* -- Core Palette (Light Mode) -- */
   --base-bg: #F8FAFC;
   --base-surface: #FFFFFF;
   --brand-primary: #6366F1;
@@ -50,10 +50,33 @@
   --radius-sm: 0.75rem;
 }
 
+/* Dark Mode Variables */
+.dark {
+  --base-bg: #0A0A0F;
+  --base-surface: #111118;
+  --brand-primary: #818CF8;
+  --brand-primary-soft: #1E1B4B;
+  --brand-emerald: #34D399;
+  --brand-amber: #FBBF24;
+  --brand-rose: #F87171;
+
+  /* -- Text System (Dark) -- */
+  --text-main: #F1F5F9;
+  --text-muted: #94A3B8;
+  --text-faint: #64748B;
+
+  /* -- Elevation & Surface (Dark) -- */
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 12px 24px -8px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 32px 64px -16px rgba(0, 0, 0, 0.5);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+}
+
 body {
   background-color: var(--base-bg);
   color: var(--text-main);
   font-family: var(--font-body);
   margin: 0;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

@@ -4,6 +4,7 @@ import { URL } from "node:url";
 import path from "node:path";
 import fs from "fs-extra";
 import { recoverStuckJobs } from "../services/jobQueue.js";
+import { cleanupStuckJobs } from "../repositories/auditJobRepository.js";
 import { logger } from "../utils/logger.js";
 import { startWorker } from "./worker.js";
 import {
@@ -212,6 +213,23 @@ export async function startDaemon() {
     logger.info(`HTTP server listening`, { host: '0.0.0.0', port: PORT });
     logger.info(`Server ready at http://0.0.0.0:${PORT}`);
   });
+
+  // Periodic cleanup of stuck jobs (every 5 minutes)
+  const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  const MAX_JOB_AGE_MINUTES = 15; // Jobs running longer than 15 minutes are considered stuck
+
+  setInterval(async () => {
+    try {
+      const cleanedCount = await cleanupStuckJobs(MAX_JOB_AGE_MINUTES);
+      if (cleanedCount > 0) {
+        logger.info(`Cleaned up ${cleanedCount} stuck audit jobs`);
+      }
+    } catch (error) {
+      logger.error('Failed to cleanup stuck jobs', { error });
+    }
+  }, CLEANUP_INTERVAL_MS);
+
+  logger.info('Started periodic stuck job cleanup', { intervalMs: CLEANUP_INTERVAL_MS, maxJobAgeMinutes: MAX_JOB_AGE_MINUTES });
 
   // Graceful shutdown
   process.on("SIGINT", () => {

@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
     Shield, Search, Calendar, Filter, Globe, Activity, ArrowRight,
-    Zap, ChevronLeft, ChevronRight, Loader2
+    Zap, ChevronLeft, ChevronRight, Loader2, Clock
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import logo from '../assets/logo.svg'
 import MouseTooltip from '../components/MouseTooltip'
 import { supportedChains } from '../components/icons/CryptoIcons'
+import SEO, { pageSEO } from '../components/SEO'
+
+type AuditStatus = 'pending' | 'queued' | 'analyzing' | 'auditing' | 'generating' | 'completed' | 'failed'
 
 interface PublicAudit {
     id: string
@@ -23,6 +26,10 @@ interface PublicAudit {
     score: number | null
     grade: string | null
     summary: string | null
+    // New fields for in-progress status
+    status: AuditStatus
+    progressPct: number
+    progressMessage: string | null
 }
 
 interface Pagination {
@@ -38,6 +45,8 @@ interface Stats {
     quickScans: number
     fullAudits: number
     avgScore: number
+    queuedCount: number
+    inProgressCount: number
 }
 
 export default function PublicAudits() {
@@ -79,6 +88,7 @@ export default function PublicAudits() {
                 const params = new URLSearchParams({
                     page: String(page),
                     limit: '10',
+                    includeInProgress: 'true', // Include in-progress audits
                 })
                 if (selectedNetwork) params.set('network', selectedNetwork)
                 if (searchTerm) params.set('search', searchTerm)
@@ -136,16 +146,41 @@ export default function PublicAudits() {
         return new Date(dateStr).toISOString().split('T')[0]
     }
 
-    // Get status based on score
-    const getStatus = (score: number | null) => {
-        if (score === null) return { label: 'Pending', color: 'amber' }
-        if (score >= 90) return { label: 'Secure', color: 'emerald' }
-        if (score >= 70) return { label: 'Review Needed', color: 'amber' }
-        return { label: 'At Risk', color: 'red' }
+    // Get status based on audit status and score
+    const getStatus = (audit: PublicAudit) => {
+        // Handle in-progress statuses first
+        switch (audit.status) {
+            case 'queued':
+                return { label: 'Queued', color: 'slate', isInProgress: true }
+            case 'pending':
+                return { label: 'Pending', color: 'amber', isInProgress: true }
+            case 'analyzing':
+                return { label: 'Analyzing', color: 'indigo', isInProgress: true }
+            case 'auditing':
+                return { label: 'Auditing', color: 'indigo', isInProgress: true }
+            case 'generating':
+                return { label: 'Generating', color: 'indigo', isInProgress: true }
+            case 'failed':
+                return { label: 'Failed', color: 'red', isInProgress: false }
+            case 'completed':
+            default:
+                // For completed audits, show status based on score
+                if (audit.score === null) return { label: 'N/A', color: 'slate', isInProgress: false }
+                if (audit.score >= 90) return { label: 'Secure', color: 'emerald', isInProgress: false }
+                if (audit.score >= 70) return { label: 'Review Needed', color: 'amber', isInProgress: false }
+                return { label: 'At Risk', color: 'red', isInProgress: false }
+        }
     }
 
     return (
-        <div className="min-h-screen bg-white selection:bg-indigo-500/10 flex flex-col font-sans">
+        <>
+            <SEO
+                title={pageSEO.publicAudits.title}
+                description={pageSEO.publicAudits.description}
+                keywords={pageSEO.publicAudits.keywords}
+                url="https://uatu.xyz/public-audits"
+            />
+            <div className="min-h-screen bg-white selection:bg-indigo-500/10 flex flex-col font-sans">
             <MouseTooltip />
 
             {/* Sticky Full-Width Header */}
@@ -186,10 +221,23 @@ export default function PublicAudits() {
                         </div>
                         <div className="flex flex-col gap-1">
                             <div className="text-3xl font-black text-indigo-600 tracking-tight leading-none">
-                                {stats?.networkCount || supportedChains.length}+
+                                {supportedChains.length}+
                             </div>
                             <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Chains Supported</div>
                         </div>
+                        {stats && (stats.queuedCount > 0 || stats.inProgressCount > 0) && (
+                            <div className="flex flex-col gap-1">
+                                <div className="text-3xl font-black text-amber-500 tracking-tight leading-none flex items-center gap-2">
+                                    {stats.queuedCount + stats.inProgressCount}
+                                    <Loader2 size={20} className="animate-spin" />
+                                </div>
+                                <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
+                                    {stats.queuedCount > 0 ? `${stats.queuedCount} Queued` : ''}
+                                    {stats.queuedCount > 0 && stats.inProgressCount > 0 ? ' / ' : ''}
+                                    {stats.inProgressCount > 0 ? `${stats.inProgressCount} Active` : ''}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -256,14 +304,20 @@ export default function PublicAudits() {
                             <tbody className="divide-y divide-black/[0.02]">
                                 {audits.map((audit) => {
                                     const chain = supportedChains.find(c => c.name === audit.network)
-                                    const status = getStatus(audit.score)
+                                    const status = getStatus(audit)
                                     return (
                                         <tr key={audit.id} className="group hover:bg-slate-50/30 transition-colors">
                                             <td className="px-10 py-10">
                                                 <div className="flex items-center gap-6">
-                                                    <div className="w-14 h-14 rounded-[20px] bg-indigo-50 border border-black/[0.03] flex items-center justify-center relative overflow-hidden group-hover:border-indigo-100/50 transition-colors">
+                                                    <div className={`w-14 h-14 rounded-[20px] border border-black/[0.03] flex items-center justify-center relative overflow-hidden group-hover:border-indigo-100/50 transition-colors ${
+                                                        status.isInProgress ? 'bg-indigo-100' : 'bg-indigo-50'
+                                                    }`}>
                                                         <div className="absolute inset-0 bg-gradient-to-br from-black/5 to-transparent" />
-                                                        <Zap size={24} className="relative z-10 text-indigo-500 group-hover:scale-110 transition-transform duration-500" />
+                                                        {status.isInProgress ? (
+                                                            <Loader2 size={24} className="relative z-10 text-indigo-500 animate-spin" />
+                                                        ) : (
+                                                            <Zap size={24} className="relative z-10 text-indigo-500 group-hover:scale-110 transition-transform duration-500" />
+                                                        )}
                                                     </div>
                                                     <div>
                                                         <div className="text-[15px] font-black text-slate-900 tracking-tight group-hover:text-indigo-600 transition-colors">
@@ -302,46 +356,83 @@ export default function PublicAudits() {
                                             <td className="px-10 py-10">
                                                 <div className="flex items-center gap-5">
                                                     <div className="w-32 bg-slate-100 h-2 rounded-full overflow-hidden p-[1px] border border-black/[0.03]">
-                                                        <div
-                                                            className="h-full rounded-full transition-all duration-1000"
-                                                            style={{
-                                                                width: `${audit.score || 0}%`,
-                                                                background: (audit.score || 0) > 90
-                                                                    ? 'linear-gradient(90deg, #6366f1, #a855f7)'
-                                                                    : 'linear-gradient(90deg, #f59e0b, #ef4444)'
-                                                            }}
-                                                        />
+                                                        {status.isInProgress ? (
+                                                            <div
+                                                                className="h-full rounded-full transition-all duration-500"
+                                                                style={{
+                                                                    width: `${audit.progressPct || 10}%`,
+                                                                    background: 'linear-gradient(90deg, #6366f1, #a855f7)',
+                                                                    animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                className="h-full rounded-full transition-all duration-1000"
+                                                                style={{
+                                                                    width: `${audit.score || 0}%`,
+                                                                    background: (audit.score || 0) > 90
+                                                                        ? 'linear-gradient(90deg, #6366f1, #a855f7)'
+                                                                        : 'linear-gradient(90deg, #f59e0b, #ef4444)'
+                                                                }}
+                                                            />
+                                                        )}
                                                     </div>
                                                     <span className="text-sm font-black text-slate-900 tracking-tight">
-                                                        {audit.score !== null ? `${audit.score}%` : 'N/A'}
+                                                        {status.isInProgress
+                                                            ? `${audit.progressPct || 0}%`
+                                                            : audit.score !== null ? `${audit.score}%` : 'N/A'
+                                                        }
                                                     </span>
                                                 </div>
                                             </td>
                                             <td className="px-10 py-10">
-                                                <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                                                    <Calendar size={13} strokeWidth={2.5} />
-                                                    {formatDate(audit.completedAt)}
-                                                </div>
+                                                {status.isInProgress ? (
+                                                    <div className="flex items-center gap-2 text-[10px] font-black text-indigo-500 uppercase tracking-widest whitespace-nowrap">
+                                                        <Loader2 size={13} strokeWidth={2.5} className="animate-spin" />
+                                                        {audit.progressMessage || status.label}
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                                                        <Calendar size={13} strokeWidth={2.5} />
+                                                        {formatDate(audit.completedAt)}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-10 py-10">
                                                 <div className="flex items-center justify-center" title={status.label}>
-                                                    <div className={`w-3 h-3 rounded-full ${
-                                                        status.color === 'emerald'
-                                                            ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
-                                                            : status.color === 'amber'
-                                                                ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
-                                                                : 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
-                                                    }`} />
+                                                    {status.isInProgress ? (
+                                                        <div className="w-3 h-3 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_12px_rgba(99,102,241,0.5)]" />
+                                                    ) : (
+                                                        <div className={`w-3 h-3 rounded-full ${
+                                                            status.color === 'emerald'
+                                                                ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+                                                                : status.color === 'amber'
+                                                                    ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
+                                                                    : status.color === 'red'
+                                                                        ? 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
+                                                                        : 'bg-slate-400 shadow-[0_0_12px_rgba(148,163,184,0.3)]'
+                                                        }`} />
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-10 py-10 text-right">
-                                                <button
-                                                    onClick={() => navigate(`/audit/${audit.id}`)}
-                                                    className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-slate-900 text-white rounded-[14px] text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap hover:bg-indigo-600 transition-all shadow-xl shadow-slate-900/5 hover:shadow-indigo-500/20 group/btn"
-                                                >
-                                                    View Report
-                                                    <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-                                                </button>
+                                                {status.isInProgress ? (
+                                                    <button
+                                                        onClick={() => navigate(`/audit/${audit.id}`)}
+                                                        className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-indigo-500 text-white rounded-[14px] text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap hover:bg-indigo-600 transition-all shadow-xl shadow-indigo-500/20 group/btn"
+                                                    >
+                                                        <Loader2 size={14} className="animate-spin" />
+                                                        In Progress
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => navigate(`/audit/${audit.id}`)}
+                                                        className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-slate-900 text-white rounded-[14px] text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap hover:bg-indigo-600 transition-all shadow-xl shadow-slate-900/5 hover:shadow-indigo-500/20 group/btn"
+                                                    >
+                                                        View Report
+                                                        <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     )
@@ -405,5 +496,6 @@ export default function PublicAudits() {
                 )}
             </main>
         </div>
+        </>
     )
 }

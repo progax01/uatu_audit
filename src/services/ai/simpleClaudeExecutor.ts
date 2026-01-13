@@ -281,7 +281,7 @@ export async function executeStreamingClaude(
 ): Promise<SimpleClaudeResponse> {
   const startTime = Date.now();
   const {
-    timeout = 180000,
+    timeout = 600000, // 10 minutes - complex contracts can take a while
     model = 'claude-sonnet-4-20250514',
     cwd = process.cwd(),
     onProgress,
@@ -339,6 +339,18 @@ export async function executeStreamingClaude(
 
     let dataChunksReceived = 0;
 
+    // Heartbeat interval - sends keep-alive signals even when Claude is "thinking"
+    // This prevents the SSE connection from timing out on the client side
+    const heartbeatInterval = setInterval(() => {
+      if (onProgress) {
+        try {
+          onProgress('HEARTBEAT', -1, 'Processing...');
+        } catch (err) {
+          log.warn('Heartbeat callback error', { error: err });
+        }
+      }
+    }, 10000); // Every 10 seconds
+
     proc.stdout?.on('data', (data) => {
       const chunk = data.toString();
       stdout += chunk;
@@ -377,11 +389,11 @@ export async function executeStreamingClaude(
       PROGRESS_MARKER_REGEX.lastIndex = 0;
 
       // Send raw log lines (split by newline)
-      if (onLog) {
-        const lines = pendingText.split('\n');
-        // Keep the last incomplete line in buffer
-        pendingText = lines.pop() || '';
+      const lines = pendingText.split('\n');
+      // Keep the last incomplete line in buffer (might contain partial progress marker)
+      pendingText = lines.pop() || '';
 
+      if (onLog) {
         for (const line of lines) {
           if (line.trim()) {
             try {
@@ -391,8 +403,6 @@ export async function executeStreamingClaude(
             }
           }
         }
-      } else {
-        pendingText = '';
       }
     });
 
@@ -490,6 +500,7 @@ export async function executeStreamingClaude(
     });
 
     function cleanup() {
+      clearInterval(heartbeatInterval); // Clear heartbeat on cleanup
       try {
         unlinkSync(promptFile);
         rmSync(tempDir, { recursive: true, force: true });

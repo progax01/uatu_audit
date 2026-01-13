@@ -504,10 +504,21 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
               <span>{contractInfo.compiler}</span>
               <span>{fetchedSource.fileCount} files</span>
             </div>
-            {contractInfo.isProxy && (
-              <div className="flex items-center gap-2 mt-3 text-xs text-amber-600">
-                <AlertTriangle size={14} />
-                <span>Proxy contract - will analyze implementation</span>
+            {contractInfo.isProxy && contractInfo.implementationAddress && (
+              <div className="mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
+                <div className="flex items-center gap-2 text-xs text-indigo-700 font-bold mb-1">
+                  <AlertTriangle size={14} className="text-indigo-500" />
+                  <span>Proxy Contract Detected</span>
+                </div>
+                <p className="text-[10px] text-indigo-600">
+                  Auditing implementation at{' '}
+                  <span className="font-mono font-bold">
+                    {contractInfo.implementationAddress.slice(0, 10)}...{contractInfo.implementationAddress.slice(-8)}
+                  </span>
+                </p>
+                <p className="text-[9px] text-indigo-500 mt-1">
+                  Proxy contracts delegate to implementations. We audit the actual code.
+                </p>
               </div>
             )}
           </motion.div>
@@ -573,7 +584,7 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
-                  Existing Audit Found
+                  Audit Available
                 </span>
                 <div className={`px-2 py-1 rounded-lg text-xs font-bold ${
                   existingAudit.score >= 80 ? 'bg-emerald-100 text-emerald-700' :
@@ -589,26 +600,19 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
                   ? ` Found ${existingAudit.vulnerabilityCount} issue${existingAudit.vulnerabilityCount > 1 ? 's' : ''}.`
                   : ' No issues found.'}
               </p>
+              <p className="text-[10px] text-indigo-500 mt-2">
+                Contract code is immutable on-chain. Re-scanning would produce identical results.
+              </p>
             </motion.div>
 
-            {/* Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => navigate(`/audit/${existingAudit.jobId}`)}
-                className="flex-1 btn-primary h-12"
-              >
-                <CheckCircle size={16} />
-                View Existing Audit
-              </button>
-              <button
-                onClick={() => {
-                  setExistingAudit(null)
-                }}
-                className="flex-1 h-12 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
-              >
-                Run New Scan
-              </button>
-            </div>
+            {/* View Audit Button - No re-scan option since contract code doesn't change */}
+            <button
+              onClick={() => navigate(`/audit/${existingAudit.jobId}`)}
+              className="w-full btn-primary h-12"
+            >
+              <CheckCircle size={16} />
+              View Audit Report
+            </button>
           </div>
         ) : (
           <button

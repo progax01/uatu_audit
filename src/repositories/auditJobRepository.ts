@@ -1,3 +1,22 @@
+/**
+ * Audit Job Repository
+ *
+ * UNIQUENESS RULES:
+ * ================
+ * Contract code is immutable - once deployed, it never changes. Therefore:
+ *
+ * 1. QUICK SCANS: Only one completed audit per (contractAddress, contractNetwork)
+ *    - findExistingQuickScan() checks for existing completed scans
+ *    - If found, return cached results instead of re-scanning
+ *    - Re-scanning identical code wastes resources and produces identical results
+ *
+ * 2. FULL AUDITS: Only one completed audit per (repo, branch, commitSha)
+ *    - findExistingFullAudit() checks for existing completed audits
+ *    - Same commit = same code = same results
+ *
+ * These constraints are enforced at application level in scan.ts handlers.
+ */
+
 import { eq, and, desc, sql, like, or } from 'drizzle-orm';
 import { getDb } from '../db';
 import {
@@ -169,6 +188,7 @@ export interface GetPublicAuditsOptions {
   network?: string;
   searchTerm?: string;
   auditType?: AuditType;
+  includeInProgress?: boolean; // Include queued, analyzing, auditing, generating jobs
 }
 
 export interface PublicAuditListItem {
@@ -185,6 +205,10 @@ export interface PublicAuditListItem {
   scoreValue: number | null;
   scoreLabel: string | null;
   summary: string | null;
+  // New fields for in-progress status display
+  status: JobStatus;
+  progressPct: number;
+  progressMessage: string | null;
 }
 
 /**
@@ -203,8 +227,32 @@ export async function getPublicAudits(options: GetPublicAuditsOptions = {}): Pro
   // Build where conditions
   const conditions = [
     eq(auditJobs.visibility, 'public'),
-    eq(auditJobs.status, 'completed'),
   ];
+
+  // Include in-progress audits if requested
+  if (options.includeInProgress) {
+    // For in-progress jobs, also verify completedAt IS NULL to avoid stuck jobs
+    // Jobs with completedAt set should be treated as completed regardless of status
+    conditions.push(
+      or(
+        // Completed jobs (have completedAt set)
+        sql`${auditJobs.completedAt} IS NOT NULL`,
+        // True in-progress jobs (no completedAt and active status)
+        and(
+          sql`${auditJobs.completedAt} IS NULL`,
+          or(
+            eq(auditJobs.status, 'queued'),
+            eq(auditJobs.status, 'pending'),
+            eq(auditJobs.status, 'analyzing'),
+            eq(auditJobs.status, 'auditing'),
+            eq(auditJobs.status, 'generating')
+          )
+        )
+      )!
+    );
+  } else {
+    conditions.push(eq(auditJobs.status, 'completed'));
+  }
 
   if (options.network) {
     conditions.push(eq(auditJobs.contractNetwork, options.network));
@@ -242,11 +290,20 @@ export async function getPublicAudits(options: GetPublicAuditsOptions = {}): Pro
       scoreValue: auditResults.scoreValue,
       scoreLabel: auditResults.scoreLabel,
       summary: auditResults.summary,
+      // Include status fields for in-progress display
+      status: auditJobs.status,
+      progressPct: auditJobs.progressPct,
+      progressMessage: auditJobs.progressMessage,
     })
     .from(auditJobs)
     .leftJoin(auditResults, eq(auditJobs.id, auditResults.jobId))
     .where(and(...conditions))
-    .orderBy(desc(auditJobs.completedAt))
+    // Order by: true in-progress first (no completedAt), then completed
+    // Jobs with completedAt set are treated as completed regardless of status field
+    .orderBy(
+      sql`CASE WHEN ${auditJobs.completedAt} IS NULL AND ${auditJobs.status} IN ('queued', 'pending', 'analyzing', 'auditing', 'generating') THEN 0 ELSE 1 END`,
+      desc(auditJobs.createdAt)
+    )
     .limit(limit + 1) // Fetch one extra to check hasMore
     .offset(offset);
 
@@ -345,8 +402,36 @@ export async function findExistingQuickScan(
 }
 
 /**
+ * Check if a completed full audit exists for a repo + branch + commit
+ * Used to enforce uniqueness: same commit = same code = same results
+ */
+export async function findExistingFullAudit(
+  repo: string,
+  branch: string,
+  commitSha: string
+): Promise<AuditJob | null> {
+  const db = getDb();
+
+  const result = await db
+    .select()
+    .from(auditJobs)
+    .where(and(
+      eq(auditJobs.repo, repo),
+      eq(auditJobs.branch, branch),
+      eq(auditJobs.commitSha, commitSha),
+      eq(auditJobs.auditType, 'full'),
+      eq(auditJobs.status, 'completed')
+    ))
+    .orderBy(desc(auditJobs.completedAt))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+/**
  * Check if a quick scan is currently running for a contract address + network
- * Returns pending, analyzing, auditing, or generating jobs
+ * Returns pending, analyzing, auditing, or generating jobs that haven't completed
+ * Jobs with completedAt set are considered completed regardless of status field
  */
 export async function findRunningQuickScan(
   contractAddress: string,
@@ -361,8 +446,12 @@ export async function findRunningQuickScan(
       eq(auditJobs.contractAddress, contractAddress),
       eq(auditJobs.contractNetwork, contractNetwork),
       eq(auditJobs.auditType, 'quick'),
+      // Only consider jobs without completedAt as "running"
+      // This handles stuck jobs that have completedAt but wrong status
+      sql`${auditJobs.completedAt} IS NULL`,
       or(
         eq(auditJobs.status, 'pending'),
+        eq(auditJobs.status, 'queued'),
         eq(auditJobs.status, 'analyzing'),
         eq(auditJobs.status, 'auditing'),
         eq(auditJobs.status, 'generating')
@@ -409,18 +498,26 @@ export async function getPublicAuditStats(): Promise<{
   quickScans: number;
   fullAudits: number;
   avgScore: number;
+  queuedCount: number;
+  inProgressCount: number;
+  totalVulnerabilities: number;
+  chainsSupported: number;
 }> {
   const db = getDb();
 
   const result = await db.execute(sql`
     SELECT
-      COUNT(*) as total_audits,
-      COUNT(CASE WHEN audit_type = 'quick' THEN 1 END) as quick_scans,
-      COUNT(CASE WHEN audit_type = 'full' THEN 1 END) as full_audits,
-      COALESCE(AVG(ar.score_value), 0) as avg_score
+      COUNT(CASE WHEN aj.status = 'completed' OR aj.completed_at IS NOT NULL THEN 1 END) as total_audits,
+      COUNT(CASE WHEN aj.audit_type = 'quick' AND (aj.status = 'completed' OR aj.completed_at IS NOT NULL) THEN 1 END) as quick_scans,
+      COUNT(CASE WHEN aj.audit_type = 'full' AND (aj.status = 'completed' OR aj.completed_at IS NOT NULL) THEN 1 END) as full_audits,
+      COALESCE(AVG(ar.score_value), 0) as avg_score,
+      COUNT(CASE WHEN aj.status = 'queued' AND aj.completed_at IS NULL THEN 1 END) as queued_count,
+      COUNT(CASE WHEN aj.status IN ('pending', 'analyzing', 'auditing', 'generating') AND aj.completed_at IS NULL THEN 1 END) as in_progress_count,
+      COALESCE(SUM(jsonb_array_length(ar.findings)), 0) as total_vulnerabilities,
+      COUNT(DISTINCT aj.contract_network) FILTER (WHERE aj.contract_network IS NOT NULL) as chains_supported
     FROM audit_jobs aj
     LEFT JOIN audit_results ar ON aj.id = ar.job_id
-    WHERE aj.visibility = 'public' AND aj.status = 'completed'
+    WHERE aj.visibility = 'public'
   `);
 
   const row = result.rows[0] as any;
@@ -430,5 +527,141 @@ export async function getPublicAuditStats(): Promise<{
     quickScans: Number(row.quick_scans) || 0,
     fullAudits: Number(row.full_audits) || 0,
     avgScore: Math.round(Number(row.avg_score) || 0),
+    queuedCount: Number(row.queued_count) || 0,
+    inProgressCount: Number(row.in_progress_count) || 0,
+    totalVulnerabilities: Number(row.total_vulnerabilities) || 0,
+    chainsSupported: Number(row.chains_supported) || 0,
   };
+}
+
+// ============================================================================
+// QUEUE MANAGEMENT
+// ============================================================================
+
+/**
+ * Count currently running audits (analyzing, auditing, or generating)
+ * Used to check if we need to queue new scans
+ */
+export async function countRunningAudits(): Promise<number> {
+  const db = getDb();
+
+  const result = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(auditJobs)
+    .where(or(
+      eq(auditJobs.status, 'analyzing'),
+      eq(auditJobs.status, 'auditing'),
+      eq(auditJobs.status, 'generating')
+    ));
+
+  return Number(result[0].count);
+}
+
+/**
+ * Get the next queued job (oldest by createdAt)
+ * Used by background processor to pick up queued jobs
+ */
+export async function getNextQueuedJob(): Promise<AuditJob | null> {
+  const db = getDb();
+
+  const result = await db
+    .select()
+    .from(auditJobs)
+    .where(eq(auditJobs.status, 'queued'))
+    .orderBy(auditJobs.createdAt)
+    .limit(1);
+
+  return result[0] || null;
+}
+
+/**
+ * Get count of queued jobs (for queue position display)
+ */
+export async function countQueuedAudits(): Promise<number> {
+  const db = getDb();
+
+  const result = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(auditJobs)
+    .where(eq(auditJobs.status, 'queued'));
+
+  return Number(result[0].count);
+}
+
+/**
+ * Update job status to queued
+ */
+export async function setJobQueued(jobId: string, queuePosition: number): Promise<void> {
+  const db = getDb();
+
+  await db.update(auditJobs)
+    .set({
+      status: 'queued',
+      progressMessage: `Queued (position ${queuePosition})`,
+    })
+    .where(eq(auditJobs.id, jobId));
+
+  log.info('Job queued', { jobId, queuePosition });
+}
+
+/**
+ * Force-complete a stuck job (admin operation)
+ * Used when a job has completedAt set but wrong status
+ */
+export async function forceCompleteJob(jobId: string): Promise<boolean> {
+  const db = getDb();
+
+  const result = await db.update(auditJobs)
+    .set({
+      status: 'completed',
+      progressPct: 100,
+      progressMessage: 'Scan complete (force-completed)',
+      completedAt: new Date(),
+    })
+    .where(eq(auditJobs.id, jobId))
+    .returning();
+
+  if (result.length > 0) {
+    log.info('Force-completed job', { jobId });
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Cleanup stuck jobs - jobs that have been running for too long without completion
+ * Called periodically to prevent indefinitely stuck jobs
+ */
+export async function cleanupStuckJobs(maxAgeMinutes: number = 30): Promise<number> {
+  const db = getDb();
+  const cutoffTime = new Date(Date.now() - maxAgeMinutes * 60 * 1000);
+
+  // Find jobs that have been in active status for too long without completedAt
+  const stuckJobs = await db
+    .select()
+    .from(auditJobs)
+    .where(and(
+      sql`${auditJobs.completedAt} IS NULL`,
+      sql`${auditJobs.startedAt} < ${cutoffTime}`,
+      or(
+        eq(auditJobs.status, 'analyzing'),
+        eq(auditJobs.status, 'auditing'),
+        eq(auditJobs.status, 'generating')
+      )
+    ));
+
+  // Mark them as failed
+  for (const job of stuckJobs) {
+    await db.update(auditJobs)
+      .set({
+        status: 'failed',
+        errorMessage: `Job timed out after ${maxAgeMinutes} minutes`,
+        completedAt: new Date(),
+      })
+      .where(eq(auditJobs.id, job.id));
+
+    log.warn('Cleaned up stuck job', { jobId: job.id, startedAt: job.startedAt });
+  }
+
+  return stuckJobs.length;
 }

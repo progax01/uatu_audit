@@ -9,7 +9,7 @@ interface LayoutProps {
 
 export default function Layout({ isAuthed, onLogin }: LayoutProps) {
     return (
-        <div className="min-h-screen flex flex-col bg-white">
+        <div className="min-h-screen flex flex-col bg-white dark:bg-slate-950 transition-colors duration-300">
             <Header isAuthed={isAuthed} onLogin={onLogin} />
             <main className="flex-grow pt-20">
                 <Outlet />

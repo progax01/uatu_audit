@@ -1,0 +1,67 @@
+# Robots.txt for uatu.xyz
+# https://uatu.xyz
+
+User-agent: *
+Allow: /
+
+# Allow all major search engine crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+# Disallow private/authenticated areas
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /onboarding
+Disallow: /project/
+Disallow: /management
+Disallow: /nodes
+Disallow: /credentials
+Disallow: /subscription
+Disallow: /connect
+Disallow: /configure
+Disallow: /review
+Disallow: /scan
+Disallow: /create-project
+Disallow: /add-components
+Disallow: /preaudit-questionnaire/
+Disallow: /clarifications/
+
+# Disallow API endpoints
+Disallow: /api/
+
+# Disallow reports JSON files
+Disallow: /reports/
+
+# Allow public pages
+Allow: /
+Allow: /pricing
+Allow: /features
+Allow: /how-it-works
+Allow: /supported-chains
+Allow: /docs
+Allow: /use-cases
+Allow: /about
+Allow: /quick-scan
+Allow: /public-audits
+Allow: /audit/
+
+# Sitemap location
+Sitemap: https://uatu.xyz/sitemap.xml
+
+# Crawl-delay (optional, be nice to the server)
+Crawl-delay: 1
