@@ -182,8 +182,26 @@
 
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <script type="module" crossorigin src="/assets/index-C98FrlJ4.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BUnNTqZX.css">
+
+  <!-- Theme initialization script - runs before React to prevent flash -->
+  <script>
+    (function() {
+      const THEME_KEY = 'uatu-theme';
+      const stored = localStorage.getItem(THEME_KEY);
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = stored === 'dark' || stored === 'light' ? stored : (prefersDark ? 'dark' : 'light');
+
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'light';
+      }
+    })();
+  </script>
+  <script type="module" crossorigin src="/assets/index-B4qRRYho.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index--Zsm8aRG.css">
 </head>
 <body>
   <div id="root"></div>

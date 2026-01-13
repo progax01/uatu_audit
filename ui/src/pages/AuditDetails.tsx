@@ -13,6 +13,7 @@ import mascot from '../assets/letf-mascot.png'
 import MouseTooltip from '../components/MouseTooltip'
 import MilestoneTracker from '../components/MilestoneTracker'
 import { Link } from 'react-router-dom'
+import AuthModal from '../components/AuthModal'
 
 interface AuditDetailsProps {
   jobId?: number | string
@@ -51,6 +52,8 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   const [error, setError] = useState<string | null>(null)
   const [isQuickScan, setIsQuickScan] = useState(false)
   const [expandedVulns, setExpandedVulns] = useState<Set<string>>(new Set())
+  const [showClaimModal, setShowClaimModal] = useState(false)
+  const [isClaimed, setIsClaimed] = useState(false)
 
   const toggleVuln = (id: string) => {
     setExpandedVulns(prev => {
@@ -564,21 +567,33 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         Proxy Contract
                       </span>
                     )}
-                    {/* Public badge with claim tooltip */}
-                    <div className="relative group/public">
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-lg cursor-help">
-                        <Unlock size={12} className="text-emerald-600" />
-                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Public</span>
+                    {/* Public/Claimed badge */}
+                    {isClaimed ? (
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-lg">
+                        <Lock size={12} className="text-indigo-600" />
+                        <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Claimed</span>
                       </div>
-                      <div className="absolute top-full right-0 mt-2 w-48 p-3 bg-slate-900 text-white rounded-xl opacity-0 invisible group-hover/public:opacity-100 group-hover/public:visible transition-all z-50 shadow-xl">
-                        <p className="text-[10px] font-medium leading-relaxed">Claim ownership to make this audit private and link it to your account.</p>
+                    ) : (
+                      <div className="relative group/public">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-lg cursor-help">
+                          <Unlock size={12} className="text-emerald-600" />
+                          <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Public</span>
+                        </div>
+                        <div className="absolute top-full right-0 mt-2 w-48 p-3 bg-slate-900 text-white rounded-xl opacity-0 invisible group-hover/public:opacity-100 group-hover/public:visible transition-all z-50 shadow-xl">
+                          <p className="text-[10px] font-medium leading-relaxed">Claim ownership to make this audit private and link it to your account.</p>
+                        </div>
                       </div>
-                    </div>
-                    {/* Claim Ownership CTA */}
-                    <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20">
-                      <User size={12} />
-                      Claim Ownership
-                    </button>
+                    )}
+                    {/* Claim Ownership CTA - only show if not claimed */}
+                    {!isClaimed && jobInfo?.deployerAddress && (
+                      <button
+                        onClick={() => setShowClaimModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20"
+                      >
+                        <User size={12} />
+                        Claim Ownership
+                      </button>
+                    )}
                     <a
                       href={getExplorerUrl(auditData.contractAddress, auditData.network)}
                       target="_blank"
@@ -1217,6 +1232,23 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
           </div>
         ) : null}
       </main>
+
+      {/* Claim Ownership Modal */}
+      <AuthModal
+        isOpen={showClaimModal}
+        onClose={() => setShowClaimModal(false)}
+        onGitHubLogin={() => {
+          localStorage.setItem('oauth_return_url', window.location.pathname);
+          window.location.href = '/auth/github/login';
+        }}
+        purpose="claim-ownership"
+        contractAddress={auditData?.contractAddress}
+        deployerAddress={jobInfo?.deployerAddress}
+        onClaimSuccess={() => {
+          setIsClaimed(true);
+          setShowClaimModal(false);
+        }}
+      />
     </div>
   )
 }

@@ -28,7 +28,7 @@ export default function Header({ isAuthed, onLogin }: HeaderProps) {
                 <nav className="hidden lg:flex items-center gap-10">
                     {/* Products Dropdown */}
                     <div className="relative group">
-                        <button className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 transition-all duration-300 flex items-center gap-2">
+                        <button className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-300 flex items-center gap-2">
                             Products
                             <svg width="10" height="6" viewBox="0 0 10 6" fill="none" className="transition-transform duration-300 group-hover:rotate-180">
                                 <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -37,23 +37,23 @@ export default function Header({ isAuthed, onLogin }: HeaderProps) {
 
                         {/* Dropdown Menu */}
                         <div className="absolute top-[80%] left-[-20px] pt-6 w-80 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
-                            <div className="bg-white rounded-[32px] shadow-premium border border-black/[0.04] p-4 space-y-1">
+                            <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-premium border border-black/[0.04] dark:border-white/[0.05] p-4 space-y-1">
                                 {[
                                     { name: 'UatuAudit', desc: 'Enterprise AI Security', img: '/audit.png', path: '/', color: 'text-indigo-600' },
                                     { name: 'Uatu Analyzer', desc: 'Real-time On-Chain Data', img: '/analyse.png', path: 'https://dashboard.uatu.xyz', color: 'text-emerald-600', ext: true },
                                     { name: 'Uatu Build', desc: 'No-Code DApp Foundry', img: '/build.png', path: 'https://build.uatu.xyz', color: 'text-amber-600', ext: true },
                                 ].map((item) => {
                                     const Content = (
-                                        <div className="flex items-center gap-4 p-4 rounded-[20px] hover:bg-slate-50 transition-all duration-300 group/item">
-                                            <div className={`w-12 h-12 rounded-2xl bg-white border border-black/[0.03] shadow-sm flex items-center justify-center shrink-0 group-hover/item:shadow-md transition-all overflow-hidden`}>
+                                        <div className="flex items-center gap-4 p-4 rounded-[20px] hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-300 group/item">
+                                            <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-black/[0.03] dark:border-white/[0.05] shadow-sm flex items-center justify-center shrink-0 group-hover/item:shadow-md transition-all overflow-hidden`}>
                                                 <img src={item.img} alt={item.name} className="w-8 h-8 object-contain" />
                                             </div>
                                             <div>
-                                                <div className="font-black text-xs text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
+                                                <div className="font-black text-xs text-slate-900 dark:text-white flex items-center gap-1.5 uppercase tracking-wide">
                                                     {item.name}
                                                     {item.ext && <span className="text-[9px] opacity-20">↗</span>}
                                                 </div>
-                                                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{item.desc}</div>
+                                                <div className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-0.5">{item.desc}</div>
                                             </div>
                                         </div>
                                     );
@@ -75,7 +75,7 @@ export default function Header({ isAuthed, onLogin }: HeaderProps) {
                         <Link
                             key={link.name}
                             to={link.path}
-                            className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${isActive(link.path) ? 'text-indigo-600 shadow-[inset_0_-2px_0_0_currentColor]' : 'text-slate-400 hover:text-slate-900'
+                            className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${isActive(link.path) ? 'text-indigo-600 dark:text-indigo-400 shadow-[inset_0_-2px_0_0_currentColor]' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                         >
                             {link.name}
@@ -101,7 +101,7 @@ export default function Header({ isAuthed, onLogin }: HeaderProps) {
                 {/* Mobile Menu Button */}
                 <button
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="lg:hidden p-2 text-slate-900"
+                    className="lg:hidden p-2 text-slate-900 dark:text-white"
                 >
                     {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>

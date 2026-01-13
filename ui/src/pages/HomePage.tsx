@@ -80,10 +80,10 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
         url="https://uatu.xyz/"
       />
 
-      <div className="min-h-screen selection:bg-indigo-500/10 font-sans overflow-x-hidden" style={{ backgroundColor: '#FAFAFA', color: '#0f172a' }}>
+      <div className="min-h-screen selection:bg-indigo-500/10 font-sans overflow-x-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
 
         {/* Hero Section: The Command Center */}
-        <section className="relative py-12 lg:py-20 overflow-hidden border-b border-black/[0.02]">
+        <section className="relative py-12 lg:py-20 overflow-hidden border-b border-black/[0.02] dark:border-white/[0.02]">
           {/* Subtle Background Elements */}
           <div className="absolute inset-0 z-0 bg-dot-pattern opacity-30" />
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-indigo-500/5 blur-[160px] rounded-full" />
@@ -98,8 +98,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
               >
                 <motion.div
                   variants={itemVariants}
-                  className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-[10px] font-extrabold uppercase tracking-[0.25em] mb-6 lg:mb-10"
-                  style={{ backgroundColor: 'rgba(238, 242, 255, 0.5)', borderColor: 'rgba(199, 210, 254, 0.5)', color: '#4f46e5' }}
+                  className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-[10px] font-extrabold uppercase tracking-[0.25em] mb-6 lg:mb-10 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/50 dark:border-indigo-800/50 text-indigo-600 dark:text-indigo-400"
                 >
                   <Shield size={12} />
                   <span>High-Assurance Auditing</span>
@@ -107,17 +106,15 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
 
                 <motion.h1
                   variants={itemVariants}
-                  className="text-3xl lg:text-5xl font-black leading-tight tracking-tight mb-6 lg:mb-8"
-                  style={{ color: '#0f172a' }}
+                  className="text-3xl lg:text-5xl font-black leading-tight tracking-tight mb-6 lg:mb-8 text-slate-900 dark:text-white"
                 >
-                  High-Assurance <span className="block lg:inline" style={{ color: '#94a3b8' }}>Security</span> <br className="hidden lg:block" />
+                  High-Assurance <span className="block lg:inline text-slate-400 dark:text-slate-500">Security</span> <br className="hidden lg:block" />
                   for Web3 <span className="text-transparent bg-clip-text bg-gradient-to-br from-indigo-500 to-indigo-700">Infrastructure.</span>
                 </motion.h1>
 
                 <motion.p
                   variants={itemVariants}
-                  className="text-base lg:text-xl max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium mb-8 lg:mb-12 lg:pr-10"
-                  style={{ color: '#64748b' }}
+                  className="text-base lg:text-xl max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium mb-8 lg:mb-12 lg:pr-10 text-slate-500 dark:text-slate-400"
                 >
                   Uatu provides mission-critical security auditing, real-time threat detection, and formal verification for high-stakes blockchain protocols.
                 </motion.p>
@@ -125,15 +122,13 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                 <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                   <Link
                     to="/quick-scan"
-                    className="inline-flex items-center justify-center gap-3 min-w-[260px] lg:min-w-[280px] py-4 lg:py-5 px-8 rounded-2xl text-sm font-black uppercase tracking-widest transition-all"
-                    style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
+                    className="inline-flex items-center justify-center gap-3 min-w-[260px] lg:min-w-[280px] py-4 lg:py-5 px-8 rounded-2xl text-sm font-black uppercase tracking-widest transition-all bg-slate-900 dark:bg-indigo-600 text-white hover:bg-indigo-600 dark:hover:bg-indigo-500"
                   >
                     Quick Scan <Activity size={18} strokeWidth={2.5} />
                   </Link>
                   <Link
                     to="/public-audits"
-                    className="inline-flex items-center justify-center gap-3 min-w-[200px] lg:min-w-[220px] py-4 lg:py-5 px-8 rounded-2xl text-sm font-black uppercase tracking-widest transition-all border-2 hover:bg-slate-50"
-                    style={{ borderColor: '#e2e8f0', color: '#64748b' }}
+                    className="inline-flex items-center justify-center gap-3 min-w-[200px] lg:min-w-[220px] py-4 lg:py-5 px-8 rounded-2xl text-sm font-black uppercase tracking-widest transition-all border-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                   >
                     View Reports <ArrowRight size={18} strokeWidth={2.5} />
                   </Link>
@@ -142,8 +137,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                 {/* Live Stats Bar */}
                 <motion.div
                   variants={itemVariants}
-                  className="mt-10 lg:mt-16 pt-8 lg:pt-12 border-t flex flex-wrap justify-center lg:justify-start items-center gap-6 lg:gap-16"
-                  style={{ borderColor: 'rgba(0,0,0,0.03)' }}
+                  className="mt-10 lg:mt-16 pt-8 lg:pt-12 border-t border-black/[0.03] dark:border-white/[0.05] flex flex-wrap justify-center lg:justify-start items-center gap-6 lg:gap-16"
                 >
                   {[
                     { label: 'Security Standard', value: 'OWASP' },
@@ -151,8 +145,8 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                     { label: 'Compliance Level', value: 'ISO/IEC' },
                   ].map((stat) => (
                     <div key={stat.label} className="text-center lg:text-left">
-                      <div className="text-xl lg:text-2xl font-black mb-1 tracking-tighter" style={{ color: '#4f46e5' }}>{stat.value}</div>
-                      <div className="text-[9px] lg:text-[10px] font-extrabold uppercase tracking-widest" style={{ color: '#94a3b8' }}>{stat.label}</div>
+                      <div className="text-xl lg:text-2xl font-black mb-1 tracking-tighter text-indigo-600 dark:text-indigo-400">{stat.value}</div>
+                      <div className="text-[9px] lg:text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">{stat.label}</div>
                     </div>
                   ))}
                 </motion.div>
@@ -275,20 +269,19 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
         </section>
 
         {/* Product Trinity: Ecosystem */}
-        <section className="py-16 lg:py-32 relative border-b border-black/[0.02]" style={{ backgroundColor: '#ffffff' }}>
+        <section className="py-16 lg:py-32 relative border-b border-black/[0.02] dark:border-white/[0.02] bg-white dark:bg-slate-900">
           <div className="max-w-7xl mx-auto px-5 lg:px-10">
             <div className="text-center mb-12 lg:mb-24">
               <motion.span
                 initial={{ opacity: 0 }}
                 whileInView={{ opacity: 1 }}
                 viewport={{ once: true }}
-                className="text-[10px] font-black uppercase tracking-[0.4em] mb-4 lg:mb-6 block"
-                style={{ color: '#4f46e5' }}
+                className="text-[10px] font-black uppercase tracking-[0.4em] mb-4 lg:mb-6 block text-indigo-600 dark:text-indigo-400"
               >
                 The Unified Command
               </motion.span>
-              <h2 className="text-2xl lg:text-4xl font-black tracking-tight mb-4 lg:mb-6" style={{ color: '#0f172a' }}>Integrated Security Ecosystem.</h2>
-              <p className="text-sm lg:text-lg font-medium max-w-2xl mx-auto leading-relaxed" style={{ color: '#94a3b8' }}>A unified suite for the entire security lifecycle. From rigorous bytecode analysis to live on-chain monitoring.</p>
+              <h2 className="text-2xl lg:text-4xl font-black tracking-tight mb-4 lg:mb-6 text-slate-900 dark:text-white">Integrated Security Ecosystem.</h2>
+              <p className="text-sm lg:text-lg font-medium max-w-2xl mx-auto leading-relaxed text-slate-400 dark:text-slate-500">A unified suite for the entire security lifecycle. From rigorous bytecode analysis to live on-chain monitoring.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
@@ -377,7 +370,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
         </section>
 
         {/* Security Methodology */}
-        <section className="py-16 lg:py-24 relative border-b border-black/[0.02]" style={{ backgroundColor: '#ffffff' }}>
+        <section className="py-16 lg:py-24 relative border-b border-black/[0.02] dark:border-white/[0.02] bg-white dark:bg-slate-900">
           <div className="max-w-7xl mx-auto px-5 lg:px-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
               <div className="order-2 lg:order-1">
@@ -422,7 +415,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
         </section>
 
         {/* Wallet Security Sentinel: Real-Time Protection */}
-        <section className="py-16 lg:py-32 relative overflow-hidden" style={{ backgroundColor: '#ffffff' }}>
+        <section className="py-16 lg:py-32 relative overflow-hidden bg-white dark:bg-slate-900">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-emerald-500/5 blur-[160px] rounded-full pointer-events-none" />
 
           <div className="max-w-7xl mx-auto px-5 lg:px-10">
@@ -432,19 +425,18 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                   initial={{ opacity: 0, scale: 0.95 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
-                  className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.25em] mb-6 lg:mb-10"
-                  style={{ backgroundColor: '#eef2ff', color: '#4f46e5', borderColor: 'rgba(199, 210, 254, 0.5)' }}
+                  className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.25em] mb-6 lg:mb-10 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50"
                 >
                   <Wallet size={12} />
                   <span>Wallet Security Sentinel</span>
                 </motion.div>
 
-                <h2 className="text-3xl lg:text-5xl font-black tracking-tight mb-6 lg:mb-8 leading-tight" style={{ color: '#0f172a' }}>
+                <h2 className="text-3xl lg:text-5xl font-black tracking-tight mb-6 lg:mb-8 leading-tight text-slate-900 dark:text-white">
                   Deterministic Protection <br className="hidden lg:block" />
-                  for <span style={{ color: '#4f46e5' }}>Every Transaction.</span>
+                  for <span className="text-indigo-600 dark:text-indigo-400">Every Transaction.</span>
                 </h2>
 
-                <p className="text-base lg:text-lg font-medium leading-relaxed mb-8 lg:mb-12" style={{ color: '#64748b' }}>
+                <p className="text-base lg:text-lg font-medium leading-relaxed mb-8 lg:mb-12 text-slate-500 dark:text-slate-400">
                   Targeted analysis for institutional and high-net-worth individual wallets. Uatu monitors every outgoing call, signature request, and state change in real-time.
                 </p>
 
@@ -553,14 +545,14 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
         </section>
 
         {/* Security Feature Grid */}
-        <section className="py-16 lg:py-32 relative" style={{ backgroundColor: '#FAFAFA' }}>
+        <section className="py-16 lg:py-32 relative bg-slate-50 dark:bg-slate-950">
           <div className="max-w-7xl mx-auto px-5 lg:px-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] mb-4 lg:mb-8 block" style={{ color: '#4f46e5' }}>Defense in Depth</span>
-                <h2 className="text-2xl lg:text-4xl font-black tracking-tight mb-4 lg:mb-6 leading-tight" style={{ color: '#0f172a' }}>
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] mb-4 lg:mb-8 block text-indigo-600 dark:text-indigo-400">Defense in Depth</span>
+                <h2 className="text-2xl lg:text-4xl font-black tracking-tight mb-4 lg:mb-6 leading-tight text-slate-900 dark:text-white">
                   Defense in Depth <br className="hidden lg:block" />
-                  for <span style={{ color: '#cbd5e1' }}>Modern Architecture.</span>
+                  for <span className="text-slate-300 dark:text-slate-600">Modern Architecture.</span>
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-12">
                   {[
@@ -640,13 +632,13 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
         </section>
 
         {/* Multi-Chain Security Deep-Dive */}
-        <section className="py-16 lg:py-32 border-t border-black/[0.02] overflow-hidden" style={{ background: 'linear-gradient(to bottom, #FAFAFA, #ffffff)' }}>
+        <section className="py-16 lg:py-32 border-t border-black/[0.02] dark:border-white/[0.02] overflow-hidden bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
           <div className="max-w-7xl mx-auto px-5 lg:px-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-24 items-center">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] mb-4 lg:mb-8 block" style={{ color: '#4f46e5' }}>Multi-Chain Security Coverage</span>
-                <h2 className="text-2xl lg:text-5xl font-black tracking-tight mb-4 lg:mb-6" style={{ color: '#0f172a' }}>Specialized Audits for <br className="hidden lg:block" /><span style={{ color: '#cbd5e1' }}>Every VM Architecture.</span></h2>
-                <p className="text-sm lg:text-lg font-medium leading-relaxed mb-8 lg:mb-12" style={{ color: '#64748b' }}>
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] mb-4 lg:mb-8 block text-indigo-600 dark:text-indigo-400">Multi-Chain Security Coverage</span>
+                <h2 className="text-2xl lg:text-5xl font-black tracking-tight mb-4 lg:mb-6 text-slate-900 dark:text-white">Specialized Audits for <br className="hidden lg:block" /><span className="text-slate-300 dark:text-slate-600">Every VM Architecture.</span></h2>
+                <p className="text-sm lg:text-lg font-medium leading-relaxed mb-8 lg:mb-12 text-slate-500 dark:text-slate-400">
                   From EVM bytecode to Rust-based runtimes, Uatu provides depth-level state analysis across all major blockchain virtual machines. We go beyond logical checks into deterministic verification.
                 </p>
                 <div className="space-y-6">
@@ -791,14 +783,14 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
         </section>
 
         {/* Compliance & Deliverables */}
-        <section className="py-16 lg:py-24 relative overflow-hidden" style={{ backgroundColor: '#ffffff' }}>
+        <section className="py-16 lg:py-24 relative overflow-hidden bg-white dark:bg-slate-900">
           <div className="max-w-7xl mx-auto px-5 lg:px-10">
             <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6 lg:gap-12 mb-10 lg:mb-20">
               <div className="max-w-2xl">
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] mb-4 lg:mb-6 block" style={{ color: '#4f46e5' }}>Deliverables & Standards</span>
-                <h2 className="text-2xl lg:text-4xl font-black tracking-tight" style={{ color: '#0f172a' }}>Enterprise Compliance <br className="hidden lg:block" /><span style={{ color: '#cbd5e1' }}>for High-Stakes Protocols.</span></h2>
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] mb-4 lg:mb-6 block text-indigo-600 dark:text-indigo-400">Deliverables & Standards</span>
+                <h2 className="text-2xl lg:text-4xl font-black tracking-tight text-slate-900 dark:text-white">Enterprise Compliance <br className="hidden lg:block" /><span className="text-slate-300 dark:text-slate-600">for High-Stakes Protocols.</span></h2>
               </div>
-              <p className="text-sm font-medium max-w-sm" style={{ color: '#94a3b8' }}>We provide formalized security artifacts that meet institutional and regulatory standards for digital asset infrastructure.</p>
+              <p className="text-sm font-medium max-w-sm text-slate-400 dark:text-slate-500">We provide formalized security artifacts that meet institutional and regulatory standards for digital asset infrastructure.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -825,12 +817,12 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
         </section>
 
         {/* Infrastructure & Ecosystem Section */}
-        <section className="py-16 lg:py-24 border-y border-black/[0.01] overflow-hidden relative" style={{ backgroundColor: '#ffffff' }}>
+        <section className="py-16 lg:py-24 border-y border-black/[0.01] overflow-hidden relative bg-white dark:bg-slate-900">
           <div className="absolute inset-0 bg-dot-pattern opacity-[0.05]" />
 
           <div className="max-w-7xl mx-auto px-5 lg:px-10 mb-10 lg:mb-16 relative z-10 text-center flex flex-col items-center">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] mb-4 lg:mb-6 block" style={{ color: '#4f46e5' }}>Ecosystem Connectivity</span>
-            <h2 className="text-2xl lg:text-4xl font-black tracking-tight mb-6 lg:mb-8" style={{ color: '#0f172a' }}>Engineering Powerhouse <br className="hidden lg:block" /><span style={{ color: '#cbd5e1' }}>for the Global Multi-Chain.</span></h2>
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] mb-4 lg:mb-6 block text-indigo-600 dark:text-indigo-400">Ecosystem Connectivity</span>
+            <h2 className="text-2xl lg:text-4xl font-black tracking-tight mb-6 lg:mb-8 text-slate-900 dark:text-white">Engineering Powerhouse <br className="hidden lg:block" /><span className="text-slate-300 dark:text-slate-600">for the Global Multi-Chain.</span></h2>
 
             {/* Static Frameworks Row */}
             <div className="flex flex-wrap justify-center gap-2 lg:gap-3 mb-10 lg:mb-16">
@@ -843,14 +835,14 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                 { name: 'GitHub', color: '#181717', id: 'G' },
                 { name: 'Jenkins', color: '#D24939', id: 'J' },
               ].map((tool) => (
-                <div key={tool.name} className="flex items-center gap-2 px-4 py-2 bg-slate-50/50 border border-black/[0.03] rounded-xl hover:border-indigo-100/50 transition-all cursor-default">
+                <div key={tool.name} className="flex items-center gap-2 px-4 py-2 bg-slate-50/50 dark:bg-slate-800/50 border border-black/[0.03] dark:border-white/[0.05] rounded-xl hover:border-indigo-100/50 dark:hover:border-indigo-800/50 transition-all cursor-default">
                   <div
                     className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black text-white italic shadow-sm"
                     style={{ backgroundColor: tool.color }}
                   >
                     {tool.id}
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tool.name}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{tool.name}</span>
                 </div>
               ))}
             </div>
@@ -858,8 +850,8 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
 
           <div className="relative">
             {/* Gradient Fades for Marquee */}
-            <div className="absolute inset-y-0 left-0 w-64 bg-gradient-to-r from-white via-white to-transparent z-10 pointer-events-none" />
-            <div className="absolute inset-y-0 right-0 w-64 bg-gradient-to-l from-white via-white to-transparent z-10 pointer-events-none" />
+            <div className="absolute inset-y-0 left-0 w-64 bg-gradient-to-r from-white dark:from-slate-900 via-white dark:via-slate-900 to-transparent z-10 pointer-events-none" />
+            <div className="absolute inset-y-0 right-0 w-64 bg-gradient-to-l from-white dark:from-slate-900 via-white dark:via-slate-900 to-transparent z-10 pointer-events-none" />
 
             <div className="flex overflow-hidden">
               <motion.div
@@ -870,7 +862,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                 {[...supportedChains, ...supportedChains, ...supportedChains].map((chain, idx) => (
                   <div key={`${chain.name}-${idx}`} className="flex-shrink-0">
                     <div
-                      className="flex items-center gap-4 px-6 py-3.5 bg-white border rounded-[22px] group transition-all duration-500 hover:shadow-lg hover:shadow-indigo-500/5"
+                      className="flex items-center gap-4 px-6 py-3.5 bg-white dark:bg-slate-800 border rounded-[22px] group transition-all duration-500 hover:shadow-lg hover:shadow-indigo-500/5"
                       style={{
                         borderColor: `${chain.color}15`,
                         boxShadow: `0 4px 20px -10px ${chain.color}15`
@@ -881,8 +873,8 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                         <chain.icon size={22} color={chain.color} />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[11px] font-black tracking-tight text-slate-800">{chain.name}</span>
-                        <span className="text-[8px] font-bold uppercase tracking-widest text-slate-300 group-hover:text-indigo-400 transition-colors">Mainnet</span>
+                        <span className="text-[11px] font-black tracking-tight text-slate-800 dark:text-white">{chain.name}</span>
+                        <span className="text-[8px] font-bold uppercase tracking-widest text-slate-300 dark:text-slate-500 group-hover:text-indigo-400 transition-colors">Mainnet</span>
                       </div>
                     </div>
                   </div>
@@ -893,7 +885,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
         </section>
 
         {/* Final CTA */}
-        <section className="py-20 lg:py-40 relative overflow-hidden" style={{ backgroundColor: '#FAFAFA' }}>
+        <section className="py-20 lg:py-40 relative overflow-hidden bg-slate-50 dark:bg-slate-950">
           {/* Background blur */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-500/5 blur-[120px] rounded-full" />
 
@@ -1000,37 +992,37 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
           <motion.div
             animate={{ y: [0, -10, 0] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute left-[10%] top-[12%] hidden lg:flex items-center gap-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 px-4 py-2 rounded-full shadow-lg"
+            className="absolute left-[10%] top-[12%] hidden lg:flex items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 px-4 py-2 rounded-full shadow-lg"
           >
             <div className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Real-time Monitoring</span>
+            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Real-time Monitoring</span>
           </motion.div>
 
           <motion.div
             animate={{ y: [0, 12, 0] }}
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-            className="absolute right-[6%] top-[10%] hidden lg:flex items-center gap-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 px-4 py-2 rounded-full shadow-lg"
+            className="absolute right-[6%] top-[10%] hidden lg:flex items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 px-4 py-2 rounded-full shadow-lg"
           >
             <div className="w-2 h-2 rounded-full bg-indigo-500" />
-            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Linked to Every Update</span>
+            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Linked to Every Update</span>
           </motion.div>
 
           <motion.div
             animate={{ y: [0, -8, 0] }}
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-            className="absolute left-[12%] bottom-[12%] hidden lg:flex items-center gap-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 px-4 py-2 rounded-full shadow-lg"
+            className="absolute left-[12%] bottom-[12%] hidden lg:flex items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 px-4 py-2 rounded-full shadow-lg"
           >
             <div className="w-2 h-2 rounded-full bg-amber-500" />
-            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Zero-Day Protection</span>
+            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Zero-Day Protection</span>
           </motion.div>
 
           <motion.div
             animate={{ y: [0, 10, 0] }}
             transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-            className="absolute right-[10%] bottom-[8%] hidden lg:flex items-center gap-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 px-4 py-2 rounded-full shadow-lg"
+            className="absolute right-[10%] bottom-[8%] hidden lg:flex items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 px-4 py-2 rounded-full shadow-lg"
           >
             <div className="w-2 h-2 rounded-full bg-rose-500" />
-            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Automated Security</span>
+            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Automated Security</span>
           </motion.div>
 
           {/* Main content */}
@@ -1042,28 +1034,27 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
               transition={{ duration: 0.8 }}
             >
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-6 block">Get Started Now</span>
-              <h2 className="text-3xl lg:text-6xl font-black tracking-tight mb-6 lg:mb-8 leading-tight" style={{ color: '#0f172a' }}>
+              <h2 className="text-3xl lg:text-6xl font-black tracking-tight mb-6 lg:mb-8 leading-tight text-slate-900 dark:text-white">
                 Secure Your <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-indigo-600">Infrastructure Today.</span>
               </h2>
-              <p className="text-base lg:text-xl font-medium mb-4 max-w-2xl mx-auto" style={{ color: '#94a3b8' }}>
+              <p className="text-base lg:text-xl font-medium mb-4 max-w-2xl mx-auto text-slate-400 dark:text-slate-500">
                 Join the elite engineering teams securing the future of decentralized finance with Uatu.
               </p>
-              <p className="text-sm font-medium mb-10 lg:mb-14 max-w-xl mx-auto" style={{ color: '#cbd5e1' }}>
+              <p className="text-sm font-medium mb-10 lg:mb-14 max-w-xl mx-auto text-slate-300 dark:text-slate-600">
                 Automated audits. Real-time alerts. Complete peace of mind.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <Link
                   to="/dashboard"
-                  className="inline-flex items-center justify-center gap-3 py-5 lg:py-6 px-12 lg:px-16 rounded-2xl text-sm font-black uppercase tracking-widest transition-all hover:scale-105"
-                  style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
+                  className="inline-flex items-center justify-center gap-3 py-5 lg:py-6 px-12 lg:px-16 rounded-2xl text-sm font-black uppercase tracking-widest transition-all hover:scale-105 bg-slate-900 dark:bg-indigo-600 text-white hover:bg-indigo-600 dark:hover:bg-indigo-500"
                 >
                   Visit Dashboard <ArrowRight size={18} strokeWidth={2.5} />
                 </Link>
                 <Link
                   to="/quick-scan"
-                  className="inline-flex items-center justify-center gap-3 py-5 lg:py-6 px-10 lg:px-12 rounded-2xl text-sm font-black uppercase tracking-widest transition-all border-2 border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-white"
+                  className="inline-flex items-center justify-center gap-3 py-5 lg:py-6 px-10 lg:px-12 rounded-2xl text-sm font-black uppercase tracking-widest transition-all border-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-600 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-800"
                 >
                   Quick Scan <Activity size={16} strokeWidth={2.5} />
                 </Link>
@@ -1077,8 +1068,8 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                   { label: 'Chains Supported', value: '9+' },
                 ].map((stat) => (
                   <div key={stat.label} className="text-center">
-                    <div className="text-2xl lg:text-3xl font-black text-slate-900">{stat.value}</div>
-                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{stat.label}</div>
+                    <div className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white">{stat.value}</div>
+                    <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">{stat.label}</div>
                   </div>
                 ))}
               </div>

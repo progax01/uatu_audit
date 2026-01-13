@@ -1,19 +1,36 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Github, Wallet, X, ChevronRight, AlertCircle } from 'lucide-react';
+import { Github, Wallet, X, ChevronRight, AlertCircle, Shield, Check, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useConnect, useAccount, useSignMessage, useDisconnect } from 'wagmi';
 import { storeAuth, type AuthUser, type AuthTokens } from '../services/authService';
+import logo from '../assets/logo.svg';
+
+export type AuthPurpose = 'login' | 'claim-ownership';
 
 interface AuthModalProps {
     isOpen: boolean;
     onClose: () => void;
     onGitHubLogin: () => void;
     onWalletSuccess?: (tokens: { accessToken: string; refreshToken: string; user: any }) => void;
+    // For claim ownership flow
+    purpose?: AuthPurpose;
+    contractAddress?: string;
+    deployerAddress?: string;
+    onClaimSuccess?: () => void;
 }
 
-type AuthStep = 'select' | 'connecting' | 'signing' | 'verifying' | 'error';
+type AuthStep = 'select' | 'connecting' | 'signing' | 'verifying' | 'claim-verifying' | 'claim-success' | 'claim-failed' | 'error';
 
-export default function AuthModal({ isOpen, onClose, onGitHubLogin, onWalletSuccess }: AuthModalProps) {
+export default function AuthModal({
+    isOpen,
+    onClose,
+    onGitHubLogin,
+    onWalletSuccess,
+    purpose = 'login',
+    contractAddress,
+    deployerAddress,
+    onClaimSuccess
+}: AuthModalProps) {
     const [step, setStep] = useState<AuthStep>('select');
     const [error, setError] = useState<string | null>(null);
     const [nonce, setNonce] = useState<string | null>(null);
@@ -37,9 +54,38 @@ export default function AuthModal({ isOpen, onClose, onGitHubLogin, onWalletSucc
     // When connected, fetch nonce and sign
     useEffect(() => {
         if (isConnected && address && step === 'connecting') {
-            handleFetchNonceAndSign();
+            if (purpose === 'claim-ownership') {
+                handleClaimOwnershipVerification();
+            } else {
+                handleFetchNonceAndSign();
+            }
         }
     }, [isConnected, address, step]);
+
+    const handleClaimOwnershipVerification = async () => {
+        if (!address || !deployerAddress) return;
+
+        setStep('claim-verifying');
+
+        // Check if connected wallet matches deployer address
+        const isMatch = address.toLowerCase() === deployerAddress.toLowerCase();
+
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Brief delay for UX
+
+        if (isMatch) {
+            setStep('claim-success');
+            // Call the claim success callback after a brief delay
+            setTimeout(() => {
+                if (onClaimSuccess) {
+                    onClaimSuccess();
+                }
+                onClose();
+            }, 2000);
+        } else {
+            setStep('claim-failed');
+            setError(`Connected wallet (${address.slice(0, 6)}...${address.slice(-4)}) does not match the contract deployer address (${deployerAddress.slice(0, 6)}...${deployerAddress.slice(-4)})`);
+        }
+    };
 
     const handleFetchNonceAndSign = async () => {
         if (!address) return;
@@ -96,7 +142,7 @@ export default function AuthModal({ isOpen, onClose, onGitHubLogin, onWalletSucc
                 walletType: data.user.walletType,
                 tier: data.user.tier || 'free',
                 xpBalance: data.user.xpBalance || 0,
-                needsUsername: !data.user.username, // Need onboarding if no username
+                needsUsername: !data.user.username,
                 isNewUser: data.isNew,
             };
 
@@ -153,46 +199,93 @@ export default function AuthModal({ isOpen, onClose, onGitHubLogin, onWalletSucc
         disconnect();
     };
 
-    const walletMethods = [
-        { id: 'metamask', name: 'MetaMask / EVM', icon: Wallet, description: 'Connect using your EVM wallet' },
-        { id: 'wallet-connect', name: 'WalletConnect', icon: Wallet, description: 'Universal mobile wallet link' },
-    ];
-
     const renderContent = () => {
-        if (step === 'connecting' || step === 'signing' || step === 'verifying') {
+        // Loading states
+        if (step === 'connecting' || step === 'signing' || step === 'verifying' || step === 'claim-verifying') {
             return (
-                <div className="py-12 text-center">
-                    <div className="w-12 h-12 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-6" />
-                    <h3 className="text-lg font-black text-slate-900 mb-2">
-                        {step === 'connecting' && 'Connecting Wallet...'}
+                <div className="py-16 text-center">
+                    <div className="w-16 h-16 mx-auto mb-6 relative">
+                        <div className="absolute inset-0 rounded-full border-4 border-indigo-100 dark:border-indigo-900" />
+                        <div className="absolute inset-0 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin" />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">
+                        {step === 'connecting' && 'Connecting Wallet'}
                         {step === 'signing' && 'Sign Message'}
-                        {step === 'verifying' && 'Verifying...'}
+                        {step === 'verifying' && 'Verifying Signature'}
+                        {step === 'claim-verifying' && 'Verifying Ownership'}
                     </h3>
-                    <p className="text-sm text-slate-500">
-                        {step === 'connecting' && 'Please approve the connection in your wallet'}
-                        {step === 'signing' && 'Please sign the message in your wallet to authenticate'}
-                        {step === 'verifying' && 'Verifying your signature...'}
+                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
+                        {step === 'connecting' && 'Approve the connection request in your wallet'}
+                        {step === 'signing' && 'Sign the message to authenticate your wallet'}
+                        {step === 'verifying' && 'Confirming your identity...'}
+                        {step === 'claim-verifying' && 'Checking if your wallet deployed this contract...'}
                     </p>
                     {address && (
-                        <p className="text-xs text-slate-400 mt-4 font-mono">
-                            {address.slice(0, 6)}...{address.slice(-4)}
-                        </p>
+                        <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-full">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-xs font-mono text-slate-600 dark:text-slate-300">
+                                {address.slice(0, 6)}...{address.slice(-4)}
+                            </span>
+                        </div>
                     )}
                 </div>
             );
         }
 
-        if (step === 'error') {
+        // Claim ownership success
+        if (step === 'claim-success') {
             return (
-                <div className="py-8 text-center">
-                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                        <AlertCircle className="w-6 h-6 text-red-600" />
+                <div className="py-16 text-center">
+                    <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                        <Check size={32} className="text-emerald-600" />
                     </div>
-                    <h3 className="text-lg font-black text-slate-900 mb-2">Authentication Failed</h3>
-                    <p className="text-sm text-red-600 mb-6">{error}</p>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">
+                        Ownership Verified
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                        You've been confirmed as the contract deployer
+                    </p>
+                </div>
+            );
+        }
+
+        // Claim ownership failed
+        if (step === 'claim-failed') {
+            return (
+                <div className="py-12 text-center">
+                    <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                        <AlertCircle size={32} className="text-red-600" />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">
+                        Verification Failed
+                    </h3>
+                    <p className="text-sm text-red-600 dark:text-red-400 mb-6 max-w-xs mx-auto">
+                        {error}
+                    </p>
                     <button
                         onClick={handleRetry}
-                        className="px-6 py-2 bg-slate-900 text-white rounded-full text-sm font-bold hover:bg-slate-800 transition-colors"
+                        className="px-6 py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-xl text-sm font-black uppercase tracking-wider hover:bg-slate-800 transition-colors"
+                    >
+                        Try Another Wallet
+                    </button>
+                </div>
+            );
+        }
+
+        // Error state
+        if (step === 'error') {
+            return (
+                <div className="py-12 text-center">
+                    <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                        <AlertCircle size={32} className="text-red-600" />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">
+                        Authentication Failed
+                    </h3>
+                    <p className="text-sm text-red-600 dark:text-red-400 mb-6">{error}</p>
+                    <button
+                        onClick={handleRetry}
+                        className="px-6 py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-xl text-sm font-black uppercase tracking-wider hover:bg-slate-800 transition-colors"
                     >
                         Try Again
                     </button>
@@ -200,70 +293,119 @@ export default function AuthModal({ isOpen, onClose, onGitHubLogin, onWalletSucc
             );
         }
 
+        // Main selection screen
+        const isClaimFlow = purpose === 'claim-ownership';
+
         return (
             <>
+                {/* Header */}
                 <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Sign In</h2>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Select your access method</p>
-                    </div>
-                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded-full transition-colors text-slate-400">
-                        <X size={18} />
-                    </button>
-                </div>
-
-                <div className="space-y-3">
-                    {/* GitHub */}
+                    <img src={logo} alt="Uatu" className="h-7" />
                     <button
-                        onClick={onGitHubLogin}
-                        className="w-full flex items-center justify-between p-4 rounded-[20px] bg-slate-900 text-white hover:bg-slate-800 transition-all group"
+                        onClick={onClose}
+                        className="w-10 h-10 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400"
                     >
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                                <Github size={20} />
-                            </div>
-                            <div className="text-left">
-                                <div className="text-xs font-black uppercase tracking-wider">GitHub OAuth</div>
-                                <div className="text-[9px] opacity-60 font-bold uppercase tracking-widest mt-0.5">Primary Entry</div>
-                            </div>
-                        </div>
-                        <ChevronRight size={16} className="opacity-40 group-hover:translate-x-1 transition-transform" />
+                        <X size={20} />
                     </button>
-
-                    <div className="py-4 flex items-center gap-4">
-                        <div className="h-px bg-black/[0.03] flex-1" />
-                        <span className="text-[8px] font-black text-slate-200 uppercase tracking-[0.3em]">Web3 Auth</span>
-                        <div className="h-px bg-black/[0.03] flex-1" />
-                    </div>
-
-                    {/* Wallet Methods */}
-                    {walletMethods.map((method) => (
-                        <button
-                            key={method.id}
-                            onClick={() => handleWalletConnect(method.id)}
-                            disabled={isConnecting}
-                            className="w-full flex items-center justify-between p-4 rounded-[20px] bg-white/40 border border-white/60 backdrop-blur-md hover:bg-white/60 hover:border-indigo-600/20 transition-all group disabled:opacity-50"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-white/80 border border-black/5 flex items-center justify-center text-slate-900 group-hover:text-indigo-600 transition-colors">
-                                    <method.icon size={20} />
-                                </div>
-                                <div className="text-left">
-                                    <div className="text-xs font-black text-slate-900 uppercase tracking-wider">{method.name}</div>
-                                    <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{method.description}</div>
-                                </div>
-                            </div>
-                            <ChevronRight size={16} className="text-slate-200 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
-                        </button>
-                    ))}
                 </div>
 
-                <div className="mt-8 p-4 rounded-[24px] bg-slate-50/50 border border-black/[0.02]">
-                    <p className="text-[9px] text-slate-400 text-center font-bold uppercase tracking-widest leading-relaxed">
-                        By signing in, you agree to our <br />
-                        <span className="text-slate-900">Terms</span> and <span className="text-slate-900">Privacy Policy</span>
+                {/* Title */}
+                <div className="mb-8">
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-1">
+                        {isClaimFlow ? 'Verify Ownership' : 'Welcome Back'}
+                    </h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {isClaimFlow
+                            ? 'Connect the wallet that deployed this contract'
+                            : 'Choose how you want to sign in'
+                        }
                     </p>
                 </div>
+
+                {/* Claim ownership info */}
+                {isClaimFlow && deployerAddress && (
+                    <div className="mb-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800">
+                        <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
+                                <Shield size={18} className="text-indigo-600" />
+                            </div>
+                            <div>
+                                <div className="text-xs font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-wider mb-1">
+                                    Required Deployer
+                                </div>
+                                <div className="text-sm font-mono text-indigo-700 dark:text-indigo-300 break-all">
+                                    {deployerAddress}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="space-y-3">
+                    {/* GitHub - Only show for regular login */}
+                    {!isClaimFlow && (
+                        <>
+                            <button
+                                onClick={onGitHubLogin}
+                                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-900 dark:bg-slate-800 text-white hover:bg-slate-800 dark:hover:bg-slate-700 transition-all group"
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+                                    <Github size={22} />
+                                </div>
+                                <div className="text-left flex-1">
+                                    <div className="text-sm font-black">Continue with GitHub</div>
+                                    <div className="text-xs text-white/50 mt-0.5">Recommended for developers</div>
+                                </div>
+                                <ChevronRight size={18} className="text-white/30 group-hover:translate-x-1 transition-transform" />
+                            </button>
+
+                            <div className="py-4 flex items-center gap-4">
+                                <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1" />
+                                <span className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">or</span>
+                                <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1" />
+                            </div>
+                        </>
+                    )}
+
+                    {/* Wallet Methods */}
+                    <button
+                        onClick={() => handleWalletConnect('metamask')}
+                        disabled={isConnecting}
+                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 transition-all group disabled:opacity-50"
+                    >
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white">
+                            <Wallet size={22} />
+                        </div>
+                        <div className="text-left flex-1">
+                            <div className="text-sm font-black text-slate-900 dark:text-white">MetaMask</div>
+                            <div className="text-xs text-slate-400 mt-0.5">Browser extension wallet</div>
+                        </div>
+                        <ChevronRight size={18} className="text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                    </button>
+
+                    <button
+                        onClick={() => handleWalletConnect('wallet-connect')}
+                        disabled={isConnecting}
+                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 transition-all group disabled:opacity-50"
+                    >
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white">
+                            <Wallet size={22} />
+                        </div>
+                        <div className="text-left flex-1">
+                            <div className="text-sm font-black text-slate-900 dark:text-white">WalletConnect</div>
+                            <div className="text-xs text-slate-400 mt-0.5">Mobile & desktop wallets</div>
+                        </div>
+                        <ChevronRight size={18} className="text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                    </button>
+                </div>
+
+                {/* Footer */}
+                <p className="mt-8 text-center text-[10px] text-slate-400 dark:text-slate-500">
+                    By continuing, you agree to our{' '}
+                    <a href="/terms" className="text-slate-900 dark:text-slate-300 hover:underline">Terms</a>
+                    {' '}and{' '}
+                    <a href="/privacy" className="text-slate-900 dark:text-slate-300 hover:underline">Privacy Policy</a>
+                </p>
             </>
         );
     };
@@ -278,17 +420,18 @@ export default function AuthModal({ isOpen, onClose, onGitHubLogin, onWalletSucc
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[1000]"
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000]"
                     />
 
                     {/* Modal */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        transition={{ type: 'spring', duration: 0.5 }}
                         className="fixed inset-0 z-[1001] flex items-center justify-center p-4 pointer-events-none"
                     >
-                        <div className="glass-liquid !p-8 rounded-[32px] shadow-premium w-full max-w-[400px] pointer-events-auto max-h-[90vh] overflow-y-auto custom-scrollbar">
+                        <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl w-full max-w-md pointer-events-auto max-h-[90vh] overflow-y-auto">
                             {renderContent()}
                         </div>
                     </motion.div>
