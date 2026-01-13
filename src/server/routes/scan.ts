@@ -26,7 +26,9 @@ import {
   completeQuickScanJob,
   failQuickScanJob,
   findExistingQuickScan,
+  findRunningQuickScan,
   getAuditWithResults,
+  getJobStatus,
 } from "../../repositories/auditJobRepository.js";
 
 const log = logger.child({ service: "scan-routes" });
@@ -79,6 +81,63 @@ export async function handleScanRoutes(
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ networks }));
     return true;
+  }
+
+  // GET /scan/job-status/:jobId - Get job status for polling/reconnection
+  const jobStatusMatch = parsed.pathname.match(/^\/scan\/job-status\/([a-f0-9-]+)$/i);
+  if (req.method === "GET" && jobStatusMatch) {
+    try {
+      const jobId = jobStatusMatch[1];
+      const jobData = await getJobStatus(jobId);
+
+      if (!jobData) {
+        res.statusCode = 404;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Job not found" }));
+        return true;
+      }
+
+      const { job, results } = jobData;
+
+      // Build response based on job status
+      const response: any = {
+        jobId: job.id,
+        status: job.status,
+        progressPct: job.progressPct,
+        progressMessage: job.progressMessage,
+        contractName: job.contractName,
+        contractAddress: job.contractAddress,
+        contractNetwork: job.contractNetwork,
+        isProxy: job.isProxy,
+        createdAt: job.createdAt,
+      };
+
+      // If completed, include redirect URL and results
+      if (job.status === "completed") {
+        response.redirectUrl = `/audit/${job.id}`;
+        if (results) {
+          response.score = results.scoreValue;
+          response.grade = results.scoreLabel;
+          response.summary = results.summary;
+          response.vulnerabilityCount = Array.isArray(results.findings) ? results.findings.length : 0;
+        }
+      }
+
+      // If failed, include error
+      if (job.status === "failed") {
+        response.error = job.errorMessage;
+      }
+
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(response));
+      return true;
+    } catch (error: any) {
+      log.error("Job status lookup failed", { error: error.message });
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: error.message || "Failed to get job status" }));
+      return true;
+    }
   }
 
   // POST /scan/validate - Validate contract address
@@ -167,6 +226,58 @@ export async function handleScanRoutes(
         return true;
       }
 
+      // Check if there's already a running quick scan for this contract
+      const runningJob = await findRunningQuickScan(address, network);
+      if (runningJob) {
+        log.info("Found running quick scan job", {
+          jobId: runningJob.id,
+          address,
+          network,
+          status: runningJob.status,
+          progressPct: runningJob.progressPct,
+        });
+
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({
+          isContract: true,
+          isVerified: true,
+          contractName: runningJob.contractName,
+          isProxy: runningJob.isProxy,
+          implementationAddress: runningJob.implementationAddress,
+          // Signal that a scan is already running
+          runningJob: {
+            jobId: runningJob.id,
+            status: runningJob.status,
+            progressPct: runningJob.progressPct,
+            progressMessage: runningJob.progressMessage,
+            startedAt: runningJob.startedAt,
+          },
+        }));
+        return true;
+      }
+
+      // Check if there's an existing completed audit for this contract
+      const existingAudit = await findExistingQuickScan(address, network);
+      let existingAuditInfo: any = null;
+
+      if (existingAudit) {
+        const auditData = await getAuditWithResults(existingAudit.id);
+        log.info("Found existing completed audit", {
+          jobId: existingAudit.id,
+          address,
+          network,
+          score: auditData?.results?.scoreValue,
+        });
+
+        existingAuditInfo = {
+          jobId: existingAudit.id,
+          completedAt: existingAudit.completedAt,
+          score: auditData?.results?.scoreValue,
+          grade: auditData?.results?.scoreLabel,
+          vulnerabilityCount: Array.isArray(auditData?.results?.findings) ? auditData.results.findings.length : 0,
+        };
+      }
+
       // Check if already cached in workspace (skip re-fetching)
       const workspacePath = await getScanWorkspace(network, address);
       const metadataPath = path.join(workspacePath, "metadata.json");
@@ -193,10 +304,14 @@ export async function handleScanRoutes(
         const solFiles = await findSolFilesRecursive(contractsPath);
 
         if (solFiles.length > 0) {
-          log.info("Using cached workspace - skipping fetch", { address, network, files: solFiles.length });
+          log.info("Using cached workspace - skipping fetch", {
+            address,
+            network,
+            files: solFiles.length,
+            hasExistingAudit: !!existingAuditInfo,
+          });
 
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({
+          const response: any = {
             isContract: true,
             isVerified: true,
             contractName: metadata.contractName,
@@ -212,7 +327,15 @@ export async function handleScanRoutes(
             fileCount: solFiles.length,
             cached: true,
             explorerUrl: metadata.explorerUrl || getExplorerUrl(address, network),
-          }));
+          };
+
+          // Include existing audit info if available
+          if (existingAuditInfo) {
+            response.existingAudit = existingAuditInfo;
+          }
+
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify(response));
           return true;
         }
       }
@@ -571,6 +694,37 @@ export async function handleScanRoutes(
           "X-Accel-Buffering": "no", // Disable nginx buffering
         });
 
+        // Phase tracking for granular progress
+        interface Phase {
+          name: string;
+          label: string;
+          status: 'pending' | 'active' | 'complete';
+          pct: number;
+          weight: number;
+        }
+
+        const phases: Phase[] = [
+          { name: 'CONTRACT_PARSE', label: 'Contract Parse', status: 'pending', pct: 0, weight: 10 },
+          { name: 'SYMBOLIC_ANALYSIS', label: 'Symbolic Analysis', status: 'pending', pct: 0, weight: 25 },
+          { name: 'CONTROL_FLOW', label: 'Control Flow Graph', status: 'pending', pct: 0, weight: 20 },
+          { name: 'REENTRANCY', label: 'Reentrancy Hooks', status: 'pending', pct: 0, weight: 15 },
+          { name: 'ACCESS_CONTROL', label: 'Access Control', status: 'pending', pct: 0, weight: 15 },
+          { name: 'VULNERABILITY_SCAN', label: 'Vulnerability Scan', status: 'pending', pct: 0, weight: 10 },
+          { name: 'REPORT_GEN', label: 'Report Generation', status: 'pending', pct: 0, weight: 5 },
+        ];
+
+        const logs: string[] = [];
+        let currentMessage = "Initializing scan...";
+
+        // Calculate overall progress from phases
+        const calculateOverallProgress = (): number => {
+          let totalProgress = 0;
+          for (const phase of phases) {
+            totalProgress += (phase.pct / 100) * phase.weight;
+          }
+          return Math.round(totalProgress);
+        };
+
         // Helper to send SSE event
         const sendProgress = (data: any) => {
           res.write(`data: ${JSON.stringify(data)}\n\n`);
@@ -580,45 +734,32 @@ export async function handleScanRoutes(
         sendProgress({
           jobId: auditJob.id,
           status: "pending",
-          progressPct: 5,
+          progressPct: 0,
           message: "Initializing scan...",
+          phases: phases.map(p => ({ name: p.name, label: p.label, status: p.status, pct: p.pct })),
+          logs: [],
         });
 
         try {
-          // Update progress: Fetching source
-          await updateJobProgress(auditJob.id, 10, "Fetching contract source...", "analyzing");
-          sendProgress({
-            jobId: auditJob.id,
-            status: "analyzing",
-            progressPct: 10,
-            message: "Fetching contract source...",
-          });
-
           // Load contract source and count SLOC
           const sourceCode = await loadContractSource(workspacePath);
           const sloc = sourceCode.split('\n').filter(line => line.trim() && !line.trim().startsWith('//')).length;
 
           log.info("Contract analysis", { jobId: auditJob.id, contractName, sloc, sourceLength: sourceCode.length });
 
-          // Update progress: Analyzing structure
-          await updateJobProgress(auditJob.id, 30, "Analyzing contract structure...");
+          // Send fetching progress
+          await updateJobProgress(auditJob.id, 5, "Loading contract source...", "analyzing");
           sendProgress({
             jobId: auditJob.id,
             status: "analyzing",
-            progressPct: 30,
-            message: "Analyzing contract structure...",
+            progressPct: 5,
+            message: `Loaded ${sloc} lines of Solidity code`,
+            phases: phases.map(p => ({ name: p.name, label: p.label, status: p.status, pct: p.pct })),
+            logs,
+            contractInfo: { sloc, contractName, network },
           });
 
-          // Update progress: Running security analysis
-          await updateJobProgress(auditJob.id, 50, "Running security analysis...", "auditing");
-          sendProgress({
-            jobId: auditJob.id,
-            status: "auditing",
-            progressPct: 50,
-            message: "Running security analysis with Claude Opus...",
-          });
-
-          // Run quick scan - for large contracts (>1000 SLOC), use file-based approach
+          // Run quick scan with progress callbacks
           const quickResult = await performQuickScan({
             contractName,
             sourceCode: sloc <= 1000 ? sourceCode : '', // Only pass code for small contracts
@@ -627,16 +768,73 @@ export async function handleScanRoutes(
             compiler,
             optimization,
             runs,
-            workspacePath: sloc > 1000 ? workspacePath : undefined, // Let Claude read files for large contracts
+            workspacePath: sloc > 1000 ? workspacePath : undefined,
+            onProgress: (phase, pct, message) => {
+              // Update the matching phase
+              const phaseObj = phases.find(p => p.name === phase);
+              if (phaseObj) {
+                // Mark previous phases as complete
+                const phaseIndex = phases.indexOf(phaseObj);
+                for (let i = 0; i < phaseIndex; i++) {
+                  if (phases[i].status !== 'complete') {
+                    phases[i].status = 'complete';
+                    phases[i].pct = 100;
+                  }
+                }
+
+                phaseObj.status = pct >= 100 ? 'complete' : 'active';
+                phaseObj.pct = Math.min(100, pct);
+                currentMessage = message;
+
+                const overallPct = calculateOverallProgress();
+
+                // Send SSE update
+                sendProgress({
+                  jobId: auditJob.id,
+                  status: "auditing",
+                  progressPct: overallPct,
+                  message,
+                  phase,
+                  phasePct: pct,
+                  phases: phases.map(p => ({ name: p.name, label: p.label, status: p.status, pct: p.pct })),
+                  logs: logs.slice(-20), // Last 20 log lines
+                });
+
+                // Update DB progress
+                updateJobProgress(auditJob.id, overallPct, message, "auditing").catch(() => {});
+              }
+            },
+            onLog: (line) => {
+              logs.push(line);
+              // Only send log updates periodically to avoid flooding
+              if (logs.length % 5 === 0) {
+                sendProgress({
+                  jobId: auditJob.id,
+                  status: "auditing",
+                  progressPct: calculateOverallProgress(),
+                  message: currentMessage,
+                  phases: phases.map(p => ({ name: p.name, label: p.label, status: p.status, pct: p.pct })),
+                  logs: logs.slice(-20),
+                });
+              }
+            },
           });
 
+          // Mark all phases as complete
+          for (const phase of phases) {
+            phase.status = 'complete';
+            phase.pct = 100;
+          }
+
           // Update progress: Saving results
-          await updateJobProgress(auditJob.id, 90, "Saving results...", "generating");
+          await updateJobProgress(auditJob.id, 95, "Saving results...", "generating");
           sendProgress({
             jobId: auditJob.id,
             status: "generating",
-            progressPct: 90,
+            progressPct: 95,
             message: "Saving results...",
+            phases: phases.map(p => ({ name: p.name, label: p.label, status: p.status, pct: p.pct })),
+            logs: logs.slice(-20),
           });
 
           // Save results to database
@@ -680,6 +878,8 @@ export async function handleScanRoutes(
             message: "Scan complete!",
             redirectUrl: `/audit/${auditJob.id}`,
             quickScanResult: quickResult,
+            phases: phases.map(p => ({ name: p.name, label: p.label, status: p.status, pct: p.pct })),
+            logs: logs.slice(-20),
           });
 
           res.end();
@@ -697,6 +897,8 @@ export async function handleScanRoutes(
             progressPct: 0,
             message: quickError.message || "Scan failed",
             error: quickError.message,
+            phases: phases.map(p => ({ name: p.name, label: p.label, status: p.status, pct: p.pct })),
+            logs: logs.slice(-20),
           });
 
           res.end();

@@ -19,12 +19,20 @@ export interface SimpleClaudeOptions {
   cwd?: string;
 }
 
+export interface StreamingClaudeOptions extends SimpleClaudeOptions {
+  onProgress?: (phase: string, pct: number, message: string) => void;
+  onLog?: (line: string) => void;
+}
+
 export interface SimpleClaudeResponse {
   success: boolean;
   output?: string;
   error?: string;
   executionTime?: number;
 }
+
+// Progress marker regex: [UATU_STATUS:PHASE:PERCENTAGE:MESSAGE]
+const PROGRESS_MARKER_REGEX = /\[UATU_STATUS:([A-Z_]+):(\d+):([^\]]+)\]/g;
 
 /**
  * Find Claude CLI path
@@ -235,6 +243,233 @@ export async function executeSimpleClaude(
             resolve({
               success: true,
               output: stdout.trim(),
+              executionTime
+            });
+          } else {
+            resolve({
+              success: false,
+              error: stdout.trim() || `Exit code ${code}`,
+              executionTime
+            });
+          }
+        }
+      } else {
+        resolve({
+          success: false,
+          error: stderr || `Exit code ${code}`,
+          executionTime
+        });
+      }
+    });
+
+    function cleanup() {
+      try {
+        unlinkSync(promptFile);
+        rmSync(tempDir, { recursive: true, force: true });
+      } catch {}
+    }
+  });
+}
+
+/**
+ * Execute Claude CLI with streaming progress callbacks
+ * Parses [UATU_STATUS:PHASE:PCT:MESSAGE] markers from output
+ */
+export async function executeStreamingClaude(
+  prompt: string,
+  options: StreamingClaudeOptions = {}
+): Promise<SimpleClaudeResponse> {
+  const startTime = Date.now();
+  const {
+    timeout = 180000,
+    model = 'claude-sonnet-4-20250514',
+    cwd = process.cwd(),
+    onProgress,
+    onLog
+  } = options;
+
+  const claudePath = findClaudePath();
+  log.info('Executing Claude CLI (streaming mode)', { claudePath, model, promptLength: prompt.length });
+
+  // Write prompt to temp file
+  const tempDir = mkdtempSync(join(tmpdir(), 'claude-quick-'));
+  const promptFile = join(tempDir, 'prompt.txt');
+  writeFileSync(promptFile, prompt, 'utf8');
+
+  return new Promise((resolve) => {
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    let pendingText = ''; // Buffer for incomplete lines
+
+    // Build command args
+    const args = [
+      '--print',
+      '--output-format', 'json',
+      '--model', model
+    ];
+
+    log.info('Spawning Claude process (streaming)', {
+      command: claudePath,
+      args: args.join(' '),
+      promptFile
+    });
+
+    const homeDir = process.env.HOME || `/Users/${process.env.USER || 'user'}`;
+
+    const proc = spawn('/bin/bash', ['-c', `cat "${promptFile}" | "${claudePath}" ${args.join(' ')}`], {
+      cwd,
+      env: {
+        ...process.env,
+        HOME: homeDir,
+        USER: process.env.USER || 'user',
+        PATH: `${homeDir}/.nvm/versions/node/v24.12.0/bin:${process.env.PATH || '/usr/bin:/bin'}`,
+        XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME || `${homeDir}/.config`,
+      },
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    // Activity-based timeout
+    let timeoutId = setTimeout(() => {
+      timedOut = true;
+      log.warn('Execution timeout - no activity', { timeout });
+      proc.kill('SIGTERM');
+      setTimeout(() => proc.kill('SIGKILL'), 5000);
+    }, timeout);
+
+    let dataChunksReceived = 0;
+
+    proc.stdout?.on('data', (data) => {
+      const chunk = data.toString();
+      stdout += chunk;
+      dataChunksReceived++;
+
+      // Reset timeout on activity
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        log.warn('Execution timeout - no activity after data', { timeout, dataChunksReceived });
+        proc.kill('SIGTERM');
+        setTimeout(() => proc.kill('SIGKILL'), 5000);
+      }, timeout);
+
+      // Process chunk for progress markers
+      pendingText += chunk;
+
+      // Parse progress markers from the accumulated text
+      let match;
+      while ((match = PROGRESS_MARKER_REGEX.exec(pendingText)) !== null) {
+        const [, phase, pctStr, message] = match;
+        const pct = parseInt(pctStr, 10);
+
+        log.debug('Progress marker found', { phase, pct, message });
+
+        if (onProgress) {
+          try {
+            onProgress(phase, pct, message);
+          } catch (err) {
+            log.warn('Progress callback error', { error: err });
+          }
+        }
+      }
+
+      // Reset regex lastIndex after processing
+      PROGRESS_MARKER_REGEX.lastIndex = 0;
+
+      // Send raw log lines (split by newline)
+      if (onLog) {
+        const lines = pendingText.split('\n');
+        // Keep the last incomplete line in buffer
+        pendingText = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              onLog(line);
+            } catch (err) {
+              log.warn('Log callback error', { error: err });
+            }
+          }
+        }
+      } else {
+        pendingText = '';
+      }
+    });
+
+    proc.stderr?.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on('error', (err) => {
+      clearTimeout(timeoutId);
+      cleanup();
+      log.error('Process error', { error: err.message });
+      resolve({
+        success: false,
+        error: `Process error: ${err.message}`,
+        executionTime: Date.now() - startTime
+      });
+    });
+
+    proc.on('close', (code) => {
+      clearTimeout(timeoutId);
+      cleanup();
+      const executionTime = Date.now() - startTime;
+
+      if (timedOut) {
+        log.warn('Execution timed out', { timeout, dataChunksReceived });
+        resolve({
+          success: false,
+          error: `Timeout after ${timeout}ms of inactivity`,
+          executionTime
+        });
+        return;
+      }
+
+      log.info('Claude execution complete (streaming)', {
+        exitCode: code,
+        stdoutLength: stdout.length,
+        stderrLength: stderr.length,
+        executionTime,
+        stdoutPreview: stdout.slice(0, 500)
+      });
+
+      // Parse output - remove progress markers before JSON parsing
+      if (stdout) {
+        try {
+          const jsonResponse = JSON.parse(stdout.trim());
+          if (jsonResponse.is_error) {
+            log.error('Claude returned error', { error: jsonResponse.result });
+            resolve({
+              success: false,
+              error: jsonResponse.result || 'Claude returned error',
+              executionTime
+            });
+          } else {
+            // Remove progress markers from the result
+            let cleanResult = jsonResponse.result || '';
+            cleanResult = cleanResult.replace(/\[UATU_STATUS:[^\]]+\]\n?/g, '');
+
+            resolve({
+              success: true,
+              output: cleanResult,
+              executionTime
+            });
+          }
+        } catch (parseErr) {
+          log.warn('Could not parse Claude output as JSON', {
+            parseError: parseErr,
+            stdout: stdout.slice(0, 1000),
+            exitCode: code
+          });
+          if (code === 0) {
+            // Clean progress markers from raw output
+            let cleanOutput = stdout.trim();
+            cleanOutput = cleanOutput.replace(/\[UATU_STATUS:[^\]]+\]\n?/g, '');
+
+            resolve({
+              success: true,
+              output: cleanOutput,
               executionTime
             });
           } else {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Loader2, CheckCircle, XCircle, FileCode, AlertTriangle } from 'lucide-react'
 import { motion } from 'framer-motion'
+import ScanProgressPanel from '../components/ScanProgressPanel'
 
 import type { ProjectData } from '../App'
 
@@ -73,10 +74,33 @@ interface FetchedSource {
   isProxy: boolean
 }
 
+interface ExistingAudit {
+  jobId: string
+  completedAt: string
+  score: number
+  grade: string
+  vulnerabilityCount: number
+}
+
+interface Phase {
+  name: string
+  label: string
+  status: 'pending' | 'active' | 'complete'
+  pct: number
+}
+
 interface ScanProgress {
   pct: number
   message: string
   status: string
+  jobId?: string
+  phases?: Phase[]
+  logs?: string[]
+  contractInfo?: {
+    sloc?: number
+    contractName?: string
+    network?: string
+  }
 }
 
 export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete }: ScanContractProps) {
@@ -87,14 +111,75 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
   const [validationStatus, setValidationStatus] = useState<ValidationStatus>('idle')
   const [contractInfo, setContractInfo] = useState<ContractInfo | null>(null)
   const [fetchedSource, setFetchedSource] = useState<FetchedSource | null>(null)
+  const [existingAudit, setExistingAudit] = useState<ExistingAudit | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null)
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const isValidAddressFormat = (address: string) => /^0x[a-fA-F0-9]{40}$/.test(address)
+
+  // Poll for job status (used when reconnecting to a running job)
+  const startPolling = useCallback((jobId: string) => {
+    // Clear any existing polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+    }
+
+    const pollStatus = async () => {
+      try {
+        const response = await fetch(`/scan/job-status/${jobId}`)
+        const data = await response.json()
+
+        if (!response.ok) {
+          console.error('Polling error:', data.error)
+          return
+        }
+
+        // Update progress
+        setScanProgress(prev => ({
+          ...prev!,
+          pct: data.progressPct || prev?.pct || 0,
+          message: data.progressMessage || prev?.message || 'Processing...',
+          status: data.status,
+          jobId: data.jobId,
+        }))
+
+        // Handle completion
+        if (data.status === 'completed' && data.redirectUrl) {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
+          setIsStarting(false)
+          setScanProgress(null)
+          navigate(data.redirectUrl)
+          return
+        }
+
+        // Handle failure
+        if (data.status === 'failed') {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
+          setIsStarting(false)
+          setScanProgress(null)
+          setError(data.error || 'Scan failed')
+          return
+        }
+      } catch (err) {
+        console.error('Polling error:', err)
+      }
+    }
+
+    // Poll immediately, then every 2 seconds
+    pollStatus()
+    pollingIntervalRef.current = setInterval(pollStatus, 2000)
+  }, [navigate])
 
   const validateAndFetch = useCallback(async (address: string, network: Network) => {
     if (abortControllerRef.current) abortControllerRef.current.abort()
@@ -103,6 +188,7 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
     setValidationStatus('validating')
     setContractInfo(null)
     setFetchedSource(null)
+    setExistingAudit(null)
     setError(null)
 
     try {
@@ -148,6 +234,36 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
         isProxy: data.isProxy || false,
       })
 
+      // Check if there's an existing completed audit for this contract
+      if (data.existingAudit) {
+        setExistingAudit({
+          jobId: data.existingAudit.jobId,
+          completedAt: data.existingAudit.completedAt,
+          score: data.existingAudit.score,
+          grade: data.existingAudit.grade,
+          vulnerabilityCount: data.existingAudit.vulnerabilityCount,
+        })
+      }
+
+      // Check if there's already a running job for this contract
+      if (data.runningJob) {
+        setIsStarting(true)
+        setScanProgress({
+          pct: data.runningJob.progressPct || 0,
+          message: data.runningJob.progressMessage || 'Scan in progress...',
+          status: data.runningJob.status,
+          jobId: data.runningJob.jobId,
+          phases: [],
+          logs: [],
+          contractInfo: {
+            contractName: data.contractName,
+            network,
+          },
+        })
+        // Start polling for status updates
+        startPolling(data.runningJob.jobId)
+      }
+
       setValidationStatus('valid')
     } catch (err: any) {
       if (err.name === 'AbortError') return
@@ -162,6 +278,7 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
     if (!address) {
       setValidationStatus('idle')
       setContractInfo(null)
+      setExistingAudit(null)
       setError(null)
       return
     }
@@ -178,6 +295,7 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
     setValidationStatus('idle')
     setContractInfo(null)
     setFetchedSource(null)
+    setExistingAudit(null)
     setError(null)
     if (contractAddress && isValidAddressFormat(contractAddress)) {
       if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -189,6 +307,7 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
       if (abortControllerRef.current) abortControllerRef.current.abort()
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
     }
   }, [])
 
@@ -231,11 +350,15 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
                 try {
                   const data = JSON.parse(line.slice(6))
 
-                  // Update progress
+                  // Update progress with all new fields
                   setScanProgress({
                     pct: data.progressPct || 0,
                     message: data.message || 'Processing...',
                     status: data.status || 'pending',
+                    jobId: data.jobId,
+                    phases: data.phases || [],
+                    logs: data.logs || [],
+                    contractInfo: data.contractInfo,
                   })
 
                   // Handle completion
@@ -425,35 +548,68 @@ export default function ScanContract({ onBack, onStartAudit, onQuickScanComplete
 
         {/* Submit / Progress */}
         {isStarting && scanProgress ? (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4 p-6 bg-white border border-slate-200 rounded-2xl"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <Loader2 size={20} className="text-indigo-500 animate-spin" />
-              <div>
-                <p className="text-sm font-bold text-slate-900">Scanning Contract</p>
-                <p className="text-xs text-slate-500">{contractInfo?.contractName}</p>
+          <div className="mt-6">
+            <ScanProgressPanel
+              jobId={scanProgress.jobId || ''}
+              status={scanProgress.status}
+              progressPct={scanProgress.pct}
+              message={scanProgress.message}
+              phases={scanProgress.phases || []}
+              logs={scanProgress.logs || []}
+              contractInfo={scanProgress.contractInfo || {
+                contractName: contractInfo?.contractName,
+                network: selectedNetwork,
+              }}
+              isProxy={contractInfo?.isProxy}
+            />
+          </div>
+        ) : existingAudit ? (
+          <div className="space-y-3 mt-4">
+            {/* Existing Audit Info */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
+                  Existing Audit Found
+                </span>
+                <div className={`px-2 py-1 rounded-lg text-xs font-bold ${
+                  existingAudit.score >= 80 ? 'bg-emerald-100 text-emerald-700' :
+                  existingAudit.score >= 60 ? 'bg-amber-100 text-amber-700' :
+                  'bg-rose-100 text-rose-700'
+                }`}>
+                  {existingAudit.grade} ({existingAudit.score}/100)
+                </div>
               </div>
-            </div>
+              <p className="text-xs text-indigo-700">
+                This contract was audited on {new Date(existingAudit.completedAt).toLocaleDateString()}.
+                {existingAudit.vulnerabilityCount > 0
+                  ? ` Found ${existingAudit.vulnerabilityCount} issue${existingAudit.vulnerabilityCount > 1 ? 's' : ''}.`
+                  : ' No issues found.'}
+              </p>
+            </motion.div>
 
-            {/* Progress bar */}
-            <div className="relative h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
-              <motion.div
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${scanProgress.pct}%` }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-              />
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => navigate(`/audit/${existingAudit.jobId}`)}
+                className="flex-1 btn-primary h-12"
+              >
+                <CheckCircle size={16} />
+                View Existing Audit
+              </button>
+              <button
+                onClick={() => {
+                  setExistingAudit(null)
+                }}
+                className="flex-1 h-12 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+              >
+                Run New Scan
+              </button>
             </div>
-
-            {/* Progress info */}
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-600">{scanProgress.message}</p>
-              <span className="text-xs font-bold text-indigo-600">{scanProgress.pct}%</span>
-            </div>
-          </motion.div>
+          </div>
         ) : (
           <button
             onClick={handleStartScan}

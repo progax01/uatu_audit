@@ -321,7 +321,7 @@ export async function getAuditByLegacyId(legacyId: number): Promise<{
 }
 
 /**
- * Check if a quick scan exists for a contract address + network
+ * Check if a completed quick scan exists for a contract address + network
  */
 export async function findExistingQuickScan(
   contractAddress: string,
@@ -342,6 +342,63 @@ export async function findExistingQuickScan(
     .limit(1);
 
   return result[0] || null;
+}
+
+/**
+ * Check if a quick scan is currently running for a contract address + network
+ * Returns pending, analyzing, auditing, or generating jobs
+ */
+export async function findRunningQuickScan(
+  contractAddress: string,
+  contractNetwork: string
+): Promise<AuditJob | null> {
+  const db = getDb();
+
+  const result = await db
+    .select()
+    .from(auditJobs)
+    .where(and(
+      eq(auditJobs.contractAddress, contractAddress),
+      eq(auditJobs.contractNetwork, contractNetwork),
+      eq(auditJobs.auditType, 'quick'),
+      or(
+        eq(auditJobs.status, 'pending'),
+        eq(auditJobs.status, 'analyzing'),
+        eq(auditJobs.status, 'auditing'),
+        eq(auditJobs.status, 'generating')
+      )
+    ))
+    .orderBy(desc(auditJobs.createdAt))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+/**
+ * Get job by ID with current status for polling/reconnection
+ */
+export async function getJobStatus(jobId: string): Promise<{
+  job: AuditJob;
+  results: AuditResult | null;
+} | null> {
+  const db = getDb();
+
+  const result = await db
+    .select({
+      job: auditJobs,
+      results: auditResults,
+    })
+    .from(auditJobs)
+    .leftJoin(auditResults, eq(auditJobs.id, auditResults.jobId))
+    .where(eq(auditJobs.id, jobId))
+    .limit(1);
+
+  if (!result[0]) return null;
+
+  return {
+    job: result[0].job,
+    results: result[0].results,
+  };
 }
 
 /**

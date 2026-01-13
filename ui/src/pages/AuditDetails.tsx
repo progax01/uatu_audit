@@ -23,6 +23,22 @@ interface AuditDetailsProps {
 // Helper to detect UUID format
 const isUUID = (id: string) => /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)
 
+// Network explorer URLs
+const EXPLORER_URLS: Record<string, string> = {
+  ethereum: 'https://etherscan.io',
+  arbitrum: 'https://arbiscan.io',
+  polygon: 'https://polygonscan.com',
+  base: 'https://basescan.org',
+  bnb: 'https://bscscan.com',
+  optimism: 'https://optimistic.etherscan.io',
+}
+
+// Helper to get explorer URL for a contract
+const getExplorerUrl = (address: string, network?: string): string => {
+  const baseUrl = EXPLORER_URLS[network?.toLowerCase() || ''] || EXPLORER_URLS.ethereum
+  return `${baseUrl}/address/${address}`
+}
+
 export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDetailsProps) {
   const { jobId: urlId } = useParams<{ jobId: string }>()
   const jobId = urlId || propJobId?.toString()
@@ -564,7 +580,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       Claim Ownership
                     </button>
                     <a
-                      href={`https://${auditData.network === 'ethereum' ? '' : auditData.network + '.'}etherscan.io/address/${auditData.contractAddress}`}
+                      href={getExplorerUrl(auditData.contractAddress, auditData.network)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-colors"

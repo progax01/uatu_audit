@@ -82,18 +82,9 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                   Uatu provides mission-critical security auditing, real-time threat detection, and formal verification for high-stakes blockchain protocols.
                 </motion.p>
 
-                <motion.div variants={itemVariants} className="flex flex-wrap justify-center lg:justify-start gap-5">
-                  {isAuthed ? (
-                    <Link to="/dashboard" className="btn-primary min-w-[220px]">
-                      Go to Dashboard <ArrowRight size={16} strokeWidth={3} />
-                    </Link>
-                  ) : (
-                    <Link to="/dashboard" className="btn-primary min-w-[220px]">
-                      Secure Project <ArrowRight size={16} strokeWidth={3} />
-                    </Link>
-                  )}
-                  <Link to="/quick-scan" className="btn-ghost min-w-[200px] border-slate-200 text-slate-600 bg-slate-50/30">
-                    QuickScan <Activity size={14} className="ml-1 opacity-50" />
+                <motion.div variants={itemVariants}>
+                  <Link to="/quick-scan" className="btn-primary min-w-[280px] py-5 text-sm">
+                    Quick Scan <Activity size={18} strokeWidth={2.5} />
                   </Link>
                 </motion.div>
 
@@ -841,22 +832,9 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
           <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
             <h2 className="text-5xl lg:text-7xl font-black tracking-tight mb-10 leading-tight">Secure Your <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-indigo-600">Infrastructure Today.</span></h2>
             <p className="text-lg lg:text-xl text-slate-400 font-medium mb-14 max-w-2xl mx-auto">Join the elite engineering teams securing the future of decentralized finance with Uatu.</p>
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              {isAuthed ? (
-                <Link to="/dashboard" className="btn-primary py-6 px-16 text-sm">
-                  Go to Dashboard <ArrowRight size={18} strokeWidth={3} />
-                </Link>
-              ) : (
-                <>
-                  <Link to="/dashboard" className="btn-primary py-6 px-16 text-sm">
-                    Secure Your Project <ArrowRight size={18} strokeWidth={3} />
-                  </Link>
-                  <button onClick={onLogin} className="btn-ghost py-6 px-16 text-sm">
-                    Get Started Now
-                  </button>
-                </>
-              )}
-            </div>
+            <Link to="/quick-scan" className="btn-primary py-6 px-20 text-sm">
+              Start Free Scan <Activity size={18} strokeWidth={2.5} />
+            </Link>
           </div>
         </section>
 

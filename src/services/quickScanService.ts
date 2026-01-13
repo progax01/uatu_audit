@@ -5,7 +5,7 @@
  * One-shot deep analysis that extracts maximum value from the contract.
  */
 
-import { executeSimpleClaude, isClaudeAvailable } from './ai/simpleClaudeExecutor.js';
+import { executeStreamingClaude, isClaudeAvailable } from './ai/simpleClaudeExecutor.js';
 import { logger } from '../utils/logger.js';
 import fs from 'fs-extra';
 import path from 'path';
@@ -21,6 +21,8 @@ export interface QuickScanInput {
   optimization?: boolean;
   runs?: number;
   workspacePath?: string; // For large contracts, let Claude read files directly
+  onProgress?: (phase: string, pct: number, message: string) => void;
+  onLog?: (line: string) => void;
 }
 
 export interface QuickScanVulnerability {
@@ -172,7 +174,27 @@ IMPORTANT:
 - Consider the Solidity version and its implications
 - Account for compiler optimizations if enabled
 - Analyze the full attack surface including MEV
-- Output ONLY valid JSON - no explanations outside JSON`;
+- Output ONLY valid JSON - no explanations outside JSON
+
+PROGRESS REPORTING:
+Throughout your analysis, output status markers to show progress. Use this exact format:
+[UATU_STATUS:PHASE:PERCENTAGE:MESSAGE]
+
+Phases to report (in order):
+1. CONTRACT_PARSE - After reading and parsing the contract structure
+2. SYMBOLIC_ANALYSIS - During variable, type, and modifier analysis
+3. CONTROL_FLOW - While building the function call graph
+4. REENTRANCY - When checking reentrancy patterns
+5. ACCESS_CONTROL - During permission and role analysis
+6. VULNERABILITY_SCAN - While enumerating all findings
+7. REPORT_GEN - When generating final JSON output
+
+Example usage:
+[UATU_STATUS:CONTRACT_PARSE:100:Parsed 2099 lines across 12 contracts]
+[UATU_STATUS:SYMBOLIC_ANALYSIS:50:Analyzing 45 state variables]
+[UATU_STATUS:REENTRANCY:100:Checked 8 external calls for reentrancy]
+
+Output these markers as you progress. The final JSON should come after all status markers.`;
 
 /**
  * Perform a comprehensive quick security scan on a smart contract
@@ -272,10 +294,12 @@ Output ONLY the JSON response.`;
 ${userPrompt}`;
 
   try {
-    const response = await executeSimpleClaude(fullPrompt, {
+    const response = await executeStreamingClaude(fullPrompt, {
       timeout: 600000, // 10 minutes for Opus deep analysis
       model: 'claude-opus-4-5-20251101',
       cwd: input.workspacePath, // Set working directory for file-based analysis
+      onProgress: input.onProgress,
+      onLog: input.onLog,
     });
 
     if (!response.success) {
