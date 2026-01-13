@@ -5,7 +5,7 @@ import {
   ShieldCheck, Download, AlertCircle,
   Code2, Timer, Target, Zap, Globe,
   CheckCircle2, XCircle, Binary, ArrowRight,
-  User, Lock, Unlock
+  User, Lock, Unlock, ChevronDown
 } from 'lucide-react'
 import LiabilityTriage from '../components/LiabilityTriage'
 import logo from '../assets/logo.svg'
@@ -34,6 +34,19 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   const [progress, setProgress] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [isQuickScan, setIsQuickScan] = useState(false)
+  const [expandedVulns, setExpandedVulns] = useState<Set<string>>(new Set())
+
+  const toggleVuln = (id: string) => {
+    setExpandedVulns(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
 
   // PDF Export function
   const handleExportPDF = () => {
@@ -392,11 +405,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                 )}
               </div>
               <div className="flex items-center gap-2.5 mt-1.5">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">ID: {jobId}</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
-                <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1.5 leading-none">
-                  <ShieldCheck size={12} strokeWidth={3} /> {isQuickScan ? 'Quick Scan' : 'Institutional Verification'}
-                </span>
+                <span className="text-[10px] font-mono text-slate-400 tracking-tight leading-none">ID: {jobId?.toUpperCase()}</span>
               </div>
             </div>
           </div>
@@ -404,14 +413,23 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
 
         <div className="flex items-center gap-12">
           {auditData && (
-            <div className="hidden lg:flex items-center gap-8 pr-12 border-r border-slate-100">
+            <div className="hidden lg:flex items-center gap-4 pr-12 border-r border-slate-100">
               <div className="flex flex-col items-end">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Security Score</span>
                 <div className="flex items-center gap-3">
-                  <span className={`text-3xl font-black tracking-tighter ${auditData.score >= 90 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  <span className={`text-3xl font-black tracking-tighter ${
+                    auditData.score >= 90 ? 'text-emerald-500' :
+                    auditData.score >= 70 ? 'text-indigo-600' :
+                    auditData.score >= 50 ? 'text-amber-500' : 'text-rose-500'
+                  }`}>
                     {auditData.score}%
                   </span>
-                  <div className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded font-black text-[11px] text-slate-900">
+                  <div className={`px-3 py-1.5 rounded font-black text-[11px] ${
+                    auditData.score >= 90 ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' :
+                    auditData.score >= 70 ? 'bg-indigo-50 border border-indigo-200 text-indigo-700' :
+                    auditData.score >= 50 ? 'bg-amber-50 border border-amber-200 text-amber-700' :
+                    'bg-rose-50 border border-rose-200 text-rose-700'
+                  }`}>
                     GRADE {auditData.grade}
                   </div>
                 </div>
@@ -638,71 +656,100 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                           </div>
                         )}
 
-                        {/* Vulnerabilities */}
-                        {auditData.vulnerabilities?.map((v: any) => (
-                          <div
-                            key={v.id}
-                            className="border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all"
-                          >
-                            <div className={`px-8 py-6 border-b border-slate-100 flex items-center justify-between ${
-                              v.severity === 'critical' ? 'bg-rose-50/70' :
-                              v.severity === 'high' ? 'bg-rose-50/50' :
-                              v.severity === 'medium' ? 'bg-amber-50/50' :
-                              'bg-blue-50/50'
-                            }`}>
-                              <div className="flex items-center gap-5">
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                  v.severity === 'critical' ? 'text-rose-600' :
-                                  v.severity === 'high' ? 'text-rose-500' :
-                                  v.severity === 'medium' ? 'text-amber-500' :
-                                  'text-blue-500'
-                                }`}>
-                                  <AlertCircle size={24} strokeWidth={3} />
+                        {/* Vulnerabilities - Accordion Style */}
+                        {auditData.vulnerabilities?.map((v: any) => {
+                          const isExpanded = expandedVulns.has(v.id)
+                          return (
+                            <div
+                              key={v.id}
+                              className="border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all"
+                            >
+                              {/* Accordion Header - Always visible */}
+                              <button
+                                onClick={() => toggleVuln(v.id)}
+                                className={`w-full px-8 py-6 flex items-center justify-between cursor-pointer transition-colors ${
+                                  v.severity === 'critical' ? 'bg-rose-50/70 hover:bg-rose-50' :
+                                  v.severity === 'high' ? 'bg-rose-50/50 hover:bg-rose-50/70' :
+                                  v.severity === 'medium' ? 'bg-amber-50/50 hover:bg-amber-50/70' :
+                                  'bg-blue-50/50 hover:bg-blue-50/70'
+                                }`}
+                              >
+                                <div className="flex items-center gap-5">
+                                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                                    v.severity === 'critical' ? 'text-rose-600' :
+                                    v.severity === 'high' ? 'text-rose-500' :
+                                    v.severity === 'medium' ? 'text-amber-500' :
+                                    'text-blue-500'
+                                  }`}>
+                                    <AlertCircle size={24} strokeWidth={3} />
+                                  </div>
+                                  <div className="text-left">
+                                    <h4 className="text-base font-black text-slate-900 tracking-tight">{v.title}</h4>
+                                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block mt-1">{v.location}</span>
+                                  </div>
                                 </div>
-                                <div>
-                                  <h4 className="text-base font-black text-slate-900 tracking-tight">{v.title}</h4>
-                                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block mt-1">{v.location}</span>
+                                <div className="flex items-center gap-4">
+                                  <span className={`px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest ${
+                                    v.severity === 'critical' ? 'bg-rose-600 text-white' :
+                                    v.severity === 'high' ? 'bg-rose-500 text-white' :
+                                    v.severity === 'medium' ? 'bg-amber-500 text-white' :
+                                    'bg-blue-500 text-white'
+                                  }`}>
+                                    {v.severity}
+                                  </span>
+                                  <motion.div
+                                    animate={{ rotate: isExpanded ? 180 : 0 }}
+                                    transition={{ duration: 0.2 }}
+                                  >
+                                    <ChevronDown size={20} className="text-slate-400" />
+                                  </motion.div>
                                 </div>
-                              </div>
-                              <span className={`px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest ${
-                                v.severity === 'critical' ? 'bg-rose-600 text-white' :
-                                v.severity === 'high' ? 'bg-rose-500 text-white' :
-                                v.severity === 'medium' ? 'bg-amber-500 text-white' :
-                                'bg-blue-500 text-white'
-                              }`}>
-                                {v.severity}
-                              </span>
+                              </button>
+
+                              {/* Accordion Content - Expandable */}
+                              <AnimatePresence>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                    className="overflow-hidden border-t border-slate-100"
+                                  >
+                                    <div className="p-8 grid md:grid-cols-2 gap-10">
+                                      <div className="space-y-6">
+                                        <div>
+                                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 flex items-center gap-2">
+                                            <Target size={14} className="text-slate-900" /> Impact Assessment
+                                          </div>
+                                          <p className="text-[13px] text-slate-700 leading-relaxed font-bold">{v.impact || v.description}</p>
+                                        </div>
+                                        <div>
+                                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 flex items-center gap-2">
+                                            <Zap size={14} className="text-slate-900" /> Likelihood Profile
+                                          </div>
+                                          <p className="text-[13px] text-slate-700 leading-relaxed font-bold">{v.likelihood || 'Dependent on protocol admin vectors.'}</p>
+                                        </div>
+                                      </div>
+                                      <div className="bg-slate-50 border border-slate-200 p-8 rounded-2xl flex flex-col justify-between">
+                                        <div>
+                                          <div className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                            <ShieldCheck size={14} strokeWidth={3} /> Remediation Strategy
+                                          </div>
+                                          <p className="text-[13px] text-slate-900 leading-relaxed font-black">{v.recommendation}</p>
+                                        </div>
+                                        <div className="flex items-center gap-3 mt-8 pt-6 border-t border-slate-200">
+                                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Awaiting Fix Verification</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </div>
-                            <div className="p-8 grid md:grid-cols-2 gap-10">
-                              <div className="space-y-6">
-                                <div>
-                                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 flex items-center gap-2">
-                                    <Target size={14} className="text-slate-900" /> Impact Assessment
-                                  </div>
-                                  <p className="text-[13px] text-slate-700 leading-relaxed font-bold">{v.impact || v.description}</p>
-                                </div>
-                                <div>
-                                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 flex items-center gap-2">
-                                    <Zap size={14} className="text-slate-900" /> Likelihood Profile
-                                  </div>
-                                  <p className="text-[13px] text-slate-700 leading-relaxed font-bold">{v.likelihood || 'Dependent on protocol admin vectors.'}</p>
-                                </div>
-                              </div>
-                              <div className="bg-slate-50 border border-slate-200 p-8 rounded-2xl flex flex-col justify-between">
-                                <div>
-                                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                    <ShieldCheck size={14} strokeWidth={3} /> Remediation Strategy
-                                  </div>
-                                  <p className="text-[13px] text-slate-900 leading-relaxed font-black">{v.recommendation}</p>
-                                </div>
-                                <div className="flex items-center gap-3 mt-8 pt-6 border-t border-slate-200">
-                                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Awaiting Fix Verification</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                          )
+                        })}
 
                         {/* Contract Analysis Section for Quick Scans */}
                         {isQuickScan && auditData.contractAnalysis && (
@@ -768,19 +815,19 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                             <div className="space-y-4">
                               {auditData.gasOptimizations.map((opt: any, idx: number) => (
                                 <div key={idx} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
-                                  <div className="flex items-center gap-3 mb-3">
-                                    <Zap size={16} className="text-amber-500" />
-                                    <h4 className="text-sm font-black text-slate-900">{opt.title}</h4>
-                                    {opt.savings && (
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-3">
+                                      <Zap size={16} className="text-amber-500" />
+                                      <span className="text-[11px] font-mono font-bold text-slate-500">{opt.location}</span>
+                                    </div>
+                                    {opt.estimatedSavings && (
                                       <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-lg">
-                                        {opt.savings}
+                                        {opt.estimatedSavings}
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-[13px] text-slate-600 font-medium">{opt.description}</p>
-                                  {opt.location && (
-                                    <p className="text-[11px] text-slate-400 font-mono mt-2">{opt.location}</p>
-                                  )}
+                                  <p className="text-[13px] text-slate-900 font-bold mb-2">{opt.issue}</p>
+                                  <p className="text-[12px] text-slate-500 font-medium">{opt.suggestion}</p>
                                 </div>
                               ))}
                             </div>
@@ -793,24 +840,26 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                             <div className="flex items-center gap-4 mb-6">
                               <div>
                                 <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Best Practices</h3>
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Code quality and maintainability recommendations</p>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Code quality and security patterns</p>
                               </div>
                             </div>
                             <div className="space-y-4">
                               {auditData.bestPractices.map((bp: any, idx: number) => (
                                 <div key={idx} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
-                                  <div className="flex items-center gap-3 mb-3">
-                                    <CheckCircle2 size={16} className="text-indigo-500" />
-                                    <h4 className="text-sm font-black text-slate-900">{bp.title}</h4>
-                                    <span className={`px-2 py-1 text-[10px] font-bold rounded-lg ${
-                                      bp.status === 'passed' ? 'bg-emerald-100 text-emerald-700' :
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-3">
+                                      <CheckCircle2 size={16} className={bp.status === 'pass' ? 'text-emerald-500' : bp.status === 'warning' ? 'text-amber-500' : 'text-indigo-500'} />
+                                      <h4 className="text-sm font-black text-slate-900">{bp.category}</h4>
+                                    </div>
+                                    <span className={`px-2 py-1 text-[10px] font-bold rounded-lg uppercase ${
+                                      bp.status === 'pass' ? 'bg-emerald-100 text-emerald-700' :
                                       bp.status === 'warning' ? 'bg-amber-100 text-amber-700' :
                                       'bg-slate-100 text-slate-600'
                                     }`}>
                                       {bp.status || 'info'}
                                     </span>
                                   </div>
-                                  <p className="text-[13px] text-slate-600 font-medium">{bp.description}</p>
+                                  <p className="text-[13px] text-slate-600 font-medium">{bp.details}</p>
                                 </div>
                               ))}
                             </div>
@@ -1032,82 +1081,103 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                   </AnimatePresence>
                 </div>
 
-                <div className="col-span-12 lg:col-span-4 h-fit sticky top-36 space-y-8">
-                  {/* Visual Severity Breakdown */}
-                  <div className="bg-white border border-slate-200 p-10 rounded-[40px] shadow-sm">
-                    <div className="flex items-center justify-between mb-10 pb-6 border-b border-slate-100">
-                      <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Institutional Risk Profile</h3>
-                      <Target size={18} className="text-slate-400" />
+                <div className="col-span-12 lg:col-span-4 h-fit sticky top-36 space-y-6">
+                  {/* Visual Severity Breakdown - Compact Design */}
+                  <div className="bg-white border border-slate-200 p-5 rounded-[24px] shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.15em]">Findings</h3>
+                      <span className="text-[9px] font-bold text-slate-400">{auditData.vulnerabilities?.length || 0} total</span>
                     </div>
 
-                    <div className="space-y-8">
-                      {['critical', 'high', 'medium', 'low'].map((sev) => (
-                        <div key={sev} className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className={`w-3 h-3 rounded-full ${sev === 'critical' ? 'bg-rose-500' :
-                              sev === 'high' ? 'bg-orange-500' :
-                                sev === 'medium' ? 'bg-amber-400' : 'bg-indigo-400'
-                              }`} />
-                            <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{sev} findings</span>
+                    {/* Compact severity grid */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        { sev: 'critical', label: 'Crit', color: 'bg-rose-500', bgColor: 'bg-rose-50', textColor: 'text-rose-600' },
+                        { sev: 'high', label: 'High', color: 'bg-orange-500', bgColor: 'bg-orange-50', textColor: 'text-orange-600' },
+                        { sev: 'medium', label: 'Med', color: 'bg-amber-400', bgColor: 'bg-amber-50', textColor: 'text-amber-600' },
+                        { sev: 'low', label: 'Low', color: 'bg-blue-400', bgColor: 'bg-blue-50', textColor: 'text-blue-600' },
+                      ].map((item) => {
+                        const count = auditData.findings?.[item.sev] || 0
+                        return (
+                          <div key={item.sev} className={`${item.bgColor} rounded-xl p-2.5 text-center ${count > 0 ? 'ring-1 ring-inset ring-black/5' : ''}`}>
+                            <span className={`text-lg font-black block ${count > 0 ? item.textColor : 'text-slate-300'}`}>{count}</span>
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">{item.label}</span>
                           </div>
-                          <span className="text-lg font-black text-slate-900 tracking-tighter">
-                            {auditData.findings?.[sev] || 0}
-                          </span>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
 
-                    <div className="mt-12 pt-10 border-t border-slate-100">
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-mono">Ironclad Trust Index</span>
-                        <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{auditData.score}% verified</span>
+                    {/* Info findings inline */}
+                    {(auditData.findings?.info || 0) > 0 && (
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Info</span>
+                        <span className="text-sm font-black text-slate-500">{auditData.findings?.info || 0}</span>
                       </div>
-                      <div className="h-2.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${auditData.score}%` }}
-                          className="h-full bg-indigo-500"
-                        />
-                      </div>
-                    </div>
+                    )}
                   </div>
 
-                  {/* Institutional SECURE Pass Badge - Glassmorphic Refinement */}
-                  <div className="bg-white/40 backdrop-blur-xl border-2 border-white/60 p-10 rounded-[48px] shadow-2xl shadow-indigo-500/10 relative overflow-hidden group flex flex-col items-center text-center">
-                    {/* Large Background Mascot Watermark */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-[0.15] pointer-events-none group-hover:scale-110 transition-transform duration-1000">
-                      <img src={mascot} alt="" className="w-80 h-80 object-contain" />
+                  {/* Security Badge - Dynamic based on scan type */}
+                  <div className={`backdrop-blur-xl border-2 p-8 rounded-[32px] shadow-xl relative overflow-hidden group flex flex-col items-center text-center ${
+                    isQuickScan
+                      ? 'bg-gradient-to-br from-indigo-50/80 to-violet-50/80 border-indigo-100'
+                      : 'bg-white/40 border-white/60 shadow-indigo-500/10'
+                  }`}>
+                    {/* Background Mascot Watermark */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-[0.08] pointer-events-none">
+                      <img src={mascot} alt="" className="w-64 h-64 object-contain" />
                     </div>
 
                     <div className="relative z-10 w-full">
-                      <div className="flex flex-col items-center mb-8">
-                        <div className="px-4 py-1.5 rounded-full bg-indigo-50/50 backdrop-blur-md border border-indigo-100/50 mb-4">
-                          <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] leading-none">Institutional Credential</span>
+                      {/* Badge Type */}
+                      <div className="flex flex-col items-center mb-6">
+                        <div className={`px-4 py-1.5 rounded-full mb-4 ${
+                          isQuickScan
+                            ? 'bg-indigo-500 text-white'
+                            : 'bg-indigo-50/50 border border-indigo-100/50'
+                        }`}>
+                          <span className={`text-[10px] font-black uppercase tracking-[0.15em] leading-none ${
+                            isQuickScan ? '' : 'text-indigo-500'
+                          }`}>{isQuickScan ? 'Quick Scan Report' : 'Full Audit Certificate'}</span>
                         </div>
-                        <h4 className="text-2xl font-black tracking-tighter text-slate-900 leading-none mb-2">VERIFIED PASS</h4>
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest font-mono">Ironclad Security Grade</p>
+                        <h4 className="text-xl font-black tracking-tight text-slate-900 leading-none mb-1">
+                          {auditData.score >= 90 ? 'EXCELLENT' :
+                           auditData.score >= 70 ? 'GOOD' :
+                           auditData.score >= 50 ? 'NEEDS WORK' : 'AT RISK'}
+                        </h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Security Assessment</p>
                       </div>
 
-                      {/* Central Metrics Row */}
-                      <div className="grid grid-cols-2 gap-px bg-slate-200/50 backdrop-blur-sm rounded-3xl overflow-hidden border border-white/20 mb-8 shadow-inner">
-                        <div className="bg-white/60 p-6">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Audit Grade</span>
-                          <span className="text-4xl font-black text-slate-900 tracking-tighter">{auditData.grade}</span>
+                      {/* Metrics Row */}
+                      <div className="grid grid-cols-2 gap-3 mb-6">
+                        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 border border-white/50">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Grade</span>
+                          <span className="text-3xl font-black text-slate-900 tracking-tighter">{auditData.grade}</span>
                         </div>
-                        <div className="bg-white/60 p-6">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Final Score</span>
-                          <span className="text-4xl font-black text-indigo-500 tracking-tighter">{auditData.score}%</span>
+                        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 border border-white/50">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Score</span>
+                          <span className={`text-3xl font-black tracking-tighter ${
+                            auditData.score >= 90 ? 'text-emerald-500' :
+                            auditData.score >= 70 ? 'text-indigo-600' :
+                            auditData.score >= 50 ? 'text-amber-500' : 'text-rose-500'
+                          }`}>{auditData.score}%</span>
                         </div>
                       </div>
 
-                      {/* Definitive Status Badge */}
-                      <div className="bg-emerald-500 text-white py-4 px-8 rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-500/30 mb-8 backdrop-blur-sm border border-emerald-400/30">
-                        <ShieldCheck size={20} strokeWidth={3} />
-                        <span className="text-sm font-black uppercase tracking-widest">Verified Secure</span>
+                      {/* Status Badge */}
+                      <div className={`py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg ${
+                        auditData.score >= 70
+                          ? 'bg-emerald-500 text-white shadow-emerald-500/30'
+                          : 'bg-amber-500 text-white shadow-amber-500/30'
+                      }`}>
+                        <ShieldCheck size={16} strokeWidth={3} />
+                        <span className="text-[11px] font-black uppercase tracking-widest">
+                          {auditData.score >= 70 ? 'Verified Secure' : 'Review Recommended'}
+                        </span>
                       </div>
 
-                      <p className="text-[10px] font-black text-slate-500 leading-relaxed uppercase tracking-widest italic border-t border-black/5 pt-6">
-                        Authentic Dossier: ISS-2026-AD
+                      {/* Report ID */}
+                      <p className="text-[9px] font-mono text-slate-400 mt-6 pt-4 border-t border-black/5">
+                        Report ID: {jobId?.slice(0, 8).toUpperCase()}
                       </p>
                     </div>
                   </div>
