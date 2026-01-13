@@ -83,6 +83,10 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       </div>
     `).join('') || '<p style="color: #64748b;">No vulnerabilities found.</p>';
 
+    const scoreLabel = auditData.score >= 90 ? 'EXCELLENT' : auditData.score >= 70 ? 'GOOD' : auditData.score >= 50 ? 'NEEDS WORK' : 'AT RISK';
+    const scoreColor = auditData.score >= 90 ? '#10b981' : auditData.score >= 70 ? '#6366f1' : auditData.score >= 50 ? '#f59e0b' : '#ef4444';
+    const badgeColor = auditData.score >= 70 ? '#10b981' : '#f59e0b';
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -95,14 +99,15 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 40px; background: #fff; color: #1e293b; }
           .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: -1; width: 600px; }
           .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 2px solid #e2e8f0; }
-          .logo-section { display: flex; align-items: center; gap: 16px; }
-          .logo { height: 40px; }
-          .mascot { height: 60px; }
+          .logo-section { display: flex; align-items: center; gap: 32px; }
+          .logo { height: 36px; }
+          .separator { width: 2px; height: 48px; background: #e2e8f0; }
           .title-section h1 { margin: 0; font-size: 24px; font-weight: 800; color: #1e293b; }
-          .title-section p { margin: 4px 0 0; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; }
+          .title-section p { margin: 6px 0 0; font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; }
           .score-section { text-align: right; }
-          .score { font-size: 48px; font-weight: 900; color: ${auditData.score >= 80 ? '#10b981' : auditData.score >= 60 ? '#f59e0b' : '#ef4444'}; }
-          .grade { display: inline-block; background: #f1f5f9; padding: 8px 16px; border-radius: 8px; font-weight: 700; margin-top: 8px; }
+          .score { font-size: 48px; font-weight: 900; color: ${scoreColor}; line-height: 1; }
+          .grade { display: inline-block; background: #f1f5f9; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 14px; margin-top: 8px; border: 1px solid #e2e8f0; }
+          .status-badge { display: inline-block; background: ${badgeColor}; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 8px; margin-left: 8px; }
           .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 40px; }
           .meta-item { background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; }
           .meta-label { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; }
@@ -130,7 +135,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
         <div class="header">
           <div class="logo-section">
             <img src="/logo.svg" class="logo" alt="Uatu" />
-            <img src="/mascot.png" class="mascot" alt="" />
+            <div class="separator"></div>
             <div class="title-section">
               <h1>${auditData.projectName || 'Security Audit Report'}</h1>
               <p>${isQuickScan ? 'Quick Scan Report' : 'Full Audit Report'} • ID: ${jobId}</p>
@@ -138,7 +143,10 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
           </div>
           <div class="score-section">
             <div class="score">${auditData.score}%</div>
-            <div class="grade">Grade ${auditData.grade}</div>
+            <div>
+              <span class="grade">Grade ${auditData.grade}</span>
+              <span class="status-badge">${scoreLabel}</span>
+            </div>
           </div>
         </div>
 
