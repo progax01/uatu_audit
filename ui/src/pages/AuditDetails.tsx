@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ShieldCheck, Download, AlertCircle,
   Code2, Timer, Target, Zap, Globe,
-  CheckCircle2, XCircle, Binary, ArrowRight
+  CheckCircle2, XCircle, Binary, ArrowRight,
+  User, Lock, Unlock
 } from 'lucide-react'
 import LiabilityTriage from '../components/LiabilityTriage'
 import logo from '../assets/logo.svg'
@@ -33,6 +34,172 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   const [progress, setProgress] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [isQuickScan, setIsQuickScan] = useState(false)
+
+  // PDF Export function
+  const handleExportPDF = () => {
+    if (!auditData) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const severityColor = (sev: string) => {
+      switch (sev) {
+        case 'critical': return '#dc2626';
+        case 'high': return '#f97316';
+        case 'medium': return '#f59e0b';
+        case 'low': return '#3b82f6';
+        default: return '#6b7280';
+      }
+    };
+
+    const vulnerabilitiesHTML = auditData.vulnerabilities?.map((v: any) => `
+      <div style="border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 16px; overflow: hidden;">
+        <div style="background: ${severityColor(v.severity)}15; padding: 16px; border-bottom: 1px solid #e2e8f0;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #1e293b;">${v.title}</h4>
+              <p style="margin: 4px 0 0; font-size: 11px; color: #64748b; font-family: monospace;">${v.location || ''}</p>
+            </div>
+            <span style="background: ${severityColor(v.severity)}; color: white; padding: 4px 12px; border-radius: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase;">${v.severity}</span>
+          </div>
+        </div>
+        <div style="padding: 16px;">
+          <p style="margin: 0 0 12px; font-size: 12px; color: #475569; line-height: 1.6;"><strong>Impact:</strong> ${v.impact || v.description}</p>
+          <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.6;"><strong>Recommendation:</strong> ${v.recommendation || 'N/A'}</p>
+        </div>
+      </div>
+    `).join('') || '<p style="color: #64748b;">No vulnerabilities found.</p>';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Security Audit Report - ${auditData.projectName}</title>
+        <style>
+          @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 40px; background: #fff; color: #1e293b; }
+          .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: -1; width: 600px; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 2px solid #e2e8f0; }
+          .logo-section { display: flex; align-items: center; gap: 16px; }
+          .logo { height: 40px; }
+          .mascot { height: 60px; }
+          .title-section h1 { margin: 0; font-size: 24px; font-weight: 800; color: #1e293b; }
+          .title-section p { margin: 4px 0 0; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; }
+          .score-section { text-align: right; }
+          .score { font-size: 48px; font-weight: 900; color: ${auditData.score >= 80 ? '#10b981' : auditData.score >= 60 ? '#f59e0b' : '#ef4444'}; }
+          .grade { display: inline-block; background: #f1f5f9; padding: 8px 16px; border-radius: 8px; font-weight: 700; margin-top: 8px; }
+          .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 40px; }
+          .meta-item { background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; }
+          .meta-label { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; }
+          .meta-value { font-size: 14px; font-weight: 700; color: #1e293b; margin-top: 4px; }
+          .section { margin-bottom: 32px; }
+          .section-title { font-size: 14px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
+          .summary { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 12px; margin-bottom: 32px; }
+          .summary p { margin: 0; font-size: 13px; line-height: 1.7; color: #166534; }
+          .findings-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 32px; }
+          .finding-count { text-align: center; padding: 16px; border-radius: 12px; }
+          .finding-count.critical { background: #fef2f2; border: 1px solid #fecaca; }
+          .finding-count.high { background: #fff7ed; border: 1px solid #fed7aa; }
+          .finding-count.medium { background: #fffbeb; border: 1px solid #fde68a; }
+          .finding-count.low { background: #eff6ff; border: 1px solid #bfdbfe; }
+          .finding-count .count { font-size: 28px; font-weight: 900; }
+          .finding-count .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+          .footer { margin-top: 48px; padding-top: 24px; border-top: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+          .footer-text { font-size: 10px; color: #94a3b8; }
+          .generated { font-size: 10px; color: #64748b; }
+        </style>
+      </head>
+      <body>
+        <img src="/mascot.png" class="watermark" alt="" />
+
+        <div class="header">
+          <div class="logo-section">
+            <img src="/logo.svg" class="logo" alt="Uatu" />
+            <img src="/mascot.png" class="mascot" alt="" />
+            <div class="title-section">
+              <h1>${auditData.projectName || 'Security Audit Report'}</h1>
+              <p>${isQuickScan ? 'Quick Scan Report' : 'Full Audit Report'} • ID: ${jobId}</p>
+            </div>
+          </div>
+          <div class="score-section">
+            <div class="score">${auditData.score}%</div>
+            <div class="grade">Grade ${auditData.grade}</div>
+          </div>
+        </div>
+
+        <div class="meta-grid">
+          <div class="meta-item">
+            <div class="meta-label">Network</div>
+            <div class="meta-value">${auditData.network || 'N/A'}</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Contract Address</div>
+            <div class="meta-value" style="font-family: monospace; font-size: 11px;">${auditData.contractAddress ? auditData.contractAddress.slice(0, 10) + '...' + auditData.contractAddress.slice(-8) : 'N/A'}</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Lines of Code</div>
+            <div class="meta-value">${auditData.sloc || 'N/A'} SLOC</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Scan Duration</div>
+            <div class="meta-value">${auditData.scanTime ? (auditData.scanTime / 1000).toFixed(1) + 's' : 'N/A'}</div>
+          </div>
+        </div>
+
+        ${auditData.summary ? `
+          <div class="summary">
+            <p><strong>Executive Summary:</strong> ${auditData.summary}</p>
+          </div>
+        ` : ''}
+
+        <div class="findings-summary">
+          <div class="finding-count critical">
+            <div class="count" style="color: #dc2626;">${auditData.findings?.critical || 0}</div>
+            <div class="label" style="color: #dc2626;">Critical</div>
+          </div>
+          <div class="finding-count high">
+            <div class="count" style="color: #f97316;">${auditData.findings?.high || 0}</div>
+            <div class="label" style="color: #f97316;">High</div>
+          </div>
+          <div class="finding-count medium">
+            <div class="count" style="color: #f59e0b;">${auditData.findings?.medium || 0}</div>
+            <div class="label" style="color: #f59e0b;">Medium</div>
+          </div>
+          <div class="finding-count low">
+            <div class="count" style="color: #3b82f6;">${auditData.findings?.low || 0}</div>
+            <div class="label" style="color: #3b82f6;">Low</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Vulnerability Details</div>
+          ${vulnerabilitiesHTML}
+        </div>
+
+        <div class="footer">
+          <div class="footer-text">
+            <strong>Uatu Security</strong> • Institutional-Grade Smart Contract Auditing<br/>
+            This report is generated for verification purposes only.
+          </div>
+          <div class="generated">
+            Generated: ${new Date().toISOString().split('T')[0]}<br/>
+            Report ID: ${jobId}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    // Wait for images to load then trigger print
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
 
   useEffect(() => {
     // Fetch quick scan from public audits API (UUID format)
@@ -228,7 +395,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">ID: {jobId}</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
                 <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1.5 leading-none">
-                  <ShieldCheck size={12} strokeWidth={3} /> Institutional Verification
+                  <ShieldCheck size={12} strokeWidth={3} /> {isQuickScan ? 'Quick Scan' : 'Institutional Verification'}
                 </span>
               </div>
             </div>
@@ -259,7 +426,10 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                 Resolve Clarifications
               </Link>
             ) : auditData ? (
-              <button className="flex items-center gap-3 bg-white border border-slate-950 px-7 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-950 hover:bg-slate-50 transition-all shadow-sm">
+              <button
+                onClick={handleExportPDF}
+                className="flex items-center gap-3 bg-white border border-slate-950 px-7 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-950 hover:bg-slate-50 transition-all shadow-sm"
+              >
                 <Download size={14} strokeWidth={3} />
                 Export Certificate
               </button>
@@ -352,6 +522,21 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         Proxy Contract
                       </span>
                     )}
+                    {/* Public badge with claim tooltip */}
+                    <div className="relative group/public">
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-lg cursor-help">
+                        <Unlock size={12} className="text-emerald-600" />
+                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Public</span>
+                      </div>
+                      <div className="absolute top-full right-0 mt-2 w-48 p-3 bg-slate-900 text-white rounded-xl opacity-0 invisible group-hover/public:opacity-100 group-hover/public:visible transition-all z-50 shadow-xl">
+                        <p className="text-[10px] font-medium leading-relaxed">Claim ownership to make this audit private and link it to your account.</p>
+                      </div>
+                    </div>
+                    {/* Claim Ownership CTA */}
+                    <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20">
+                      <User size={12} />
+                      Claim Ownership
+                    </button>
                     <a
                       href={`https://${auditData.network === 'ethereum' ? '' : auditData.network + '.'}etherscan.io/address/${auditData.contractAddress}`}
                       target="_blank"
@@ -399,7 +584,9 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                 className={`px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'triage' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 Liability Triage
-                <span className="ml-3 px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full">1</span>
+                {auditData.questions?.length > 0 && (
+                  <span className="ml-3 px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full">{auditData.questions.length}</span>
+                )}
                 {activeTab === 'triage' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-slate-900" />}
               </button>
               <button
@@ -723,45 +910,91 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         exit={{ opacity: 0 }}
                         className="space-y-8"
                       >
-                        <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-                          <table className="w-full text-left border-collapse">
-                            <thead>
-                              <tr className="bg-slate-50/50 border-b border-slate-100">
-                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Test Suite</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Coverage Target</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Assertions</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {[
-                                { suite: 'Liveness Invariants', target: 'Protocol Continuity', assertions: 240, status: 'Passed' },
-                                { suite: 'Access Control Matrix', target: 'Permission Integrity', assertions: 850, status: 'Passed' },
-                                { suite: 'Arithmetic Fuzzing', target: 'Edge Case Safety', assertions: '1.2M', status: 'Passed' },
-                                { suite: 'Economic Sanity', target: 'Oracle Manipulation', assertions: 45, status: 'Warning' },
-                                { suite: 'Reentrancy Guard', target: 'State Consistency', assertions: 120, status: 'Passed' },
-                              ].map((test, idx) => (
-                                <tr key={idx} className="group hover:bg-slate-50 transition-colors">
-                                  <td className="px-8 py-6">
-                                    <span className="text-[13px] font-black text-slate-900">{test.suite}</span>
-                                  </td>
-                                  <td className="px-8 py-6">
-                                    <span className="text-[12px] text-slate-500 font-bold">{test.target}</span>
-                                  </td>
-                                  <td className="px-8 py-6 text-center">
-                                    <span className="text-[12px] font-mono font-bold text-indigo-600">{test.assertions}</span>
-                                  </td>
-                                  <td className="px-8 py-6 text-center">
-                                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${test.status === 'Passed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
-                                      }`}>
-                                      {test.status}
-                                    </span>
-                                  </td>
+                        {isQuickScan ? (
+                          /* Deep Scan CTA for Quick Scans */
+                          <div className="bg-gradient-to-br from-indigo-50 via-violet-50 to-purple-50 border border-indigo-100 rounded-[40px] p-12 text-center relative overflow-hidden">
+                            {/* Background mascot watermark */}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-[0.08] pointer-events-none">
+                              <img src={mascot} alt="" className="w-96 h-96 object-contain" />
+                            </div>
+
+                            <div className="relative z-10">
+                              <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-indigo-100 flex items-center justify-center">
+                                <Zap size={40} className="text-indigo-600" />
+                              </div>
+                              <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-3">Upgrade to Deep Scan</h3>
+                              <p className="text-sm text-slate-500 font-medium max-w-lg mx-auto mb-8 leading-relaxed">
+                                Quick scans provide surface-level vulnerability detection. Run a Deep Scan for comprehensive test execution,
+                                formal verification, fuzzing coverage, and institutional-grade security certification.
+                              </p>
+
+                              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                                <button className="flex items-center gap-3 px-8 py-4 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20">
+                                  <User size={16} />
+                                  Claim & Run Deep Scan
+                                </button>
+                                <Link to="/pricing" className="flex items-center gap-2 px-6 py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:border-indigo-200 hover:text-indigo-600 transition-all">
+                                  View Pricing
+                                  <ArrowRight size={14} />
+                                </Link>
+                              </div>
+
+                              <div className="mt-10 pt-8 border-t border-indigo-100/50 grid grid-cols-3 gap-8 max-w-md mx-auto">
+                                {[
+                                  { label: 'Test Suites', value: '12+' },
+                                  { label: 'Fuzzing Rounds', value: '1M+' },
+                                  { label: 'Coverage', value: '100%' },
+                                ].map((stat) => (
+                                  <div key={stat.label} className="text-center">
+                                    <div className="text-xl font-black text-indigo-600">{stat.value}</div>
+                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{stat.label}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Full audit test execution data */
+                          <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+                            <table className="w-full text-left border-collapse">
+                              <thead>
+                                <tr className="bg-slate-50/50 border-b border-slate-100">
+                                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Test Suite</th>
+                                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Coverage Target</th>
+                                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Assertions</th>
+                                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {(auditData.test_execution || [
+                                  { suite: 'Liveness Invariants', target: 'Protocol Continuity', assertions: 240, status: 'Passed' },
+                                  { suite: 'Access Control Matrix', target: 'Permission Integrity', assertions: 850, status: 'Passed' },
+                                  { suite: 'Arithmetic Fuzzing', target: 'Edge Case Safety', assertions: '1.2M', status: 'Passed' },
+                                  { suite: 'Economic Sanity', target: 'Oracle Manipulation', assertions: 45, status: 'Warning' },
+                                  { suite: 'Reentrancy Guard', target: 'State Consistency', assertions: 120, status: 'Passed' },
+                                ]).map((test: any, idx: number) => (
+                                  <tr key={idx} className="group hover:bg-slate-50 transition-colors">
+                                    <td className="px-8 py-6">
+                                      <span className="text-[13px] font-black text-slate-900">{test.suite}</span>
+                                    </td>
+                                    <td className="px-8 py-6">
+                                      <span className="text-[12px] text-slate-500 font-bold">{test.target}</span>
+                                    </td>
+                                    <td className="px-8 py-6 text-center">
+                                      <span className="text-[12px] font-mono font-bold text-indigo-600">{test.assertions}</span>
+                                    </td>
+                                    <td className="px-8 py-6 text-center">
+                                      <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${test.status === 'Passed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
+                                        }`}>
+                                        {test.status}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </motion.div>
                     ) : (
                       <motion.div

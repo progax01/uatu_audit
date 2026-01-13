@@ -3,9 +3,6 @@ import { motion } from 'framer-motion';
 import { Github, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import logo from '../assets/logo.svg';
-import {
-    PremiumShield, PremiumAnalytics, PremiumBlocks
-} from './IconSystem';
 
 interface HeaderProps {
     isAuthed?: boolean;
@@ -41,14 +38,14 @@ export default function Header({ isAuthed, onLogin }: HeaderProps) {
                         <div className="absolute top-[80%] left-[-20px] pt-6 w-80 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
                             <div className="bg-white rounded-[32px] shadow-premium border border-black/[0.04] p-4 space-y-1">
                                 {[
-                                    { name: 'UatuAudit', desc: 'Enterprise AI Security', icon: PremiumShield, path: '/', color: 'text-indigo-600' },
-                                    { name: 'Uatu Analyzer', desc: 'Real-time On-Chain Data', icon: PremiumAnalytics, path: 'https://dashboard.uatu.xyz', color: 'text-emerald-600', ext: true },
-                                    { name: 'Uatu Build', desc: 'No-Code DApp Foundry', icon: PremiumBlocks, path: 'https://build.uatu.xyz', color: 'text-amber-600', ext: true },
+                                    { name: 'UatuAudit', desc: 'Enterprise AI Security', img: '/audit.png', path: '/', color: 'text-indigo-600' },
+                                    { name: 'Uatu Analyzer', desc: 'Real-time On-Chain Data', img: '/analyse.png', path: 'https://dashboard.uatu.xyz', color: 'text-emerald-600', ext: true },
+                                    { name: 'Uatu Build', desc: 'No-Code DApp Foundry', img: '/build.png', path: 'https://build.uatu.xyz', color: 'text-amber-600', ext: true },
                                 ].map((item) => {
                                     const Content = (
                                         <div className="flex items-center gap-4 p-4 rounded-[20px] hover:bg-slate-50 transition-all duration-300 group/item">
-                                            <div className={`w-12 h-12 rounded-2xl bg-white border border-black/[0.03] shadow-sm flex items-center justify-center shrink-0 group-hover/item:shadow-md transition-all ${item.color}`}>
-                                                <item.icon size={22} />
+                                            <div className={`w-12 h-12 rounded-2xl bg-white border border-black/[0.03] shadow-sm flex items-center justify-center shrink-0 group-hover/item:shadow-md transition-all overflow-hidden`}>
+                                                <img src={item.img} alt={item.name} className="w-8 h-8 object-contain" />
                                             </div>
                                             <div>
                                                 <div className="font-black text-xs text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">

@@ -15,7 +15,7 @@ interface LiabilityTriageProps {
   onSubmit: (answers: any) => void
 }
 
-export default function LiabilityTriage({ questions, onSubmit }: LiabilityTriageProps) {
+export default function LiabilityTriage({ questions = [], onSubmit }: LiabilityTriageProps) {
   const [answers, setAnswers] = useState<Record<string, { answer: string, url: string }>>({})
 
   const handleUpdate = (id: string, field: 'answer' | 'url', value: string) => {
@@ -45,6 +45,15 @@ export default function LiabilityTriage({ questions, onSubmit }: LiabilityTriage
       </motion.div>
 
       <div className="space-y-10">
+        {questions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <CheckCircle2 size={48} className="text-emerald-400 mb-6" />
+            <h3 className="text-lg font-black text-slate-900 uppercase tracking-widest mb-2">No Triage Required</h3>
+            <p className="text-sm text-slate-400 font-medium max-w-md">
+              This audit does not have any liability triage questions. All identified risks have been fully documented in the findings log.
+            </p>
+          </div>
+        ) : null}
         {questions.map((q, i) => (
           <motion.div
             key={q.id}
@@ -97,15 +106,17 @@ export default function LiabilityTriage({ questions, onSubmit }: LiabilityTriage
         ))}
       </div>
 
-      <motion.button
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.99 }}
-        onClick={() => onSubmit(answers)}
-        className="w-full bg-slate-900 hover:bg-slate-800 text-white py-6 rounded-[32px] font-black text-[12px] uppercase tracking-[0.4em] flex items-center justify-center gap-4 shadow-xl shadow-slate-900/10 transition-all duration-500 group"
-      >
-        Synchronize & Recalculate Hub
-        <ChevronRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" strokeWidth={3} />
-      </motion.button>
+      {questions.length > 0 && (
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => onSubmit(answers)}
+          className="w-full bg-slate-900 hover:bg-slate-800 text-white py-6 rounded-[32px] font-black text-[12px] uppercase tracking-[0.4em] flex items-center justify-center gap-4 shadow-xl shadow-slate-900/10 transition-all duration-500 group"
+        >
+          Synchronize & Recalculate Hub
+          <ChevronRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" strokeWidth={3} />
+        </motion.button>
+      )}
     </div>
   )
 }

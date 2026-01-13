@@ -171,7 +171,7 @@ export default function PublicAudits() {
                             <Globe size={14} className="text-indigo-600" />
                             <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest leading-none">Global Protocol Directory</span>
                         </div>
-                        <h1 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter mb-3 leading-tight">Public Security <br />Ledger.</h1>
+                        <h1 className="text-3xl lg:text-5xl font-black text-slate-900 tracking-tighter mb-3 leading-tight whitespace-nowrap">Public Security Ledger.</h1>
                         <p className="text-[13px] text-slate-400 font-medium leading-relaxed max-w-lg">
                             Institutional-grade audit data for the multi-chain ecosystem. Real-time security state for verified decentralized protocols.
                         </p>
@@ -185,10 +185,10 @@ export default function PublicAudits() {
                             <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Reports Indexed</div>
                         </div>
                         <div className="flex flex-col gap-1">
-                            <div className="text-3xl font-black text-emerald-600 tracking-tight leading-none">
-                                {stats ? `${stats.avgScore}%` : '-'}
+                            <div className="text-3xl font-black text-indigo-600 tracking-tight leading-none">
+                                {stats?.networkCount || supportedChains.length}+
                             </div>
-                            <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Avg Score</div>
+                            <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Chains Supported</div>
                         </div>
                     </div>
                 </div>
@@ -324,17 +324,14 @@ export default function PublicAudits() {
                                                 </div>
                                             </td>
                                             <td className="px-10 py-10">
-                                                <div className="flex items-center gap-2.5">
-                                                    <div className={`w-2 h-2 rounded-full animate-pulse ${
+                                                <div className="flex items-center justify-center" title={status.label}>
+                                                    <div className={`w-3 h-3 rounded-full ${
                                                         status.color === 'emerald'
                                                             ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
                                                             : status.color === 'amber'
                                                                 ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
                                                                 : 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
                                                     }`} />
-                                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">
-                                                        {status.label}
-                                                    </span>
                                                 </div>
                                             </td>
                                             <td className="px-10 py-10 text-right">

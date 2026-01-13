@@ -9,7 +9,7 @@ import {
 } from '../components/IconSystem';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
-import { supportedChains, SolanaIcon, StellarIcon } from '../components/icons/CryptoIcons';
+import { supportedChains, SolanaIcon, StellarIcon, EthereumIcon } from '../components/icons/CryptoIcons';
 import MouseTooltip from '../components/MouseTooltip';
 
 interface HomePageProps {
@@ -254,7 +254,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                   title: 'UatuAudit',
                   tag: 'Security Scan',
                   desc: 'Enterprise-grade bytecode and logic analysis for any smart contract. Identify flaws before they become exploits.',
-                  icon: PremiumShield,
+                  img: '/audit.png',
                   color: 'text-indigo-600',
                   link: '/dashboard',
                   ext: false
@@ -264,7 +264,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                   title: 'Uatu Analyzer',
                   tag: 'Data Indexing',
                   desc: 'Real-time on-chain analytics and automated subgraph creation. Turn raw data into actionable insights.',
-                  icon: PremiumAnalytics,
+                  img: '/analyse.png',
                   color: 'text-emerald-600',
                   link: 'https://dashboard.uatu.xyz',
                   ext: true
@@ -274,7 +274,7 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                   title: 'Uatu Build',
                   tag: 'DApp Builder',
                   desc: 'Ship secure contracts and frontends in minutes with our no-code environment. Security-hardened by design.',
-                  icon: PremiumBlocks,
+                  img: '/build.png',
                   color: 'text-amber-600',
                   link: 'https://build.uatu.xyz',
                   ext: true
@@ -288,24 +288,31 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
                   transition={{ delay: i * 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                   className="group"
                 >
-                  <div className="card-premium h-full flex flex-col items-start text-left hover:border-black/[0.1] transition-all duration-700">
-                    <div className="w-16 h-16 rounded-[22px] bg-[#FDFCF8] border border-black/[0.03] flex items-center justify-center text-slate-800 mb-10 group-hover:scale-110 group-hover:bg-white group-hover:shadow-xl transition-all duration-500">
-                      <p.icon size={28} />
+                  <div className="card-premium h-full flex flex-col items-start text-left hover:border-black/[0.1] transition-all duration-700 relative overflow-hidden min-h-[420px]">
+                    {/* Large watermark icon - top left corner */}
+                    <img
+                      src={p.img}
+                      alt=""
+                      className="absolute -top-8 -left-8 w-44 h-44 object-contain opacity-[0.07] pointer-events-none select-none group-hover:opacity-[0.12] group-hover:scale-110 transition-all duration-700"
+                    />
+
+                    {/* Content */}
+                    <div className="relative z-10 w-full flex flex-col h-full pt-6">
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 group-hover:text-indigo-600 transition-colors mb-6">{p.tag}</span>
+                      <h3 className="text-3xl font-black mb-6 tracking-tight">{p.title}</h3>
+                      <p className="text-slate-400 font-medium leading-relaxed text-sm flex-grow">{p.desc}</p>
+                      <div className="mt-auto pt-10">
+                        {p.ext ? (
+                          <a href={p.link} target="_blank" rel="noopener noreferrer" className="btn-ghost w-full">
+                            Launch {p.title.split(' ')[1]} <ArrowRight size={14} className="opacity-50" />
+                          </a>
+                        ) : (
+                          <Link to={p.link} className="btn-primary w-full">
+                            Secure Code <ArrowRight size={14} strokeWidth={3} />
+                          </Link>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 mb-5">
-                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 group-hover:text-indigo-600 transition-colors">{p.tag}</span>
-                    </div>
-                    <h3 className="text-3xl font-black mb-8 tracking-tight">{p.title}</h3>
-                    <p className="text-slate-400 font-medium leading-relaxed flex-grow mb-12 text-sm">{p.desc}</p>
-                    {p.ext ? (
-                      <a href={p.link} target="_blank" rel="noopener noreferrer" className="btn-ghost w-full">
-                        Launch {p.title.split(' ')[1]} <ArrowRight size={14} className="opacity-50" />
-                      </a>
-                    ) : (
-                      <Link to={p.link} className="btn-primary w-full">
-                        Secure Code <ArrowRight size={14} strokeWidth={3} />
-                      </Link>
-                    )}
                   </div>
                 </motion.div>
               ))}
@@ -575,79 +582,150 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
           </div>
         </section>
 
-        {/* Rust & WASM Security Deep-Dive */}
-        <section className="py-40 bg-[#FAFAFA] border-t border-black/[0.02]">
+        {/* Multi-Chain Security Deep-Dive */}
+        <section className="py-40 bg-gradient-to-b from-[#FAFAFA] to-white border-t border-black/[0.02] overflow-hidden">
           <div className="max-w-7xl mx-auto px-6 lg:px-10">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-8 block">Rust & WASM Security</span>
-                <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-6">Specialized Audits for <br /><span className="text-slate-300">High-Performance Chains.</span></h2>
-                <p className="text-base text-slate-500 font-medium leading-relaxed mb-12">
-                  Uatu provides depth-level state and storage analysis for Rust-based ecosystems. We transition beyond logical checks into deterministic bytecode verification for BPF and Soroban runtimes.
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 mb-8 block">Multi-Chain Security Coverage</span>
+                <h2 className="text-3xl lg:text-5xl font-black tracking-tight mb-6">Specialized Audits for <br /><span className="text-slate-300">Every VM Architecture.</span></h2>
+                <p className="text-base lg:text-lg text-slate-500 font-medium leading-relaxed mb-12">
+                  From EVM bytecode to Rust-based runtimes, Uatu provides depth-level state analysis across all major blockchain virtual machines. We go beyond logical checks into deterministic verification.
                 </p>
-                <div className="space-y-8">
+                <div className="space-y-6">
                   {[
-                    { name: 'Solana (BPF)', icon: SolanaIcon, desc: 'Advanced account-data validation and BPF instruction analysis.' },
-                    { name: 'Stellar (Soroban)', icon: StellarIcon, desc: 'Contract storage isolation and host-function security.' },
+                    { name: 'EVM (Solidity)', icon: EthereumIcon, color: '#627EEA', desc: 'Deep bytecode analysis, storage layout verification, and gas optimization for Ethereum & L2s.' },
+                    { name: 'Solana (BPF)', icon: SolanaIcon, color: '#14F195', desc: 'Account-data validation, BPF instruction analysis, and program-derived address security.' },
+                    { name: 'Stellar (Soroban)', icon: StellarIcon, color: '#5C61FF', desc: 'Contract storage isolation, host-function boundaries, and WASM runtime verification.' },
                   ].map((chain) => (
-                    <div key={chain.name} className="flex gap-6 items-start group">
-                      <div className="w-12 h-12 rounded-xl glass-liquid border-slate-100 flex items-center justify-center shrink-0 group-hover:border-indigo-100 transition-all">
-                        <chain.icon size={22} color="#5C61FF" />
+                    <div key={chain.name} className="flex gap-5 items-start group p-5 rounded-2xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500 -ml-5">
+                      <div className="w-14 h-14 rounded-2xl bg-white border border-black/[0.04] shadow-sm flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:shadow-lg transition-all duration-500">
+                        <chain.icon size={28} color={chain.color} />
                       </div>
-                      <div>
-                        <h4 className="text-base font-black text-slate-900 mb-1">{chain.name} Engineering</h4>
-                        <p className="text-xs text-slate-400 font-medium leading-relaxed">{chain.desc}</p>
+                      <div className="flex-1">
+                        <h4 className="text-base font-black text-slate-900 mb-1.5 group-hover:text-indigo-600 transition-colors">{chain.name}</h4>
+                        <p className="text-sm text-slate-400 font-medium leading-relaxed">{chain.desc}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Security Terminal Visualization */}
-              <div className="card-premium !p-0 bg-slate-950 border-white/5 shadow-2xl overflow-hidden font-mono text-[10px] relative">
-                <div className="bg-white/5 border-b border-white/5 px-6 py-4 flex items-center justify-between">
-                  <div className="flex gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-rose-500/20" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500/20" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/20" />
-                  </div>
-                  <span className="text-slate-500 text-[9px] uppercase tracking-widest font-black">uatu_node_rust_v2.0</span>
-                </div>
-                <div className="p-8 space-y-4">
-                  <div className="flex gap-3">
-                    <span className="text-indigo-400">➜</span>
-                    <span className="text-slate-400">Initializing Solana BPF Analysis...</span>
-                  </div>
-                  <div className="space-y-2 pl-4">
-                    <div className="flex justify-between items-center group">
-                      <span className="text-slate-500">[01] Account State Verification</span>
-                      <span className="text-emerald-400 uppercase font-black text-[8px]">Passed</span>
+              {/* Mascot Security Visualization */}
+              <div className="relative">
+                {/* Background glow effects */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-violet-500/10 rounded-[60px] blur-3xl" />
+
+                {/* Main container */}
+                <div className="relative bg-white/80 backdrop-blur-xl rounded-[48px] border border-black/[0.04] shadow-2xl shadow-indigo-500/10 p-8 lg:p-12">
+                  {/* Top stats bar */}
+                  <div className="flex items-center justify-between mb-8 pb-6 border-b border-black/[0.04]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Security Engine Active</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-500">[02] Storage Slot Collision Check</span>
-                      <span className="text-emerald-400 uppercase font-black text-[8px]">Passed</span>
-                    </div>
+                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">v3.0 STABLE</span>
+                  </div>
+
+                  {/* Mascot centered */}
+                  <div className="relative flex justify-center mb-8">
+                    <motion.img
+                      src="/mascot.png"
+                      alt="Uatu Security Mascot"
+                      className="w-48 h-48 lg:w-64 lg:h-64 object-contain drop-shadow-2xl"
+                      animate={{ y: [0, -10, 0] }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    />
+
+                    {/* Floating badges around mascot */}
                     <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ repeat: Infinity, duration: 2, repeatType: "reverse" }}
-                      className="flex justify-between items-center"
+                      className="absolute -left-4 top-8 px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-xl shadow-lg"
+                      animate={{ x: [0, 5, 0], y: [0, -5, 0] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                     >
-                      <span className="text-indigo-300">[03] Computational Entropy Analysis</span>
-                      <span className="text-indigo-400 uppercase font-black text-[8px]">In Progress...</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span className="text-[9px] font-black text-emerald-700 uppercase tracking-wider">98% Safe</span>
+                      </div>
                     </motion.div>
-                    <div className="flex justify-between items-center opacity-30">
-                      <span className="text-slate-500">[04] Host Function Boundary Check</span>
-                      <span className="text-slate-600 uppercase font-black text-[8px]">Queued</span>
+
+                    <motion.div
+                      className="absolute -right-4 top-16 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl shadow-lg"
+                      animate={{ x: [0, -5, 0], y: [0, 5, 0] }}
+                      transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                        <span className="text-[9px] font-black text-indigo-700 uppercase tracking-wider">Live Scan</span>
+                      </div>
+                    </motion.div>
+
+                    <motion.div
+                      className="absolute right-0 bottom-4 px-3 py-2 bg-violet-50 border border-violet-100 rounded-xl shadow-lg"
+                      animate={{ x: [0, 5, 0], y: [0, -3, 0] }}
+                      transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-violet-500" />
+                        <span className="text-[9px] font-black text-violet-700 uppercase tracking-wider">AI Powered</span>
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Sample Report Preview */}
+                  <div className="bg-slate-50/80 rounded-2xl p-4 mb-8 border border-black/[0.02]">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Sample Report Preview</span>
+                      </div>
+                      <span className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Score: 94/100</span>
+                    </div>
+
+                    {/* Mini findings preview */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3 p-2.5 bg-white rounded-xl border border-black/[0.02]">
+                        <div className="w-5 h-5 rounded-md bg-amber-100 flex items-center justify-center">
+                          <span className="text-[8px] font-black text-amber-600">M</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[10px] font-bold text-slate-700 truncate block">Unchecked Return Value</span>
+                          <span className="text-[8px] text-slate-400">Line 142 • transfer()</span>
+                        </div>
+                        <span className="text-[8px] font-black text-amber-600 uppercase">Medium</span>
+                      </div>
+                      <div className="flex items-center gap-3 p-2.5 bg-white rounded-xl border border-black/[0.02]">
+                        <div className="w-5 h-5 rounded-md bg-sky-100 flex items-center justify-center">
+                          <span className="text-[8px] font-black text-sky-600">L</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[10px] font-bold text-slate-700 truncate block">Missing Event Emission</span>
+                          <span className="text-[8px] text-slate-400">Line 89 • withdraw()</span>
+                        </div>
+                        <span className="text-[8px] font-black text-sky-600 uppercase">Low</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="pt-4 border-t border-white/5">
-                    <div className="text-slate-400 mb-2">// OWASP-STRIDE Mapping Active</div>
-                    <div className="flex gap-2 text-[8px]">
-                      <span className="px-2 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded">TAMPERING</span>
-                      <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded">REPUDIATION</span>
-                      <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded">DDoS</span>
-                    </div>
+
+                  {/* Security check items */}
+                  <div className="space-y-3">
+                    {[
+                      { check: 'Reentrancy Protection', status: 'verified' },
+                      { check: 'Access Control Audit', status: 'verified' },
+                      { check: 'Integer Overflow Check', status: 'verified' },
+                    ].map((item) => (
+                      <div key={item.check} className="flex items-center justify-between p-3 bg-emerald-50/50 rounded-xl border border-emerald-100/50">
+                        <div className="flex items-center gap-3">
+                          <div className="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center">
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <span className="text-xs font-bold text-slate-700">{item.check}</span>
+                        </div>
+                        <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Verified</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -668,15 +746,21 @@ export default function HomePage({ isAuthed, onLogin }: HomePageProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {[
-                { title: 'Compliance Certs', desc: 'Finalized verification certificates for mainnet launch readiness.' },
-                { title: 'Arch Analysis', desc: 'In-depth backend architecture and logic flow vulnerability reports.' },
-                { title: 'Frontend Integrity', desc: 'Reports on UI consistency and provider-level security patterns.' },
-                { title: 'STRIDE Audits', desc: 'Comprehensive mapping against OWASP-STRIDE of decentralized code.' },
+                { title: 'Compliance Certificates', desc: 'Formal verification certificates validating mainnet deployment readiness and security standards.' },
+                { title: 'Architecture Analysis', desc: 'Comprehensive backend architecture review with detailed logic flow vulnerability assessments.' },
+                { title: 'Frontend Security', desc: 'In-depth analysis of UI security patterns, provider integrations, and client-side vulnerabilities.' },
+                { title: 'Threat Modeling', desc: 'Systematic STRIDE-based threat analysis aligned with OWASP security standards.' },
               ].map((d, i) => (
-                <div key={d.title} className="card-premium !p-8 bg-slate-50/30 group hover:bg-white transition-all">
-                  <div className="text-2xl font-black text-slate-200 group-hover:text-indigo-600 transition-colors mb-6">0{i + 1}</div>
-                  <h4 className="text-sm font-black text-slate-900 mb-2 uppercase tracking-tight">{d.title}</h4>
-                  <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{d.desc}</p>
+                <div key={d.title} className="card-premium !p-8 bg-slate-50/30 group hover:bg-white transition-all relative overflow-hidden min-h-[180px]">
+                  {/* Watermark number - bottom right */}
+                  <span className="absolute -bottom-4 -right-2 text-[120px] font-black text-slate-100 leading-none select-none pointer-events-none group-hover:text-indigo-100 transition-colors duration-500">
+                    0{i + 1}
+                  </span>
+                  {/* Content */}
+                  <div className="relative z-10">
+                    <h4 className="text-sm font-black text-slate-900 mb-3 uppercase tracking-tight">{d.title}</h4>
+                    <p className="text-[11px] text-slate-400 font-medium leading-relaxed max-w-[200px]">{d.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
