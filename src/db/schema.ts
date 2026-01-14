@@ -53,6 +53,7 @@ export const componentStatusEnum = pgEnum('component_status', [
 export const jobStatusEnum = pgEnum('job_status', [
   'pending',
   'queued',
+  'running',
   'cloning',
   'analyzing',
   'awaiting_clarification',
@@ -346,6 +347,18 @@ export const auditJobs = pgTable(
     startedAt: timestamp('started_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }),
+    // SOP-based audit fields
+    sourceType: varchar('source_type', { length: 30 }), // github-repo, deployed-contract, manual-upload
+    projectPath: text('project_path'),
+    detectedFramework: varchar('detected_framework', { length: 50 }),
+    sopId: varchar('sop_id', { length: 100 }),
+    sopVersion: varchar('sop_version', { length: 20 }),
+    auditDepth: varchar('audit_depth', { length: 20 }), // quick, standard, deep
+    currentStepId: varchar('current_step_id', { length: 100 }),
+    currentStepName: varchar('current_step_name', { length: 255 }),
+    stepsCompleted: smallint('steps_completed'),
+    stepsTotal: smallint('steps_total'),
   },
   (table) => ({
     userIdIdx: index('audit_jobs_user_id_idx').on(table.userId),
@@ -394,10 +407,11 @@ export const auditReports = pgTable(
     jobId: uuid('job_id')
       .notNull()
       .references(() => auditJobs.id, { onDelete: 'cascade' }),
-    format: varchar('format', { length: 20 }).notNull(), // 'html', 'pdf', 'json'
-    filePath: text('file_path').notNull(),
+    format: varchar('format', { length: 20 }).default('json'), // 'html', 'pdf', 'json'
+    filePath: text('file_path'),
     fileSize: bigint('file_size', { mode: 'number' }),
     checksum: varchar('checksum', { length: 64 }),
+    reportData: jsonb('report_data'), // JSON report data for SOP-based audits
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
@@ -871,4 +885,909 @@ export type AuditVisibility = (typeof auditVisibilityEnum.enumValues)[number];
 // Table types
 export type AuditClarification = typeof auditClarifications.$inferSelect;
 export type NewAuditClarification = typeof auditClarifications.$inferInsert;
+
+// ============================================================================
+// SOP STEP STATUS ENUM
+// ============================================================================
+
+export const stepStatusEnum = pgEnum('step_status', [
+  'pending',
+  'running',
+  'completed',
+  'failed',
+  'skipped',
+]);
+
+// ============================================================================
+// AUDIT STEP PROGRESS TABLE (Micro-step tracking)
+// ============================================================================
+
+export const auditStepProgress = pgTable(
+  'audit_step_progress',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+
+    // Step identification
+    stepId: varchar('step_id', { length: 100 }).notNull(),
+    stepName: varchar('step_name', { length: 255 }).notNull(),
+    stepCategory: varchar('step_category', { length: 50 }).notNull(),
+
+    // Status
+    status: stepStatusEnum('status').notNull().default('pending'),
+
+    // Timing
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    durationMs: bigint('duration_ms', { mode: 'number' }),
+
+    // Progress within step (for long-running steps)
+    internalPct: smallint('internal_pct').default(0),
+    internalMessage: text('internal_message'),
+
+    // Output/errors
+    outputSummary: jsonb('output_summary'),
+    errorMessage: text('error_message'),
+    retryCount: smallint('retry_count').default(0),
+
+    // Ordering
+    orderIndex: smallint('order_index').notNull(),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    jobIdIdx: index('audit_step_progress_job_id_idx').on(table.jobId),
+    jobStepIdx: uniqueIndex('audit_step_progress_job_step_idx').on(table.jobId, table.stepId),
+    statusIdx: index('audit_step_progress_status_idx').on(table.status),
+  })
+);
+
+// ============================================================================
+// AUDIT SOP EXECUTION TABLE (SOP execution metadata)
+// ============================================================================
+
+export const auditSopExecution = pgTable(
+  'audit_sop_execution',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+
+    // SOP info
+    sopId: varchar('sop_id', { length: 100 }).notNull(),
+    sopVersion: varchar('sop_version', { length: 20 }).notNull(),
+    auditDepth: varchar('audit_depth', { length: 20 }).notNull(), // 'quick' | 'standard' | 'deep'
+
+    // Framework detection
+    detectedFramework: varchar('detected_framework', { length: 50 }),
+    detectedLanguage: varchar('detected_language', { length: 20 }),
+
+    // Step counts
+    totalSteps: smallint('total_steps').notNull(),
+    completedSteps: smallint('completed_steps').default(0),
+    failedSteps: smallint('failed_steps').default(0),
+    skippedSteps: smallint('skipped_steps').default(0),
+
+    // Tool availability (recorded at start)
+    availableTools: jsonb('available_tools'),
+
+    // Timing
+    estimatedDurationMinutes: smallint('estimated_duration_minutes'),
+    actualDurationMinutes: smallint('actual_duration_minutes'),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    jobIdIdx: uniqueIndex('audit_sop_execution_job_id_idx').on(table.jobId),
+    sopIdIdx: index('audit_sop_execution_sop_id_idx').on(table.sopId),
+  })
+);
+
+// ============================================================================
+// TOOL EXECUTION LOGS TABLE
+// ============================================================================
+
+export const toolExecutionLogs = pgTable(
+  'tool_execution_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    stepProgressId: uuid('step_progress_id')
+      .notNull()
+      .references(() => auditStepProgress.id, { onDelete: 'cascade' }),
+
+    toolName: varchar('tool_name', { length: 50 }).notNull(),
+    toolVersion: varchar('tool_version', { length: 50 }),
+
+    command: text('command'),
+    exitCode: smallint('exit_code'),
+    stdout: text('stdout'),
+    stderr: text('stderr'),
+
+    findingsCount: smallint('findings_count'),
+    executionTimeMs: bigint('execution_time_ms', { mode: 'number' }),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    stepIdIdx: index('tool_execution_logs_step_id_idx').on(table.stepProgressId),
+    toolNameIdx: index('tool_execution_logs_tool_name_idx').on(table.toolName),
+  })
+);
+
+// ============================================================================
+// SOP-RELATED RELATIONS
+// ============================================================================
+
+export const auditStepProgressRelations = relations(auditStepProgress, ({ one, many }) => ({
+  job: one(auditJobs, {
+    fields: [auditStepProgress.jobId],
+    references: [auditJobs.id],
+  }),
+  toolLogs: many(toolExecutionLogs),
+}));
+
+export const auditSopExecutionRelations = relations(auditSopExecution, ({ one }) => ({
+  job: one(auditJobs, {
+    fields: [auditSopExecution.jobId],
+    references: [auditJobs.id],
+  }),
+}));
+
+export const toolExecutionLogsRelations = relations(toolExecutionLogs, ({ one }) => ({
+  stepProgress: one(auditStepProgress, {
+    fields: [toolExecutionLogs.stepProgressId],
+    references: [auditStepProgress.id],
+  }),
+}));
+
+// ============================================================================
+// SOP-RELATED TYPE EXPORTS
+// ============================================================================
+
+export type AuditStepProgress = typeof auditStepProgress.$inferSelect;
+export type NewAuditStepProgress = typeof auditStepProgress.$inferInsert;
+
+export type AuditSopExecution = typeof auditSopExecution.$inferSelect;
+export type NewAuditSopExecution = typeof auditSopExecution.$inferInsert;
+
+export type ToolExecutionLog = typeof toolExecutionLogs.$inferSelect;
+export type NewToolExecutionLog = typeof toolExecutionLogs.$inferInsert;
+
+export type StepStatus = (typeof stepStatusEnum.enumValues)[number];
+
+// ============================================================================
+// INTERACTIVE AUDIT ENUMS
+// ============================================================================
+
+export const sessionStatusEnum = pgEnum('session_status', [
+  'running',
+  'paused_for_input',
+  'completed',
+  'failed',
+  'cancelled',
+]);
+
+export const promptStatusEnum = pgEnum('prompt_status', [
+  'pending',
+  'answered',
+  'skipped',
+  'timed_out',
+]);
+
+export const promptTypeEnum = pgEnum('prompt_type', [
+  'single_choice',
+  'multi_choice',
+  'text',
+  'address',
+  'contract_link',
+  'confirm',
+  'form',
+]);
+
+export const addressTypeEnum = pgEnum('address_type', [
+  'eoa',
+  'multisig',
+  'timelock',
+  'governance',
+  'treasury',
+  'oracle',
+  'protocol',
+  'renounced',
+  'unknown',
+]);
+
+export const linkedProjectRelationshipEnum = pgEnum('linked_project_relationship', [
+  'admin',
+  'governance',
+  'timelock',
+  'dependency',
+  'integration',
+  'proxy',
+  'implementation',
+  'oracle',
+  'other',
+]);
+
+export const findingStatusEnum = pgEnum('finding_status', [
+  'new',
+  'acknowledged',
+  'disputed',
+  'fixed',
+  'wont_fix',
+  'false_positive',
+]);
+
+export const notificationTypeEnum = pgEnum('notification_type', [
+  'audit_complete',
+  'input_needed',
+  'critical_finding',
+  'audit_failed',
+  'audit_cancelled',
+  'prompt_timeout',
+]);
+
+// ============================================================================
+// AUDIT SESSIONS TABLE (Interactive Audit State)
+// ============================================================================
+
+export const auditSessions = pgTable(
+  'audit_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+
+    // Session configuration
+    interactiveMode: boolean('interactive_mode').notNull().default(true),
+    autoContinueTimeoutSeconds: smallint('auto_continue_timeout_seconds').default(300),
+    notificationEmail: varchar('notification_email', { length: 255 }),
+    notifyOnCompletion: boolean('notify_on_completion').default(true),
+    notifyOnInputNeeded: boolean('notify_on_input_needed').default(true),
+    notifyOnCriticalFinding: boolean('notify_on_critical_finding').default(true),
+
+    // Session state
+    status: sessionStatusEnum('status').notNull().default('running'),
+    currentPromptId: uuid('current_prompt_id'),
+    pausedAtStep: varchar('paused_at_step', { length: 100 }),
+    pausedAt: timestamp('paused_at', { withTimezone: true }),
+
+    // AI Conversation Tracking (for resuming conversations per project)
+    aiConversationId: varchar('ai_conversation_id', { length: 255 }),
+    aiSessionId: varchar('ai_session_id', { length: 255 }),
+    aiModelUsed: varchar('ai_model_used', { length: 100 }),
+    aiConversationContext: jsonb('ai_conversation_context').default({}),
+    aiConversationStartedAt: timestamp('ai_conversation_started_at', { withTimezone: true }),
+    aiConversationLastUsedAt: timestamp('ai_conversation_last_used_at', { withTimezone: true }),
+    aiTotalTokensUsed: bigint('ai_total_tokens_used', { mode: 'number' }).default(0),
+    aiTotalTurns: smallint('ai_total_turns').default(0),
+
+    // Timestamps
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    jobIdIdx: uniqueIndex('audit_sessions_job_id_idx').on(table.jobId),
+    userIdIdx: index('audit_sessions_user_id_idx').on(table.userId),
+    statusIdx: index('audit_sessions_status_idx').on(table.status),
+    aiConversationIdx: index('audit_sessions_ai_conversation_idx').on(table.aiConversationId),
+  })
+);
+
+// ============================================================================
+// AUDIT LINKED PROJECTS TABLE (Multi-Contract Support)
+// ============================================================================
+
+export const auditLinkedProjects = pgTable(
+  'audit_linked_projects',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => auditSessions.id, { onDelete: 'cascade' }),
+
+    // Linked project info
+    name: varchar('name', { length: 255 }).notNull(),
+    sourceType: varchar('source_type', { length: 30 }).notNull(), // github-repo, deployed-contract, existing-project
+    sourceConfig: jsonb('source_config').notNull(), // { repoUrl, branch } or { address, chain } or { projectId }
+
+    // Relationship to primary project
+    relationship: linkedProjectRelationshipEnum('relationship').notNull(),
+    relationshipDescription: text('relationship_description'),
+
+    // Which contracts are relevant
+    relevantContracts: jsonb('relevant_contracts'), // ["Governance.sol", "Timelock.sol"]
+
+    // If we're also auditing this linked project
+    linkedJobId: uuid('linked_job_id').references(() => auditJobs.id, { onDelete: 'set null' }),
+
+    // Metadata
+    addedBy: varchar('added_by', { length: 30 }).default('user'), // user, ai_suggestion
+    addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    sessionIdIdx: index('audit_linked_projects_session_id_idx').on(table.sessionId),
+    relationshipIdx: index('audit_linked_projects_relationship_idx').on(table.relationship),
+  })
+);
+
+// ============================================================================
+// AUDIT KNOWN ADDRESSES TABLE (User-Provided Context)
+// ============================================================================
+
+export const auditKnownAddresses = pgTable(
+  'audit_known_addresses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => auditSessions.id, { onDelete: 'cascade' }),
+
+    // Address info
+    address: varchar('address', { length: 128 }).notNull(),
+    chain: varchar('chain', { length: 30 }).notNull(),
+    label: varchar('label', { length: 255 }).notNull(),
+
+    // Address type affects finding severity
+    addressType: addressTypeEnum('address_type').notNull(),
+
+    // Type-specific metadata
+    metadata: jsonb('metadata').default({}), // { signers, threshold, walletType } for multisig
+
+    // Optional link to another project
+    linkedProjectId: uuid('linked_project_id').references(() => auditLinkedProjects.id, {
+      onDelete: 'set null',
+    }),
+
+    // Source and verification
+    source: varchar('source', { length: 30 }).default('user'), // user, ai_detected, on_chain_verified
+    verified: boolean('verified').default(false),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    sessionIdIdx: index('audit_known_addresses_session_id_idx').on(table.sessionId),
+    addressIdx: index('audit_known_addresses_address_idx').on(table.address),
+    addressTypeIdx: index('audit_known_addresses_type_idx').on(table.addressType),
+  })
+);
+
+// ============================================================================
+// AUDIT PROMPTS TABLE (Interactive Questions During Audit)
+// ============================================================================
+
+export const auditPrompts = pgTable(
+  'audit_prompts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => auditSessions.id, { onDelete: 'cascade' }),
+
+    // Which step triggered this prompt
+    stepId: varchar('step_id', { length: 100 }).notNull(),
+    stepName: varchar('step_name', { length: 255 }),
+
+    // Prompt template reference
+    templateId: varchar('template_id', { length: 100 }),
+
+    // Prompt content
+    promptType: promptTypeEnum('prompt_type').notNull(),
+    question: text('question').notNull(),
+
+    // Variables substituted into question
+    variables: jsonb('variables').default({}),
+
+    // Context to show user (code snippet, finding, etc.)
+    context: jsonb('context').default({}),
+
+    // Available options (for choice types)
+    options: jsonb('options'), // [{ value, label, description, severityImpact, followUp }]
+
+    // Prompt behavior
+    required: boolean('required').default(false),
+    defaultValue: jsonb('default_value'),
+    timeoutSeconds: smallint('timeout_seconds').default(300),
+
+    // State
+    status: promptStatusEnum('status').notNull().default('pending'),
+
+    // Timestamps
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    answeredAt: timestamp('answered_at', { withTimezone: true }),
+    timedOutAt: timestamp('timed_out_at', { withTimezone: true }),
+  },
+  (table) => ({
+    sessionIdIdx: index('audit_prompts_session_id_idx').on(table.sessionId),
+    statusIdx: index('audit_prompts_status_idx').on(table.status),
+    stepIdIdx: index('audit_prompts_step_id_idx').on(table.stepId),
+  })
+);
+
+// ============================================================================
+// AUDIT USER ANSWERS TABLE (Responses to Prompts)
+// ============================================================================
+
+export const auditUserAnswers = pgTable(
+  'audit_user_answers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => auditSessions.id, { onDelete: 'cascade' }),
+    promptId: uuid('prompt_id')
+      .notNull()
+      .references(() => auditPrompts.id, { onDelete: 'cascade' }),
+
+    // The answer
+    answer: jsonb('answer').notNull(),
+
+    // How to apply this answer
+    applyToSimilar: boolean('apply_to_similar').default(true),
+    appliedToFindings: jsonb('applied_to_findings').default([]), // Array of finding IDs
+    severityAdjustments: jsonb('severity_adjustments').default({}), // { "finding-id": { from, to, reason } }
+
+    // Source
+    answeredBy: varchar('answered_by', { length: 30 }).default('user'), // user, auto_timeout, skip
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    sessionIdIdx: index('audit_user_answers_session_id_idx').on(table.sessionId),
+    promptIdIdx: uniqueIndex('audit_user_answers_prompt_id_idx').on(table.promptId),
+  })
+);
+
+// ============================================================================
+// AUDIT FINDINGS TABLE (Normalized, Enriched Findings)
+// ============================================================================
+
+export const auditFindings = pgTable(
+  'audit_findings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+    sessionId: uuid('session_id').references(() => auditSessions.id, { onDelete: 'set null' }),
+
+    // Finding identity
+    findingId: varchar('finding_id', { length: 100 }).notNull(), // Original ID from tool/AI
+    tool: varchar('tool', { length: 50 }), // slither, mythril, ai, etc.
+    stepId: varchar('step_id', { length: 100 }),
+
+    // Finding content
+    title: varchar('title', { length: 500 }).notNull(),
+    description: text('description').notNull(),
+    recommendation: text('recommendation'),
+
+    // Severity (original and adjusted)
+    originalSeverity: varchar('original_severity', { length: 20 }).notNull(),
+    adjustedSeverity: varchar('adjusted_severity', { length: 20 }),
+    severityAdjustmentReason: text('severity_adjustment_reason'),
+
+    // Location
+    filePath: varchar('file_path', { length: 500 }),
+    lineStart: smallint('line_start'),
+    lineEnd: smallint('line_end'),
+    functionName: varchar('function_name', { length: 255 }),
+    contractName: varchar('contract_name', { length: 255 }),
+
+    // Related addresses (for context matching)
+    relatedAddresses: jsonb('related_addresses').default([]),
+
+    // Cross-references
+    similarFindingIds: jsonb('similar_finding_ids').default([]),
+    linkedProjectFindings: jsonb('linked_project_findings').default([]),
+
+    // User interaction
+    userContext: jsonb('user_context').default({}),
+    acknowledged: boolean('acknowledged').default(false),
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+    disputed: boolean('disputed').default(false),
+    disputeReason: text('dispute_reason'),
+
+    // State
+    status: findingStatusEnum('status').notNull().default('new'),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    jobIdIdx: index('audit_findings_job_id_idx').on(table.jobId),
+    jobFindingIdx: uniqueIndex('audit_findings_job_finding_idx').on(table.jobId, table.findingId),
+    severityIdx: index('audit_findings_severity_idx').on(table.adjustedSeverity),
+    statusIdx: index('audit_findings_status_idx').on(table.status),
+    toolIdx: index('audit_findings_tool_idx').on(table.tool),
+  })
+);
+
+// ============================================================================
+// AUDIT CROSS REFERENCES TABLE (Links Between Findings/Projects)
+// ============================================================================
+
+export const auditCrossReferences = pgTable(
+  'audit_cross_references',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+
+    // Source finding
+    findingId: uuid('finding_id')
+      .notNull()
+      .references(() => auditFindings.id, { onDelete: 'cascade' }),
+
+    // Target type
+    targetType: varchar('target_type', { length: 30 }).notNull(), // finding, linked_project, known_address
+
+    // Target references (one will be set based on targetType)
+    targetFindingId: uuid('target_finding_id').references(() => auditFindings.id, {
+      onDelete: 'cascade',
+    }),
+    targetLinkedProjectId: uuid('target_linked_project_id').references(
+      () => auditLinkedProjects.id,
+      { onDelete: 'cascade' }
+    ),
+    targetKnownAddressId: uuid('target_known_address_id').references(
+      () => auditKnownAddresses.id,
+      { onDelete: 'cascade' }
+    ),
+
+    // Relationship details
+    relationshipType: varchar('relationship_type', { length: 50 }).notNull(), // calls, inherits, controls, depends_on, same_issue
+    description: text('description'),
+
+    // Source
+    createdBy: varchar('created_by', { length: 30 }).default('ai'), // ai, user
+    confidence: smallint('confidence'), // 0-100 for AI-detected
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    findingIdIdx: index('audit_cross_references_finding_id_idx').on(table.findingId),
+    targetTypeIdx: index('audit_cross_references_target_type_idx').on(table.targetType),
+  })
+);
+
+// ============================================================================
+// NOTIFICATIONS TABLE
+// ============================================================================
+
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+
+    // Notification content
+    type: notificationTypeEnum('type').notNull(),
+    title: varchar('title', { length: 255 }).notNull(),
+    message: text('message').notNull(),
+
+    // Related entities
+    jobId: uuid('job_id').references(() => auditJobs.id, { onDelete: 'set null' }),
+    sessionId: uuid('session_id').references(() => auditSessions.id, { onDelete: 'set null' }),
+    promptId: uuid('prompt_id').references(() => auditPrompts.id, { onDelete: 'set null' }),
+    findingId: uuid('finding_id').references(() => auditFindings.id, { onDelete: 'set null' }),
+
+    // Delivery channels
+    channels: jsonb('channels').notNull().default(['in_app']), // ["in_app", "email"]
+    emailSent: boolean('email_sent').default(false),
+    emailSentAt: timestamp('email_sent_at', { withTimezone: true }),
+
+    // State
+    read: boolean('read').default(false),
+    readAt: timestamp('read_at', { withTimezone: true }),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index('notifications_user_id_idx').on(table.userId),
+    unreadIdx: index('notifications_unread_idx').on(table.userId, table.read),
+    typeIdx: index('notifications_type_idx').on(table.type),
+    jobIdIdx: index('notifications_job_id_idx').on(table.jobId),
+  })
+);
+
+// ============================================================================
+// AI CONVERSATION HISTORY TABLE (Audit Trail for AI Interactions)
+// ============================================================================
+
+export const aiConversationRoleEnum = pgEnum('ai_conversation_role', [
+  'system',
+  'user',
+  'assistant',
+  'tool',
+]);
+
+export const aiConversationHistory = pgTable(
+  'ai_conversation_history',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => auditSessions.id, { onDelete: 'cascade' }),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+
+    // Conversation tracking
+    conversationId: varchar('conversation_id', { length: 255 }).notNull(),
+    turnIndex: smallint('turn_index').notNull(),
+    role: aiConversationRoleEnum('role').notNull(),
+
+    // Message content
+    content: text('content').notNull(),
+    contentSummary: text('content_summary'), // For long messages, store a summary
+
+    // Step context (which audit step triggered this)
+    stepId: varchar('step_id', { length: 100 }),
+    stepName: varchar('step_name', { length: 255 }),
+
+    // Tool usage (if role is 'tool')
+    toolName: varchar('tool_name', { length: 100 }),
+    toolInput: jsonb('tool_input'),
+    toolOutput: jsonb('tool_output'),
+
+    // Token tracking
+    inputTokens: smallint('input_tokens'),
+    outputTokens: smallint('output_tokens'),
+    totalTokens: smallint('total_tokens'),
+
+    // Model info
+    modelUsed: varchar('model_used', { length: 100 }),
+
+    // Metadata
+    metadata: jsonb('metadata').default({}),
+
+    // Timing
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    durationMs: smallint('duration_ms'),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    sessionIdIdx: index('ai_conversation_history_session_idx').on(table.sessionId),
+    jobIdIdx: index('ai_conversation_history_job_idx').on(table.jobId),
+    conversationIdIdx: index('ai_conversation_history_conv_idx').on(table.conversationId),
+    stepIdIdx: index('ai_conversation_history_step_idx').on(table.stepId),
+    turnIdx: index('ai_conversation_history_turn_idx').on(table.conversationId, table.turnIndex),
+  })
+);
+
+// ============================================================================
+// AI CONTEXT SNAPSHOTS (For Resuming Conversations)
+// ============================================================================
+
+export const aiContextSnapshots = pgTable(
+  'ai_context_snapshots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => auditSessions.id, { onDelete: 'cascade' }),
+
+    // Snapshot identification
+    snapshotType: varchar('snapshot_type', { length: 50 }).notNull(), // 'checkpoint', 'step_complete', 'pause', 'error'
+    stepId: varchar('step_id', { length: 100 }),
+
+    // Context data for resumption
+    conversationId: varchar('conversation_id', { length: 255 }).notNull(),
+    contextSummary: text('context_summary').notNull(), // AI-generated summary of conversation so far
+    keyFindings: jsonb('key_findings').default([]), // Important findings discovered
+    keyDecisions: jsonb('key_decisions').default([]), // Decisions made during analysis
+    pendingQuestions: jsonb('pending_questions').default([]), // Unanswered questions
+
+    // State at snapshot time
+    stepsCompleted: jsonb('steps_completed').default([]),
+    findingsCount: smallint('findings_count').default(0),
+    tokensUsed: bigint('tokens_used', { mode: 'number' }).default(0),
+
+    // Resumption info
+    resumable: boolean('resumable').default(true),
+    resumptionPrompt: text('resumption_prompt'), // Pre-generated prompt to resume conversation
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    sessionIdIdx: index('ai_context_snapshots_session_idx').on(table.sessionId),
+    conversationIdIdx: index('ai_context_snapshots_conv_idx').on(table.conversationId),
+    typeIdx: index('ai_context_snapshots_type_idx').on(table.snapshotType),
+  })
+);
+
+// ============================================================================
+// INTERACTIVE AUDIT RELATIONS
+// ============================================================================
+
+export const auditSessionsRelations = relations(auditSessions, ({ one, many }) => ({
+  job: one(auditJobs, {
+    fields: [auditSessions.jobId],
+    references: [auditJobs.id],
+  }),
+  user: one(users, {
+    fields: [auditSessions.userId],
+    references: [users.id],
+  }),
+  conversationHistory: many(aiConversationHistory),
+  contextSnapshots: many(aiContextSnapshots),
+  linkedProjects: many(auditLinkedProjects),
+  knownAddresses: many(auditKnownAddresses),
+  prompts: many(auditPrompts),
+  userAnswers: many(auditUserAnswers),
+  findings: many(auditFindings),
+  notifications: many(notifications),
+}));
+
+export const auditLinkedProjectsRelations = relations(auditLinkedProjects, ({ one, many }) => ({
+  session: one(auditSessions, {
+    fields: [auditLinkedProjects.sessionId],
+    references: [auditSessions.id],
+  }),
+  linkedJob: one(auditJobs, {
+    fields: [auditLinkedProjects.linkedJobId],
+    references: [auditJobs.id],
+  }),
+  knownAddresses: many(auditKnownAddresses),
+}));
+
+export const auditKnownAddressesRelations = relations(auditKnownAddresses, ({ one }) => ({
+  session: one(auditSessions, {
+    fields: [auditKnownAddresses.sessionId],
+    references: [auditSessions.id],
+  }),
+  linkedProject: one(auditLinkedProjects, {
+    fields: [auditKnownAddresses.linkedProjectId],
+    references: [auditLinkedProjects.id],
+  }),
+}));
+
+export const auditPromptsRelations = relations(auditPrompts, ({ one }) => ({
+  session: one(auditSessions, {
+    fields: [auditPrompts.sessionId],
+    references: [auditSessions.id],
+  }),
+  answer: one(auditUserAnswers),
+}));
+
+export const auditUserAnswersRelations = relations(auditUserAnswers, ({ one }) => ({
+  session: one(auditSessions, {
+    fields: [auditUserAnswers.sessionId],
+    references: [auditSessions.id],
+  }),
+  prompt: one(auditPrompts, {
+    fields: [auditUserAnswers.promptId],
+    references: [auditPrompts.id],
+  }),
+}));
+
+export const auditFindingsRelations = relations(auditFindings, ({ one, many }) => ({
+  job: one(auditJobs, {
+    fields: [auditFindings.jobId],
+    references: [auditJobs.id],
+  }),
+  session: one(auditSessions, {
+    fields: [auditFindings.sessionId],
+    references: [auditSessions.id],
+  }),
+  crossReferences: many(auditCrossReferences),
+}));
+
+export const auditCrossReferencesRelations = relations(auditCrossReferences, ({ one }) => ({
+  finding: one(auditFindings, {
+    fields: [auditCrossReferences.findingId],
+    references: [auditFindings.id],
+  }),
+  targetFinding: one(auditFindings, {
+    fields: [auditCrossReferences.targetFindingId],
+    references: [auditFindings.id],
+  }),
+  targetLinkedProject: one(auditLinkedProjects, {
+    fields: [auditCrossReferences.targetLinkedProjectId],
+    references: [auditLinkedProjects.id],
+  }),
+  targetKnownAddress: one(auditKnownAddresses, {
+    fields: [auditCrossReferences.targetKnownAddressId],
+    references: [auditKnownAddresses.id],
+  }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  job: one(auditJobs, {
+    fields: [notifications.jobId],
+    references: [auditJobs.id],
+  }),
+  session: one(auditSessions, {
+    fields: [notifications.sessionId],
+    references: [auditSessions.id],
+  }),
+  prompt: one(auditPrompts, {
+    fields: [notifications.promptId],
+    references: [auditPrompts.id],
+  }),
+  finding: one(auditFindings, {
+    fields: [notifications.findingId],
+    references: [auditFindings.id],
+  }),
+}));
+
+// ============================================================================
+// INTERACTIVE AUDIT TYPE EXPORTS
+// ============================================================================
+
+export type AuditSession = typeof auditSessions.$inferSelect;
+export type NewAuditSession = typeof auditSessions.$inferInsert;
+
+export type AuditLinkedProject = typeof auditLinkedProjects.$inferSelect;
+export type NewAuditLinkedProject = typeof auditLinkedProjects.$inferInsert;
+
+export type AuditKnownAddress = typeof auditKnownAddresses.$inferSelect;
+export type NewAuditKnownAddress = typeof auditKnownAddresses.$inferInsert;
+
+export type AuditPrompt = typeof auditPrompts.$inferSelect;
+export type NewAuditPrompt = typeof auditPrompts.$inferInsert;
+
+export type AuditUserAnswer = typeof auditUserAnswers.$inferSelect;
+export type NewAuditUserAnswer = typeof auditUserAnswers.$inferInsert;
+
+export type AuditFinding = typeof auditFindings.$inferSelect;
+export type NewAuditFinding = typeof auditFindings.$inferInsert;
+
+export type AuditCrossReference = typeof auditCrossReferences.$inferSelect;
+export type NewAuditCrossReference = typeof auditCrossReferences.$inferInsert;
+
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;
+
+export type SessionStatus = (typeof sessionStatusEnum.enumValues)[number];
+export type PromptStatus = (typeof promptStatusEnum.enumValues)[number];
+export type PromptType = (typeof promptTypeEnum.enumValues)[number];
+export type AddressType = (typeof addressTypeEnum.enumValues)[number];
+export type LinkedProjectRelationship = (typeof linkedProjectRelationshipEnum.enumValues)[number];
+export type FindingStatus = (typeof findingStatusEnum.enumValues)[number];
+export type NotificationType = (typeof notificationTypeEnum.enumValues)[number];
+export type AIConversationRole = (typeof aiConversationRoleEnum.enumValues)[number];
+
+export type AIConversationHistory = typeof aiConversationHistory.$inferSelect;
+export type NewAIConversationHistory = typeof aiConversationHistory.$inferInsert;
+
+export type AIContextSnapshot = typeof aiContextSnapshots.$inferSelect;
+export type NewAIContextSnapshot = typeof aiContextSnapshots.$inferInsert;
+
+// ============================================================================
+// AI CONVERSATION RELATIONS
+// ============================================================================
+
+export const aiConversationHistoryRelations = relations(aiConversationHistory, ({ one }) => ({
+  session: one(auditSessions, {
+    fields: [aiConversationHistory.sessionId],
+    references: [auditSessions.id],
+  }),
+  job: one(auditJobs, {
+    fields: [aiConversationHistory.jobId],
+    references: [auditJobs.id],
+  }),
+}));
+
+export const aiContextSnapshotsRelations = relations(aiContextSnapshots, ({ one }) => ({
+  session: one(auditSessions, {
+    fields: [aiContextSnapshots.sessionId],
+    references: [auditSessions.id],
+  }),
+}));
 

@@ -1,0 +1,931 @@
+{
+  "id": "solidity-foundry",
+  "version": "1.0.0",
+  "name": "Solidity Foundry Audit SOP",
+  "framework": "foundry",
+  "language": "solidity",
+  "description": "Comprehensive audit SOP for Foundry-based Solidity projects with 35 micro-steps optimized for granular progress tracking",
+
+  "depths": {
+    "quick": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "enumerate-contracts",
+        "count-sloc",
+        "check-solc-version",
+        "run-forge-build",
+        "run-slither",
+        "parse-slither",
+        "merge-tool-findings",
+        "ai-quick-analysis",
+        "calculate-severity",
+        "calculate-score",
+        "generate-report"
+      ],
+      "parallelizationLevel": "high",
+      "estimatedDurationMinutes": 8,
+      "toolTimeouts": {
+        "forge": 60,
+        "slither": 90,
+        "ai": 180
+      }
+    },
+    "standard": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "parse-foundry-config",
+        "enumerate-contracts",
+        "count-sloc",
+        "check-solc-version",
+        "run-forge-build",
+        "parse-compilation",
+        "generate-ast",
+        "map-inheritance",
+        "analyze-imports",
+        "detect-interfaces",
+        "extract-signatures",
+        "identify-external-calls",
+        "run-slither",
+        "parse-slither",
+        "run-semgrep",
+        "parse-semgrep",
+        "check-tests-exist",
+        "run-forge-test",
+        "parse-test-results",
+        "merge-tool-findings",
+        "ai-admin-functions",
+        "ai-access-control",
+        "ai-reentrancy",
+        "ai-business-logic",
+        "ai-validate-findings",
+        "deduplicate",
+        "calculate-severity",
+        "calculate-score",
+        "ai-recommendations",
+        "generate-report"
+      ],
+      "parallelizationLevel": "low",
+      "estimatedDurationMinutes": 25,
+      "toolTimeouts": {
+        "forge": 120,
+        "slither": 180,
+        "semgrep": 120,
+        "ai": 300
+      }
+    },
+    "deep": {
+      "enabledSteps": ["*"],
+      "parallelizationLevel": "none",
+      "estimatedDurationMinutes": 45,
+      "toolTimeouts": {
+        "forge": 300,
+        "slither": 300,
+        "mythril": 600,
+        "semgrep": 180,
+        "ai": 600
+      }
+    }
+  },
+
+  "steps": [
+    {
+      "id": "detect-framework",
+      "name": "Detect Framework",
+      "description": "Identify Solidity framework (Foundry, Hardhat, or Truffle) from project configuration files",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectFramework"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": [],
+      "provides": ["framework", "frameworkVersion", "frameworkConfig"],
+      "requires": ["projectPath"],
+      "category": "detection",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "validate-structure",
+      "name": "Validate Project Structure",
+      "description": "Verify project has valid Foundry structure with required directories",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "validateProjectStructure"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["detect-framework"],
+      "provides": ["projectStructure", "srcDir", "testDir", "libDir"],
+      "requires": ["projectPath", "framework"],
+      "category": "setup",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "parse-foundry-config",
+      "name": "Parse foundry.toml",
+      "description": "Extract compiler settings, remappings, and project configuration from foundry.toml",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseFoundryConfig"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["detect-framework"],
+      "provides": ["foundryConfig", "solcVersion", "remappings", "optimizer"],
+      "requires": ["projectPath"],
+      "category": "setup",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "enumerate-contracts",
+      "name": "Enumerate Contracts",
+      "description": "Discover all Solidity contract files in src/ directory",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "enumerateContracts"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["validate-structure"],
+      "provides": ["contractFiles", "contractCount", "totalLines"],
+      "requires": ["projectPath", "srcDir"],
+      "category": "detection",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "count-sloc",
+      "name": "Count SLOC",
+      "description": "Count source lines of code using tokei or cloc",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "tool",
+        "tool": "tokei",
+        "args": ["--output", "json"],
+        "parseOutput": "parseTokeiOutput"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["enumerate-contracts"],
+      "provides": ["sloc", "slocByFile", "blankLines", "commentLines"],
+      "requires": ["projectPath"],
+      "category": "detection",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "check-solc-version",
+      "name": "Check Compiler Version",
+      "description": "Verify solc version and check for known compiler vulnerabilities",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "checkSolcVersion"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["parse-foundry-config"],
+      "provides": ["solcVersionUsed", "solcVersionWarnings"],
+      "requires": ["solcVersion"],
+      "category": "compilation",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "run-forge-build",
+      "name": "Run Forge Build",
+      "description": "Compile contracts using forge build to verify compilation success",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "tool",
+        "tool": "forge",
+        "args": ["build", "--force"],
+        "parseOutput": "parseForgeOutput"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 180,
+      "dependsOn": ["enumerate-contracts"],
+      "provides": ["compilationSuccess", "compilationWarnings", "artifacts"],
+      "requires": ["projectPath"],
+      "category": "compilation",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": true,
+      "retryCount": 1,
+      "continueOnFailure": false
+    },
+    {
+      "id": "parse-compilation",
+      "name": "Parse Compilation Output",
+      "description": "Extract warnings and errors from compilation output",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseCompilationOutput"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["run-forge-build"],
+      "provides": ["compilationIssues", "deprecationWarnings"],
+      "requires": ["compilationWarnings"],
+      "category": "compilation",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-ast",
+      "name": "Generate AST",
+      "description": "Generate Abstract Syntax Tree for all contracts using solc",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "tool",
+        "tool": "forge",
+        "args": ["build", "--ast"],
+        "parseOutput": "parseAstOutput"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 120,
+      "dependsOn": ["run-forge-build"],
+      "provides": ["contractASTs", "astNodeCounts"],
+      "requires": ["projectPath", "compilationSuccess"],
+      "category": "compilation",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "map-inheritance",
+      "name": "Map Inheritance Tree",
+      "description": "Build inheritance hierarchy graph for all contracts",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "mapInheritance"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 60,
+      "dependsOn": ["generate-ast"],
+      "provides": ["inheritanceTree", "baseContracts", "derivedContracts"],
+      "requires": ["contractASTs", "contractFiles"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-imports",
+      "name": "Analyze Import Graph",
+      "description": "Build import dependency graph and identify external dependencies",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeImports"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["enumerate-contracts"],
+      "provides": ["importGraph", "externalDeps", "internalDeps"],
+      "requires": ["contractFiles", "projectPath"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "detect-interfaces",
+      "name": "Detect Interfaces",
+      "description": "Identify interfaces and libraries vs concrete contracts",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectInterfaces"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["generate-ast"],
+      "provides": ["interfaces", "libraries", "abstractContracts"],
+      "requires": ["contractASTs"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "extract-signatures",
+      "name": "Extract Function Signatures",
+      "description": "Extract all function signatures with visibility and modifiers",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "extractFunctionSignatures"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 60,
+      "dependsOn": ["generate-ast"],
+      "provides": ["functionSignatures", "publicFunctions", "externalFunctions", "modifiers"],
+      "requires": ["contractASTs"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "identify-external-calls",
+      "name": "Identify External Calls",
+      "description": "Find all external contract calls and low-level calls",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "identifyExternalCalls"
+      },
+      "estimatedDurationSeconds": 20,
+      "timeoutSeconds": 90,
+      "dependsOn": ["generate-ast"],
+      "provides": ["externalCalls", "delegateCalls", "lowLevelCalls", "callGraph"],
+      "requires": ["contractASTs"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "run-slither",
+      "name": "Run Slither",
+      "description": "Execute Slither static analysis tool for vulnerability detection",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "tool",
+        "tool": "slither",
+        "args": [".", "--json", "-", "--exclude", "naming-convention,solc-version"],
+        "parseOutput": "parseSlitherOutput",
+        "dockerFallback": true
+      },
+      "estimatedDurationSeconds": 45,
+      "timeoutSeconds": 180,
+      "dependsOn": ["run-forge-build"],
+      "provides": ["slitherRaw", "slitherDetectors"],
+      "requires": ["projectPath", "compilationSuccess"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-slither",
+      "name": "Parse Slither Output",
+      "description": "Parse and normalize Slither JSON output into findings",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseSlitherFindings"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["run-slither"],
+      "provides": ["slitherFindings"],
+      "requires": ["slitherRaw"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "run-mythril",
+      "name": "Run Mythril",
+      "description": "Execute Mythril symbolic execution for deep vulnerability detection",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "tool",
+        "tool": "mythril",
+        "args": ["analyze", "--solc-json", ".", "-o", "json"],
+        "parseOutput": "parseMythrilOutput",
+        "dockerFallback": true
+      },
+      "estimatedDurationSeconds": 90,
+      "timeoutSeconds": 600,
+      "dependsOn": ["run-forge-build"],
+      "provides": ["mythrilRaw", "mythrilIssues"],
+      "requires": ["projectPath", "compilationSuccess"],
+      "category": "symbolic-analysis",
+      "aiAssisted": false,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-mythril",
+      "name": "Parse Mythril Output",
+      "description": "Parse and normalize Mythril JSON output into findings",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseMythrilFindings"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["run-mythril"],
+      "provides": ["mythrilFindings"],
+      "requires": ["mythrilRaw"],
+      "category": "symbolic-analysis",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "run-semgrep",
+      "name": "Run Semgrep",
+      "description": "Execute Semgrep for pattern-based vulnerability detection",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "tool",
+        "tool": "semgrep",
+        "args": ["--config", "p/smart-contracts", "--json", "."],
+        "parseOutput": "parseSemgrepOutput"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["enumerate-contracts"],
+      "provides": ["semgrepRaw", "semgrepMatches"],
+      "requires": ["projectPath"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-semgrep",
+      "name": "Parse Semgrep Output",
+      "description": "Parse and normalize Semgrep JSON output into findings",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseSemgrepFindings"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["run-semgrep"],
+      "provides": ["semgrepFindings"],
+      "requires": ["semgrepRaw"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "check-tests-exist",
+      "name": "Check for Tests",
+      "description": "Detect if project has existing test files",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "checkTestsExist"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["validate-structure"],
+      "provides": ["hasTests", "testFiles", "testCount"],
+      "requires": ["projectPath", "testDir"],
+      "category": "test-execution",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "run-forge-test",
+      "name": "Run Forge Tests",
+      "description": "Execute existing test suite using forge test",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "tool",
+        "tool": "forge",
+        "args": ["test", "--json"],
+        "parseOutput": "parseForgeTestOutput"
+      },
+      "estimatedDurationSeconds": 60,
+      "timeoutSeconds": 300,
+      "dependsOn": ["check-tests-exist", "run-forge-build"],
+      "provides": ["testResults", "testsPassed", "testsFailed", "testCoverage"],
+      "requires": ["projectPath", "hasTests"],
+      "category": "test-execution",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-test-results",
+      "name": "Parse Test Results",
+      "description": "Parse and analyze test execution results",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseTestResults"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["run-forge-test"],
+      "provides": ["testSummary", "failedTests", "coverageReport"],
+      "requires": ["testResults"],
+      "category": "test-execution",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "merge-tool-findings",
+      "name": "Merge Tool Findings",
+      "description": "Combine findings from all static analysis tools",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "mergeToolFindings"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["parse-slither", "parse-mythril", "parse-semgrep"],
+      "provides": ["toolFindings", "findingsByCategory", "findingsBySeverity"],
+      "requires": [],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-quick-analysis",
+      "name": "AI Quick Analysis",
+      "description": "Fast AI-powered security analysis for quick scans",
+      "executor": "ai-prompt",
+      "executorConfig": {
+        "type": "ai-prompt",
+        "prompt": "quickSecurityAnalysis",
+        "model": "claude-opus-4-5-20251101",
+        "maxTokens": 4000,
+        "temperature": 0.2
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 300,
+      "dependsOn": ["merge-tool-findings"],
+      "provides": ["aiQuickFindings", "aiSummary"],
+      "requires": ["contractFiles", "toolFindings"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 15,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-admin-functions",
+      "name": "Identify Admin Functions",
+      "description": "AI analysis to identify privileged/admin functions and their risks",
+      "executor": "ai-prompt",
+      "executorConfig": {
+        "type": "ai-prompt",
+        "prompt": "identifyAdminFunctions",
+        "model": "claude-opus-4-5-20251101",
+        "maxTokens": 2000,
+        "temperature": 0.1
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["extract-signatures"],
+      "provides": ["adminFunctions", "adminRisks"],
+      "requires": ["functionSignatures", "modifiers"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 4,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-access-control",
+      "name": "Analyze Access Control",
+      "description": "Deep AI analysis of access control patterns and vulnerabilities",
+      "executor": "ai-prompt",
+      "executorConfig": {
+        "type": "ai-prompt",
+        "prompt": "analyzeAccessControl",
+        "model": "claude-opus-4-5-20251101",
+        "maxTokens": 3000,
+        "temperature": 0.1
+      },
+      "estimatedDurationSeconds": 45,
+      "timeoutSeconds": 180,
+      "dependsOn": ["ai-admin-functions"],
+      "provides": ["accessControlFindings", "roleAnalysis"],
+      "requires": ["adminFunctions", "modifiers", "contractASTs"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-reentrancy",
+      "name": "Deep Reentrancy Check",
+      "description": "AI analysis for reentrancy vulnerabilities beyond tool detection",
+      "executor": "ai-prompt",
+      "executorConfig": {
+        "type": "ai-prompt",
+        "prompt": "deepReentrancyAnalysis",
+        "model": "claude-opus-4-5-20251101",
+        "maxTokens": 3000,
+        "temperature": 0.1
+      },
+      "estimatedDurationSeconds": 45,
+      "timeoutSeconds": 180,
+      "dependsOn": ["identify-external-calls"],
+      "provides": ["reentrancyFindings", "reentrancyPaths"],
+      "requires": ["externalCalls", "callGraph", "slitherFindings"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-oracle",
+      "name": "Oracle Manipulation Check",
+      "description": "AI analysis for oracle manipulation and price feed vulnerabilities",
+      "executor": "ai-prompt",
+      "executorConfig": {
+        "type": "ai-prompt",
+        "prompt": "oracleManipulationAnalysis",
+        "model": "claude-opus-4-5-20251101",
+        "maxTokens": 2000,
+        "temperature": 0.1
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["identify-external-calls"],
+      "provides": ["oracleFindings", "priceFeedRisks"],
+      "requires": ["externalCalls", "externalDeps"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 4,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-business-logic",
+      "name": "Business Logic Analysis",
+      "description": "AI analysis of business logic for potential exploits",
+      "executor": "ai-prompt",
+      "executorConfig": {
+        "type": "ai-prompt",
+        "prompt": "businessLogicAnalysis",
+        "model": "claude-opus-4-5-20251101",
+        "maxTokens": 4000,
+        "temperature": 0.2
+      },
+      "estimatedDurationSeconds": 60,
+      "timeoutSeconds": 240,
+      "dependsOn": ["merge-tool-findings"],
+      "provides": ["businessLogicFindings", "economicRisks"],
+      "requires": ["contractFiles", "functionSignatures", "inheritanceTree"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-validate-findings",
+      "name": "Validate Tool Findings",
+      "description": "AI validation of tool findings to reduce false positives",
+      "executor": "ai-prompt",
+      "executorConfig": {
+        "type": "ai-prompt",
+        "prompt": "validateToolFindings",
+        "model": "claude-opus-4-5-20251101",
+        "maxTokens": 2000,
+        "temperature": 0.1
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["merge-tool-findings"],
+      "provides": ["validatedFindings", "falsePositives"],
+      "requires": ["toolFindings", "contractFiles"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 4,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "deduplicate",
+      "name": "Deduplicate Findings",
+      "description": "Remove duplicate findings across tools and AI analysis",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "deduplicateFindings"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["ai-validate-findings", "ai-business-logic", "ai-reentrancy", "ai-access-control", "ai-oracle"],
+      "provides": ["deduplicatedFindings", "duplicatesRemoved"],
+      "requires": [],
+      "category": "report-generation",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "calculate-severity",
+      "name": "Calculate Severity",
+      "description": "Calculate severity scores for all findings using CVSS-like methodology",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "calculateSeverity"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["deduplicate"],
+      "provides": ["severityScores", "criticalCount", "highCount", "mediumCount", "lowCount"],
+      "requires": ["deduplicatedFindings"],
+      "category": "report-generation",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "calculate-score",
+      "name": "Calculate Audit Score",
+      "description": "Calculate overall audit score and grade",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "calculateAuditScore"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["calculate-severity"],
+      "provides": ["auditScore", "auditGrade", "riskLevel"],
+      "requires": ["severityScores", "criticalCount", "highCount", "mediumCount", "lowCount"],
+      "category": "report-generation",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "ai-recommendations",
+      "name": "Generate Recommendations",
+      "description": "AI-generated remediation recommendations for each finding",
+      "executor": "ai-prompt",
+      "executorConfig": {
+        "type": "ai-prompt",
+        "prompt": "generateRecommendations",
+        "model": "claude-opus-4-5-20251101",
+        "maxTokens": 4000,
+        "temperature": 0.3
+      },
+      "estimatedDurationSeconds": 45,
+      "timeoutSeconds": 180,
+      "dependsOn": ["calculate-score"],
+      "provides": ["recommendations", "prioritizedFixes"],
+      "requires": ["deduplicatedFindings", "auditScore"],
+      "category": "report-generation",
+      "aiAssisted": true,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-report",
+      "name": "Generate Final Report",
+      "description": "Generate final audit report in JSON format",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generateFinalReport"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["ai-recommendations"],
+      "provides": ["finalReport", "reportJson"],
+      "requires": ["deduplicatedFindings", "auditScore", "auditGrade", "recommendations"],
+      "category": "report-generation",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    }
+  ],
+
+  "requiredTools": [
+    {
+      "name": "forge",
+      "command": "forge --version",
+      "minVersion": "0.2.0",
+      "installCommand": "curl -L https://foundry.paradigm.xyz | bash && foundryup"
+    }
+  ],
+
+  "optionalTools": [
+    {
+      "name": "slither",
+      "command": "slither --version",
+      "minVersion": "0.9.0",
+      "installCommand": "pip install slither-analyzer",
+      "dockerFallback": "trailofbits/slither"
+    },
+    {
+      "name": "mythril",
+      "command": "myth version",
+      "minVersion": "0.23.0",
+      "installCommand": "pip install mythril",
+      "dockerFallback": "mythril/myth"
+    },
+    {
+      "name": "semgrep",
+      "command": "semgrep --version",
+      "minVersion": "1.0.0",
+      "installCommand": "pip install semgrep"
+    },
+    {
+      "name": "tokei",
+      "command": "tokei --version",
+      "installCommand": "cargo install tokei"
+    }
+  ],
+
+  "created": "2025-01-14T00:00:00Z",
+  "updated": "2025-01-14T00:00:00Z",
+  "author": "UatuAudit"
+}

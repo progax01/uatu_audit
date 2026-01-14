@@ -1,0 +1,610 @@
+/**
+ * Unified Audit Service
+ *
+ * Single entry point for all audit types (GitHub repo, deployed contract, manual upload).
+ * Orchestrates the entire audit flow from source acquisition to report generation.
+ */
+
+import * as path from 'path';
+import * as fs from 'fs-extra';
+import { EventEmitter } from 'events';
+import { eq } from 'drizzle-orm';
+import { db } from '../db';
+import { auditJobs, auditReports, users } from '../db/schema';
+import type {
+  SOPDefinition,
+  AuditDepth,
+  StepFinding,
+  UnifiedAuditOptions,
+} from '../sops/definitions/types';
+import { SOPOrchestrator } from '../sops/orchestrator/sopOrchestrator';
+import { selectSOP } from './sopSelectionService';
+import { MicroStepProgressService, getJobProgress } from './microStepProgressService';
+import { logger } from '../utils/logger';
+
+const log = logger.child({ module: 'unified-audit' });
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface GitHubRepoInput {
+  type: 'github-repo';
+  repoUrl: string;
+  branch?: string;
+  commitSha?: string;
+  accessToken?: string;
+}
+
+export interface DeployedContractInput {
+  type: 'deployed-contract';
+  address: string;
+  chain: string;
+  explorerApiKey?: string;
+}
+
+export interface ManualUploadInput {
+  type: 'manual-upload';
+  uploadId: string;
+  projectPath: string;
+}
+
+export type AuditSourceInput = GitHubRepoInput | DeployedContractInput | ManualUploadInput;
+
+export interface UnifiedAuditRequest {
+  source: AuditSourceInput;
+  depth: AuditDepth;
+  visibility: 'private' | 'public';
+  userId?: string;
+  projectId?: string;
+  options?: {
+    forceFramework?: string;
+    forceSOP?: string;
+    skipTools?: string[];
+    enabledSteps?: string[];
+    disabledSteps?: string[];
+  };
+}
+
+export interface UnifiedAuditResult {
+  success: boolean;
+  jobId: string;
+  progressUrl: string;
+  sseUrl: string;
+  estimatedDurationSeconds: number;
+  sopId: string;
+  sopVersion: string;
+  detectedFramework?: string;
+  detectedLanguage?: string;
+  totalSteps: number;
+}
+
+export interface AuditCompletionResult {
+  success: boolean;
+  jobId: string;
+  score: number;
+  findings: StepFinding[];
+  reportId?: string;
+  durationSeconds: number;
+  error?: string;
+}
+
+// ============================================================================
+// Unified Audit Service
+// ============================================================================
+
+export class UnifiedAuditService extends EventEmitter {
+  private static instance: UnifiedAuditService;
+
+  static getInstance(): UnifiedAuditService {
+    if (!UnifiedAuditService.instance) {
+      UnifiedAuditService.instance = new UnifiedAuditService();
+    }
+    return UnifiedAuditService.instance;
+  }
+
+  /**
+   * Start a new audit
+   */
+  async startAudit(request: UnifiedAuditRequest): Promise<UnifiedAuditResult> {
+    log.info('Starting unified audit', {
+      sourceType: request.source.type,
+      depth: request.depth,
+      userId: request.userId,
+    });
+
+    // Create job record
+    const jobId = crypto.randomUUID();
+    const createdAt = new Date();
+
+    // Determine repo value based on source type
+    let repo = '';
+    if (request.source.type === 'github-repo') {
+      repo = (request.source as GitHubRepoInput).repoUrl;
+    } else if (request.source.type === 'deployed-contract') {
+      const contractSource = request.source as DeployedContractInput;
+      repo = `contract:${contractSource.chain}:${contractSource.address}`;
+    } else if (request.source.type === 'manual-upload') {
+      repo = `upload:${(request.source as ManualUploadInput).uploadId}`;
+    }
+
+    await db.insert(auditJobs).values({
+      id: jobId,
+      userId: request.userId,
+      projectId: request.projectId,
+      repo,
+      status: 'pending',
+      progressPct: 0,
+      sourceType: request.source.type,
+      auditDepth: request.depth,
+      visibility: request.visibility,
+      createdAt,
+    });
+
+    try {
+      // Acquire source code
+      const projectPath = await this.acquireSource(request.source, jobId);
+
+      // Update job with project path
+      await db
+        .update(auditJobs)
+        .set({ projectPath })
+        .where(eq(auditJobs.id, jobId));
+
+      // Select SOP
+      const sopResult = await selectSOP({
+        projectPath,
+        preferredDepth: request.depth,
+        forceFramework: request.options?.forceFramework as any,
+        forceSOP: request.options?.forceSOP,
+      });
+
+      // Update job with detection info
+      await db
+        .update(auditJobs)
+        .set({
+          status: 'running',
+          detectedFramework: sopResult.detection.framework,
+          sopId: sopResult.sop.id,
+          sopVersion: sopResult.sop.version,
+        })
+        .where(eq(auditJobs.id, jobId));
+
+      // Calculate estimated duration
+      const depthConfig = sopResult.sop.depths[request.depth];
+      const estimatedDurationSeconds = depthConfig.estimatedDurationMinutes * 60;
+
+      // Get step count for this depth
+      const enabledSteps = sopResult.sop.steps.filter(
+        (s) => depthConfig.enabledSteps.includes(s.id)
+      );
+
+      log.info('Audit initialized', {
+        jobId,
+        sopId: sopResult.sop.id,
+        framework: sopResult.detection.framework,
+        stepCount: enabledSteps.length,
+        estimatedDuration: estimatedDurationSeconds,
+      });
+
+      // Launch orchestrator in background
+      this.runOrchestrator(jobId, projectPath, sopResult.sop, request);
+
+      return {
+        success: true,
+        jobId,
+        progressUrl: `/api/audit/${jobId}/progress`,
+        sseUrl: `/api/audit/${jobId}/progress/stream`,
+        estimatedDurationSeconds,
+        sopId: sopResult.sop.id,
+        sopVersion: sopResult.sop.version,
+        detectedFramework: sopResult.detection.framework,
+        detectedLanguage: sopResult.detection.language,
+        totalSteps: enabledSteps.length,
+      };
+    } catch (error: any) {
+      log.error('Failed to start audit', {
+        jobId,
+        error: error.message,
+      });
+
+      await db
+        .update(auditJobs)
+        .set({
+          status: 'failed',
+          errorMessage: error.message,
+        })
+        .where(eq(auditJobs.id, jobId));
+
+      throw error;
+    }
+  }
+
+  /**
+   * Get audit progress
+   */
+  async getProgress(jobId: string) {
+    return getJobProgress(jobId);
+  }
+
+  /**
+   * Cancel a running audit
+   */
+  async cancelAudit(jobId: string): Promise<void> {
+    log.info('Cancelling audit', { jobId });
+
+    await db
+      .update(auditJobs)
+      .set({
+        status: 'cancelled',
+        updatedAt: new Date(),
+      })
+      .where(eq(auditJobs.id, jobId));
+
+    this.emit('audit:cancelled', jobId);
+  }
+
+  /**
+   * Acquire source code from various inputs
+   */
+  private async acquireSource(source: AuditSourceInput, jobId: string): Promise<string> {
+    switch (source.type) {
+      case 'github-repo':
+        return this.cloneGitHubRepo(source, jobId);
+
+      case 'deployed-contract':
+        return this.fetchContractSource(source, jobId);
+
+      case 'manual-upload':
+        return source.projectPath;
+
+      default:
+        throw new Error(`Unknown source type: ${(source as any).type}`);
+    }
+  }
+
+  /**
+   * Clone a GitHub repository
+   */
+  private async cloneGitHubRepo(input: GitHubRepoInput, jobId: string): Promise<string> {
+    const workDir = path.join(process.env.WORK_DIR || '/tmp/audits', jobId);
+    await fs.ensureDir(workDir);
+
+    // Parse repo URL
+    const repoMatch = input.repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    if (!repoMatch) {
+      throw new Error('Invalid GitHub URL');
+    }
+
+    const [, owner, repo] = repoMatch;
+    const repoName = repo.replace('.git', '');
+
+    // Build clone URL with optional token
+    let cloneUrl = `https://github.com/${owner}/${repoName}.git`;
+    if (input.accessToken) {
+      cloneUrl = `https://${input.accessToken}@github.com/${owner}/${repoName}.git`;
+    }
+
+    // Clone repository
+    const { spawn } = await import('child_process');
+
+    return new Promise((resolve, reject) => {
+      const args = ['clone', '--depth', '1'];
+
+      if (input.branch) {
+        args.push('--branch', input.branch);
+      }
+
+      args.push(cloneUrl, 'source');
+
+      const proc = spawn('git', args, {
+        cwd: workDir,
+        timeout: 120000, // 2 minutes
+      });
+
+      let stderr = '';
+      proc.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      proc.on('close', (code) => {
+        if (code === 0) {
+          resolve(path.join(workDir, 'source'));
+        } else {
+          reject(new Error(`Git clone failed: ${stderr}`));
+        }
+      });
+
+      proc.on('error', (err) => {
+        reject(err);
+      });
+    });
+  }
+
+  /**
+   * Fetch source code for a deployed contract
+   */
+  private async fetchContractSource(input: DeployedContractInput, jobId: string): Promise<string> {
+    const workDir = path.join(process.env.WORK_DIR || '/tmp/audits', jobId);
+    await fs.ensureDir(workDir);
+
+    // Determine explorer API URL
+    const explorerUrls: Record<string, string> = {
+      'ethereum': 'https://api.etherscan.io/api',
+      'mainnet': 'https://api.etherscan.io/api',
+      'goerli': 'https://api-goerli.etherscan.io/api',
+      'sepolia': 'https://api-sepolia.etherscan.io/api',
+      'polygon': 'https://api.polygonscan.com/api',
+      'arbitrum': 'https://api.arbiscan.io/api',
+      'optimism': 'https://api-optimistic.etherscan.io/api',
+      'bsc': 'https://api.bscscan.com/api',
+      'avalanche': 'https://api.snowtrace.io/api',
+    };
+
+    const apiUrl = explorerUrls[input.chain.toLowerCase()];
+    if (!apiUrl) {
+      throw new Error(`Unsupported chain: ${input.chain}`);
+    }
+
+    // Fetch contract source
+    const apiKey = input.explorerApiKey || process.env.ETHERSCAN_API_KEY;
+    const url = `${apiUrl}?module=contract&action=getsourcecode&address=${input.address}&apikey=${apiKey}`;
+
+    const response = await fetch(url);
+    const data = await response.json() as {
+      status: string;
+      message?: string;
+      result?: Array<{ SourceCode: string; ContractName: string }>;
+    };
+
+    if (data.status !== '1' || !data.result?.[0]?.SourceCode) {
+      throw new Error(`Failed to fetch contract source: ${data.message || 'Contract not verified'}`);
+    }
+
+    const sourceCode = data.result[0].SourceCode;
+    const contractName = data.result[0].ContractName;
+
+    // Handle different source code formats
+    const sourceDir = path.join(workDir, 'source', 'src');
+    await fs.ensureDir(sourceDir);
+
+    if (sourceCode.startsWith('{')) {
+      // Multi-file source (JSON)
+      try {
+        // Handle double-encoded JSON
+        let parsed = sourceCode.startsWith('{{')
+          ? JSON.parse(sourceCode.slice(1, -1))
+          : JSON.parse(sourceCode);
+
+        if (parsed.sources) {
+          // Standard JSON input format
+          for (const [filePath, fileData] of Object.entries(parsed.sources)) {
+            const fullPath = path.join(workDir, 'source', filePath);
+            await fs.ensureDir(path.dirname(fullPath));
+            await fs.writeFile(fullPath, (fileData as any).content);
+          }
+        }
+      } catch {
+        // Single file
+        await fs.writeFile(
+          path.join(sourceDir, `${contractName}.sol`),
+          sourceCode
+        );
+      }
+    } else {
+      // Single file source
+      await fs.writeFile(
+        path.join(sourceDir, `${contractName}.sol`),
+        sourceCode
+      );
+    }
+
+    // Create minimal foundry.toml
+    await fs.writeFile(
+      path.join(workDir, 'source', 'foundry.toml'),
+      `[profile.default]\nsrc = "src"\nout = "out"\nlibs = ["lib"]\n`
+    );
+
+    return path.join(workDir, 'source');
+  }
+
+  /**
+   * Run the SOP orchestrator
+   */
+  private async runOrchestrator(
+    jobId: string,
+    projectPath: string,
+    sop: SOPDefinition,
+    request: UnifiedAuditRequest
+  ): Promise<void> {
+    const orchestrator = new SOPOrchestrator({
+      sop,
+      jobId,
+      projectPath,
+      auditDepth: request.depth,
+      userId: request.userId,
+      projectId: request.projectId,
+    });
+
+    // Set up event listeners
+    orchestrator.on('step:start', (stepId, stepName) => {
+      this.emit('step:start', jobId, stepId, stepName);
+    });
+
+    orchestrator.on('step:progress', (stepId, pct, message) => {
+      this.emit('step:progress', jobId, stepId, pct, message);
+    });
+
+    orchestrator.on('step:complete', (stepId, result) => {
+      this.emit('step:complete', jobId, stepId, result);
+    });
+
+    orchestrator.on('step:failed', (stepId, error) => {
+      this.emit('step:failed', jobId, stepId, error);
+    });
+
+    orchestrator.on('audit:complete', async (findings, score) => {
+      await this.handleAuditComplete(jobId, findings, score, request);
+    });
+
+    orchestrator.on('audit:failed', async (error) => {
+      await this.handleAuditFailed(jobId, error);
+    });
+
+    // Execute
+    try {
+      await orchestrator.execute();
+    } catch (error: any) {
+      await this.handleAuditFailed(jobId, error.message);
+    }
+  }
+
+  /**
+   * Handle audit completion
+   */
+  private async handleAuditComplete(
+    jobId: string,
+    findings: StepFinding[],
+    score: number,
+    request: UnifiedAuditRequest
+  ): Promise<void> {
+    log.info('Audit completed', {
+      jobId,
+      findingsCount: findings.length,
+      score,
+    });
+
+    // Generate report
+    const reportId = crypto.randomUUID();
+    const report = this.generateReport(findings, score, request);
+
+    // Save report
+    await db.insert(auditReports).values({
+      id: reportId,
+      jobId,
+      reportData: report,
+      createdAt: new Date(),
+    });
+
+    // Update job status
+    await db
+      .update(auditJobs)
+      .set({
+        status: 'completed',
+        progressPct: 100,
+        updatedAt: new Date(),
+      })
+      .where(eq(auditJobs.id, jobId));
+
+    this.emit('audit:complete', {
+      jobId,
+      reportId,
+      findings,
+      score,
+    });
+  }
+
+  /**
+   * Handle audit failure
+   */
+  private async handleAuditFailed(jobId: string, error: string): Promise<void> {
+    log.error('Audit failed', { jobId, error });
+
+    await db
+      .update(auditJobs)
+      .set({
+        status: 'failed',
+        errorMessage: error,
+        updatedAt: new Date(),
+      })
+      .where(eq(auditJobs.id, jobId));
+
+    this.emit('audit:failed', { jobId, error });
+  }
+
+  /**
+   * Generate audit report
+   */
+  private generateReport(
+    findings: StepFinding[],
+    score: number,
+    request: UnifiedAuditRequest
+  ): Record<string, any> {
+    // Group findings by severity
+    const bySeverity = {
+      critical: findings.filter((f) => f.severity === 'critical'),
+      high: findings.filter((f) => f.severity === 'high'),
+      medium: findings.filter((f) => f.severity === 'medium'),
+      low: findings.filter((f) => f.severity === 'low'),
+      info: findings.filter((f) => f.severity === 'info'),
+    };
+
+    // Group findings by category
+    const byCategory: Record<string, StepFinding[]> = {};
+    for (const finding of findings) {
+      const category = finding.stepId.split('-')[0] || 'other';
+      if (!byCategory[category]) {
+        byCategory[category] = [];
+      }
+      byCategory[category].push(finding);
+    }
+
+    // Calculate grade
+    let grade: string;
+    if (score >= 90) grade = 'A';
+    else if (score >= 80) grade = 'B';
+    else if (score >= 70) grade = 'C';
+    else if (score >= 60) grade = 'D';
+    else grade = 'F';
+
+    return {
+      generatedAt: new Date().toISOString(),
+      source: {
+        type: request.source.type,
+        ...(request.source.type === 'github-repo' && { repoUrl: (request.source as GitHubRepoInput).repoUrl }),
+        ...(request.source.type === 'deployed-contract' && {
+          address: (request.source as DeployedContractInput).address,
+          chain: (request.source as DeployedContractInput).chain,
+        }),
+      },
+      auditDepth: request.depth,
+      summary: {
+        score,
+        grade,
+        totalFindings: findings.length,
+        bySeverity: {
+          critical: bySeverity.critical.length,
+          high: bySeverity.high.length,
+          medium: bySeverity.medium.length,
+          low: bySeverity.low.length,
+          info: bySeverity.info.length,
+        },
+      },
+      findings,
+      findingsBySeverity: bySeverity,
+      findingsByCategory: byCategory,
+    };
+  }
+}
+
+// ============================================================================
+// Singleton Export
+// ============================================================================
+
+export const unifiedAuditService = UnifiedAuditService.getInstance();
+
+// ============================================================================
+// Convenience Functions
+// ============================================================================
+
+export async function startUnifiedAudit(request: UnifiedAuditRequest): Promise<UnifiedAuditResult> {
+  return unifiedAuditService.startAudit(request);
+}
+
+export async function getAuditProgress(jobId: string) {
+  return unifiedAuditService.getProgress(jobId);
+}
+
+export async function cancelAudit(jobId: string): Promise<void> {
+  return unifiedAuditService.cancelAudit(jobId);
+}

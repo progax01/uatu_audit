@@ -1,0 +1,722 @@
+{
+  "id": "move-sui",
+  "name": "Move Sui Audit SOP",
+  "version": "1.0.0",
+  "framework": "sui-move",
+  "language": "move",
+  "description": "Standard Operating Procedure for auditing Move smart contracts on Sui blockchain",
+
+  "depths": {
+    "quick": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "parse-move-toml",
+        "enumerate-modules",
+        "count-sloc",
+        "run-sui-build",
+        "merge-tool-findings",
+        "ai-quick-review",
+        "calculate-score",
+        "generate-report"
+      ],
+      "estimatedDurationMinutes": 8,
+      "parallelization": "none"
+    },
+    "standard": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "parse-move-toml",
+        "enumerate-modules",
+        "count-sloc",
+        "analyze-dependencies",
+        "run-sui-build",
+        "parse-compilation",
+        "analyze-module-structure",
+        "map-object-types",
+        "analyze-entry-functions",
+        "identify-dynamic-fields",
+        "analyze-transfer-patterns",
+        "check-tests-exist",
+        "run-sui-test",
+        "parse-test-results",
+        "merge-tool-findings",
+        "ai-object-safety",
+        "ai-ownership-analysis",
+        "ai-shared-object-safety",
+        "ai-capability-analysis",
+        "ai-business-logic",
+        "ai-validate-findings",
+        "deduplicate",
+        "calculate-severity",
+        "calculate-score",
+        "ai-recommendations",
+        "generate-report"
+      ],
+      "estimatedDurationMinutes": 25,
+      "parallelization": "low"
+    },
+    "deep": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "parse-move-toml",
+        "enumerate-modules",
+        "count-sloc",
+        "analyze-dependencies",
+        "run-sui-build",
+        "parse-compilation",
+        "analyze-module-structure",
+        "map-object-types",
+        "analyze-entry-functions",
+        "identify-dynamic-fields",
+        "analyze-transfer-patterns",
+        "analyze-witness-patterns",
+        "check-tests-exist",
+        "run-sui-test",
+        "parse-test-results",
+        "run-coverage",
+        "parse-coverage",
+        "merge-tool-findings",
+        "ai-object-safety",
+        "ai-ownership-analysis",
+        "ai-shared-object-safety",
+        "ai-capability-analysis",
+        "ai-clock-usage",
+        "ai-hot-potato",
+        "ai-business-logic",
+        "ai-validate-findings",
+        "deduplicate",
+        "calculate-severity",
+        "calculate-score",
+        "ai-recommendations",
+        "generate-report"
+      ],
+      "estimatedDurationMinutes": 40,
+      "parallelization": "high"
+    }
+  },
+
+  "steps": [
+    {
+      "id": "detect-framework",
+      "name": "Detect Framework",
+      "category": "setup",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": [],
+      "provides": ["detectedFramework", "detectedLanguage"],
+      "requires": [],
+      "config": {
+        "function": "detectFramework"
+      },
+      "progressWeight": 1,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "validate-structure",
+      "name": "Validate Project Structure",
+      "category": "setup",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["detect-framework"],
+      "provides": ["projectValid", "sourceDirectories"],
+      "requires": ["detectedFramework"],
+      "config": {
+        "function": "validateStructure"
+      },
+      "progressWeight": 1,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "parse-move-toml",
+      "name": "Parse Move.toml",
+      "category": "setup",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["validate-structure"],
+      "provides": ["moveConfig", "packageName", "dependencies"],
+      "requires": ["projectValid"],
+      "config": {
+        "function": "parseMoveToml"
+      },
+      "progressWeight": 1,
+      "required": true,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "enumerate-modules",
+      "name": "Enumerate Modules",
+      "category": "discovery",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 10,
+      "dependsOn": ["validate-structure"],
+      "provides": ["moduleFiles", "mainModules", "testModules"],
+      "requires": ["sourceDirectories"],
+      "config": {
+        "function": "enumerateModules"
+      },
+      "progressWeight": 2,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "count-sloc",
+      "name": "Count SLOC",
+      "category": "discovery",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["enumerate-modules"],
+      "provides": ["sloc", "complexity"],
+      "requires": ["moduleFiles"],
+      "config": {
+        "function": "countSloc"
+      },
+      "progressWeight": 1,
+      "required": true,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "analyze-dependencies",
+      "name": "Analyze Dependencies",
+      "category": "discovery",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 10,
+      "dependsOn": ["parse-move-toml"],
+      "provides": ["dependencyGraph", "suiFrameworkVersion", "externalDependencies"],
+      "requires": ["dependencies"],
+      "config": {
+        "function": "analyzeSuiDependencies"
+      },
+      "progressWeight": 2,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "run-sui-build",
+      "name": "Run Sui Build",
+      "category": "compilation",
+      "executor": "tool",
+      "estimatedDurationSeconds": 45,
+      "dependsOn": ["parse-move-toml"],
+      "provides": ["compilationSuccess", "compilationArtifacts", "compilationWarnings"],
+      "requires": ["moveConfig"],
+      "config": {
+        "tool": "sui",
+        "command": "move build",
+        "args": [],
+        "timeout": 180000
+      },
+      "progressWeight": 5,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 1
+    },
+    {
+      "id": "parse-compilation",
+      "name": "Parse Compilation Results",
+      "category": "compilation",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["run-sui-build"],
+      "provides": ["parsedArtifacts", "bytecodeModules"],
+      "requires": ["compilationArtifacts"],
+      "config": {
+        "function": "parseSuiCompilation"
+      },
+      "progressWeight": 1,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "analyze-module-structure",
+      "name": "Analyze Module Structure",
+      "category": "analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 15,
+      "dependsOn": ["enumerate-modules"],
+      "provides": ["moduleStructure", "publicFunctions", "friendModules"],
+      "requires": ["moduleFiles"],
+      "config": {
+        "function": "analyzeModuleStructure"
+      },
+      "progressWeight": 2,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "map-object-types",
+      "name": "Map Object Types",
+      "category": "analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 20,
+      "dependsOn": ["analyze-module-structure"],
+      "provides": ["objectTypes", "sharedObjects", "ownedObjects", "capabilities"],
+      "requires": ["moduleStructure"],
+      "config": {
+        "function": "mapSuiObjectTypes"
+      },
+      "progressWeight": 3,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "analyze-entry-functions",
+      "name": "Analyze Entry Functions",
+      "category": "analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 15,
+      "dependsOn": ["analyze-module-structure"],
+      "provides": ["entryFunctions", "publicEntryPoints"],
+      "requires": ["moduleStructure"],
+      "config": {
+        "function": "analyzeEntryFunctions"
+      },
+      "progressWeight": 2,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "identify-dynamic-fields",
+      "name": "Identify Dynamic Fields",
+      "category": "analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 15,
+      "dependsOn": ["map-object-types"],
+      "provides": ["dynamicFields", "dynamicObjectFields", "bagUsage", "tableUsage"],
+      "requires": ["objectTypes"],
+      "config": {
+        "function": "identifyDynamicFields"
+      },
+      "progressWeight": 2,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "analyze-transfer-patterns",
+      "name": "Analyze Transfer Patterns",
+      "category": "analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 15,
+      "dependsOn": ["map-object-types", "analyze-entry-functions"],
+      "provides": ["transferPatterns", "publicTransfers", "freezeOperations"],
+      "requires": ["objectTypes", "entryFunctions"],
+      "config": {
+        "function": "analyzeTransferPatterns"
+      },
+      "progressWeight": 2,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "analyze-witness-patterns",
+      "name": "Analyze Witness Patterns",
+      "category": "analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 15,
+      "dependsOn": ["analyze-module-structure"],
+      "provides": ["witnessPatterns", "otw", "witnessUsage"],
+      "requires": ["moduleStructure"],
+      "config": {
+        "function": "analyzeWitnessPatterns"
+      },
+      "progressWeight": 2,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "check-tests-exist",
+      "name": "Check for Tests",
+      "category": "testing",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["validate-structure"],
+      "provides": ["testsExist", "testFiles", "testModules"],
+      "requires": ["sourceDirectories"],
+      "config": {
+        "function": "checkTestsExist"
+      },
+      "progressWeight": 1,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "run-sui-test",
+      "name": "Run Sui Tests",
+      "category": "testing",
+      "executor": "tool",
+      "estimatedDurationSeconds": 60,
+      "dependsOn": ["run-sui-build", "check-tests-exist"],
+      "provides": ["testResults", "testsPassed", "testsFailed"],
+      "requires": ["compilationSuccess", "testsExist"],
+      "config": {
+        "tool": "sui",
+        "command": "move test",
+        "args": [],
+        "timeout": 300000,
+        "optional": true
+      },
+      "progressWeight": 6,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "parse-test-results",
+      "name": "Parse Test Results",
+      "category": "testing",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["run-sui-test"],
+      "provides": ["parsedTestResults"],
+      "requires": ["testResults"],
+      "config": {
+        "function": "parseTestResults"
+      },
+      "progressWeight": 1,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "run-coverage",
+      "name": "Run Coverage Analysis",
+      "category": "testing",
+      "executor": "tool",
+      "estimatedDurationSeconds": 60,
+      "dependsOn": ["run-sui-test"],
+      "provides": ["coverageReport", "coveragePct"],
+      "requires": ["testsPassed"],
+      "config": {
+        "tool": "sui",
+        "command": "move test",
+        "args": ["--coverage"],
+        "timeout": 300000,
+        "optional": true
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "parse-coverage",
+      "name": "Parse Coverage Results",
+      "category": "testing",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["run-coverage"],
+      "provides": ["parsedCoverage", "uncoveredFunctions"],
+      "requires": ["coverageReport"],
+      "config": {
+        "function": "parseCoverage"
+      },
+      "progressWeight": 1,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "merge-tool-findings",
+      "name": "Merge Tool Findings",
+      "category": "synthesis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 10,
+      "dependsOn": [],
+      "provides": ["mergedFindings", "findingsByCategory"],
+      "requires": [],
+      "config": {
+        "function": "mergeToolFindings"
+      },
+      "progressWeight": 2,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "ai-quick-review",
+      "name": "AI Quick Review",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 45,
+      "dependsOn": ["merge-tool-findings", "enumerate-modules"],
+      "provides": ["quickReviewFindings"],
+      "requires": ["mergedFindings", "mainModules"],
+      "config": {
+        "prompt": "quick-review-sui",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-object-safety",
+      "name": "AI Object Safety Analysis",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 45,
+      "dependsOn": ["map-object-types", "analyze-transfer-patterns"],
+      "provides": ["objectSafetyFindings", "objectLeaks"],
+      "requires": ["objectTypes", "transferPatterns"],
+      "config": {
+        "prompt": "check-object-safety",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-ownership-analysis",
+      "name": "AI Ownership Analysis",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 45,
+      "dependsOn": ["map-object-types", "analyze-entry-functions"],
+      "provides": ["ownershipFindings", "ownershipViolations"],
+      "requires": ["objectTypes", "entryFunctions"],
+      "config": {
+        "prompt": "analyze-ownership-sui",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-shared-object-safety",
+      "name": "AI Shared Object Safety",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 45,
+      "dependsOn": ["map-object-types"],
+      "provides": ["sharedObjectFindings", "concurrencyIssues"],
+      "requires": ["sharedObjects", "objectTypes"],
+      "config": {
+        "prompt": "check-shared-object-safety",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-capability-analysis",
+      "name": "AI Capability Analysis",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 40,
+      "dependsOn": ["map-object-types"],
+      "provides": ["capabilityFindings", "capabilityLeaks"],
+      "requires": ["capabilities", "objectTypes"],
+      "config": {
+        "prompt": "analyze-capabilities-sui",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-clock-usage",
+      "name": "AI Clock Usage Analysis",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 30,
+      "dependsOn": ["analyze-entry-functions"],
+      "provides": ["clockFindings", "timestampManipulation"],
+      "requires": ["entryFunctions"],
+      "config": {
+        "prompt": "check-clock-usage",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 4,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-hot-potato",
+      "name": "AI Hot Potato Pattern Analysis",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 30,
+      "dependsOn": ["map-object-types", "analyze-entry-functions"],
+      "provides": ["hotPotatoFindings", "patternViolations"],
+      "requires": ["objectTypes", "entryFunctions"],
+      "config": {
+        "prompt": "check-hot-potato",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 4,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-business-logic",
+      "name": "AI Business Logic Analysis",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 60,
+      "dependsOn": ["analyze-entry-functions", "count-sloc"],
+      "provides": ["businessLogicFindings", "logicFlaws"],
+      "requires": ["entryFunctions", "sloc"],
+      "config": {
+        "prompt": "analyze-business-logic-sui",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 6,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-validate-findings",
+      "name": "AI Finding Validation",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 30,
+      "dependsOn": ["merge-tool-findings"],
+      "provides": ["validatedFindings", "falsePositives"],
+      "requires": ["mergedFindings"],
+      "config": {
+        "prompt": "validate-findings-sui",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 4,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "deduplicate",
+      "name": "Deduplicate Findings",
+      "category": "synthesis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 10,
+      "dependsOn": ["ai-validate-findings", "ai-object-safety", "ai-ownership-analysis", "ai-shared-object-safety", "ai-capability-analysis", "ai-business-logic"],
+      "provides": ["deduplicatedFindings"],
+      "requires": [],
+      "config": {
+        "function": "deduplicateFindings"
+      },
+      "progressWeight": 2,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "calculate-severity",
+      "name": "Calculate Final Severity",
+      "category": "synthesis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["deduplicate"],
+      "provides": ["severityRankedFindings"],
+      "requires": ["deduplicatedFindings"],
+      "config": {
+        "function": "calculateSeverity"
+      },
+      "progressWeight": 1,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "calculate-score",
+      "name": "Calculate Audit Score",
+      "category": "synthesis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["calculate-severity"],
+      "provides": ["auditScore", "scoreBreakdown"],
+      "requires": ["severityRankedFindings"],
+      "config": {
+        "function": "calculateScore"
+      },
+      "progressWeight": 1,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "ai-recommendations",
+      "name": "AI Generate Recommendations",
+      "category": "reporting",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 45,
+      "dependsOn": ["calculate-score"],
+      "provides": ["recommendations", "remediationPlan"],
+      "requires": ["severityRankedFindings", "auditScore"],
+      "config": {
+        "prompt": "generate-recommendations-sui",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "generate-report",
+      "name": "Generate Final Report",
+      "category": "reporting",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 30,
+      "dependsOn": ["ai-recommendations"],
+      "provides": ["finalReport", "reportPath"],
+      "requires": ["severityRankedFindings", "auditScore", "recommendations"],
+      "config": {
+        "function": "generateReport"
+      },
+      "progressWeight": 3,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    }
+  ],
+
+  "requiredTools": [
+    {
+      "name": "sui",
+      "checkCommand": "sui --version",
+      "installHint": "cargo install --git https://github.com/MystenLabs/sui.git sui"
+    }
+  ],
+
+  "optionalTools": []
+}

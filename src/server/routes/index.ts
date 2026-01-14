@@ -8,3 +8,5 @@ export { handleProjectRoutes } from "./projects.js";
 export { handlePreAuditRoutes } from "./preaudit.js";
 export { handleBillingRoutes } from "./billing.js";
 export { handlePublicAuditRoutes } from "./publicAudits.js";
+export { handleAuditRoutes } from "./audit.js";
+export { handleInteractiveAuditRoutes } from "./interactiveAudit.js";

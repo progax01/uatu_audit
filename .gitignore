@@ -5,3 +5,4 @@ dist
 .uatu/
 *.log
 *.jsonl
+dist-ui/

@@ -1,0 +1,846 @@
+{
+  "id": "anchor-solana",
+  "name": "Anchor Solana Audit SOP",
+  "version": "1.0.0",
+  "framework": "anchor",
+  "language": "rust",
+  "description": "Standard Operating Procedure for auditing Solana programs using Anchor framework",
+
+  "depths": {
+    "quick": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "parse-anchor-toml",
+        "enumerate-programs",
+        "count-sloc",
+        "run-anchor-build",
+        "run-cargo-clippy",
+        "parse-clippy",
+        "merge-tool-findings",
+        "ai-quick-review",
+        "calculate-score",
+        "generate-report"
+      ],
+      "estimatedDurationMinutes": 10,
+      "parallelization": "none"
+    },
+    "standard": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "parse-anchor-toml",
+        "enumerate-programs",
+        "count-sloc",
+        "analyze-cargo-dependencies",
+        "run-anchor-build",
+        "parse-compilation",
+        "analyze-program-structure",
+        "map-account-structures",
+        "analyze-instructions",
+        "identify-cpis",
+        "run-cargo-clippy",
+        "parse-clippy",
+        "run-soteria",
+        "parse-soteria",
+        "check-tests-exist",
+        "run-anchor-test",
+        "parse-test-results",
+        "merge-tool-findings",
+        "ai-account-validation",
+        "ai-signer-checks",
+        "ai-pda-security",
+        "ai-cpi-security",
+        "ai-business-logic",
+        "ai-validate-findings",
+        "deduplicate",
+        "calculate-severity",
+        "calculate-score",
+        "ai-recommendations",
+        "generate-report"
+      ],
+      "estimatedDurationMinutes": 30,
+      "parallelization": "low"
+    },
+    "deep": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "parse-anchor-toml",
+        "enumerate-programs",
+        "count-sloc",
+        "analyze-cargo-dependencies",
+        "run-anchor-build",
+        "parse-compilation",
+        "analyze-program-structure",
+        "map-account-structures",
+        "analyze-instructions",
+        "identify-cpis",
+        "analyze-state-mutations",
+        "run-cargo-clippy",
+        "parse-clippy",
+        "run-cargo-audit",
+        "parse-cargo-audit",
+        "run-soteria",
+        "parse-soteria",
+        "run-xray",
+        "parse-xray",
+        "check-tests-exist",
+        "run-anchor-test",
+        "parse-test-results",
+        "merge-tool-findings",
+        "ai-account-validation",
+        "ai-signer-checks",
+        "ai-pda-security",
+        "ai-cpi-security",
+        "ai-arithmetic-overflow",
+        "ai-authority-checks",
+        "ai-business-logic",
+        "ai-validate-findings",
+        "deduplicate",
+        "calculate-severity",
+        "calculate-score",
+        "ai-recommendations",
+        "generate-report"
+      ],
+      "estimatedDurationMinutes": 50,
+      "parallelization": "high"
+    }
+  },
+
+  "steps": [
+    {
+      "id": "detect-framework",
+      "name": "Detect Framework",
+      "category": "setup",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": [],
+      "provides": ["detectedFramework", "detectedLanguage"],
+      "requires": [],
+      "config": {
+        "function": "detectFramework"
+      },
+      "progressWeight": 1,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "validate-structure",
+      "name": "Validate Project Structure",
+      "category": "setup",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["detect-framework"],
+      "provides": ["projectValid", "sourceDirectories"],
+      "requires": ["detectedFramework"],
+      "config": {
+        "function": "validateStructure"
+      },
+      "progressWeight": 1,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "parse-anchor-toml",
+      "name": "Parse Anchor.toml",
+      "category": "setup",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["validate-structure"],
+      "provides": ["anchorConfig", "programIds", "clusters"],
+      "requires": ["projectValid"],
+      "config": {
+        "function": "parseAnchorToml"
+      },
+      "progressWeight": 1,
+      "required": true,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "enumerate-programs",
+      "name": "Enumerate Programs",
+      "category": "discovery",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 10,
+      "dependsOn": ["validate-structure"],
+      "provides": ["programFiles", "mainPrograms", "testPrograms", "libraryModules"],
+      "requires": ["sourceDirectories"],
+      "config": {
+        "function": "enumeratePrograms"
+      },
+      "progressWeight": 2,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "count-sloc",
+      "name": "Count SLOC",
+      "category": "discovery",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["enumerate-programs"],
+      "provides": ["sloc", "complexity"],
+      "requires": ["programFiles"],
+      "config": {
+        "function": "countSloc"
+      },
+      "progressWeight": 1,
+      "required": true,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "analyze-cargo-dependencies",
+      "name": "Analyze Cargo Dependencies",
+      "category": "discovery",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 10,
+      "dependsOn": ["validate-structure"],
+      "provides": ["cargoDependencies", "anchorVersion", "solanaVersion"],
+      "requires": ["projectValid"],
+      "config": {
+        "function": "analyzeCargoDependencies"
+      },
+      "progressWeight": 2,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "run-anchor-build",
+      "name": "Run Anchor Build",
+      "category": "compilation",
+      "executor": "tool",
+      "estimatedDurationSeconds": 60,
+      "dependsOn": ["parse-anchor-toml"],
+      "provides": ["compilationSuccess", "compilationArtifacts", "compilationWarnings"],
+      "requires": ["anchorConfig"],
+      "config": {
+        "tool": "anchor",
+        "command": "build",
+        "args": [],
+        "timeout": 300000
+      },
+      "progressWeight": 6,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 1
+    },
+    {
+      "id": "parse-compilation",
+      "name": "Parse Compilation Results",
+      "category": "compilation",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["run-anchor-build"],
+      "provides": ["parsedArtifacts", "programIdl"],
+      "requires": ["compilationArtifacts"],
+      "config": {
+        "function": "parseAnchorCompilation"
+      },
+      "progressWeight": 1,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "analyze-program-structure",
+      "name": "Analyze Program Structure",
+      "category": "analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 15,
+      "dependsOn": ["enumerate-programs"],
+      "provides": ["programStructure", "moduleGraph"],
+      "requires": ["programFiles"],
+      "config": {
+        "function": "analyzeProgramStructure"
+      },
+      "progressWeight": 2,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "map-account-structures",
+      "name": "Map Account Structures",
+      "category": "analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 20,
+      "dependsOn": ["analyze-program-structure"],
+      "provides": ["accountStructures", "accountConstraints", "pdaSeeds"],
+      "requires": ["programStructure"],
+      "config": {
+        "function": "mapAccountStructures"
+      },
+      "progressWeight": 3,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "analyze-instructions",
+      "name": "Analyze Instructions",
+      "category": "analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 15,
+      "dependsOn": ["analyze-program-structure"],
+      "provides": ["instructions", "instructionHandlers", "accessControl"],
+      "requires": ["programStructure"],
+      "config": {
+        "function": "analyzeInstructions"
+      },
+      "progressWeight": 2,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "identify-cpis",
+      "name": "Identify Cross-Program Invocations",
+      "category": "analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 20,
+      "dependsOn": ["analyze-instructions"],
+      "provides": ["cpiCalls", "invokedPrograms", "cpiContexts"],
+      "requires": ["instructions"],
+      "config": {
+        "function": "identifyCpis"
+      },
+      "progressWeight": 3,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "analyze-state-mutations",
+      "name": "Analyze State Mutations",
+      "category": "analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 15,
+      "dependsOn": ["map-account-structures", "analyze-instructions"],
+      "provides": ["stateMutations", "dataFlows"],
+      "requires": ["accountStructures", "instructions"],
+      "config": {
+        "function": "analyzeStateMutations"
+      },
+      "progressWeight": 2,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "run-cargo-clippy",
+      "name": "Run Cargo Clippy",
+      "category": "tool-analysis",
+      "executor": "tool",
+      "estimatedDurationSeconds": 30,
+      "dependsOn": ["run-anchor-build"],
+      "provides": ["clippyOutput", "clippyFindings"],
+      "requires": ["compilationSuccess"],
+      "config": {
+        "tool": "cargo-clippy",
+        "args": ["--", "-W", "clippy::all", "-W", "clippy::pedantic", "--message-format=json"],
+        "timeout": 120000,
+        "optional": false
+      },
+      "progressWeight": 4,
+      "required": true,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "parse-clippy",
+      "name": "Parse Clippy Output",
+      "category": "tool-analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["run-cargo-clippy"],
+      "provides": ["parsedClippyFindings"],
+      "requires": ["clippyOutput"],
+      "config": {
+        "function": "parseClippy"
+      },
+      "progressWeight": 1,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "run-cargo-audit",
+      "name": "Run Cargo Audit",
+      "category": "tool-analysis",
+      "executor": "tool",
+      "estimatedDurationSeconds": 20,
+      "dependsOn": ["analyze-cargo-dependencies"],
+      "provides": ["cargoAuditOutput", "vulnerableDependencies"],
+      "requires": ["cargoDependencies"],
+      "config": {
+        "tool": "cargo-audit",
+        "args": ["--json"],
+        "timeout": 60000,
+        "optional": true
+      },
+      "progressWeight": 3,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "parse-cargo-audit",
+      "name": "Parse Cargo Audit Output",
+      "category": "tool-analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["run-cargo-audit"],
+      "provides": ["parsedCargoAuditFindings"],
+      "requires": ["cargoAuditOutput"],
+      "config": {
+        "function": "parseCargoAudit"
+      },
+      "progressWeight": 1,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "run-soteria",
+      "name": "Run Soteria Scanner",
+      "category": "tool-analysis",
+      "executor": "tool",
+      "estimatedDurationSeconds": 60,
+      "dependsOn": ["run-anchor-build"],
+      "provides": ["soteriaOutput", "soteriaFindings"],
+      "requires": ["compilationSuccess"],
+      "config": {
+        "tool": "soteria",
+        "args": ["-analyzeAll"],
+        "timeout": 180000,
+        "optional": true
+      },
+      "progressWeight": 6,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "parse-soteria",
+      "name": "Parse Soteria Output",
+      "category": "tool-analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["run-soteria"],
+      "provides": ["parsedSoteriaFindings"],
+      "requires": ["soteriaOutput"],
+      "config": {
+        "function": "parseSoteria"
+      },
+      "progressWeight": 1,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "run-xray",
+      "name": "Run Sec3 X-ray",
+      "category": "tool-analysis",
+      "executor": "tool",
+      "estimatedDurationSeconds": 45,
+      "dependsOn": ["run-anchor-build"],
+      "provides": ["xrayOutput", "xrayFindings"],
+      "requires": ["compilationSuccess"],
+      "config": {
+        "tool": "xray",
+        "args": ["scan", "--format", "json"],
+        "timeout": 180000,
+        "optional": true
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "parse-xray",
+      "name": "Parse X-ray Output",
+      "category": "tool-analysis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["run-xray"],
+      "provides": ["parsedXrayFindings"],
+      "requires": ["xrayOutput"],
+      "config": {
+        "function": "parseXray"
+      },
+      "progressWeight": 1,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "check-tests-exist",
+      "name": "Check for Tests",
+      "category": "testing",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["validate-structure"],
+      "provides": ["testsExist", "testFiles", "testFramework"],
+      "requires": ["sourceDirectories"],
+      "config": {
+        "function": "checkTestsExist"
+      },
+      "progressWeight": 1,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "run-anchor-test",
+      "name": "Run Anchor Tests",
+      "category": "testing",
+      "executor": "tool",
+      "estimatedDurationSeconds": 90,
+      "dependsOn": ["run-anchor-build", "check-tests-exist"],
+      "provides": ["testResults", "testsPassed", "testsFailed"],
+      "requires": ["compilationSuccess", "testsExist"],
+      "config": {
+        "tool": "anchor",
+        "command": "test",
+        "args": ["--skip-local-validator"],
+        "timeout": 300000,
+        "optional": true
+      },
+      "progressWeight": 7,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "parse-test-results",
+      "name": "Parse Test Results",
+      "category": "testing",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["run-anchor-test"],
+      "provides": ["parsedTestResults"],
+      "requires": ["testResults"],
+      "config": {
+        "function": "parseTestResults"
+      },
+      "progressWeight": 1,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "merge-tool-findings",
+      "name": "Merge Tool Findings",
+      "category": "synthesis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 10,
+      "dependsOn": ["parse-clippy", "parse-soteria", "parse-xray", "parse-cargo-audit"],
+      "provides": ["mergedFindings", "findingsByCategory"],
+      "requires": [],
+      "config": {
+        "function": "mergeToolFindings"
+      },
+      "progressWeight": 2,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "ai-quick-review",
+      "name": "AI Quick Review",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 45,
+      "dependsOn": ["merge-tool-findings", "enumerate-programs"],
+      "provides": ["quickReviewFindings"],
+      "requires": ["mergedFindings", "mainPrograms"],
+      "config": {
+        "prompt": "quick-review-solana",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-account-validation",
+      "name": "AI Account Validation Analysis",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 45,
+      "dependsOn": ["map-account-structures", "analyze-instructions"],
+      "provides": ["accountValidationFindings", "missingConstraints"],
+      "requires": ["accountStructures", "instructions"],
+      "config": {
+        "prompt": "check-account-validation",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-signer-checks",
+      "name": "AI Signer Check Analysis",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 30,
+      "dependsOn": ["analyze-instructions", "map-account-structures"],
+      "provides": ["signerCheckFindings", "missingSignerChecks"],
+      "requires": ["instructions", "accountStructures"],
+      "config": {
+        "prompt": "check-signer-validation",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 4,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-pda-security",
+      "name": "AI PDA Security Analysis",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 45,
+      "dependsOn": ["map-account-structures"],
+      "provides": ["pdaSecurityFindings", "pdaVulnerabilities"],
+      "requires": ["accountStructures", "pdaSeeds"],
+      "config": {
+        "prompt": "check-pda-security",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-cpi-security",
+      "name": "AI CPI Security Analysis",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 45,
+      "dependsOn": ["identify-cpis"],
+      "provides": ["cpiSecurityFindings", "cpiVulnerabilities"],
+      "requires": ["cpiCalls", "invokedPrograms"],
+      "config": {
+        "prompt": "check-cpi-security",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-arithmetic-overflow",
+      "name": "AI Arithmetic Overflow Check",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 30,
+      "dependsOn": ["analyze-instructions"],
+      "provides": ["overflowFindings"],
+      "requires": ["instructions"],
+      "config": {
+        "prompt": "check-arithmetic-overflow",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 4,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-authority-checks",
+      "name": "AI Authority Check Analysis",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 30,
+      "dependsOn": ["analyze-instructions", "map-account-structures"],
+      "provides": ["authorityFindings", "privilegedOperations"],
+      "requires": ["instructions", "accessControl"],
+      "config": {
+        "prompt": "check-authority-validation",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 4,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-business-logic",
+      "name": "AI Business Logic Analysis",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 60,
+      "dependsOn": ["analyze-instructions", "count-sloc"],
+      "provides": ["businessLogicFindings", "logicFlaws"],
+      "requires": ["instructions", "sloc"],
+      "config": {
+        "prompt": "analyze-business-logic-solana",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 6,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "ai-validate-findings",
+      "name": "AI Finding Validation",
+      "category": "ai-analysis",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 30,
+      "dependsOn": ["merge-tool-findings"],
+      "provides": ["validatedFindings", "falsePositives"],
+      "requires": ["mergedFindings"],
+      "config": {
+        "prompt": "validate-findings-solana",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 4,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "deduplicate",
+      "name": "Deduplicate Findings",
+      "category": "synthesis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 10,
+      "dependsOn": ["ai-validate-findings", "ai-account-validation", "ai-signer-checks", "ai-pda-security", "ai-cpi-security", "ai-business-logic"],
+      "provides": ["deduplicatedFindings"],
+      "requires": [],
+      "config": {
+        "function": "deduplicateFindings"
+      },
+      "progressWeight": 2,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "calculate-severity",
+      "name": "Calculate Final Severity",
+      "category": "synthesis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["deduplicate"],
+      "provides": ["severityRankedFindings"],
+      "requires": ["deduplicatedFindings"],
+      "config": {
+        "function": "calculateSeverity"
+      },
+      "progressWeight": 1,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "calculate-score",
+      "name": "Calculate Audit Score",
+      "category": "synthesis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 5,
+      "dependsOn": ["calculate-severity"],
+      "provides": ["auditScore", "scoreBreakdown"],
+      "requires": ["severityRankedFindings"],
+      "config": {
+        "function": "calculateScore"
+      },
+      "progressWeight": 1,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    },
+    {
+      "id": "ai-recommendations",
+      "name": "AI Generate Recommendations",
+      "category": "reporting",
+      "executor": "ai-prompt",
+      "estimatedDurationSeconds": 45,
+      "dependsOn": ["calculate-score"],
+      "provides": ["recommendations", "remediationPlan"],
+      "requires": ["severityRankedFindings", "auditScore"],
+      "config": {
+        "prompt": "generate-recommendations-solana",
+        "maxTokens": 4096,
+        "temperature": 0.3
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "generate-report",
+      "name": "Generate Final Report",
+      "category": "reporting",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 30,
+      "dependsOn": ["ai-recommendations"],
+      "provides": ["finalReport", "reportPath"],
+      "requires": ["severityRankedFindings", "auditScore", "recommendations"],
+      "config": {
+        "function": "generateReport"
+      },
+      "progressWeight": 3,
+      "required": true,
+      "continueOnFailure": false,
+      "retryCount": 0
+    }
+  ],
+
+  "requiredTools": [
+    {
+      "name": "anchor",
+      "checkCommand": "anchor --version",
+      "installHint": "cargo install --git https://github.com/coral-xyz/anchor anchor-cli"
+    },
+    {
+      "name": "cargo-clippy",
+      "checkCommand": "cargo clippy --version",
+      "installHint": "rustup component add clippy"
+    }
+  ],
+
+  "optionalTools": [
+    {
+      "name": "soteria",
+      "checkCommand": "soteria --version",
+      "installHint": "Visit https://www.soteria.dev/ for installation"
+    },
+    {
+      "name": "xray",
+      "checkCommand": "xray --version",
+      "installHint": "Visit https://sec3.dev/ for X-ray installation"
+    },
+    {
+      "name": "cargo-audit",
+      "checkCommand": "cargo audit --version",
+      "installHint": "cargo install cargo-audit"
+    }
+  ]
+}
