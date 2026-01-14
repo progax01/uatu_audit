@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Loader2, CheckCircle, Search, Cpu, Globe, Activity, Shield, AlertTriangle, XCircle, RefreshCw, FileCode, ExternalLink, Code } from 'lucide-react'
+import { ArrowRight, Loader2, CheckCircle, Search, Cpu, Globe, Activity, Shield, RefreshCw, FileCode, ExternalLink, Zap, Lock, Bug, FileText, GitBranch } from 'lucide-react'
 import { motion } from 'framer-motion'
 import logo from '../assets/logo.svg'
 import MouseTooltip from '../components/MouseTooltip'
@@ -39,6 +39,13 @@ interface ContractInfo {
     explorerUrl: string
 }
 
+interface ScanPhase {
+    name: string
+    label: string
+    status: 'pending' | 'active' | 'complete'
+    pct: number
+}
+
 const networks: { id: Network; name: string; shortName: string; color: string }[] = [
     { id: 'ethereum', name: 'Ethereum', shortName: 'ETH', color: '#627EEA' },
     { id: 'arbitrum', name: 'Arbitrum', shortName: 'ARB', color: '#28A0F0' },
@@ -55,6 +62,28 @@ const SEVERITY_CONFIG = {
     low: { color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
     info: { color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' },
 }
+
+// Phase icons mapping
+const PHASE_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+    CONTRACT_PARSE: FileCode,
+    SYMBOLIC_ANALYSIS: GitBranch,
+    CONTROL_FLOW: Activity,
+    REENTRANCY: Lock,
+    ACCESS_CONTROL: Shield,
+    VULNERABILITY_SCAN: Bug,
+    REPORT_GEN: FileText,
+}
+
+// Default phases for fallback
+const DEFAULT_PHASES: ScanPhase[] = [
+    { name: 'CONTRACT_PARSE', label: 'Contract Parse', status: 'pending', pct: 0 },
+    { name: 'SYMBOLIC_ANALYSIS', label: 'Symbolic Analysis', status: 'pending', pct: 0 },
+    { name: 'CONTROL_FLOW', label: 'Control Flow', status: 'pending', pct: 0 },
+    { name: 'REENTRANCY', label: 'Reentrancy Check', status: 'pending', pct: 0 },
+    { name: 'ACCESS_CONTROL', label: 'Access Control', status: 'pending', pct: 0 },
+    { name: 'VULNERABILITY_SCAN', label: 'Vulnerability Scan', status: 'pending', pct: 0 },
+    { name: 'REPORT_GEN', label: 'Report Generation', status: 'pending', pct: 0 },
+]
 
 // Helper to get explorer URL for different networks
 function getExplorerUrl(network: Network, address: string): string {
@@ -74,6 +103,64 @@ interface ScanProgress {
     message: string
 }
 
+// Mock Solidity code for the scanning animation
+const MOCK_CONTRACT_CODE = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract VaultProtocol is ReentrancyGuard, Ownable {
+    mapping(address => uint256) public deposits;
+    mapping(address => uint256) public rewards;
+
+    IERC20 public immutable token;
+    uint256 public totalDeposits;
+    uint256 public rewardRate = 100;
+
+    event Deposited(address indexed user, uint256 amount);
+    event Withdrawn(address indexed user, uint256 amount);
+    event RewardsClaimed(address indexed user, uint256 amount);
+
+    constructor(address _token) Ownable(msg.sender) {
+        token = IERC20(_token);
+    }
+
+    function deposit(uint256 amount) external nonReentrant {
+        require(amount > 0, "Amount must be > 0");
+        token.transferFrom(msg.sender, address(this), amount);
+        deposits[msg.sender] += amount;
+        totalDeposits += amount;
+        emit Deposited(msg.sender, amount);
+    }
+
+    function withdraw(uint256 amount) external nonReentrant {
+        require(deposits[msg.sender] >= amount, "Insufficient");
+        deposits[msg.sender] -= amount;
+        totalDeposits -= amount;
+        token.transfer(msg.sender, amount);
+        emit Withdrawn(msg.sender, amount);
+    }
+
+    function claimRewards() external nonReentrant {
+        uint256 reward = calculateReward(msg.sender);
+        require(reward > 0, "No rewards");
+        rewards[msg.sender] = 0;
+        token.transfer(msg.sender, reward);
+        emit RewardsClaimed(msg.sender, reward);
+    }
+
+    function calculateReward(address user) public view returns (uint256) {
+        return (deposits[user] * rewardRate) / 10000;
+    }
+
+    function setRewardRate(uint256 _rate) external onlyOwner {
+        require(_rate <= 1000, "Rate too high");
+        rewardRate = _rate;
+    }
+}`
+
 export default function QuickScan() {
     const navigate = useNavigate()
     const [selectedNetwork, setSelectedNetwork] = useState<Network>('ethereum')
@@ -82,11 +169,14 @@ export default function QuickScan() {
     const [error, setError] = useState<string | null>(null)
     const [isStarting, setIsStarting] = useState(false)
     const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null)
+    const [scanPhases, setScanPhases] = useState<ScanPhase[]>(DEFAULT_PHASES)
     const [scanResult, setScanResult] = useState<QuickScanResult | null>(null)
     const [jobId, setJobId] = useState<string | null>(null)
     const [contractInfo, setContractInfo] = useState<ContractInfo | null>(null)
 
     const debounceRef = useRef<NodeJS.Timeout | null>(null)
+    // Track highest progress to prevent backwards movement
+    const highestProgressRef = useRef<number>(0)
 
     const validateAndFetch = useCallback(async (address: string, network: Network) => {
         setValidationStatus('validating')
@@ -157,6 +247,8 @@ export default function QuickScan() {
         setIsStarting(true)
         setError(null)
         setScanResult(null)
+        setScanPhases(DEFAULT_PHASES)
+        highestProgressRef.current = 0
         setScanProgress({ pct: 0, message: 'Initializing scan...' })
 
         try {
@@ -193,16 +285,30 @@ export default function QuickScan() {
                             try {
                                 const data = JSON.parse(line.slice(6))
 
+                                // Ensure progress only moves forward, never backwards
+                                const newPct = data.progressPct || 0
+                                const displayPct = Math.max(newPct, highestProgressRef.current)
+                                if (newPct > highestProgressRef.current) {
+                                    highestProgressRef.current = newPct
+                                }
+
                                 setScanProgress({
-                                    pct: data.progressPct || 0,
+                                    pct: displayPct,
                                     message: data.message || 'Processing...',
                                 })
+
+                                // Update phases if available
+                                if (data.phases && Array.isArray(data.phases)) {
+                                    setScanPhases(data.phases)
+                                }
 
                                 if (data.jobId) setJobId(data.jobId)
 
                                 if (data.status === 'completed' && data.redirectUrl) {
                                     setIsStarting(false)
                                     setScanProgress(null)
+                                    setScanPhases(DEFAULT_PHASES)
+                                    highestProgressRef.current = 0
                                     navigate(data.redirectUrl)
                                     return
                                 }
@@ -260,6 +366,8 @@ export default function QuickScan() {
             setError(err.message || 'Failed to start scan')
             setIsStarting(false)
             setScanProgress(null)
+            setScanPhases(DEFAULT_PHASES)
+            highestProgressRef.current = 0
         }
     }
 
@@ -376,7 +484,7 @@ export default function QuickScan() {
                                 <Loader2 size={20} className="animate-spin" />
                             ) : (
                                 <>
-                                    <span className="relative z-10 flex items-center gap-3">Run Formal Analysis <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" /></span>
+                                    <span className="relative z-10 flex items-center gap-3">Let's Quick Scan <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" /></span>
                                     <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </>
                             )}
@@ -396,6 +504,7 @@ export default function QuickScan() {
                 <div className="flex-1 bg-slate-50/50 p-12 relative flex items-center justify-center overflow-y-auto">
                     <div className="absolute inset-0 bg-dot-pattern opacity-[0.03] pointer-events-none" />
 
+                    {/* Scan Result View */}
                     {scanResult ? (
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
@@ -485,7 +594,184 @@ export default function QuickScan() {
                                 )}
                             </div>
                         </motion.div>
+                    ) : isStarting ? (
+                        /* Active Scanning View - Priority over contractInfo */
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="w-full max-w-4xl"
+                        >
+                            <div className="flex gap-6">
+                                {/* Left: Code Scanner Panel */}
+                                <div className="flex-1 bg-slate-900 rounded-3xl overflow-hidden shadow-2xl relative">
+                                    {/* Header */}
+                                    <div className="flex items-center gap-2 px-5 py-3 bg-slate-800/50 border-b border-slate-700/50">
+                                        <div className="flex gap-1.5">
+                                            <div className="w-3 h-3 rounded-full bg-rose-500/80" />
+                                            <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+                                            <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+                                        </div>
+                                        <span className="text-[10px] font-mono font-bold text-slate-400 ml-3">
+                                            {contractInfo?.contractName || 'Contract'}.sol
+                                        </span>
+                                        <div className="ml-auto flex items-center gap-2">
+                                            <Zap size={12} className="text-indigo-400 animate-pulse" />
+                                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Scanning</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Code with Scanner Line */}
+                                    <div className="relative h-[400px] overflow-hidden">
+                                        <pre className="p-4 text-[11px] font-mono leading-relaxed overflow-hidden">
+                                            {MOCK_CONTRACT_CODE.split('\n').map((line, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className="flex text-slate-500"
+                                                >
+                                                    <span className="w-8 text-right mr-4 text-slate-600 select-none">
+                                                        {idx + 1}
+                                                    </span>
+                                                    <span>{line || ' '}</span>
+                                                </div>
+                                            ))}
+                                        </pre>
+
+                                        {/* Continuous Looping Laser Scanner Line */}
+                                        <motion.div
+                                            className="absolute left-0 right-0 h-10 pointer-events-none"
+                                            initial={{ top: '-5%' }}
+                                            animate={{ top: '105%' }}
+                                            transition={{
+                                                duration: 3,
+                                                repeat: Infinity,
+                                                ease: 'linear',
+                                            }}
+                                        >
+                                            {/* Glow effect */}
+                                            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-500/20 to-transparent" />
+                                            {/* Main line */}
+                                            <div className="absolute left-0 right-0 top-1/2 h-[2px] bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.8)]" />
+                                            {/* Pulse effect */}
+                                            <motion.div
+                                                className="absolute left-0 right-0 top-1/2 h-[2px] bg-white/60"
+                                                animate={{ opacity: [0.4, 1, 0.4] }}
+                                                transition={{ duration: 0.3, repeat: Infinity }}
+                                            />
+                                        </motion.div>
+
+                                        {/* Progress-based scanned overlay (green tint from top) */}
+                                        <motion.div
+                                            className="absolute top-0 left-0 right-0 bg-gradient-to-b from-emerald-500/10 via-emerald-500/5 to-transparent pointer-events-none"
+                                            animate={{ height: `${(scanProgress?.pct || 0)}%` }}
+                                            transition={{ duration: 0.8, ease: 'easeOut' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Right: Phase Progress Panel */}
+                                <div className="w-80 bg-white rounded-3xl border border-black/[0.03] p-6 shadow-xl">
+                                    <div className="flex items-center gap-2 mb-6">
+                                        <Shield size={16} className="text-indigo-600" />
+                                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Security Analysis</span>
+                                    </div>
+
+                                    {/* Overall Progress */}
+                                    <div className="mb-8">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-xs font-bold text-slate-700">Overall Progress</span>
+                                            <span className="text-lg font-black text-indigo-600">{scanProgress?.pct || 0}%</span>
+                                        </div>
+                                        <div className="relative h-3 bg-slate-100 rounded-full overflow-hidden">
+                                            <motion.div
+                                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${scanProgress?.pct || 0}%` }}
+                                                transition={{ duration: 0.5, ease: 'easeOut' }}
+                                            />
+                                            {/* Shimmer effect */}
+                                            <motion.div
+                                                className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                                                animate={{ left: ['-20%', '120%'] }}
+                                                transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Phase List */}
+                                    <div className="space-y-3">
+                                        {scanPhases.map((phase, idx) => {
+                                            const PhaseIcon = PHASE_ICONS[phase.name] || Activity
+                                            const isActive = phase.status === 'active'
+                                            const isComplete = phase.status === 'complete'
+
+                                            return (
+                                                <motion.div
+                                                    key={phase.name}
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: idx * 0.05 }}
+                                                    className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                                                        isActive ? 'bg-indigo-50 border border-indigo-100' :
+                                                        isComplete ? 'bg-emerald-50/50 border border-emerald-100/50' :
+                                                        'bg-slate-50 border border-transparent'
+                                                    }`}
+                                                >
+                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                                        isActive ? 'bg-indigo-100' :
+                                                        isComplete ? 'bg-emerald-100' :
+                                                        'bg-slate-100'
+                                                    }`}>
+                                                        {isComplete ? (
+                                                            <CheckCircle size={16} className="text-emerald-500" />
+                                                        ) : isActive ? (
+                                                            <Loader2 size={16} className="text-indigo-600 animate-spin" />
+                                                        ) : (
+                                                            <PhaseIcon size={16} className="text-slate-400" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className={`text-[10px] font-black uppercase tracking-widest truncate ${
+                                                                isActive ? 'text-indigo-700' :
+                                                                isComplete ? 'text-emerald-700' :
+                                                                'text-slate-400'
+                                                            }`}>
+                                                                {phase.label}
+                                                            </span>
+                                                            {isActive && (
+                                                                <span className="text-[9px] font-bold text-indigo-500">{phase.pct}%</span>
+                                                            )}
+                                                            {isComplete && (
+                                                                <span className="text-[9px] font-bold text-emerald-500">Done</span>
+                                                            )}
+                                                        </div>
+                                                        {isActive && (
+                                                            <div className="mt-1.5 h-1 bg-indigo-100 rounded-full overflow-hidden">
+                                                                <motion.div
+                                                                    className="h-full bg-indigo-500 rounded-full"
+                                                                    initial={{ width: 0 }}
+                                                                    animate={{ width: `${phase.pct}%` }}
+                                                                    transition={{ duration: 0.3 }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
+                                            )
+                                        })}
+                                    </div>
+
+                                    {/* Current Status Message */}
+                                    <div className="mt-6 pt-4 border-t border-slate-100">
+                                        <p className="text-[10px] text-slate-500 font-medium text-center">
+                                            {scanProgress?.message || 'Initializing security analysis...'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
                     ) : contractInfo ? (
+                        /* Contract Info View */
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -557,49 +843,13 @@ export default function QuickScan() {
                             </div>
                         </motion.div>
                     ) : (
+                        /* Idle/Validating States */
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="text-center max-w-md"
                         >
-                            {isStarting && scanProgress ? (
-                                <div className="w-full max-w-sm mx-auto">
-                                    <div className="w-24 h-24 bg-white border border-black/[0.03] rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-xl shadow-slate-200/50">
-                                        <Loader2 size={40} className="text-indigo-600 animate-spin" />
-                                    </div>
-                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4 uppercase">Analyzing Contract</h2>
-
-                                    {/* Progress bar */}
-                                    <div className="mb-6">
-                                        <div className="relative h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
-                                            <motion.div
-                                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${scanProgress.pct}%` }}
-                                                transition={{ duration: 0.5, ease: 'easeOut' }}
-                                            />
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{scanProgress.message}</p>
-                                            <span className="text-[10px] font-black text-indigo-600">{scanProgress.pct}%</span>
-                                        </div>
-                                    </div>
-
-                                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
-                                        AI security engine scanning for vulnerabilities.
-                                    </p>
-                                </div>
-                            ) : isStarting ? (
-                                <>
-                                    <div className="w-24 h-24 bg-white border border-black/[0.03] rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-xl shadow-slate-200/50">
-                                        <Loader2 size={40} className="text-indigo-600 animate-spin" />
-                                    </div>
-                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4 uppercase">Initializing Scan</h2>
-                                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-sm mx-auto">
-                                        Connecting to security analysis engine...
-                                    </p>
-                                </>
-                            ) : validationStatus === 'validating' ? (
+                            {validationStatus === 'validating' ? (
                                 <>
                                     <div className="w-24 h-24 bg-white border border-black/[0.03] rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-xl shadow-slate-200/50">
                                         <Loader2 size={40} className="text-indigo-600 animate-spin" />
@@ -607,16 +857,6 @@ export default function QuickScan() {
                                     <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4 uppercase">Fetching Contract</h2>
                                     <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-sm mx-auto">
                                         Retrieving source code from block explorer...
-                                    </p>
-                                </>
-                            ) : validationStatus === 'valid' && !contractInfo ? (
-                                <>
-                                    <div className="w-24 h-24 bg-white border border-emerald-100 rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-xl shadow-emerald-100/50">
-                                        <CheckCircle size={40} className="text-emerald-500" />
-                                    </div>
-                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4 uppercase">Contract Verified</h2>
-                                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-sm mx-auto">
-                                        Click "Run Formal Analysis" to start the security scan.
                                     </p>
                                 </>
                             ) : (

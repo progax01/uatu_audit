@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
     Shield, Search, Calendar, Globe, ArrowRight,
@@ -76,7 +76,7 @@ export default function PublicAudits() {
         return () => clearTimeout(timer)
     }, [searchInput])
 
-    // Fetch stats on mount
+    // Fetch stats on mount and poll for updates
     useEffect(() => {
         const fetchStats = async () => {
             try {
@@ -90,13 +90,23 @@ export default function PublicAudits() {
             }
         }
         fetchStats()
+
+        // Poll stats every 5 seconds
+        const statsInterval = setInterval(fetchStats, 5000)
+        return () => clearInterval(statsInterval)
     }, [])
+
+    // Track audits in a ref for polling without causing re-renders
+    const auditsRef = useRef<PublicAudit[]>([])
+    auditsRef.current = audits
 
     // Fetch audits when page/filters change
     useEffect(() => {
-        const fetchAudits = async () => {
-            setLoading(true)
-            setError(null)
+        const fetchAudits = async (isPolling = false) => {
+            if (!isPolling) {
+                setLoading(true)
+                setError(null)
+            }
             try {
                 const params = new URLSearchParams({
                     page: String(page),
@@ -112,18 +122,35 @@ export default function PublicAudits() {
                 if (data.ok) {
                     setAudits(data.audits)
                     setPagination(data.pagination)
-                } else {
+                } else if (!isPolling) {
                     setError(data.error || 'Failed to fetch audits')
                 }
             } catch (err) {
                 console.error('Failed to fetch audits:', err)
-                setError('Failed to connect to server')
+                if (!isPolling) {
+                    setError('Failed to connect to server')
+                }
             } finally {
-                setLoading(false)
+                if (!isPolling) {
+                    setLoading(false)
+                }
             }
         }
 
         fetchAudits()
+
+        // Set up polling for in-progress audits
+        const pollInterval = setInterval(() => {
+            // Check if any audits are in progress using ref to avoid dependency issues
+            const hasInProgress = auditsRef.current.some(a =>
+                ['pending', 'queued', 'analyzing', 'auditing', 'generating'].includes(a.status)
+            )
+            if (hasInProgress) {
+                fetchAudits(true)
+            }
+        }, 3000) // Poll every 3 seconds
+
+        return () => clearInterval(pollInterval)
     }, [page, selectedNetwork, debouncedSearch])
 
     const handlePageChange = (newPage: number) => {
