@@ -598,10 +598,21 @@ export default function ProjectCreate({ onNext, onBack }: ProjectCreateProps) {
                       </button>
                     </div>
                   ) : (
-                    <>
+                    <div className="bg-white rounded-2xl border border-black/[0.03] p-8">
+                      {/* Header */}
+                      <div className="text-center mb-8">
+                        <div className="w-16 h-16 rounded-xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+                          <Github size={28} className="text-emerald-600" />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-900 mb-1">GitHub Connected</h4>
+                        <p className="text-xs text-slate-400">
+                          Select a repository to audit
+                        </p>
+                      </div>
+
                       {/* Repo Structure for Full Audit */}
                       {selectedType === 'full' && (
-                        <div className="space-y-3">
+                        <div className="space-y-3 mb-6">
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                             Project Structure
                           </label>
@@ -611,7 +622,7 @@ export default function ProjectCreate({ onNext, onBack }: ProjectCreateProps) {
                               className={`flex-1 flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                                 repoStructure === 'monorepo'
                                   ? 'bg-indigo-50 border-indigo-200'
-                                  : 'bg-white border-black/[0.03] hover:border-slate-200'
+                                  : 'bg-slate-50 border-transparent hover:border-slate-200'
                               }`}
                             >
                               <FolderGit size={18} className={repoStructure === 'monorepo' ? 'text-indigo-600' : 'text-slate-400'} />
@@ -625,7 +636,7 @@ export default function ProjectCreate({ onNext, onBack }: ProjectCreateProps) {
                               className={`flex-1 flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                                 repoStructure === 'multirepo'
                                   ? 'bg-indigo-50 border-indigo-200'
-                                  : 'bg-white border-black/[0.03] hover:border-slate-200'
+                                  : 'bg-slate-50 border-transparent hover:border-slate-200'
                               }`}
                             >
                               <Layers size={18} className={repoStructure === 'multirepo' ? 'text-indigo-600' : 'text-slate-400'} />
@@ -640,90 +651,109 @@ export default function ProjectCreate({ onNext, onBack }: ProjectCreateProps) {
 
                       {/* Single repo selector (monorepo or contracts-only) */}
                       {(selectedType === 'contract-only' || repoStructure === 'monorepo') && (
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                              {selectedType === 'full' ? 'Monorepo' : 'Repository'}
-                            </label>
-                            <button
-                              onClick={fetchRepositories}
-                              disabled={loadingRepos}
-                              className="text-xs text-slate-400 hover:text-indigo-600 flex items-center gap-1"
-                            >
-                              <RefreshCw size={12} className={loadingRepos ? 'animate-spin' : ''} />
-                              Refresh
-                            </button>
-                          </div>
-                          <div className="flex gap-3">
+                        <div className="space-y-5">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                {selectedType === 'full' ? 'Monorepo' : 'Repository'}
+                              </label>
+                              <button
+                                onClick={fetchRepositories}
+                                disabled={loadingRepos}
+                                className="text-xs text-slate-400 hover:text-indigo-600 flex items-center gap-1"
+                              >
+                                <RefreshCw size={12} className={loadingRepos ? 'animate-spin' : ''} />
+                                Refresh
+                              </button>
+                            </div>
                             <select
                               value={selectedRepo?.full_name || ''}
                               onChange={(e) => {
                                 const r = repositories.find(r => r.full_name === e.target.value)
                                 if (r) handleRepoSelect(r, setSelectedRepo, setSelectedBranch)
                               }}
-                              className="flex-1 bg-slate-50 border border-black/[0.03] rounded-xl px-4 py-3 text-sm text-slate-900 font-bold focus:outline-none focus:bg-white focus:border-indigo-100 transition-all"
+                              className="w-full bg-slate-50 border border-black/[0.03] rounded-xl px-4 py-3.5 text-sm text-slate-900 font-bold focus:outline-none focus:bg-white focus:border-indigo-100 transition-all"
                             >
                               <option value="">Select repository...</option>
                               {repositories.map(r => (
                                 <option key={r.id} value={r.full_name}>{r.full_name}</option>
                               ))}
                             </select>
-                            {selectedRepo && (
+                          </div>
+                          {selectedRepo && (
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Branch
+                              </label>
                               <select
                                 value={selectedBranch}
                                 onChange={(e) => setSelectedBranch(e.target.value)}
-                                className="w-40 bg-slate-50 border border-black/[0.03] rounded-xl px-4 py-3 text-sm text-slate-900 font-bold focus:outline-none focus:bg-white focus:border-indigo-100 transition-all"
+                                className="w-full bg-slate-50 border border-black/[0.03] rounded-xl px-4 py-3.5 text-sm text-slate-900 font-bold focus:outline-none focus:bg-white focus:border-indigo-100 transition-all"
                               >
                                 {branches.map(b => (
                                   <option key={b.name} value={b.name}>{b.name}</option>
                                 ))}
                               </select>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
                       {/* Multi-repo selectors */}
                       {selectedType === 'full' && repoStructure === 'multirepo' && (
-                        <div className="space-y-6">
+                        <div className="space-y-5">
                           {renderRepoSelector('Contracts Repository', contractsRepo, contractsBranch, setContractsRepo, setContractsBranch, false)}
                           {renderRepoSelector('Frontend Repository', frontendRepo, frontendBranch, setFrontendRepo, setFrontendBranch, true)}
                           {renderRepoSelector('Backend Repository', backendRepo, backendBranch, setBackendRepo, setBackendBranch, true)}
                         </div>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
               )}
 
               {/* Deployed Contract Source */}
               {sourceMode === 'deployed' && (
-                <div className="space-y-6">
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Network
-                    </label>
-                    <select
-                      value={selectedNetwork}
-                      onChange={(e) => setSelectedNetwork(e.target.value)}
-                      className="w-full bg-slate-50 border border-black/[0.03] rounded-xl px-4 py-3 text-sm text-slate-900 font-bold focus:outline-none focus:bg-white focus:border-indigo-100 transition-all"
-                    >
-                      {NETWORKS.map(n => (
-                        <option key={n.id} value={n.id}>{n.name}</option>
-                      ))}
-                    </select>
+                <div className="bg-white rounded-2xl border border-black/[0.03] p-8">
+                  {/* Header */}
+                  <div className="text-center mb-8">
+                    <div className="w-16 h-16 rounded-xl bg-slate-50 flex items-center justify-center mx-auto mb-4">
+                      <ExternalLink size={28} className="text-slate-400" />
+                    </div>
+                    <h4 className="text-sm font-black text-slate-900 mb-1">Import from Blockchain</h4>
+                    <p className="text-xs text-slate-400">
+                      We'll fetch verified source code from the block explorer
+                    </p>
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Contract Address
-                    </label>
-                    <input
-                      type="text"
-                      value={contractAddress}
-                      onChange={(e) => setContractAddress(e.target.value)}
-                      placeholder="0x..."
-                      className="w-full bg-slate-50 border border-black/[0.03] rounded-xl px-4 py-3 text-sm text-slate-900 font-mono font-bold focus:outline-none focus:bg-white focus:border-indigo-100 transition-all placeholder:text-slate-300"
-                    />
+
+                  {/* Form */}
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Network
+                      </label>
+                      <select
+                        value={selectedNetwork}
+                        onChange={(e) => setSelectedNetwork(e.target.value)}
+                        className="w-full bg-slate-50 border border-black/[0.03] rounded-xl px-4 py-3.5 text-sm text-slate-900 font-bold focus:outline-none focus:bg-white focus:border-indigo-100 transition-all"
+                      >
+                        {NETWORKS.map(n => (
+                          <option key={n.id} value={n.id}>{n.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Contract Address
+                      </label>
+                      <input
+                        type="text"
+                        value={contractAddress}
+                        onChange={(e) => setContractAddress(e.target.value)}
+                        placeholder="0x..."
+                        className="w-full bg-slate-50 border border-black/[0.03] rounded-xl px-4 py-3.5 text-sm text-slate-900 font-mono font-bold focus:outline-none focus:bg-white focus:border-indigo-100 transition-all placeholder:text-slate-300"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

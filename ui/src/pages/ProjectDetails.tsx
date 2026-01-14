@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import {
-    Shield, ChevronRight, ArrowLeft, Loader2, FileCode, Github, GitBranch, Play
+    Shield, ChevronRight, ArrowLeft, Loader2, FileCode, Github, GitBranch, Play, Trash2, Plus, AlertTriangle
 } from 'lucide-react'
 import { authFetch } from '../services/authService'
 
@@ -28,6 +28,28 @@ export default function ProjectDetails() {
     const [project, setProject] = useState<Project | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [deleting, setDeleting] = useState(false)
+
+    const handleDelete = async () => {
+        if (!project) return
+        setDeleting(true)
+        try {
+            const response = await authFetch(`/api/projects/${project.id}`, {
+                method: 'DELETE'
+            })
+            if (response.ok) {
+                navigate('/dashboard')
+            } else {
+                setError('Failed to delete project')
+            }
+        } catch (err) {
+            setError('Failed to delete project')
+        } finally {
+            setDeleting(false)
+            setShowDeleteConfirm(false)
+        }
+    }
 
     useEffect(() => {
         const fetchProject = async () => {
@@ -110,6 +132,41 @@ export default function ProjectDetails() {
                 Back to Projects
             </button>
 
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl">
+                        <div className="w-14 h-14 rounded-xl bg-rose-50 flex items-center justify-center mx-auto mb-5">
+                            <AlertTriangle size={28} className="text-rose-500" />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 text-center mb-2">Delete Project?</h3>
+                        <p className="text-sm text-slate-500 text-center mb-8">
+                            This will permanently delete <span className="font-bold text-slate-700">"{project.name}"</span> and all associated data. This action cannot be undone.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowDeleteConfirm(false)}
+                                className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDelete}
+                                disabled={deleting}
+                                className="flex-1 px-6 py-3 bg-rose-600 text-white rounded-xl font-bold text-sm hover:bg-rose-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                                {deleting ? (
+                                    <Loader2 size={16} className="animate-spin" />
+                                ) : (
+                                    <Trash2 size={16} />
+                                )}
+                                {deleting ? 'Deleting...' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Hero */}
             <div className="flex items-end justify-between">
                 <div>
@@ -124,14 +181,23 @@ export default function ProjectDetails() {
                     )}
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     <button
-                        onClick={() => navigate(`/preaudit-questionnaire/${project.lastAuditJobId || 'new'}`)}
-                        className="btn-primary px-6 py-3"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="p-3 rounded-xl border border-black/[0.03] text-slate-400 hover:text-rose-600 hover:border-rose-100 hover:bg-rose-50 transition-all"
+                        title="Delete project"
                     >
-                        <Play size={14} />
-                        Start Audit
+                        <Trash2 size={18} />
                     </button>
+                    {project.components && project.components.length > 0 && (
+                        <button
+                            onClick={() => navigate(`/preaudit-questionnaire/${project.lastAuditJobId || 'new'}`)}
+                            className="btn-primary px-6 py-3"
+                        >
+                            <Play size={14} />
+                            Start Audit
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -173,18 +239,36 @@ export default function ProjectDetails() {
                     </div>
                 ) : (
                     <div className="card-premium text-center py-12">
-                        <div className="w-16 h-16 rounded-xl bg-slate-50 flex items-center justify-center mx-auto mb-4">
-                            <FileCode size={24} className="text-slate-300" />
+                        <div className="w-16 h-16 rounded-xl bg-amber-50 flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle size={24} className="text-amber-500" />
                         </div>
-                        <h3 className="text-sm font-black text-slate-900 mb-2">No Sources Connected</h3>
-                        <p className="text-xs text-slate-400 mb-6">Add a GitHub repository or deployed contract to start auditing</p>
-                        <button
-                            onClick={() => navigate('/add-components')}
-                            className="btn-ghost px-6 py-2 mx-auto"
-                        >
-                            Connect Source
-                            <ChevronRight size={12} />
-                        </button>
+                        <h3 className="text-sm font-black text-slate-900 mb-2">Incomplete Setup</h3>
+                        <p className="text-xs text-slate-400 mb-6 max-w-sm mx-auto">
+                            This project was created but no sources were connected. Add a repository or contract to continue, or delete this project.
+                        </p>
+                        <div className="flex items-center justify-center gap-3">
+                            <button
+                                onClick={() => {
+                                    localStorage.setItem('pending_project', JSON.stringify({
+                                        id: project.id,
+                                        name: project.name,
+                                        type: project.type
+                                    }))
+                                    navigate('/add-components')
+                                }}
+                                className="btn-primary px-6 py-3"
+                            >
+                                <Plus size={14} />
+                                Connect Source
+                            </button>
+                            <button
+                                onClick={() => setShowDeleteConfirm(true)}
+                                className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center gap-2"
+                            >
+                                <Trash2 size={14} />
+                                Delete Project
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

@@ -189,6 +189,32 @@ const getProjectHandler: RouteHandler = async (req, res, ctx, params) => {
 };
 
 /**
+ * GET /api/projects/by-slug/:slug - Get project by slug
+ */
+const getProjectBySlugHandler: RouteHandler = async (req, res, ctx, params) => {
+  if (!ctx.userId) {
+    return sendError(res, 401, 'Authentication required');
+  }
+
+  const slug = params?.slug;
+  if (!slug) {
+    return sendError(res, 400, 'Project slug required');
+  }
+
+  try {
+    const project = await getProjectBySlug(ctx.userId, slug);
+    if (!project) {
+      return sendError(res, 404, 'Project not found');
+    }
+
+    sendJson(res, 200, { project });
+  } catch (error: any) {
+    log.error('Failed to get project by slug:', error);
+    sendError(res, 500, error.message || 'Failed to get project');
+  }
+};
+
+/**
  * PUT /api/projects/:id - Update project
  */
 const updateProjectHandler: RouteHandler = async (req, res, ctx, params) => {
@@ -478,6 +504,7 @@ interface Route {
 const routes: Route[] = [
   { method: 'POST', pattern: '/api/projects', handler: createProjectHandler },
   { method: 'GET', pattern: '/api/projects', handler: listProjectsHandler },
+  { method: 'GET', pattern: '/api/projects/by-slug/:slug', handler: getProjectBySlugHandler },
   { method: 'GET', pattern: '/api/projects/:id', handler: getProjectHandler },
   { method: 'PUT', pattern: '/api/projects/:id', handler: updateProjectHandler },
   { method: 'DELETE', pattern: '/api/projects/:id', handler: deleteProjectHandler },

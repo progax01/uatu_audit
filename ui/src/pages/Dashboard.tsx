@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import {
   GitBranch, ArrowRight, Plus,
   FileCode, Globe, Package,
-  ShieldCheck, Shield, FolderGit2, Clock, Github, Zap, Search
+  ShieldCheck, Shield, FolderGit2, Clock, Github, Zap, Search, AlertTriangle
 } from 'lucide-react'
 import { getStoredUser, authFetch } from '../services/authService'
 import { Link } from 'react-router-dom'
@@ -194,8 +194,14 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
               className="card-premium group cursor-pointer"
             >
               <div className="flex items-start justify-between mb-8">
-                <div className={`w-14 h-14 rounded-2xl bg-slate-50 border border-black/[0.02] flex items-center justify-center transition-all group-hover:bg-indigo-600 group-hover:text-white group-hover:shadow-xl group-hover:shadow-indigo-100`}>
-                  {project.type && PROJECT_TYPE_CONFIG[project.type] ? (
+                <div className={`w-14 h-14 rounded-2xl border border-black/[0.02] flex items-center justify-center transition-all ${
+                  project.componentCount === 0
+                    ? 'bg-amber-50 group-hover:bg-amber-500'
+                    : 'bg-slate-50 group-hover:bg-indigo-600 group-hover:shadow-xl group-hover:shadow-indigo-100'
+                } group-hover:text-white`}>
+                  {project.componentCount === 0 ? (
+                    <AlertTriangle size={24} strokeWidth={2} className="text-amber-500 group-hover:text-white transition-colors" />
+                  ) : project.type && PROJECT_TYPE_CONFIG[project.type] ? (
                     <div className={PROJECT_TYPE_CONFIG[project.type].colorClass}>
                       {(() => {
                         const Icon = PROJECT_TYPE_CONFIG[project.type].icon
@@ -206,9 +212,15 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
                     <Shield size={24} strokeWidth={2} className="text-slate-400 group-hover:text-white" />
                   )}
                 </div>
-                <div className={`px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider ${STATUS_CONFIG[project.status]?.colorClass || 'text-slate-400 bg-slate-50 border-slate-100'}`}>
-                  {STATUS_CONFIG[project.status]?.label || project.status}
-                </div>
+                {project.componentCount === 0 ? (
+                  <div className="px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 border-amber-100">
+                    INCOMPLETE
+                  </div>
+                ) : (
+                  <div className={`px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider ${STATUS_CONFIG[project.status]?.colorClass || 'text-slate-400 bg-slate-50 border-slate-100'}`}>
+                    {STATUS_CONFIG[project.status]?.label || project.status}
+                  </div>
+                )}
               </div>
 
               <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2 group-hover:text-indigo-600 transition-colors">
@@ -216,19 +228,28 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
               </h3>
 
               <div className="space-y-2 mb-8">
-                <div className="flex items-center gap-2 text-[12px] text-slate-400">
-                  <GitBranch size={12} />
-                  <span className="font-medium">{project.branch || 'main'}</span>
-                </div>
-                <div className="flex items-center gap-2 text-[12px] text-slate-400">
-                  <FileCode size={12} />
-                  <span className="font-medium">{project.componentCount} contract{project.componentCount !== 1 ? 's' : ''}</span>
-                </div>
-                {project.lastAuditAt && (
-                  <div className="flex items-center gap-2 text-[12px] text-slate-400">
-                    <Clock size={12} />
-                    <span className="font-medium">Last audit {new Date(project.lastAuditAt).toLocaleDateString()}</span>
+                {project.componentCount === 0 ? (
+                  <div className="flex items-center gap-2 text-[12px] text-amber-600">
+                    <AlertTriangle size={12} />
+                    <span className="font-medium">Click to complete setup or delete</span>
                   </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-[12px] text-slate-400">
+                      <GitBranch size={12} />
+                      <span className="font-medium">{project.branch || 'main'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[12px] text-slate-400">
+                      <FileCode size={12} />
+                      <span className="font-medium">{project.componentCount} source{project.componentCount !== 1 ? 's' : ''}</span>
+                    </div>
+                    {project.lastAuditAt && (
+                      <div className="flex items-center gap-2 text-[12px] text-slate-400">
+                        <Clock size={12} />
+                        <span className="font-medium">Last audit {new Date(project.lastAuditAt).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 

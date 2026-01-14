@@ -17,7 +17,7 @@
  * These constraints are enforced at application level in scan.ts handlers.
  */
 
-import { eq, and, desc, sql, like, or } from 'drizzle-orm';
+import { eq, and, desc, sql, like, or, not, inArray } from 'drizzle-orm';
 import { getDb } from '../db';
 import {
   auditJobs,
@@ -83,6 +83,7 @@ export async function createQuickScanJob(data: CreateQuickScanJobInput): Promise
 
 /**
  * Update job progress (progressPct and progressMessage)
+ * Note: Will not update status if job is already completed/failed to prevent race conditions
  */
 export async function updateJobProgress(
   jobId: string,
@@ -104,9 +105,24 @@ export async function updateJobProgress(
     updates.status = status;
   }
 
-  await db.update(auditJobs)
-    .set(updates)
-    .where(eq(auditJobs.id, jobId));
+  // Use a conditional update to prevent race condition where progress update
+  // overwrites 'completed' or 'failed' status back to an in-progress status
+  const terminalStatuses: JobStatus[] = ['completed', 'failed', 'cancelled'];
+
+  if (status && !terminalStatuses.includes(status)) {
+    // Only update if the job is NOT already in a terminal state
+    await db.update(auditJobs)
+      .set(updates)
+      .where(and(
+        eq(auditJobs.id, jobId),
+        not(inArray(auditJobs.status, terminalStatuses))
+      ));
+  } else {
+    // For terminal status updates or no status update, just apply
+    await db.update(auditJobs)
+      .set(updates)
+      .where(eq(auditJobs.id, jobId));
+  }
 }
 
 /**

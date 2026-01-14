@@ -332,7 +332,9 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
         }
 
         // If job is completed, fetch report
-        if (jobData.job.status === 'completed' || jobData.job.status === 'done') {
+        // Check both status and completedAt to handle race condition where completedAt is set but status wasn't updated
+        const isJobComplete = jobData.job.status === 'completed' || jobData.job.status === 'done' || jobData.job.completedAt;
+        if (isJobComplete) {
           const reportRes = await fetch(`/report?project=${encodeURIComponent(jobData.job.project)}&branch=${encodeURIComponent(jobData.job.branch)}&format=json`);
           if (reportRes.ok) {
             const rData = await reportRes.json();
@@ -379,7 +381,9 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
     let intervalId: NodeJS.Timeout;
     if (jobId && /^\d+$/.test(jobId)) {
       intervalId = setInterval(() => {
-        if (jobInfo?.status !== 'completed' && jobInfo?.status !== 'done' && jobInfo?.status !== 'failed') {
+        // Check both status and completedAt to determine if job is done
+        const isComplete = jobInfo?.status === 'completed' || jobInfo?.status === 'done' || jobInfo?.status === 'failed' || jobInfo?.completedAt;
+        if (!isComplete) {
           fetchJobAndProgress();
         }
       }, 5000);
@@ -490,8 +494,8 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       </header>
 
       <main className="max-w-[1500px] mx-auto p-12 space-y-12">
-        {/* Progress Tracker for Active Jobs */}
-        {(jobInfo?.status !== 'completed' && jobInfo?.status !== 'done' && jobInfo) && (
+        {/* Progress Tracker for Active Jobs - hide if completed (by status OR completedAt) */}
+        {(jobInfo && !jobInfo.completedAt && jobInfo.status !== 'completed' && jobInfo.status !== 'done') && (
           <div className="space-y-8">
             {jobInfo.status === 'awaiting_clarification' && (
               <motion.div
