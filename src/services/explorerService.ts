@@ -101,6 +101,8 @@ export interface ContractSourceWithMeta extends ContractSource {
   implementationSource?: ContractSource;
   files: string[];
   fileCount: number;
+  deployerAddress?: string;
+  creationTxHash?: string;
 }
 
 // Combined validation and fetch result
@@ -118,6 +120,8 @@ export interface ValidateAndFetchResult {
   files: string[];
   fileCount: number;
   cached: boolean;
+  deployerAddress?: string;
+  creationTxHash?: string;
 }
 
 // Explorer API response types
@@ -506,6 +510,55 @@ export async function detectProxy(
 }
 
 /**
+ * Fetch the deployer address (contract creator) for a contract
+ * Uses Etherscan's getcontractcreation API
+ */
+export async function fetchDeployerAddress(
+  address: string,
+  network: string
+): Promise<{ deployerAddress?: string; creationTxHash?: string }> {
+  const config = NETWORKS[network];
+  if (!config) {
+    return {};
+  }
+
+  const apiKey = getApiKey();
+
+  try {
+    const url = new URL(ETHERSCAN_V2_API);
+    url.searchParams.set("chainid", config.chainId.toString());
+    url.searchParams.set("module", "contract");
+    url.searchParams.set("action", "getcontractcreation");
+    url.searchParams.set("contractaddresses", address);
+    if (apiKey) {
+      url.searchParams.set("apikey", apiKey);
+    }
+
+    const response = await fetch(url.toString());
+    const data = await response.json() as ExplorerApiResponse;
+
+    if (data.status === "1" && data.result && data.result.length > 0) {
+      const result = data.result[0];
+      log.info("Fetched deployer address", {
+        address,
+        network,
+        deployer: result.contractCreator,
+        txHash: result.txHash,
+      });
+      return {
+        deployerAddress: result.contractCreator,
+        creationTxHash: result.txHash,
+      };
+    }
+
+    return {};
+  } catch (error) {
+    log.warn("Failed to fetch deployer address", { address, network, error });
+    return {};
+  }
+}
+
+/**
  * Combined validate and fetch - single API call flow with caching and proxy detection
  */
 export async function validateAndFetchContract(
@@ -580,8 +633,11 @@ export async function validateAndFetchContract(
     throw error;
   }
 
-  // Detect proxy
-  const proxyInfo = await detectProxy(address, network);
+  // Detect proxy and fetch deployer address in parallel
+  const [proxyInfo, deployerInfo] = await Promise.all([
+    detectProxy(address, network),
+    fetchDeployerAddress(address, network),
+  ]);
 
   // If it's a proxy, fetch implementation source too
   let implementationSource: ContractSource | undefined;
@@ -624,6 +680,8 @@ export async function validateAndFetchContract(
     implementationSource,
     files: allFiles,
     fileCount: allFiles.length,
+    deployerAddress: deployerInfo.deployerAddress,
+    creationTxHash: deployerInfo.creationTxHash,
   };
 
   // Cache the result
@@ -643,6 +701,8 @@ export async function validateAndFetchContract(
     files: allFiles,
     fileCount: allFiles.length,
     cached: false,
+    deployerAddress: deployerInfo.deployerAddress,
+    creationTxHash: deployerInfo.creationTxHash,
   };
 }
 

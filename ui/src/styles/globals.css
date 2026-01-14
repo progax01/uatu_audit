@@ -13,6 +13,18 @@
     @apply antialiased text-slate-900 dark:text-slate-100;
   }
 
+  /* Force light mode text colors for form inputs regardless of system theme */
+  input,
+  textarea,
+  select {
+    color: #0f172a !important; /* slate-900 */
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #cbd5e1 !important; /* slate-300 */
+  }
+
   h1 {
     font-size: var(--text-4xl);
     line-height: var(--leading-tight);

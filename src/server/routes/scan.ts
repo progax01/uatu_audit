@@ -15,6 +15,7 @@ import {
   isValidAddress,
   getExplorerUrl,
   detectProxy,
+  fetchDeployerAddress,
   NETWORKS,
 } from "../../services/explorerService.js";
 import { enqueue } from "../../services/jobQueue.js";
@@ -404,6 +405,8 @@ export async function handleScanRoutes(
               isProxy: metadata.isProxy || false,
               implementationAddress: metadata.implementationAddress,
               implementationName: metadata.implementationName,
+              deployerAddress: metadata.deployerAddress,
+              creationTxHash: metadata.creationTxHash,
               files: solFiles,
               fileCount: solFiles.length,
               cached: true,
@@ -465,6 +468,8 @@ export async function handleScanRoutes(
               isProxy: cachedSource.isProxy,
               implementationAddress: cachedSource.implementationAddress,
               implementationName: cachedSource.implementationName,
+              deployerAddress: cachedSource.deployerAddress,
+              creationTxHash: cachedSource.creationTxHash,
               fetchedAt: new Date().toISOString(),
               explorerUrl: getExplorerUrl(address, network),
             },
@@ -596,6 +601,8 @@ export async function handleScanRoutes(
       let contractName = "Contract";
       let isProxy = false;
       let implementationAddressFromMeta: string | undefined;
+      let deployerAddressFromMeta: string | undefined;
+      let creationTxHashFromMeta: string | undefined;
 
       // Check if already saved to workspace
       if (await fs.pathExists(metadataPath)) {
@@ -603,7 +610,9 @@ export async function handleScanRoutes(
         contractName = metadata.contractName || "Contract";
         isProxy = metadata.isProxy || false;
         implementationAddressFromMeta = metadata.implementationAddress;
-        log.info("Using existing workspace", { address, contractName, isProxy, implementationAddressFromMeta });
+        deployerAddressFromMeta = metadata.deployerAddress;
+        creationTxHashFromMeta = metadata.creationTxHash;
+        log.info("Using existing workspace", { address, contractName, isProxy, implementationAddressFromMeta, deployerAddressFromMeta });
       } else {
         // Try to use cached source first (from validate-and-fetch)
         const cachedSource = getCachedContractSource(address, network);
@@ -646,11 +655,17 @@ export async function handleScanRoutes(
               isProxy: cachedSource.isProxy,
               implementationAddress: cachedSource.implementationAddress,
               implementationName: cachedSource.implementationName,
+              deployerAddress: cachedSource.deployerAddress,
+              creationTxHash: cachedSource.creationTxHash,
               fetchedAt: new Date().toISOString(),
               explorerUrl: getExplorerUrl(address, network),
             },
             { spaces: 2 }
           );
+
+          // Also update local vars for job creation
+          deployerAddressFromMeta = cachedSource.deployerAddress;
+          creationTxHashFromMeta = cachedSource.creationTxHash;
 
           await fs.writeJson(path.join(workspacePath, "abi.json"), cachedSource.abi, { spaces: 2 });
         } else {
@@ -819,6 +834,8 @@ export async function handleScanRoutes(
             contractName,
             isProxy,
             implementationAddress: isProxy ? effectiveAddress : undefined,
+            deployerAddress: deployerAddressFromMeta,
+            creationTxHash: creationTxHashFromMeta,
           });
 
           // Update to queued status
@@ -856,9 +873,11 @@ export async function handleScanRoutes(
           contractName,
           isProxy,
           implementationAddress: isProxy ? effectiveAddress : undefined,
+          deployerAddress: deployerAddressFromMeta,
+          creationTxHash: creationTxHashFromMeta,
         });
 
-        log.info("Created quick scan job", { jobId: auditJob.id, contractName, effectiveAddress, isProxy });
+        log.info("Created quick scan job", { jobId: auditJob.id, contractName, effectiveAddress, isProxy, deployerAddress: deployerAddressFromMeta });
 
         // Setup SSE response for progress streaming
         res.writeHead(200, {

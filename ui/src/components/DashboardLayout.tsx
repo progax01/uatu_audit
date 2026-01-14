@@ -53,10 +53,10 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
 
     const navItems = [
         { id: 'overview', label: 'Projects', icon: FolderGit2, path: '/dashboard' },
-        { id: 'nodes', label: 'Audit Reports', icon: FileSearch, path: '/nodes' },
-        { id: 'management', label: 'Team', icon: Users, path: '/management' },
+        { id: 'nodes', label: 'Audit Reports', icon: FileSearch, path: '/nodes', comingSoon: true },
+        { id: 'management', label: 'Team', icon: Users, path: '/management', comingSoon: true },
         { id: 'credentials', label: 'Security', icon: Shield, path: '/credentials' },
-        { id: 'billing', label: 'Usage & Billing', icon: Zap, path: '/subscription' },
+        { id: 'billing', label: 'Usage & Billing', icon: Zap, path: '/subscription', comingSoon: true },
         { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
     ]
 
@@ -103,6 +103,25 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                 <div className="flex-1 px-6 py-10 space-y-2 overflow-y-auto scrollbar-hide">
                     {navItems.map((item) => {
                         const isActive = activeTab === item.id
+                        const isDisabled = item.comingSoon
+
+                        if (isDisabled) {
+                            return (
+                                <div
+                                    key={item.id}
+                                    className="group flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-300 cursor-not-allowed relative"
+                                >
+                                    <item.icon size={18} strokeWidth={2} />
+                                    <span className="text-[11px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
+                                        {item.label}
+                                    </span>
+                                    <span className="absolute right-4 px-2 py-0.5 bg-slate-100 text-slate-400 text-[8px] font-black uppercase tracking-wider rounded-full">
+                                        Soon
+                                    </span>
+                                </div>
+                            )
+                        }
+
                         return (
                             <Link
                                 key={item.id}

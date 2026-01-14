@@ -1,97 +1,38 @@
-import { useState } from 'react'
-import { GitBranch, Bell, Package, Play, Shield, Save, RefreshCw } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { User, Shield, Bell, Wallet, Github, ExternalLink, Copy, Check } from 'lucide-react'
 import { motion } from 'framer-motion'
-
-interface AuditSettings {
-    // Library settings
-    auditOpenZeppelin: boolean
-    auditOpenSourceLibs: boolean
-    skipNodeModules: boolean
-
-    // Branch settings
-    autoAuditMainBranch: boolean
-    auditOnEveryPush: boolean
-    auditBranchPattern: string
-
-    // Automation
-    autoStartAudit: boolean
-    requireApproval: boolean
-
-    // Notifications
-    telegramEnabled: boolean
-    telegramChatId: string
-    slackEnabled: boolean
-    slackWebhook: string
-    emailNotifications: boolean
-}
+import { getStoredUser, type AuthUser } from '../services/authService'
 
 export default function Settings() {
-    const [saving, setSaving] = useState(false)
-    const [saved, setSaved] = useState(false)
-    const [settings, setSettings] = useState<AuditSettings>({
-        auditOpenZeppelin: false,
-        auditOpenSourceLibs: false,
-        skipNodeModules: true,
-        autoAuditMainBranch: true,
-        auditOnEveryPush: false,
-        auditBranchPattern: 'audit/*',
-        autoStartAudit: false,
-        requireApproval: true,
-        telegramEnabled: false,
-        telegramChatId: '',
-        slackEnabled: false,
-        slackWebhook: '',
-        emailNotifications: true,
-    })
+    const [user, setUser] = useState<AuthUser | null>(null)
+    const [copied, setCopied] = useState(false)
 
-    const handleSave = async () => {
-        setSaving(true)
-        try {
-            // Save settings to API
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            setSaved(true)
-            setTimeout(() => setSaved(false), 2000)
-        } catch (err) {
-            console.error('Failed to save settings:', err)
-        } finally {
-            setSaving(false)
+    useEffect(() => {
+        const storedUser = getStoredUser()
+        setUser(storedUser)
+    }, [])
+
+    const copyUserId = () => {
+        if (user?.id) {
+            navigator.clipboard.writeText(user.id)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
         }
     }
 
-    const updateSetting = <K extends keyof AuditSettings>(key: K, value: AuditSettings[K]) => {
-        setSettings(prev => ({ ...prev, [key]: value }))
-        setSaved(false)
-    }
-
     return (
-        <div className="space-y-8 animate-reveal">
+        <div className="space-y-8 animate-reveal max-w-3xl">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">
-                        Audit <span className="text-indigo-600">Settings</span>
-                    </h1>
-                    <p className="text-slate-400 font-medium text-[13px] mt-2 max-w-xl leading-relaxed">
-                        Configure how audits run, what gets scanned, and notification preferences.
-                    </p>
-                </div>
-                <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className={`btn-primary h-12 px-6 ${saved ? 'bg-emerald-600 hover:bg-emerald-600' : ''}`}
-                >
-                    {saving ? (
-                        <RefreshCw size={16} className="animate-spin" />
-                    ) : saved ? (
-                        <Shield size={16} />
-                    ) : (
-                        <Save size={16} />
-                    )}
-                    {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
-                </button>
+            <div>
+                <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">
+                    Account <span className="text-indigo-600">Settings</span>
+                </h1>
+                <p className="text-slate-400 font-medium text-[13px] mt-2 leading-relaxed">
+                    View your account information and connected services.
+                </p>
             </div>
 
-            {/* Library Scanning */}
+            {/* Profile Card */}
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -99,42 +40,56 @@ export default function Settings() {
             >
                 <div className="flex items-center gap-4 mb-6">
                     <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
-                        <Package size={18} />
+                        <User size={18} />
                     </div>
                     <div>
-                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Library Scanning</h2>
-                        <p className="text-[11px] text-slate-400">Choose which dependencies to include in audits</p>
+                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Profile</h2>
+                        <p className="text-[11px] text-slate-400">Your account information</p>
                     </div>
                 </div>
 
                 <div className="space-y-4">
+                    {/* Display Name */}
                     <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
                         <div>
-                            <h3 className="font-bold text-slate-900 text-sm">Audit OpenZeppelin Contracts</h3>
-                            <p className="text-[11px] text-slate-400 mt-0.5">Include @openzeppelin/* in security scans</p>
+                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Display Name</h3>
+                            <p className="font-bold text-slate-900">{user?.displayName || user?.username || user?.githubLogin || 'Anonymous'}</p>
                         </div>
-                        <Toggle checked={settings.auditOpenZeppelin} onChange={(v) => updateSetting('auditOpenZeppelin', v)} />
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
-                        <div>
-                            <h3 className="font-bold text-slate-900 text-sm">Audit Open Source Libraries</h3>
-                            <p className="text-[11px] text-slate-400 mt-0.5">Scan Solady, Solmate, and other verified libs</p>
+                    {/* Email */}
+                    {user?.email && (
+                        <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
+                            <div>
+                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email</h3>
+                                <p className="font-bold text-slate-900">{user.email}</p>
+                            </div>
                         </div>
-                        <Toggle checked={settings.auditOpenSourceLibs} onChange={(v) => updateSetting('auditOpenSourceLibs', v)} />
-                    </div>
+                    )}
 
-                    <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
-                        <div>
-                            <h3 className="font-bold text-slate-900 text-sm">Skip node_modules</h3>
-                            <p className="text-[11px] text-slate-400 mt-0.5">Exclude NPM packages from audit scope</p>
+                    {/* User ID */}
+                    {user?.id && (
+                        <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">User ID</h3>
+                                <p className="font-mono text-sm text-slate-600 truncate">{user.id}</p>
+                            </div>
+                            <button
+                                onClick={copyUserId}
+                                className="ml-4 p-2 rounded-lg hover:bg-white transition-colors"
+                            >
+                                {copied ? (
+                                    <Check size={16} className="text-emerald-500" />
+                                ) : (
+                                    <Copy size={16} className="text-slate-400" />
+                                )}
+                            </button>
                         </div>
-                        <Toggle checked={settings.skipNodeModules} onChange={(v) => updateSetting('skipNodeModules', v)} />
-                    </div>
+                    )}
                 </div>
             </motion.div>
 
-            {/* Branch Configuration */}
+            {/* Connected Services */}
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -143,158 +98,85 @@ export default function Settings() {
             >
                 <div className="flex items-center gap-4 mb-6">
                     <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
-                        <GitBranch size={18} />
+                        <Shield size={18} />
                     </div>
                     <div>
-                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Branch Configuration</h2>
-                        <p className="text-[11px] text-slate-400">Control when audits are triggered</p>
+                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Connected Services</h2>
+                        <p className="text-[11px] text-slate-400">Authentication methods linked to your account</p>
                     </div>
                 </div>
 
                 <div className="space-y-4">
+                    {/* GitHub */}
                     <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
-                        <div>
-                            <h3 className="font-bold text-slate-900 text-sm">Auto-audit on main branch</h3>
-                            <p className="text-[11px] text-slate-400 mt-0.5">Run audit when changes merge to main/master</p>
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+                                <Github size={18} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-slate-900 text-sm">GitHub</h3>
+                                {user?.githubLogin ? (
+                                    <p className="text-[11px] text-emerald-600 font-medium">Connected as @{user.githubLogin}</p>
+                                ) : (
+                                    <p className="text-[11px] text-slate-400">Not connected</p>
+                                )}
+                            </div>
                         </div>
-                        <Toggle checked={settings.autoAuditMainBranch} onChange={(v) => updateSetting('autoAuditMainBranch', v)} />
+                        {user?.githubLogin && (
+                            <a
+                                href={`https://github.com/${user.githubLogin}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 rounded-lg hover:bg-white transition-colors"
+                            >
+                                <ExternalLink size={16} className="text-slate-400" />
+                            </a>
+                        )}
                     </div>
 
+                    {/* Wallet */}
                     <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
-                        <div>
-                            <h3 className="font-bold text-slate-900 text-sm">Audit on every push</h3>
-                            <p className="text-[11px] text-slate-400 mt-0.5">Trigger audit on every commit (uses more neurons)</p>
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+                                <Wallet size={18} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-slate-900 text-sm">Wallet</h3>
+                                {user?.walletAddress ? (
+                                    <p className="text-[11px] text-emerald-600 font-mono">
+                                        {user.walletAddress.slice(0, 6)}...{user.walletAddress.slice(-4)}
+                                    </p>
+                                ) : (
+                                    <p className="text-[11px] text-slate-400">Not connected</p>
+                                )}
+                            </div>
                         </div>
-                        <Toggle checked={settings.auditOnEveryPush} onChange={(v) => updateSetting('auditOnEveryPush', v)} />
-                    </div>
-
-                    <div className="p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
-                        <h3 className="font-bold text-slate-900 text-sm mb-2">Audit Branch Pattern</h3>
-                        <p className="text-[11px] text-slate-400 mb-3">Only audit branches matching this pattern</p>
-                        <input
-                            type="text"
-                            value={settings.auditBranchPattern}
-                            onChange={(e) => updateSetting('auditBranchPattern', e.target.value)}
-                            placeholder="audit/*, feature/security-*"
-                            className="w-full h-10 px-4 bg-white border border-black/[0.05] rounded-xl text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all font-mono"
-                        />
                     </div>
                 </div>
             </motion.div>
 
-            {/* Automation */}
+            {/* Coming Soon: Notifications */}
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="card-premium"
+                className="card-premium opacity-60"
             >
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
-                        <Play size={18} />
-                    </div>
-                    <div>
-                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Automation</h2>
-                        <p className="text-[11px] text-slate-400">Control audit execution behavior</p>
-                    </div>
-                </div>
-
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-400 flex items-center justify-center border border-rose-100">
+                            <Bell size={18} />
+                        </div>
                         <div>
-                            <h3 className="font-bold text-slate-900 text-sm">Auto-start audits</h3>
-                            <p className="text-[11px] text-slate-400 mt-0.5">Begin auditing immediately when triggered</p>
+                            <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Notifications</h2>
+                            <p className="text-[11px] text-slate-400">Configure email and Telegram alerts</p>
                         </div>
-                        <Toggle checked={settings.autoStartAudit} onChange={(v) => updateSetting('autoStartAudit', v)} />
                     </div>
-
-                    <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
-                        <div>
-                            <h3 className="font-bold text-slate-900 text-sm">Require approval before audit</h3>
-                            <p className="text-[11px] text-slate-400 mt-0.5">Wait for manual approval before consuming neurons</p>
-                        </div>
-                        <Toggle checked={settings.requireApproval} onChange={(v) => updateSetting('requireApproval', v)} />
-                    </div>
-                </div>
-            </motion.div>
-
-            {/* Notifications */}
-            <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="card-premium"
-            >
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
-                        <Bell size={18} />
-                    </div>
-                    <div>
-                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Notifications</h2>
-                        <p className="text-[11px] text-slate-400">Get alerts when audits complete or find issues</p>
-                    </div>
-                </div>
-
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
-                        <div>
-                            <h3 className="font-bold text-slate-900 text-sm">Email notifications</h3>
-                            <p className="text-[11px] text-slate-400 mt-0.5">Receive audit reports via email</p>
-                        </div>
-                        <Toggle checked={settings.emailNotifications} onChange={(v) => updateSetting('emailNotifications', v)} />
-                    </div>
-
-                    <div className="p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
-                        <div className="flex items-center justify-between mb-3">
-                            <div>
-                                <h3 className="font-bold text-slate-900 text-sm">Telegram alerts</h3>
-                                <p className="text-[11px] text-slate-400 mt-0.5">Send notifications to Telegram</p>
-                            </div>
-                            <Toggle checked={settings.telegramEnabled} onChange={(v) => updateSetting('telegramEnabled', v)} />
-                        </div>
-                        {settings.telegramEnabled && (
-                            <input
-                                type="text"
-                                value={settings.telegramChatId}
-                                onChange={(e) => updateSetting('telegramChatId', e.target.value)}
-                                placeholder="Chat ID (e.g., -1001234567890)"
-                                className="w-full h-10 px-4 bg-white border border-black/[0.05] rounded-xl text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all font-mono"
-                            />
-                        )}
-                    </div>
-
-                    <div className="p-4 bg-slate-50/50 rounded-xl border border-black/[0.03]">
-                        <div className="flex items-center justify-between mb-3">
-                            <div>
-                                <h3 className="font-bold text-slate-900 text-sm">Slack integration</h3>
-                                <p className="text-[11px] text-slate-400 mt-0.5">Post audit results to Slack channel</p>
-                            </div>
-                            <Toggle checked={settings.slackEnabled} onChange={(v) => updateSetting('slackEnabled', v)} />
-                        </div>
-                        {settings.slackEnabled && (
-                            <input
-                                type="text"
-                                value={settings.slackWebhook}
-                                onChange={(e) => updateSetting('slackWebhook', e.target.value)}
-                                placeholder="Webhook URL"
-                                className="w-full h-10 px-4 bg-white border border-black/[0.05] rounded-xl text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all font-mono"
-                            />
-                        )}
-                    </div>
+                    <span className="px-3 py-1 bg-slate-100 text-slate-400 text-[9px] font-black uppercase tracking-wider rounded-full">
+                        Coming Soon
+                    </span>
                 </div>
             </motion.div>
         </div>
-    )
-}
-
-// Toggle component
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
-    return (
-        <button
-            onClick={() => onChange(!checked)}
-            className={`relative w-11 h-6 rounded-full transition-colors ${checked ? 'bg-indigo-600' : 'bg-slate-200'}`}
-        >
-            <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${checked ? 'translate-x-5' : ''}`} />
-        </button>
     )
 }

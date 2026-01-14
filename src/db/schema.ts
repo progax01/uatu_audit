@@ -332,6 +332,8 @@ export const auditJobs = pgTable(
     contractName: varchar('contract_name', { length: 255 }),
     isProxy: boolean('is_proxy').notNull().default(false),
     implementationAddress: varchar('implementation_address', { length: 128 }),
+    deployerAddress: varchar('deployer_address', { length: 128 }),
+    creationTxHash: varchar('creation_tx_hash', { length: 128 }),
     // Repository info for full audits
     // UNIQUE: (repo, branch, commitSha) for completed full audits
     repo: varchar('repo', { length: 500 }).notNull(),

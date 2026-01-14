@@ -10,8 +10,11 @@ import {
   CheckCircle,
   AlertCircle,
   RefreshCw,
-  ChevronRight
+  ChevronRight,
+  Wallet,
+  Link2
 } from 'lucide-react'
+import { getStoredUser, type AuthUser } from '../services/authService'
 import type { SourceComponentUI } from '../App'
 
 type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit'
@@ -40,10 +43,10 @@ interface AddComponentsProps {
 }
 
 const COMPONENT_TYPES = [
-  { type: 'github-repo' as ComponentType, label: 'GitHub', icon: Github },
-  { type: 'deployed-contract' as ComponentType, label: 'Contract', icon: FileCode },
-  { type: 'dapp-url' as ComponentType, label: 'DApp', icon: Globe },
-  { type: 'library-source' as ComponentType, label: 'Library', icon: Package },
+  { type: 'github-repo' as ComponentType, label: 'GitHub', icon: Github, description: 'Import your repository from GitHub' },
+  { type: 'deployed-contract' as ComponentType, label: 'Contract', icon: FileCode, description: 'Connect via network and address' },
+  { type: 'dapp-url' as ComponentType, label: 'DApp', icon: Globe, description: 'Scan a live decentralized application', comingSoon: true },
+  { type: 'library-source' as ComponentType, label: 'Dependencies', icon: Package, description: 'Check for known vulnerabilities in packages' },
 ]
 
 const NETWORKS = [
@@ -57,18 +60,37 @@ const NETWORKS = [
 ]
 
 export default function AddComponents({
-  projectId,
-  projectName,
-  projectType: _projectType, // Used for future component type filtering
+  projectId: propProjectId,
+  projectName: propProjectName,
+  projectType: propProjectType,
   onNext,
   onBack,
   onStartAudit
 }: AddComponentsProps) {
+  // Read from localStorage if props are empty (after page reload)
+  const getStoredProject = () => {
+    try {
+      const stored = localStorage.getItem('pending_project')
+      if (stored) {
+        return JSON.parse(stored)
+      }
+    } catch {
+      // Ignore parse errors
+    }
+    return null
+  }
+
+  const storedProject = getStoredProject()
+  const projectId = propProjectId || storedProject?.id || ''
+  const projectName = propProjectName || storedProject?.name || ''
+  const _projectType = propProjectType || storedProject?.type || 'full' // Used for future component type filtering
+
   const [components, setComponents] = useState<SourceComponentUI[]>([])
   const [addingType, setAddingType] = useState<ComponentType | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isStartingAudit, setIsStartingAudit] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
 
   // GitHub form state
   const [isGithubAuthed, setIsGithubAuthed] = useState(false)
@@ -93,8 +115,18 @@ export default function AddComponents({
   const [packageVersion, setPackageVersion] = useState('')
   const [packageRegistry, setPackageRegistry] = useState<'npm' | 'crates' | 'pypi' | 'github'>('npm')
 
-  // Check GitHub auth on mount
+  // Redirect if no project ID available
   useEffect(() => {
+    if (!projectId) {
+      console.error('No project ID available - redirecting to create project')
+      window.location.href = '/create-project'
+    }
+  }, [projectId])
+
+  // Load current user and check GitHub auth on mount
+  useEffect(() => {
+    const user = getStoredUser()
+    setCurrentUser(user)
     checkGithubAuth()
   }, [])
 
@@ -372,6 +404,8 @@ export default function AddComponents({
       if (!res.ok) throw new Error('Failed to start audit')
 
       const data = await res.json()
+      // Clear pending project from localStorage
+      localStorage.removeItem('pending_project')
       onStartAudit(data.jobId)
     } catch (err: any) {
       setError(err.message)
@@ -419,22 +453,32 @@ export default function AddComponents({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {COMPONENT_TYPES.map((ct) => {
                 const Icon = ct.icon
+                const isDisabled = ct.comingSoon
                 return (
                   <button
                     key={ct.type}
-                    onClick={() => setAddingType(ct.type)}
-                    className="flex flex-col items-start gap-6 p-8 rounded-3xl border border-black/[0.03] bg-white/50 backdrop-blur-sm hover:border-indigo-100 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all group text-left"
+                    onClick={() => !isDisabled && setAddingType(ct.type)}
+                    disabled={isDisabled}
+                    className={`relative flex flex-col items-start gap-6 p-8 rounded-3xl border border-black/[0.03] bg-white/50 backdrop-blur-sm transition-all group text-left ${
+                      isDisabled
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'hover:border-indigo-100 hover:shadow-2xl hover:shadow-indigo-500/10'
+                    }`}
                   >
-                    <div className="w-16 h-16 rounded-2xl bg-slate-50 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center transition-all duration-500">
+                    {isDisabled && (
+                      <div className="absolute top-4 right-4 px-2 py-0.5 bg-slate-100 rounded text-[8px] font-black text-slate-400 uppercase">
+                        Soon
+                      </div>
+                    )}
+                    <div className={`w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center transition-all duration-500 ${
+                      !isDisabled ? 'group-hover:bg-indigo-600 group-hover:text-white' : ''
+                    }`}>
                       <Icon size={28} strokeWidth={1.5} />
                     </div>
                     <div>
                       <h3 className="text-lg font-bold text-slate-900 mb-1">{ct.label}</h3>
                       <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                        {ct.type === 'github-repo' && 'Import your repository from GitHub'}
-                        {ct.type === 'deployed-contract' && 'Connect via network and address'}
-                        {ct.type === 'dapp-url' && 'Scan a live decentralized application'}
-                        {ct.type === 'library-source' && 'Analyze public package or library'}
+                        {ct.description}
                       </p>
                     </div>
                   </button>
@@ -468,16 +512,52 @@ export default function AddComponents({
                 {addingType === 'github-repo' && (
                   <div className="space-y-6">
                     {!isGithubAuthed ? (
-                      <div className="text-center py-12">
-                        <Github size={48} className="mx-auto mb-4 text-slate-200" />
-                        <h4 className="text-lg font-bold mb-2">GitHub Authorization Required</h4>
-                        <p className="text-sm text-slate-500 mb-8">Connect your account to browse and import repositories.</p>
+                      <div className="text-center py-8">
+                        {/* Show current auth status for wallet users */}
+                        {currentUser?.walletAddress && !currentUser?.githubLogin && (
+                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-full mb-6">
+                            <Wallet size={14} className="text-emerald-600" />
+                            <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">
+                              Signed in with Wallet
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="w-20 h-20 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-6">
+                          <div className="relative">
+                            <Github size={32} className="text-slate-300" />
+                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center">
+                              <Link2 size={10} className="text-white" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <h4 className="text-xl font-black text-slate-900 mb-2">Connect GitHub Account</h4>
+                        <p className="text-sm text-slate-500 mb-2 max-w-sm mx-auto">
+                          Link your GitHub to import private repositories for auditing.
+                        </p>
+                        {currentUser?.walletAddress && (
+                          <p className="text-[11px] text-slate-400 mb-8">
+                            Your wallet authentication remains active. GitHub is an additional connection.
+                          </p>
+                        )}
+                        {!currentUser?.walletAddress && (
+                          <p className="text-[11px] text-slate-400 mb-8">
+                            This grants read access to your repositories for security analysis.
+                          </p>
+                        )}
+
                         <button
                           onClick={handleGithubLogin}
-                          className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg"
+                          className="inline-flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 hover:shadow-2xl hover:shadow-slate-900/20"
                         >
-                          Authenticate with GitHub
+                          <Github size={18} />
+                          Connect GitHub
                         </button>
+
+                        <p className="text-[10px] text-slate-400 mt-6">
+                          We only request read permissions. Your code stays secure.
+                        </p>
                       </div>
                     ) : (
                       <div className="space-y-6">
@@ -623,6 +703,13 @@ export default function AddComponents({
 
                 {addingType === 'library-source' && (
                   <div className="space-y-6">
+                    {/* Info banner */}
+                    <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
+                      <p className="text-xs text-amber-700 font-medium">
+                        <span className="font-black">Quick Scan:</span> We'll search for known CVEs, security advisories, and announced vulnerabilities for this package.
+                      </p>
+                    </div>
+
                     <div className="grid grid-cols-1 gap-6">
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Package Name</label>
@@ -635,7 +722,7 @@ export default function AddComponents({
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Version (optional)</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Version <span className="text-slate-300 font-medium lowercase">(optional)</span></label>
                         <input
                           type="text"
                           value={packageVersion}
@@ -663,7 +750,7 @@ export default function AddComponents({
                       disabled={!packageName || isLoading}
                       className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 transition-all"
                     >
-                      Add Library
+                      Check for Vulnerabilities
                     </button>
                   </div>
                 )}
@@ -728,7 +815,11 @@ export default function AddComponents({
 
             <div className="pt-8 border-t border-black/[0.03] space-y-4">
               <button
-                onClick={() => onNext(components)}
+                onClick={() => {
+                  // Clear pending project from localStorage
+                  localStorage.removeItem('pending_project')
+                  onNext(components)
+                }}
                 disabled={components.length === 0 || isStartingAudit}
                 className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-lg hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-400 transition-all shadow-xl"
               >

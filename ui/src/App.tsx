@@ -323,7 +323,8 @@ function App() {
                           type: project.type,
                           components: []
                         });
-                        window.location.href = '/add-components';
+                        // Go to dashboard to see the new project
+                        window.location.href = '/dashboard';
                       }}
                       onBack={() => window.location.href = '/dashboard'}
                       onHomeClick={() => window.location.href = '/'}

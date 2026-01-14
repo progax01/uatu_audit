@@ -37,6 +37,8 @@ interface ContractInfo {
     fileCount: number
     isProxy: boolean
     explorerUrl: string
+    deployerAddress?: string
+    creationTxHash?: string
 }
 
 interface ScanPhase {
@@ -202,7 +204,9 @@ export default function QuickScan() {
                 files: data.files || [],
                 fileCount: data.fileCount || 0,
                 isProxy: data.isProxy || false,
-                explorerUrl: data.explorerUrl || getExplorerUrl(network, address)
+                explorerUrl: data.explorerUrl || getExplorerUrl(network, address),
+                deployerAddress: data.deployerAddress,
+                creationTxHash: data.creationTxHash
             }
 
             setContractInfo(info)
@@ -802,6 +806,19 @@ export default function QuickScan() {
                                         <div className="flex items-center justify-between py-3 border-b border-black/[0.03]">
                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</span>
                                             <span className="px-2 py-1 bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-amber-100">Proxy</span>
+                                        </div>
+                                    )}
+                                    {contractInfo.deployerAddress && (
+                                        <div className="flex items-center justify-between py-3 border-b border-black/[0.03]">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Deployer</span>
+                                            <a
+                                                href={`${contractInfo.explorerUrl.replace(/\/address\/.*$/, '')}/address/${contractInfo.deployerAddress}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs font-mono font-bold text-indigo-600 hover:text-indigo-800 hover:underline transition-colors"
+                                            >
+                                                {contractInfo.deployerAddress.slice(0, 6)}...{contractInfo.deployerAddress.slice(-4)}
+                                            </a>
                                         </div>
                                     )}
                                 </div>

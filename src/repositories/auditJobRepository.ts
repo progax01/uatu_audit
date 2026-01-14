@@ -42,6 +42,8 @@ export interface CreateQuickScanJobInput {
   contractName: string;
   isProxy?: boolean;
   implementationAddress?: string;
+  deployerAddress?: string;
+  creationTxHash?: string;
   userId?: string;
 }
 
@@ -61,6 +63,8 @@ export async function createQuickScanJob(data: CreateQuickScanJobInput): Promise
     contractName: data.contractName,
     isProxy: data.isProxy || false,
     implementationAddress: data.implementationAddress,
+    deployerAddress: data.deployerAddress,
+    creationTxHash: data.creationTxHash,
     // Use a special repo format for quick scans
     repo: `scan://${data.contractNetwork}/${data.contractAddress}`,
     branch: 'main',
