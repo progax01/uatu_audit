@@ -1,9 +1,12 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import {
-    Shield, ChevronRight, ArrowLeft, Loader2, FileCode, Github, GitBranch, Play, Trash2, Plus, AlertTriangle
+    Shield, ChevronRight, ArrowLeft, Loader2, Play, Trash2, AlertTriangle, FileCode, Award, Package
 } from 'lucide-react'
 import { authFetch } from '../services/authService'
+import SourcesTab from '../components/project/SourcesTab'
+import AuditsTab from '../components/project/AuditsTab'
+import BadgeTab from '../components/project/BadgeTab'
 
 interface Project {
     id: string
@@ -22,6 +25,8 @@ interface Project {
     lastAuditJobId?: string
 }
 
+type TabType = 'sources' | 'audits' | 'badge'
+
 export default function ProjectDetails() {
     const { slug } = useParams()
     const navigate = useNavigate()
@@ -30,6 +35,7 @@ export default function ProjectDetails() {
     const [error, setError] = useState<string | null>(null)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    const [activeTab, setActiveTab] = useState<TabType>('sources')
 
     const handleDelete = async () => {
         if (!project) return
@@ -51,23 +57,23 @@ export default function ProjectDetails() {
         }
     }
 
-    useEffect(() => {
-        const fetchProject = async () => {
-            try {
-                const response = await authFetch(`/api/projects/by-slug/${slug}`)
-                if (response.ok) {
-                    const data = await response.json()
-                    setProject(data.project)
-                } else {
-                    setError('Project not found')
-                }
-            } catch (err) {
-                setError('Failed to load project')
-            } finally {
-                setLoading(false)
+    const fetchProject = async () => {
+        try {
+            const response = await authFetch(`/api/projects/by-slug/${slug}`)
+            if (response.ok) {
+                const data = await response.json()
+                setProject(data.project)
+            } else {
+                setError('Project not found')
             }
+        } catch (err) {
+            setError('Failed to load project')
+        } finally {
+            setLoading(false)
         }
+    }
 
+    useEffect(() => {
         if (slug) {
             fetchProject()
         }
@@ -122,16 +128,7 @@ export default function ProjectDetails() {
     }
 
     return (
-        <div className="space-y-10">
-            {/* Back Button */}
-            <button
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-[0.15em]"
-            >
-                <ArrowLeft size={14} />
-                Back to Projects
-            </button>
-
+        <div className="space-y-4">
             {/* Delete Confirmation Modal */}
             {showDeleteConfirm && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -167,32 +164,46 @@ export default function ProjectDetails() {
                 </div>
             )}
 
-            {/* Hero */}
-            <div className="flex items-end justify-between">
-                <div>
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className={`px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest ${STATUS_CONFIG[project.status]?.colorClass || 'text-slate-400 bg-slate-50 border-slate-100'}`}>
+            {/* Top Row: Back Button | Project Name | Actions */}
+            <div className="flex items-center justify-between gap-4">
+                {/* Back Button */}
+                <button
+                    onClick={() => navigate('/dashboard')}
+                    className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-[0.15em] flex-shrink-0"
+                >
+                    <ArrowLeft size={14} />
+                    Back to Projects
+                </button>
+
+                {/* Separator */}
+                <div className="h-10 w-px bg-black/[0.05] flex-shrink-0" />
+
+                {/* Project Name with Status */}
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tighter truncate">{project.name}</h1>
+                        <div className={`px-2.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest flex-shrink-0 ${STATUS_CONFIG[project.status]?.colorClass || 'text-slate-400 bg-slate-50 border-slate-100'}`}>
                             {STATUS_CONFIG[project.status]?.label || project.status}
                         </div>
                     </div>
-                    <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">{project.name}</h1>
                     {project.description && (
-                        <p className="text-slate-400 mt-2 text-sm">{project.description}</p>
+                        <p className="text-slate-400 text-xs mt-1 truncate">{project.description}</p>
                     )}
                 </div>
 
-                <div className="flex items-center gap-3">
+                {/* Actions */}
+                <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                         onClick={() => setShowDeleteConfirm(true)}
-                        className="p-3 rounded-xl border border-black/[0.03] text-slate-400 hover:text-rose-600 hover:border-rose-100 hover:bg-rose-50 transition-all"
+                        className="p-2.5 rounded-lg border border-black/[0.03] text-slate-400 hover:text-rose-600 hover:border-rose-100 hover:bg-rose-50 transition-all"
                         title="Delete project"
                     >
-                        <Trash2 size={18} />
+                        <Trash2 size={16} />
                     </button>
                     {project.components && project.components.length > 0 && (
                         <button
                             onClick={() => navigate(`/preaudit-questionnaire/${project.lastAuditJobId || 'new'}`)}
-                            className="btn-primary px-6 py-3"
+                            className="btn-primary px-4 py-2.5 text-xs"
                         >
                             <Play size={14} />
                             Start Audit
@@ -201,76 +212,74 @@ export default function ProjectDetails() {
                 </div>
             </div>
 
-            {/* Components */}
-            <div className="space-y-6">
-                <h2 className="text-lg font-black text-slate-900 tracking-tight">Connected Sources</h2>
+            {/* Tabs Row */}
+            <div className="space-y-4">
+                {/* Tab Navigation */}
+                <div className="flex items-center gap-2 border-b border-black/[0.05]">
+                    <button
+                        onClick={() => setActiveTab('sources')}
+                        className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-all relative ${
+                            activeTab === 'sources'
+                                ? 'text-indigo-600'
+                                : 'text-slate-400 hover:text-slate-900'
+                        }`}
+                    >
+                        <FileCode size={16} />
+                        Sources
+                        {activeTab === 'sources' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('audits')}
+                        className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-all relative ${
+                            activeTab === 'audits'
+                                ? 'text-indigo-600'
+                                : 'text-slate-400 hover:text-slate-900'
+                        }`}
+                    >
+                        <Package size={16} />
+                        Audits
+                        {activeTab === 'audits' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('badge')}
+                        className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-all relative ${
+                            activeTab === 'badge'
+                                ? 'text-indigo-600'
+                                : 'text-slate-400 hover:text-slate-900'
+                        }`}
+                    >
+                        <Award size={16} />
+                        Badge
+                        {activeTab === 'badge' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
+                        )}
+                    </button>
+                </div>
 
-                {project.components && project.components.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {project.components.map((component) => (
-                            <div key={component.id} className="card-premium !p-6">
-                                <div className="flex items-start gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
-                                        {component.type === 'github-repo' ? (
-                                            <Github size={20} className="text-slate-400" />
-                                        ) : (
-                                            <FileCode size={20} className="text-slate-400" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="font-black text-slate-900 truncate">{component.displayName}</h3>
-                                        <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
-                                            {component.config?.currentBranch && (
-                                                <>
-                                                    <GitBranch size={12} />
-                                                    <span>{component.config.currentBranch}</span>
-                                                </>
-                                            )}
-                                            {component.config?.role && (
-                                                <span className="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-bold uppercase">
-                                                    {component.config.role}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="card-premium text-center py-12">
-                        <div className="w-16 h-16 rounded-xl bg-amber-50 flex items-center justify-center mx-auto mb-4">
-                            <AlertTriangle size={24} className="text-amber-500" />
-                        </div>
-                        <h3 className="text-sm font-black text-slate-900 mb-2">Incomplete Setup</h3>
-                        <p className="text-xs text-slate-400 mb-6 max-w-sm mx-auto">
-                            This project was created but no sources were connected. Add a repository or contract to continue, or delete this project.
-                        </p>
-                        <div className="flex items-center justify-center gap-3">
-                            <button
-                                onClick={() => {
-                                    localStorage.setItem('pending_project', JSON.stringify({
-                                        id: project.id,
-                                        name: project.name,
-                                        type: project.type
-                                    }))
-                                    navigate('/add-components')
-                                }}
-                                className="btn-primary px-6 py-3"
-                            >
-                                <Plus size={14} />
-                                Connect Source
-                            </button>
-                            <button
-                                onClick={() => setShowDeleteConfirm(true)}
-                                className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center gap-2"
-                            >
-                                <Trash2 size={14} />
-                                Delete Project
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {/* Tab Content */}
+                <div>
+                    {activeTab === 'sources' && (
+                        <SourcesTab
+                            projectId={project.id}
+                            components={project.components || []}
+                            onComponentAdded={fetchProject}
+                        />
+                    )}
+                    {activeTab === 'audits' && (
+                        <AuditsTab projectId={project.id} />
+                    )}
+                    {activeTab === 'badge' && (
+                        <BadgeTab
+                            projectId={project.id}
+                            projectSlug={project.slug}
+                            projectName={project.name}
+                        />
+                    )}
+                </div>
             </div>
         </div>
     )

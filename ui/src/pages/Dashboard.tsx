@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
-  GitBranch, ArrowRight, Plus,
+  GitBranch, ArrowRight, Plus, X, ChevronRight,
   FileCode, Globe, Package,
   ShieldCheck, Shield, FolderGit2, Clock, Github, Zap, Search, AlertTriangle
 } from 'lucide-react'
 import { getStoredUser, authFetch } from '../services/authService'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit'
 type ProjectStatus = 'draft' | 'configured' | 'awaiting-preaudit' | 'auditing' | 'completed'
@@ -50,9 +50,15 @@ const STATUS_CONFIG: Record<ProjectStatus, { label: string; colorClass: string }
 }
 
 export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
+  const navigate = useNavigate()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [projectName, setProjectName] = useState('')
+  const [projectDescription, setProjectDescription] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   useEffect(() => {
     const storedUser = getStoredUser()
@@ -86,6 +92,49 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
     loadProjects()
   }, [])
 
+  const handleCreateProject = async () => {
+    if (projectName.trim().length < 3) return
+
+    setIsCreating(true)
+    setCreateError(null)
+
+    try {
+      const res = await authFetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: projectName.trim(),
+          description: projectDescription.trim() || undefined,
+          type: 'contract-only',
+          settings: {
+            testStyles: ['behavioral', 'stride'],
+            aiEnabled: true,
+            auditDepth: 'standard'
+          }
+        })
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to create project')
+      }
+
+      const project = await res.json()
+
+      // Close modal and reset form
+      setShowCreateModal(false)
+      setProjectName('')
+      setProjectDescription('')
+
+      // Navigate to project details
+      navigate(`/project/${project.slug}`)
+    } catch (err: any) {
+      setCreateError(err.message || 'Failed to create project')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -98,32 +147,91 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
   }
 
   return (
-    <div className="space-y-10 animate-reveal">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">
-            Your <span className="text-indigo-600">Projects</span>
-          </h1>
-          <p className="text-slate-400 font-medium text-[13px] mt-2 max-w-xl leading-relaxed">
-            {projects.length > 0 ? (
-              <>Welcome back, <span className="text-slate-900 font-bold">{user?.displayName?.split(' ')[0] || user?.login || 'there'}</span>. You have <span className="text-slate-900 font-bold">{projects.length} project{projects.length !== 1 ? 's' : ''}</span> connected.</>
-            ) : (
-              <>Connect a GitHub repository to start auditing your smart contracts.</>
-            )}
-          </p>
-        </div>
-        {projects.length > 0 && (
-          <button
-            onClick={onNewAudit}
-            className="btn-primary group h-12 px-8"
+    <>
+      {/* Create Project Modal */}
+      {showCreateModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-2xl shadow-2xl relative"
           >
-            <Plus size={16} />
-            Add Project
-          </button>
-        )}
-      </div>
+            {/* Close Button */}
+            <button
+              onClick={() => setShowCreateModal(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all z-10"
+            >
+              <X size={18} />
+            </button>
 
-      {projects.length === 0 ? (
+            <div className="p-6 space-y-4">
+
+              {/* Form */}
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                    Project Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    placeholder="My DeFi Protocol"
+                    className="w-full h-10 px-3 bg-white border border-black/[0.05] rounded-lg text-sm font-medium text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    value={projectDescription}
+                    onChange={(e) => setProjectDescription(e.target.value)}
+                    placeholder="Brief description..."
+                    rows={2}
+                    className="w-full px-3 py-2 bg-white border border-black/[0.05] rounded-lg text-sm font-medium text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all resize-none"
+                  />
+                </div>
+
+                {createError && (
+                  <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg text-rose-600 text-xs font-medium">
+                    {createError}
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 h-10 bg-slate-100 text-slate-600 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateProject}
+                    disabled={projectName.trim().length < 3 || isCreating}
+                    className="flex-1 h-10 bg-slate-900 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isCreating ? 'Creating...' : 'Create'}
+                    {!isCreating && <ChevronRight size={14} />}
+                  </button>
+                </div>
+
+                <p className="text-center text-[10px] text-slate-400">
+                  You'll add sources after creating the project
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      <div className="space-y-8 animate-reveal">
+        {projects.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -163,7 +271,7 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
 
               {/* New Project Option */}
               <button
-                onClick={onNewAudit}
+                onClick={() => setShowCreateModal(true)}
                 className="group p-8 bg-gradient-to-br from-slate-50 to-white rounded-2xl border-2 border-slate-200 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-50 transition-all cursor-pointer text-left"
               >
                 <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-slate-200">
@@ -282,7 +390,7 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: projects.length * 0.05 }}
-            onClick={onNewAudit}
+            onClick={() => setShowCreateModal(true)}
             className="group card-premium !bg-transparent border-2 border-dashed border-slate-200 hover:border-indigo-300 flex flex-col items-center justify-center text-center gap-4 transition-all hover:bg-white min-h-[280px]"
           >
             <div className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white group-hover:shadow-xl group-hover:shadow-indigo-100 transition-all">
@@ -292,6 +400,7 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
           </motion.button>
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }

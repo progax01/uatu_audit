@@ -1056,6 +1056,10 @@ export async function handleScanRoutes(
             gasOptimizations: quickResult.gasOptimizations,
             bestPractices: quickResult.bestPractices,
             scanDuration: quickResult.scanDuration,
+            // NEW: Comprehensive report fields
+            technicalChecks: quickResult.technicalChecks,
+            businessRiskChecks: quickResult.businessRiskChecks,
+            functionOverview: quickResult.functionOverview,
           });
 
           // Also save to file for backwards compatibility

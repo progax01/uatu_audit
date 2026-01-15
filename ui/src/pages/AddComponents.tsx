@@ -14,7 +14,7 @@ import {
   Wallet,
   Link2
 } from 'lucide-react'
-import { getStoredUser, type AuthUser } from '../services/authService'
+import { getStoredUser, authFetch, type AuthUser } from '../services/authService'
 import type { SourceComponentUI } from '../App'
 
 type ProjectType = 'full' | 'contract-only' | 'dapp-pentest' | 'library-audit'
@@ -94,11 +94,22 @@ export default function AddComponents({
 
   // GitHub form state
   const [isGithubAuthed, setIsGithubAuthed] = useState(false)
+  const [githubPat, setGithubPat] = useState<string | null>(null)
   const [repositories, setRepositories] = useState<Repository[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null)
   const [selectedBranch, setSelectedBranch] = useState('')
   const [loadingRepos, setLoadingRepos] = useState(false)
+
+  // Helper to get GitHub headers (with PAT if available)
+  const getGitHubHeaders = (): HeadersInit => {
+    const headers: HeadersInit = {}
+    const pat = localStorage.getItem('github_pat')
+    if (pat) {
+      headers['X-GitHub-Token'] = pat
+    }
+    return headers
+  }
 
   // Contract form state
   const [contractAddress, setContractAddress] = useState('')
@@ -131,6 +142,16 @@ export default function AddComponents({
   }, [])
 
   const checkGithubAuth = async () => {
+    // First check for stored PAT
+    const storedPat = localStorage.getItem('github_pat')
+    if (storedPat) {
+      setGithubPat(storedPat)
+      setIsGithubAuthed(true)
+      fetchRepositories()
+      return
+    }
+
+    // Fall back to OAuth check
     try {
       const res = await fetch('/auth/github/me')
       const data = await res.json()
@@ -146,9 +167,14 @@ export default function AddComponents({
   const fetchRepositories = async () => {
     setLoadingRepos(true)
     try {
-      const res = await fetch('/github/repos')
+      const res = await fetch('/github/repos', { headers: getGitHubHeaders() })
       const data = await res.json()
-      setRepositories(data)
+      if (Array.isArray(data)) {
+        setRepositories(data)
+      } else {
+        console.error('Failed to fetch repos:', data?.error)
+        setRepositories([])
+      }
     } catch {
       console.error('Failed to fetch repos')
     } finally {
@@ -158,7 +184,9 @@ export default function AddComponents({
 
   const fetchBranches = async (repoFullName: string) => {
     try {
-      const res = await fetch(`/github/branches?repo=${encodeURIComponent(repoFullName)}`)
+      const res = await fetch(`/github/branches?repo=${encodeURIComponent(repoFullName)}`, {
+        headers: getGitHubHeaders()
+      })
       const data = await res.json()
       setBranches(data)
     } catch {
@@ -186,7 +214,7 @@ export default function AddComponents({
     setError(null)
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/components`, {
+      const res = await authFetch(`/api/projects/${projectId}/components`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -235,7 +263,7 @@ export default function AddComponents({
 
     try {
       const network = NETWORKS.find(n => n.id === selectedNetwork)
-      const res = await fetch(`/api/projects/${projectId}/components`, {
+      const res = await authFetch(`/api/projects/${projectId}/components`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -57,7 +57,7 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
         { id: 'management', label: 'Team', icon: Users, path: '/management', comingSoon: true },
         { id: 'credentials', label: 'Security', icon: Shield, path: '/credentials' },
         { id: 'billing', label: 'Usage & Billing', icon: Zap, path: '/subscription', comingSoon: true },
-        { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+        { id: 'settings', label: 'Account', icon: Settings, path: '/settings' },
     ]
 
     // Get readable page name
@@ -69,7 +69,7 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
             management: 'Team',
             credentials: 'Security',
             subscription: 'Usage & Billing',
-            settings: 'Settings',
+            settings: 'Account',
             project: 'Project Details',
         }
         return labels[segment] || segment.charAt(0).toUpperCase() + segment.slice(1)
@@ -166,7 +166,7 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                             <Bell size={18} className="text-slate-400" />
                             <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white" />
                         </button>
-                        <Link to="/credentials" className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white text-[11px] font-black border border-white/10 hover:bg-indigo-600 transition-colors shadow-lg shadow-slate-200">
+                        <Link to="/settings" className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white text-[11px] font-black border border-white/10 hover:bg-indigo-600 transition-colors shadow-lg shadow-slate-200">
                             {getUserInitials(user)}
                         </Link>
                     </div>

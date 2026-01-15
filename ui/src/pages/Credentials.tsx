@@ -162,16 +162,6 @@ export default function Credentials() {
 
     return (
         <div className="space-y-8 animate-reveal">
-            {/* Header */}
-            <div>
-                <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">
-                    Account <span className="text-indigo-600">Security</span>
-                </h1>
-                <p className="text-slate-400 font-medium text-[13px] mt-2 max-w-xl leading-relaxed">
-                    Manage your wallet, authentication methods, and review your account activity.
-                </p>
-            </div>
-
             {/* Security Cards */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Connected Wallet */}

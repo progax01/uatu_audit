@@ -30,11 +30,30 @@ export default function ConnectSource({ onNext, projectData, setProjectData }: C
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // Helper to get GitHub headers (with PAT if available)
+  const getGitHubHeaders = (): HeadersInit => {
+    const headers: HeadersInit = {}
+    const pat = localStorage.getItem('github_pat')
+    if (pat) {
+      headers['X-GitHub-Token'] = pat
+    }
+    return headers
+  }
+
   useEffect(() => {
     checkAuth()
   }, [])
 
   const checkAuth = async () => {
+    // First check for stored PAT
+    const storedPat = localStorage.getItem('github_pat')
+    if (storedPat) {
+      setIsAuthenticated(true)
+      fetchRepositories()
+      return
+    }
+
+    // Fall back to OAuth check
     try {
       const res = await fetch('/auth/github/me')
       const data = await res.json()
@@ -57,9 +76,14 @@ export default function ConnectSource({ onNext, projectData, setProjectData }: C
   const fetchRepositories = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/github/repos')
+      const res = await fetch('/github/repos', { headers: getGitHubHeaders() })
       const data = await res.json()
-      setRepositories(data)
+      if (Array.isArray(data)) {
+        setRepositories(data)
+      } else {
+        console.error('Failed to fetch repos:', data?.error)
+        setRepositories([])
+      }
     } catch (error) {
       console.error('Failed to fetch repos:', error)
     } finally {
@@ -70,7 +94,9 @@ export default function ConnectSource({ onNext, projectData, setProjectData }: C
   const fetchBranches = async (repoFullName: string) => {
     setLoading(true)
     try {
-      const res = await fetch(`/github/branches?repo=${encodeURIComponent(repoFullName)}`)
+      const res = await fetch(`/github/branches?repo=${encodeURIComponent(repoFullName)}`, {
+        headers: getGitHubHeaders()
+      })
       const data = await res.json()
       setBranches(data)
     } catch (error) {

@@ -7,7 +7,8 @@ import MouseTooltip from '../components/MouseTooltip';
 const plans = [
     {
         name: 'Basic',
-        price: '$29',
+        price: '$99',
+        originalPrice: '$199',
         period: 'per project',
         description: 'Complete security for individual full-stack projects',
         features: [
@@ -26,7 +27,8 @@ const plans = [
     },
     {
         name: 'Professional',
-        price: '$299',
+        price: '$499',
+        originalPrice: '$999',
         period: 'per project',
         description: 'High-velocity security for mission-critical apps',
         features: [
@@ -134,11 +136,21 @@ export default function PricingPage() {
                                         <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-10">{plan.description}</p>
 
                                         <div className="flex items-baseline gap-2">
+                                            {(plan as any).originalPrice && (
+                                                <span className="text-2xl font-black text-slate-300 line-through tracking-tighter">{(plan as any).originalPrice}</span>
+                                            )}
                                             <span className="text-4xl font-black text-slate-900 tracking-tighter">{plan.price}</span>
                                             {plan.price !== 'Custom' && (
                                                 <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{plan.period}</span>
                                             )}
                                         </div>
+                                        {(plan as any).originalPrice && (
+                                            <div className="mt-2">
+                                                <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-wider rounded-full">
+                                                    Limited Offer
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <Link

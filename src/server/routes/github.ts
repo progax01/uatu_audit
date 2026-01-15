@@ -1,5 +1,25 @@
 import { getSessionId, loadToken } from "./auth.js";
 
+/**
+ * Get GitHub token from request - checks PAT header first, then OAuth session
+ */
+async function getGitHubToken(req: any): Promise<string | null> {
+  // First check for PAT in header (from Settings page)
+  const patHeader = req.headers['x-github-token'];
+  if (patHeader && typeof patHeader === 'string' && patHeader.trim()) {
+    return patHeader.trim();
+  }
+
+  // Fall back to OAuth session token
+  const sessionId = getSessionId(req);
+  if (sessionId) {
+    const token = await loadToken(sessionId);
+    if (token) return token;
+  }
+
+  return null;
+}
+
 // GitHub route handlers
 export async function handleGitHubRoutes(
   req: any,
@@ -8,14 +28,7 @@ export async function handleGitHubRoutes(
 ): Promise<boolean> {
   // GET /github/repos?org=<org>
   if (req.method === "GET" && parsed.pathname === "/github/repos") {
-    const sessionId = getSessionId(req);
-    if (!sessionId) {
-      res.statusCode = 401;
-      res.end(JSON.stringify({ error: "not authed" }));
-      return true;
-    }
-
-    const token = await loadToken(sessionId);
+    const token = await getGitHubToken(req);
     if (!token) {
       res.statusCode = 401;
       res.end(JSON.stringify({ error: "not authed" }));
@@ -53,14 +66,7 @@ export async function handleGitHubRoutes(
 
   // GET /github/branches?repo=owner/name
   if (req.method === "GET" && parsed.pathname === "/github/branches") {
-    const sessionId = getSessionId(req);
-    if (!sessionId) {
-      res.statusCode = 401;
-      res.end(JSON.stringify({ error: "not authed" }));
-      return true;
-    }
-
-    const token = await loadToken(sessionId);
+    const token = await getGitHubToken(req);
     if (!token) {
       res.statusCode = 401;
       res.end(JSON.stringify({ error: "not authed" }));
@@ -85,14 +91,7 @@ export async function handleGitHubRoutes(
 
   // GET /github/files?repo=owner/name&branch=main
   if (req.method === "GET" && parsed.pathname === "/github/files") {
-    const sessionId = getSessionId(req);
-    if (!sessionId) {
-      res.statusCode = 401;
-      res.end(JSON.stringify({ error: "not authed" }));
-      return true;
-    }
-
-    const token = await loadToken(sessionId);
+    const token = await getGitHubToken(req);
     if (!token) {
       res.statusCode = 401;
       res.end(JSON.stringify({ error: "not authed" }));

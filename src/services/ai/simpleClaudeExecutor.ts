@@ -13,10 +13,49 @@ import { logger } from '../../utils/logger.js';
 
 const log = logger.child({ service: 'simple-claude' });
 
+// Simple mutex for ensuring only one Claude CLI runs at a time
+// This prevents queue buildup and ensures proper session management
+let cliLock: Promise<void> = Promise.resolve();
+let activeExecutions = 0;
+const MAX_CONCURRENT = parseInt(process.env.CLAUDE_CONCURRENT_LIMIT || '1', 10);
+const pendingQueue: Array<() => void> = [];
+
+function acquireLock(): Promise<void> {
+  return new Promise((resolve) => {
+    const tryAcquire = () => {
+      if (activeExecutions < MAX_CONCURRENT) {
+        activeExecutions++;
+        log.debug('Acquired CLI lock', { activeExecutions, queueLength: pendingQueue.length });
+        resolve();
+      } else {
+        log.debug('Queued for CLI lock', { activeExecutions, queueLength: pendingQueue.length + 1 });
+        pendingQueue.push(tryAcquire);
+      }
+    };
+    tryAcquire();
+  });
+}
+
+function releaseLock(): void {
+  activeExecutions--;
+  log.debug('Released CLI lock', { activeExecutions, queueLength: pendingQueue.length });
+  if (pendingQueue.length > 0) {
+    const next = pendingQueue.shift();
+    if (next) next();
+  }
+}
+
+// Export for monitoring
+export function getQueueStatus(): { active: number; pending: number; maxConcurrent: number } {
+  return { active: activeExecutions, pending: pendingQueue.length, maxConcurrent: MAX_CONCURRENT };
+}
+
 export interface SimpleClaudeOptions {
   timeout?: number;
   model?: string;
   cwd?: string;
+  sessionId?: string;  // Resume from existing session
+  continueSession?: boolean;  // Use --continue flag for same directory
 }
 
 export interface StreamingClaudeOptions extends SimpleClaudeOptions {
@@ -29,6 +68,7 @@ export interface SimpleClaudeResponse {
   output?: string;
   error?: string;
   executionTime?: number;
+  sessionId?: string;  // Claude CLI session ID for resumption
 }
 
 // Progress marker regex: [UATU_STATUS:PHASE:PERCENTAGE:MESSAGE]
@@ -274,22 +314,34 @@ export async function executeSimpleClaude(
 /**
  * Execute Claude CLI with streaming progress callbacks
  * Parses [UATU_STATUS:PHASE:PCT:MESSAGE] markers from output
+ * Uses a queue to ensure only MAX_CONCURRENT CLI processes run at once
  */
 export async function executeStreamingClaude(
   prompt: string,
   options: StreamingClaudeOptions = {}
 ): Promise<SimpleClaudeResponse> {
+  // Acquire lock to ensure sequential processing
+  await acquireLock();
+
   const startTime = Date.now();
   const {
     timeout = 600000, // 10 minutes - complex contracts can take a while
     model = 'claude-sonnet-4-20250514',
     cwd = process.cwd(),
     onProgress,
-    onLog
+    onLog,
+    sessionId,
+    continueSession
   } = options;
 
   const claudePath = findClaudePath();
-  log.info('Executing Claude CLI (streaming mode)', { claudePath, model, promptLength: prompt.length });
+  log.info('Executing Claude CLI (streaming mode)', {
+    claudePath,
+    model,
+    promptLength: prompt.length,
+    sessionId: sessionId ? sessionId.slice(0, 8) + '...' : undefined,
+    continueSession
+  });
 
   // Write prompt to temp file
   const tempDir = mkdtempSync(join(tmpdir(), 'claude-quick-'));
@@ -308,6 +360,13 @@ export async function executeStreamingClaude(
       '--output-format', 'json',
       '--model', model
     ];
+
+    // Add session resumption if provided
+    if (sessionId) {
+      args.push('--resume', sessionId);
+    } else if (continueSession) {
+      args.push('--continue');
+    }
 
     log.info('Spawning Claude process (streaming)', {
       command: claudePath,
@@ -448,22 +507,33 @@ export async function executeStreamingClaude(
       if (stdout) {
         try {
           const jsonResponse = JSON.parse(stdout.trim());
+          // Extract session_id for potential resumption
+          const returnedSessionId = jsonResponse.session_id;
+
           if (jsonResponse.is_error) {
-            log.error('Claude returned error', { error: jsonResponse.result });
+            log.error('Claude returned error', { error: jsonResponse.result, sessionId: returnedSessionId });
             resolve({
               success: false,
               error: jsonResponse.result || 'Claude returned error',
-              executionTime
+              executionTime,
+              sessionId: returnedSessionId  // Return session even on error for retry
             });
           } else {
             // Remove progress markers from the result
             let cleanResult = jsonResponse.result || '';
             cleanResult = cleanResult.replace(/\[UATU_STATUS:[^\]]+\]\n?/g, '');
 
+            log.info('Claude session info', {
+              sessionId: returnedSessionId,
+              numTurns: jsonResponse.num_turns,
+              totalCostUsd: jsonResponse.total_cost_usd
+            });
+
             resolve({
               success: true,
               output: cleanResult,
-              executionTime
+              executionTime,
+              sessionId: returnedSessionId  // Return session for continuation
             });
           }
         } catch (parseErr) {
@@ -501,6 +571,7 @@ export async function executeStreamingClaude(
 
     function cleanup() {
       clearInterval(heartbeatInterval); // Clear heartbeat on cleanup
+      releaseLock();  // Release the queue lock
       try {
         unlinkSync(promptFile);
         rmSync(tempDir, { recursive: true, force: true });

@@ -195,6 +195,10 @@ export async function handlePublicAuditRoutes(
                   vulnerabilities: audit.results.findings,
                   summary: audit.results.summary,
                   metadata: audit.results.metadata,
+                  // NEW: Comprehensive report fields (from metadata)
+                  technicalChecks: (audit.results.metadata as any)?.technicalChecks || [],
+                  businessRiskChecks: (audit.results.metadata as any)?.businessRiskChecks || [],
+                  functionOverview: (audit.results.metadata as any)?.functionOverview || [],
                 }
               : null,
           },
@@ -256,6 +260,10 @@ export async function handlePublicAuditRoutes(
                   vulnerabilities: audit.results.findings,
                   summary: audit.results.summary,
                   metadata: audit.results.metadata,
+                  // NEW: Comprehensive report fields (from metadata)
+                  technicalChecks: (audit.results.metadata as any)?.technicalChecks || [],
+                  businessRiskChecks: (audit.results.metadata as any)?.businessRiskChecks || [],
+                  functionOverview: (audit.results.metadata as any)?.functionOverview || [],
                 }
               : null,
           },

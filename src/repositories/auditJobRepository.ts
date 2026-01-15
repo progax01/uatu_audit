@@ -140,6 +140,10 @@ export async function completeQuickScanJob(
     gasOptimizations?: any[];
     bestPractices?: any[];
     scanDuration?: number;
+    // NEW: Comprehensive report fields
+    technicalChecks?: any[];
+    businessRiskChecks?: any[];
+    functionOverview?: any[];
   }
 ): Promise<void> {
   const db = getDb();
@@ -154,7 +158,7 @@ export async function completeQuickScanJob(
     })
     .where(eq(auditJobs.id, jobId));
 
-  // Insert audit results
+  // Insert audit results with all comprehensive fields in metadata
   await db.insert(auditResults).values({
     jobId,
     scoreValue: result.score,
@@ -167,6 +171,10 @@ export async function completeQuickScanJob(
       gasOptimizations: result.gasOptimizations,
       bestPractices: result.bestPractices,
       scanDuration: result.scanDuration,
+      // NEW: Comprehensive report data stored in metadata
+      technicalChecks: result.technicalChecks || [],
+      businessRiskChecks: result.businessRiskChecks || [],
+      functionOverview: result.functionOverview || [],
     },
   });
 
@@ -175,6 +183,9 @@ export async function completeQuickScanJob(
     score: result.score,
     grade: result.grade,
     vulnerabilityCount: result.vulnerabilities?.length || 0,
+    technicalChecksCount: result.technicalChecks?.length || 0,
+    businessRiskChecksCount: result.businessRiskChecks?.length || 0,
+    functionOverviewCount: result.functionOverview?.length || 0,
   });
 }
 

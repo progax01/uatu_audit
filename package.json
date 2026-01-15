@@ -27,7 +27,8 @@
     "db:migrate": "node --loader ts-node/esm src/db/migrate.ts",
     "db:push": "drizzle-kit push",
     "db:seed": "node --loader ts-node/esm src/db/seed.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:reset": "npx tsx src/db/reset-audits.ts"
   },
   "keywords": [],
   "author": "",

@@ -51,8 +51,8 @@ export default function Footer() {
                         <Link to="/pricing" className="text-sm font-bold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Pricing</Link>
                         <Link to="/how-it-works" className="text-sm font-bold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">How It Works</Link>
                         <Link to="/supported-chains" className="text-sm font-bold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Supported Chains</Link>
-                        <a href="https://dashboard.uatu.xyz" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Uatu Analyzer ↗</a>
-                        <a href="https://build.uatu.xyz" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">Uatu Build ↗</a>
+                        <span className="text-sm font-bold text-slate-300 dark:text-slate-600 cursor-not-allowed flex items-center gap-2">Uatu Analyzer <span className="text-[8px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded uppercase">Soon</span></span>
+                        <span className="text-sm font-bold text-slate-300 dark:text-slate-600 cursor-not-allowed flex items-center gap-2">Uatu Build <span className="text-[8px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded uppercase">Soon</span></span>
                     </div>
 
                     {/* Resources */}

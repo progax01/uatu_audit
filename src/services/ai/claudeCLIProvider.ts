@@ -11,7 +11,9 @@ const log = logger.child({ service: 'claude-cli-provider' });
 // Configuration
 const DEFAULT_TIMEOUT = parseInt(process.env.CLAUDE_CLI_TIMEOUT || '300000', 10); // Default 5 minutes, configurable via env
 const DEFAULT_MAX_RETRIES = 3;
-const DEFAULT_CONCURRENT_LIMIT = 5;
+// Default to 1 concurrent CLI to prevent queue buildup and ensure proper session management
+// Set CLAUDE_CONCURRENT_LIMIT env var to increase if needed
+const DEFAULT_CONCURRENT_LIMIT = parseInt(process.env.CLAUDE_CONCURRENT_LIMIT || '1', 10);
 const DEFAULT_COLS = 140;
 const DEFAULT_ROWS = 40;
 // No artificial prompt length limit - Claude's context window is the natural boundary

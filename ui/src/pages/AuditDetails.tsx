@@ -102,6 +102,95 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       </div>
     `).join('') || '<p style="color: #64748b;">No vulnerabilities found.</p>';
 
+    // Technical Quick Stats Table HTML
+    const technicalChecksHTML = auditData.technicalChecks?.length > 0 ? `
+      <div style="border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 24px; overflow: hidden;">
+        <div style="background: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0; font-size: 12px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em;">Technical Quick Stats</h3>
+          <span style="background: #ecfdf5; color: #059669; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 700;">
+            ${auditData.technicalChecks.filter((c: any) => c.result === 'Passed').length}/${auditData.technicalChecks.length} Passed
+          </span>
+        </div>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #f8fafc;">
+              <th style="padding: 12px 16px; text-align: left; font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0;">Category</th>
+              <th style="padding: 12px 16px; text-align: left; font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0;">Check</th>
+              <th style="padding: 12px 16px; text-align: center; font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0;">Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${auditData.technicalChecks.map((check: any) => `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 16px; font-size: 11px; font-weight: 600; color: #64748b;">${check.category}</td>
+                <td style="padding: 10px 16px; font-size: 11px; color: #475569;">${check.check}${check.details ? `<br/><span style="font-size: 9px; color: #94a3b8;">${check.details}</span>` : ''}</td>
+                <td style="padding: 10px 16px; text-align: center;">
+                  <span style="padding: 3px 10px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; background: ${check.result === 'Passed' ? '#ecfdf5' : check.result === 'Warning' ? '#fffbeb' : check.result === 'Failed' ? '#fef2f2' : '#f8fafc'}; color: ${check.result === 'Passed' ? '#059669' : check.result === 'Warning' ? '#d97706' : check.result === 'Failed' ? '#dc2626' : '#64748b'};">${check.result}</span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    ` : '';
+
+    // Business Risk Analysis Grid HTML
+    const businessRiskHTML = auditData.businessRiskChecks?.length > 0 ? `
+      <div style="border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 24px; overflow: hidden;">
+        <div style="background: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0; font-size: 12px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em;">Business Risk Analysis</h3>
+          <span style="background: #ecfdf5; color: #059669; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 700;">
+            ${auditData.businessRiskChecks.filter((c: any) => c.severity === 'safe').length}/${auditData.businessRiskChecks.length} Safe
+          </span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #e2e8f0;">
+          ${auditData.businessRiskChecks.map((check: any) => `
+            <div style="background: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: ${check.severity === 'safe' ? '#10b981' : check.severity === 'warning' ? '#f59e0b' : '#ef4444'};"></div>
+                <span style="font-size: 11px; color: #475569;">${check.category}</span>
+              </div>
+              <span style="font-size: 11px; font-weight: 700; color: ${check.severity === 'safe' ? '#1e293b' : check.severity === 'warning' ? '#d97706' : '#dc2626'};">${check.result}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
+
+    // Function Overview Table HTML
+    const functionOverviewHTML = auditData.functionOverview?.length > 0 ? `
+      <div style="border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 24px; overflow: hidden; page-break-inside: avoid;">
+        <div style="background: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0; font-size: 12px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em;">Function Overview</h3>
+          <span style="font-size: 10px; font-weight: 600; color: #64748b;">${auditData.functionOverview.length} Functions Analyzed</span>
+        </div>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #f8fafc;">
+              <th style="padding: 12px 16px; text-align: left; font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0;">Function</th>
+              <th style="padding: 12px 16px; text-align: left; font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0;">Visibility</th>
+              <th style="padding: 12px 16px; text-align: left; font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0;">Observation</th>
+              <th style="padding: 12px 16px; text-align: center; font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${auditData.functionOverview.map((fn: any) => `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 16px; font-size: 11px; font-weight: 700; color: #6366f1; font-family: monospace;">${fn.name}</td>
+                <td style="padding: 10px 16px;">
+                  <span style="padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; background: ${fn.visibility === 'external' ? '#ede9fe' : fn.visibility === 'public' ? '#dbeafe' : '#f1f5f9'}; color: ${fn.visibility === 'external' ? '#7c3aed' : fn.visibility === 'public' ? '#2563eb' : '#64748b'};">${fn.visibility}</span>
+                </td>
+                <td style="padding: 10px 16px; font-size: 10px; color: #475569;">${fn.observation}</td>
+                <td style="padding: 10px 16px; text-align: center;">
+                  <span style="padding: 3px 10px; border-radius: 4px; font-size: 9px; font-weight: 700; background: ${fn.conclusion === 'No Issue' ? '#ecfdf5' : fn.conclusion === 'Warning' ? '#fffbeb' : '#fef2f2'}; color: ${fn.conclusion === 'No Issue' ? '#059669' : fn.conclusion === 'Warning' ? '#d97706' : '#dc2626'};">${fn.conclusion}</span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    ` : '';
+
     const scoreLabel = auditData.score >= 90 ? 'EXCELLENT' : auditData.score >= 70 ? 'GOOD' : auditData.score >= 50 ? 'NEEDS WORK' : 'AT RISK';
     const scoreColor = auditData.score >= 90 ? '#10b981' : auditData.score >= 70 ? '#6366f1' : auditData.score >= 50 ? '#f59e0b' : '#ef4444';
     const badgeColor = auditData.score >= 70 ? '#10b981' : '#f59e0b';
@@ -213,6 +302,10 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
           </div>
         </div>
 
+        ${technicalChecksHTML}
+        ${businessRiskHTML}
+        ${functionOverviewHTML}
+
         <div class="section">
           <div class="section-title">Vulnerability Details</div>
           ${vulnerabilitiesHTML}
@@ -304,6 +397,10 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
             gasOptimizations: metadata.gasOptimizations,
             bestPractices: metadata.bestPractices,
             riskLevel: metadata.riskLevel,
+            // New comprehensive report fields
+            technicalChecks: results.technicalChecks || [],
+            businessRiskChecks: results.businessRiskChecks || [],
+            functionOverview: results.functionOverview || [],
           });
         }
 
@@ -409,7 +506,72 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
     )
   }
 
-  if (!auditData) return null;
+  // Show branded 404 page when audit not found
+  if (error || !auditData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 relative overflow-hidden">
+        {/* Large mascot watermark */}
+        <div className="absolute right-[-10%] top-1/2 -translate-y-1/2 pointer-events-none opacity-[0.04]">
+          <img src={mascot} alt="" className="w-[600px] h-auto" />
+        </div>
+
+        {/* Header */}
+        <header className="h-16 flex items-center justify-between px-8 relative z-10">
+          <div onClick={onHomeClick} className="cursor-pointer flex items-center gap-3 group">
+            <img src={logo} alt="Uatu" className="h-6" />
+          </div>
+          <button
+            onClick={onHomeClick}
+            className="flex items-center gap-2 text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors"
+          >
+            <ArrowRight size={14} className="rotate-180" />
+            Back to Dashboard
+          </button>
+        </header>
+
+        {/* Content */}
+        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] px-6 relative z-10">
+          <div className="text-center max-w-md">
+            {/* Error code */}
+            <div className="mb-6">
+              <span className="text-[100px] font-black text-slate-100 leading-none select-none">404</span>
+            </div>
+
+            {/* Message */}
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-2">
+              Audit Not Found
+            </h1>
+            <p className="text-slate-400 text-sm leading-relaxed mb-8">
+              This report doesn't exist or the link may be incorrect.
+            </p>
+
+            {/* Actions */}
+            <div className="flex gap-3 justify-center mb-8">
+              <button
+                onClick={onHomeClick}
+                className="group px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-[13px] hover:bg-slate-800 transition-all flex items-center gap-2"
+              >
+                Dashboard
+                <ArrowRight size={14} className="opacity-60 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+              <Link
+                to="/quick-scan"
+                className="group px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-[13px] hover:bg-indigo-700 transition-all flex items-center gap-2"
+              >
+                <Zap size={14} />
+                New Scan
+              </Link>
+            </div>
+
+            {/* ID Reference */}
+            <p className="text-[11px] text-slate-300 font-mono">
+              {jobId}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] selection:bg-indigo-500/10 text-slate-950 font-sans relative">
@@ -696,6 +858,141 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                               <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Executive Summary</h3>
                             </div>
                             <p className="text-[13px] text-slate-700 leading-relaxed font-medium">{auditData.summary}</p>
+                          </div>
+                        )}
+
+                        {/* Technical Quick Stats Table */}
+                        {isQuickScan && auditData.technicalChecks && auditData.technicalChecks.length > 0 && (
+                          <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
+                            <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <CheckCircle2 size={20} className="text-emerald-500" />
+                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Technical Quick Stats</h3>
+                              </div>
+                              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-lg">
+                                {auditData.technicalChecks.filter((c: any) => c.result === 'Passed').length}/{auditData.technicalChecks.length} Passed
+                              </span>
+                            </div>
+                            <table className="w-full text-left">
+                              <thead className="bg-slate-50/50">
+                                <tr>
+                                  <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</th>
+                                  <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Check</th>
+                                  <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Result</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {auditData.technicalChecks.map((check: any, idx: number) => (
+                                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="px-6 py-3">
+                                      <span className="text-[11px] font-bold text-slate-500">{check.category}</span>
+                                    </td>
+                                    <td className="px-6 py-3">
+                                      <span className="text-[12px] font-medium text-slate-700">{check.check}</span>
+                                      {check.details && <p className="text-[10px] text-slate-400 mt-0.5">{check.details}</p>}
+                                    </td>
+                                    <td className="px-6 py-3 text-center">
+                                      <span className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase ${
+                                        check.result === 'Passed' ? 'bg-emerald-50 text-emerald-600' :
+                                        check.result === 'Warning' ? 'bg-amber-50 text-amber-600' :
+                                        check.result === 'Failed' ? 'bg-rose-50 text-rose-600' :
+                                        'bg-slate-50 text-slate-400'
+                                      }`}>
+                                        {check.result}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
+                        {/* Business Risk Analysis Table */}
+                        {isQuickScan && auditData.businessRiskChecks && auditData.businessRiskChecks.length > 0 && (
+                          <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
+                            <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Lock size={20} className="text-indigo-500" />
+                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Business Risk Analysis</h3>
+                              </div>
+                              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-lg">
+                                {auditData.businessRiskChecks.filter((c: any) => c.severity === 'safe').length}/{auditData.businessRiskChecks.length} Safe
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-px bg-slate-100">
+                              {auditData.businessRiskChecks.map((check: any, idx: number) => (
+                                <div key={idx} className="bg-white p-4 flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-2.5 h-2.5 rounded-full ${
+                                      check.severity === 'safe' ? 'bg-emerald-500' :
+                                      check.severity === 'warning' ? 'bg-amber-500' :
+                                      'bg-rose-500'
+                                    }`} />
+                                    <span className="text-[11px] font-medium text-slate-600">{check.category}</span>
+                                  </div>
+                                  <span className={`text-[11px] font-bold ${
+                                    check.severity === 'safe' ? 'text-slate-700' :
+                                    check.severity === 'warning' ? 'text-amber-600' :
+                                    'text-rose-600'
+                                  }`}>{check.result}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Function Overview Table (AS-IS) */}
+                        {isQuickScan && auditData.functionOverview && auditData.functionOverview.length > 0 && (
+                          <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
+                            <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Code2 size={20} className="text-violet-500" />
+                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Function Overview</h3>
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                {auditData.functionOverview.length} Functions
+                              </span>
+                            </div>
+                            <table className="w-full text-left">
+                              <thead className="bg-slate-50/50">
+                                <tr>
+                                  <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Function</th>
+                                  <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
+                                  <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Observation</th>
+                                  <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {auditData.functionOverview.map((fn: any, idx: number) => (
+                                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="px-6 py-3">
+                                      <code className="text-[12px] font-bold text-indigo-600">{fn.name}</code>
+                                    </td>
+                                    <td className="px-6 py-3">
+                                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                        fn.visibility === 'external' ? 'bg-violet-50 text-violet-600' :
+                                        fn.visibility === 'public' ? 'bg-blue-50 text-blue-600' :
+                                        fn.visibility === 'internal' ? 'bg-slate-100 text-slate-500' :
+                                        'bg-slate-50 text-slate-400'
+                                      }`}>{fn.visibility}</span>
+                                    </td>
+                                    <td className="px-6 py-3">
+                                      <span className="text-[11px] text-slate-600">{fn.observation}</span>
+                                    </td>
+                                    <td className="px-6 py-3 text-center">
+                                      <span className={`px-3 py-1 rounded-lg text-[10px] font-bold ${
+                                        fn.conclusion === 'No Issue' ? 'bg-emerald-50 text-emerald-600' :
+                                        fn.conclusion === 'Warning' ? 'bg-amber-50 text-amber-600' :
+                                        'bg-rose-50 text-rose-600'
+                                      }`}>
+                                        {fn.conclusion}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         )}
 

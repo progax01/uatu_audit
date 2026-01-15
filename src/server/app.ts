@@ -23,6 +23,7 @@ import {
   getSessionId,
   loadUserId,
 } from "./routes/index.js";
+import { verifyAuth } from "./middleware/auth.js";
 
 import { GitHubWebhookServer } from "../github/appWebhookServer.js";
 
@@ -143,8 +144,18 @@ async function handleRequest(req: any, res: any) {
     if (await handleInteractiveAuditRoutes(req, res, parsed)) return;
 
     // Project routes (with user context)
+    // Check session-based auth first, then JWT auth as fallback
     const sessionId = getSessionId(req);
-    const userId = sessionId ? await loadUserId(sessionId) : undefined;
+    let userId = sessionId ? await loadUserId(sessionId) : undefined;
+
+    // If no session-based userId, try JWT auth
+    if (!userId) {
+      const jwtAuth = await verifyAuth(req);
+      if (jwtAuth) {
+        userId = jwtAuth.user.id;
+      }
+    }
+
     if (await handleProjectRoutes(req, res, { userId: userId || undefined, sessionId: sessionId || undefined })) return;
 
     // Billing routes (with user context)

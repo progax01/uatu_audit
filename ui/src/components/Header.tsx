@@ -40,25 +40,27 @@ export default function Header({ isAuthed, onLogin }: HeaderProps) {
                             <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-premium border border-black/[0.04] dark:border-white/[0.05] p-4 space-y-1">
                                 {[
                                     { name: 'UatuAudit', desc: 'Enterprise AI Security', img: '/audit.png', path: '/', color: 'text-indigo-600' },
-                                    { name: 'Uatu Analyzer', desc: 'Real-time On-Chain Data', img: '/analyse.png', path: 'https://dashboard.uatu.xyz', color: 'text-emerald-600', ext: true },
-                                    { name: 'Uatu Build', desc: 'No-Code DApp Foundry', img: '/build.png', path: 'https://build.uatu.xyz', color: 'text-amber-600', ext: true },
+                                    { name: 'Uatu Analyzer', desc: 'Real-time On-Chain Data', img: '/analyse.png', path: '#', color: 'text-emerald-600', comingSoon: true },
+                                    { name: 'Uatu Build', desc: 'No-Code DApp Foundry', img: '/build.png', path: '#', color: 'text-amber-600', comingSoon: true },
                                 ].map((item) => {
                                     const Content = (
-                                        <div className="flex items-center gap-4 p-4 rounded-[20px] hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-300 group/item">
-                                            <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-black/[0.03] dark:border-white/[0.05] shadow-sm flex items-center justify-center shrink-0 group-hover/item:shadow-md transition-all overflow-hidden`}>
+                                        <div className={`flex items-center gap-4 p-4 rounded-[20px] transition-all duration-300 group/item ${item.comingSoon ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
+                                            <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-black/[0.03] dark:border-white/[0.05] shadow-sm flex items-center justify-center shrink-0 ${!item.comingSoon && 'group-hover/item:shadow-md'} transition-all overflow-hidden`}>
                                                 <img src={item.img} alt={item.name} className="w-8 h-8 object-contain" />
                                             </div>
-                                            <div>
-                                                <div className="font-black text-xs text-slate-900 dark:text-white flex items-center gap-1.5 uppercase tracking-wide">
+                                            <div className="flex-1">
+                                                <div className="font-black text-xs text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-wide">
                                                     {item.name}
-                                                    {item.ext && <span className="text-[9px] opacity-20">↗</span>}
+                                                    {item.comingSoon && (
+                                                        <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-400 text-[7px] font-black rounded uppercase tracking-wider">Soon</span>
+                                                    )}
                                                 </div>
                                                 <div className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-0.5">{item.desc}</div>
                                             </div>
                                         </div>
                                     );
-                                    return item.ext ? (
-                                        <a key={item.name} href={item.path} target="_blank" rel="noopener noreferrer">{Content}</a>
+                                    return item.comingSoon ? (
+                                        <div key={item.name}>{Content}</div>
                                     ) : (
                                         <Link key={item.name} to={item.path}>{Content}</Link>
                                     );

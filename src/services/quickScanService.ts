@@ -36,6 +36,30 @@ export interface QuickScanVulnerability {
   impact?: string;
 }
 
+// Technical security check result
+export interface TechnicalCheck {
+  category: 'Contract Programming' | 'Code Specification' | 'Gas Optimization' | 'Business Risk';
+  check: string;
+  result: 'Passed' | 'Failed' | 'Warning' | 'N/A';
+  details?: string;
+}
+
+// Business risk check result (honeypot/rug detection)
+export interface BusinessRiskCheck {
+  category: string;
+  result: string; // "No", "Yes", "Not Detected", "0%", etc.
+  severity: 'safe' | 'warning' | 'danger';
+}
+
+// Function analysis for AS-IS overview
+export interface FunctionOverview {
+  name: string;
+  type: 'read' | 'write' | 'external' | 'internal' | 'constructor';
+  visibility: 'public' | 'external' | 'internal' | 'private';
+  observation: string;
+  conclusion: 'No Issue' | 'Warning' | 'See Findings';
+}
+
 export interface QuickScanResult {
   success: boolean;
   score: number;
@@ -65,6 +89,12 @@ export interface QuickScanResult {
     status: 'pass' | 'fail' | 'warning';
     details: string;
   }>;
+  // NEW: Comprehensive security checklist (Technical Quick Stats)
+  technicalChecks?: TechnicalCheck[];
+  // NEW: Business risk analysis (honeypot/rug detection)
+  businessRiskChecks?: BusinessRiskCheck[];
+  // NEW: Function-by-function overview (AS-IS analysis)
+  functionOverview?: FunctionOverview[];
   error?: string;
 }
 
@@ -159,8 +189,81 @@ OUTPUT FORMAT (strict JSON, no markdown):
       "status": "<pass|fail|warning>",
       "details": "<explanation>"
     }
+  ],
+  "technicalChecks": [
+    {
+      "category": "<Contract Programming|Code Specification|Gas Optimization|Business Risk>",
+      "check": "<specific check name like 'Integer overflow protection' or 'Function visibility declared'>",
+      "result": "<Passed|Failed|Warning|N/A>",
+      "details": "<brief explanation if not Passed>"
+    }
+  ],
+  "businessRiskChecks": [
+    {
+      "category": "<check name like 'Is Honeypot', 'Can Mint', 'Is Proxy', 'Hidden Owner', 'Self Destruction', 'Blacklist', 'Pause Mechanism', 'Buy Tax', 'Sell Tax'>",
+      "result": "<No|Yes|Not Detected|0%|value>",
+      "severity": "<safe|warning|danger>"
+    }
+  ],
+  "functionOverview": [
+    {
+      "name": "<function name>",
+      "type": "<read|write|external|internal|constructor>",
+      "visibility": "<public|external|internal|private>",
+      "observation": "<brief observation about the function - what issues if any>",
+      "conclusion": "<No Issue|Warning|See Findings>"
+    }
   ]
 }
+
+TECHNICAL CHECKS TO EVALUATE (include ALL relevant checks):
+Contract Programming:
+- Solidity version specified/appropriate
+- Integer overflow/underflow protection
+- Function input parameter validation
+- Function access control management
+- Critical operations have event logs
+- Human/contract checks (if applicable)
+- Fallback function handling
+- Race condition protection
+- Reentrancy protection
+
+Code Specification:
+- Function visibility explicitly declared
+- Variable storage location explicitly declared
+- No deprecated keywords/functions
+- No unused code
+
+Gas Optimization:
+- No unbounded loops causing "out of gas"
+- Efficient loop patterns
+- Optimized storage usage
+- Proper assert() vs require() usage
+
+Business Risk:
+- Maximum mintage limits (if applicable)
+- Short address attack protection
+- Double spend protection
+
+BUSINESS RISK CHECKS TO EVALUATE (include ALL that apply):
+- Buy Tax (percentage or "No")
+- Sell Tax (percentage or "No")
+- Is Honeypot (Yes/No/Not Detected)
+- Trading Cooldown (Yes/No/Not Detected)
+- Can Pause Trade (Yes/No)
+- Pause Transfer (Yes/No)
+- Anti-whale mechanism (Yes/No/Not Detected)
+- Anti-bot mechanism (Yes/No/Not Detected)
+- Blacklist capability (Yes/No)
+- Can Mint (Yes/No)
+- Is Proxy (Yes/No)
+- Can Take Ownership (Yes/No)
+- Hidden Owner (Yes/No/Not Detected)
+- Self Destruction (Yes/No/Not Detected)
+- Centralization Risk Level (None/Low/Medium/High)
+
+FUNCTION OVERVIEW:
+List ALL public and external functions with their analysis status.
 
 SCORING GUIDE:
 - 90-100 (SAFE): No critical/high, max 2 medium, exemplary code
@@ -370,7 +473,11 @@ ${userPrompt}`;
       scanDuration,
       contractAnalysis: result.contractAnalysis,
       gasOptimizations: result.gasOptimizations,
-      bestPractices: result.bestPractices
+      bestPractices: result.bestPractices,
+      // NEW: Comprehensive report data
+      technicalChecks: result.technicalChecks,
+      businessRiskChecks: result.businessRiskChecks,
+      functionOverview: result.functionOverview
     };
   } catch (error: any) {
     log.error('Quick scan failed', { error: error.message });
