@@ -1,0 +1,83 @@
+services:
+  audit-solidity:
+    build:
+      context: .
+      dockerfile: docker/solidity.Dockerfile
+    image: uatu-audit-solidity:latest
+    container_name: uatu-solidity
+    volumes:
+      - ./test-repos:/audit/source:ro  # Read-only source
+      - ./audit-output:/audit/output:rw  # Write output
+    networks:
+      - audit-isolated
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./docker/seccomp-audit.json
+      - apparmor=docker-default
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE  # Needed for file writes
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=1g
+    mem_limit: 4g
+    cpus: 2.0
+
+  audit-rust:
+    build:
+      context: .
+      dockerfile: docker/rust.Dockerfile
+    image: uatu-audit-rust:latest
+    container_name: uatu-rust
+    volumes:
+      - ./test-repos:/audit/source:ro
+      - ./audit-output:/audit/output:rw
+    networks:
+      - audit-isolated
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./docker/seccomp-audit.json
+      - apparmor=docker-default
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=1g
+    mem_limit: 4g
+    cpus: 2.0
+
+  audit-move:
+    build:
+      context: .
+      dockerfile: docker/move.Dockerfile
+    image: uatu-audit-move:latest
+    container_name: uatu-move
+    volumes:
+      - ./test-repos:/audit/source:ro
+      - ./audit-output:/audit/output:rw
+    networks:
+      - audit-isolated
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./docker/seccomp-audit.json
+      - apparmor=docker-default
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=1g
+    mem_limit: 4g
+    cpus: 2.0
+
+networks:
+  audit-isolated:
+    driver: bridge
+    internal: true  # No external network access

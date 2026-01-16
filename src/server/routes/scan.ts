@@ -908,6 +908,9 @@ export async function handleScanRoutes(
 
         const logs: string[] = [];
         let currentMessage = "Initializing scan...";
+        let lastProgressUpdate = Date.now();
+        let scanStartTime = Date.now();
+        let receivedAnyProgress = false;
 
         // Calculate overall progress from phases
         const calculateOverallProgress = (): number => {
@@ -918,10 +921,62 @@ export async function handleScanRoutes(
           return Math.round(totalProgress);
         };
 
+        // Simulate progress when no updates received (fallback)
+        const simulateProgress = () => {
+          const elapsedSeconds = (Date.now() - scanStartTime) / 1000;
+          const estimatedTotalSeconds = 120; // Estimate 2 minutes for scan
+
+          // Calculate simulated progress (slower at start, faster in middle, slower at end)
+          let simulatedPct = Math.min(90, (elapsedSeconds / estimatedTotalSeconds) * 100);
+
+          // Apply easing curve (sigmoid-like)
+          simulatedPct = 100 / (1 + Math.exp(-0.1 * (simulatedPct - 50)));
+          simulatedPct = Math.min(90, Math.round(simulatedPct)); // Cap at 90% until completion
+
+          const currentPct = calculateOverallProgress();
+          if (simulatedPct > currentPct) {
+            // Advance to next pending/active phase
+            for (const phase of phases) {
+              if (phase.status === 'pending') {
+                phase.status = 'active';
+                phase.pct = 20;
+                currentMessage = `Analyzing: ${phase.label}...`;
+                break;
+              } else if (phase.status === 'active' && phase.pct < 100) {
+                phase.pct = Math.min(100, phase.pct + 15);
+                if (phase.pct >= 100) {
+                  phase.status = 'complete';
+                }
+                break;
+              }
+            }
+          }
+        };
+
         // Helper to send SSE event
         const sendProgress = (data: any) => {
           res.write(`data: ${JSON.stringify(data)}\n\n`);
         };
+
+        // Start progress simulation interval (runs every 3 seconds)
+        const progressInterval = setInterval(() => {
+          const timeSinceLastUpdate = Date.now() - lastProgressUpdate;
+
+          // If no progress received in 5 seconds, simulate it
+          if (!receivedAnyProgress || timeSinceLastUpdate > 5000) {
+            simulateProgress();
+
+            sendProgress({
+              jobId: auditJob.id,
+              status: "auditing",
+              progressPct: calculateOverallProgress(),
+              message: currentMessage,
+              phases: phases.map(p => ({ name: p.name, label: p.label, status: p.status, pct: p.pct })),
+              logs: logs.slice(-20),
+              simulated: true, // Indicate this is simulated progress
+            });
+          }
+        }, 3000); // Every 3 seconds
 
         // Send initial progress
         sendProgress({
@@ -963,6 +1018,10 @@ export async function handleScanRoutes(
             runs,
             workspacePath: sloc > 1000 ? workspacePath : undefined,
             onProgress: (phase, pct, message) => {
+              // Mark that we received real progress from Claude
+              receivedAnyProgress = true;
+              lastProgressUpdate = Date.now();
+
               // Handle heartbeat - send keep-alive without updating phases
               if (phase === 'HEARTBEAT') {
                 sendProgress({
@@ -1027,6 +1086,9 @@ export async function handleScanRoutes(
               }
             },
           });
+
+          // Stop progress simulation
+          clearInterval(progressInterval);
 
           // Mark all phases as complete
           for (const phase of phases) {
@@ -1103,6 +1165,9 @@ export async function handleScanRoutes(
           return true;
         } catch (quickError: any) {
           log.error("Quick scan failed", { jobId: auditJob.id, error: quickError.message });
+
+          // Stop progress simulation
+          clearInterval(progressInterval);
 
           // Mark job as failed
           await failQuickScanJob(auditJob.id, quickError.message);

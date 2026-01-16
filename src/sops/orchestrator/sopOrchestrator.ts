@@ -481,12 +481,20 @@ export class SOPOrchestrator extends EventEmitter {
       },
     };
 
-    // Get timeout from depth config
+    // Get timeout from depth config or step definition
     const depthConfig = this.config.sop.depths[this.config.auditDepth];
     const toolTimeouts = depthConfig.toolTimeouts || {};
-    const timeout =
-      toolTimeouts[(step.executorConfig as any)?.tool] ||
-      step.timeoutSeconds * 1000;
+
+    // Calculate step timeout: use timeoutSeconds if specified, otherwise estimated * 3, or default to 5 minutes
+    const stepTimeout = (step as any).timeoutSeconds || step.estimatedDurationSeconds * 3 || 300;
+
+    // Get tool-specific timeout from depth config
+    const toolTimeout = toolTimeouts[(step.executorConfig as any)?.tool];
+
+    // Use the maximum of tool timeout and step timeout (so steps can override short depth config timeouts)
+    const timeout = toolTimeout
+      ? Math.max(toolTimeout, stepTimeout) * 1000  // Both are in seconds, convert to ms
+      : stepTimeout * 1000;
 
     // Execute step with timeout
     // If interactive mode is enabled, wrap with interactive orchestrator
@@ -580,6 +588,7 @@ export class SOPOrchestrator extends EventEmitter {
    * Check if step dependencies are satisfied
    */
   private checkDependencies(step: StepDefinition): boolean {
+    // Check if step dependencies have executed
     for (const depId of step.dependsOn) {
       const depStatus = this.stepStatus.get(depId);
 
@@ -596,12 +605,36 @@ export class SOPOrchestrator extends EventEmitter {
             );
 
             if (missingData.length > 0) {
+              log.warn('Step dependency skipped but missing required data', {
+                stepId: step.id,
+                depId,
+                missingData,
+              });
               return false;
             }
           }
         } else {
+          log.warn('Step dependency not met', {
+            stepId: step.id,
+            depId,
+            depStatus: depStatus || 'undefined',
+            availableStatuses: Array.from(this.stepStatus.entries()),
+          });
           return false;
         }
+      }
+    }
+
+    // Check if required data is available (even if no explicit dependencies)
+    if (step.requires && step.requires.length > 0) {
+      const missingData = step.requires.filter((key) => !this.stepData.has(key));
+      if (missingData.length > 0) {
+        log.warn('Step missing required data', {
+          stepId: step.id,
+          missingData,
+          availableData: Array.from(this.stepData.keys()),
+        });
+        return false;
       }
     }
 

@@ -11,6 +11,7 @@
       "enabledSteps": [
         "detect-framework",
         "validate-structure",
+        "parse-foundry-config",
         "enumerate-contracts",
         "count-sloc",
         "check-solc-version",
@@ -18,8 +19,10 @@
         "run-slither",
         "parse-slither",
         "merge-tool-findings",
+        "deduplicate",
         "ai-quick-analysis",
         "calculate-severity",
+        "ai-recommendations",
         "calculate-score",
         "generate-report"
       ],
@@ -789,7 +792,7 @@
       },
       "estimatedDurationSeconds": 10,
       "timeoutSeconds": 60,
-      "dependsOn": ["ai-validate-findings", "ai-business-logic", "ai-reentrancy", "ai-access-control", "ai-oracle"],
+      "dependsOn": ["merge-tool-findings"],
       "provides": ["deduplicatedFindings", "duplicatesRemoved"],
       "requires": [],
       "category": "report-generation",

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { Github, FileCode, Globe, Package, Plus, X, Check, RefreshCw, Trash2 } from 'lucide-react'
 import { authFetch } from '../../services/authService'
 
@@ -222,7 +223,180 @@ export default function SourcesTab({ projectId, components, onComponentAdded }: 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* GitHub Modal */}
+      {addingType === 'github' && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
+          onClick={() => setAddingType(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-lg">Add GitHub Repository</h3>
+              <button onClick={() => setAddingType(null)} className="p-2 hover:bg-slate-100 rounded-lg">
+                <X size={18} />
+              </button>
+            </div>
+
+            {!isGithubAuthed ? (
+              <div className="text-center py-8">
+                <p className="text-sm text-slate-600 mb-4">Connect GitHub to import repositories</p>
+                <button
+                  onClick={() => window.location.href = '/auth/github/login'}
+                  className="btn-primary px-6 py-3"
+                >
+                  <Github size={16} />
+                  Connect GitHub
+                </button>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Repository</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedRepo?.full_name || ''}
+                      onChange={(e) => {
+                        const repo = repositories.find(r => r.full_name === e.target.value)
+                        if (repo) {
+                          setSelectedRepo(repo)
+                          setSelectedBranch('')
+                          fetchBranches(repo.full_name)
+                        }
+                      }}
+                      className="flex-1 h-11 px-4 bg-white border border-black/[0.05] rounded-xl text-sm"
+                    >
+                      <option value="">Select repository...</option>
+                      {repositories.map(repo => (
+                        <option key={repo.id} value={repo.full_name}>{repo.full_name}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={fetchRepositories}
+                      disabled={loadingRepos}
+                      className="px-4 h-11 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                    >
+                      <RefreshCw size={16} className={loadingRepos ? 'animate-spin' : ''} />
+                    </button>
+                  </div>
+                </div>
+
+                {selectedRepo && (
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Branch</label>
+                    <select
+                      value={selectedBranch}
+                      onChange={(e) => setSelectedBranch(e.target.value)}
+                      className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-xl text-sm"
+                    >
+                      <option value="">Select branch...</option>
+                      {branches.map(branch => (
+                        <option key={branch.name} value={branch.name}>{branch.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-xs">
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setAddingType(null)}
+                    className="flex-1 h-11 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs uppercase"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddGitHub}
+                    disabled={!selectedRepo || !selectedBranch || loading}
+                    className="flex-1 h-11 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase hover:bg-indigo-600 disabled:opacity-50"
+                  >
+                    {loading ? 'Adding...' : 'Add Repository'}
+                  </button>
+                </div>
+              </>
+            )}
+          </motion.div>
+        </div>
+      )}
+
+      {/* Contract Modal */}
+      {addingType === 'contract' && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
+          onClick={() => setAddingType(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-lg">Add Deployed Contract</h3>
+              <button onClick={() => setAddingType(null)} className="p-2 hover:bg-slate-100 rounded-lg">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Network</label>
+              <select
+                value={selectedNetwork}
+                onChange={(e) => setSelectedNetwork(e.target.value)}
+                className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-xl text-sm"
+              >
+                {NETWORKS.map(network => (
+                  <option key={network.id} value={network.id}>{network.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Contract Address</label>
+              <input
+                type="text"
+                value={contractAddress}
+                onChange={(e) => setContractAddress(e.target.value)}
+                placeholder="0x..."
+                className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-xl text-sm font-mono"
+              />
+            </div>
+
+            {error && (
+              <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-xs">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setAddingType(null)}
+                className="flex-1 h-11 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs uppercase"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddContract}
+                disabled={!contractAddress || loading}
+                className="flex-1 h-11 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase hover:bg-indigo-600 disabled:opacity-50"
+              >
+                {loading ? 'Adding...' : 'Add Contract'}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Component Type Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* GitHub */}
@@ -284,159 +458,6 @@ export default function SourcesTab({ projectId, components, onComponentAdded }: 
           <p className="text-xs text-slate-400">Check package vulnerabilities</p>
         </button>
       </div>
-
-      {/* Add GitHub Modal */}
-      {addingType === 'github' && (
-        <div className="card-premium p-6 space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-black text-lg">Add GitHub Repository</h3>
-            <button onClick={() => setAddingType(null)} className="p-2 hover:bg-slate-100 rounded-lg">
-              <X size={18} />
-            </button>
-          </div>
-
-          {!isGithubAuthed ? (
-            <div className="text-center py-8">
-              <p className="text-sm text-slate-600 mb-4">Connect GitHub to import repositories</p>
-              <button
-                onClick={() => window.location.href = '/auth/github/login'}
-                className="btn-primary px-6 py-3"
-              >
-                <Github size={16} />
-                Connect GitHub
-              </button>
-            </div>
-          ) : (
-            <>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Repository</label>
-                <div className="flex gap-2">
-                  <select
-                    value={selectedRepo?.full_name || ''}
-                    onChange={(e) => {
-                      const repo = repositories.find(r => r.full_name === e.target.value)
-                      if (repo) {
-                        setSelectedRepo(repo)
-                        setSelectedBranch('')
-                        fetchBranches(repo.full_name)
-                      }
-                    }}
-                    className="flex-1 h-11 px-4 bg-white border border-black/[0.05] rounded-xl text-sm"
-                  >
-                    <option value="">Select repository...</option>
-                    {repositories.map(repo => (
-                      <option key={repo.id} value={repo.full_name}>{repo.full_name}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={fetchRepositories}
-                    disabled={loadingRepos}
-                    className="px-4 h-11 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
-                  >
-                    <RefreshCw size={16} className={loadingRepos ? 'animate-spin' : ''} />
-                  </button>
-                </div>
-              </div>
-
-              {selectedRepo && (
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Branch</label>
-                  <select
-                    value={selectedBranch}
-                    onChange={(e) => setSelectedBranch(e.target.value)}
-                    className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-xl text-sm"
-                  >
-                    <option value="">Select branch...</option>
-                    {branches.map(branch => (
-                      <option key={branch.name} value={branch.name}>{branch.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {error && (
-                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-xs">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setAddingType(null)}
-                  className="flex-1 h-11 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs uppercase"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddGitHub}
-                  disabled={!selectedRepo || !selectedBranch || loading}
-                  className="flex-1 h-11 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase hover:bg-indigo-600 disabled:opacity-50"
-                >
-                  {loading ? 'Adding...' : 'Add Repository'}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Add Contract Modal */}
-      {addingType === 'contract' && (
-        <div className="card-premium p-6 space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-black text-lg">Add Deployed Contract</h3>
-            <button onClick={() => setAddingType(null)} className="p-2 hover:bg-slate-100 rounded-lg">
-              <X size={18} />
-            </button>
-          </div>
-
-          <div>
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Network</label>
-            <select
-              value={selectedNetwork}
-              onChange={(e) => setSelectedNetwork(e.target.value)}
-              className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-xl text-sm"
-            >
-              {NETWORKS.map(network => (
-                <option key={network.id} value={network.id}>{network.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Contract Address</label>
-            <input
-              type="text"
-              value={contractAddress}
-              onChange={(e) => setContractAddress(e.target.value)}
-              placeholder="0x..."
-              className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-xl text-sm font-mono"
-            />
-          </div>
-
-          {error && (
-            <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-xs">
-              {error}
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => setAddingType(null)}
-              className="flex-1 h-11 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs uppercase"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAddContract}
-              disabled={!contractAddress || loading}
-              className="flex-1 h-11 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase hover:bg-indigo-600 disabled:opacity-50"
-            >
-              {loading ? 'Adding...' : 'Add Contract'}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Components List */}
       {components.length > 0 && (

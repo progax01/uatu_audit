@@ -1,0 +1,35 @@
+#include <tunables/global>
+
+profile docker-uatu-audit flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # Deny network access
+  deny network,
+
+  # Deny device access except /dev/null, /dev/zero, /dev/random
+  deny /dev/** rwklx,
+  /dev/null rw,
+  /dev/zero rw,
+  /dev/random r,
+  /dev/urandom r,
+
+  # Allow read access to source code
+  /audit/source/** r,
+
+  # Allow write access to output directory only
+  /audit/output/** rw,
+
+  # Deny access to sensitive host directories
+  deny /root/.ssh/** rwklx,
+  deny /root/.gnupg/** rwklx,
+  deny /home/** rwklx,
+  deny /etc/shadow rwklx,
+  deny /etc/passwd rwklx,
+
+  # Deny ptrace (debugging other processes)
+  deny ptrace,
+
+  # Deny mounting filesystems
+  deny mount,
+  deny umount,
+}

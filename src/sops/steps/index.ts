@@ -43,11 +43,18 @@ export async function executeStep(
   try {
     let result: StepResult;
 
+    // Handle both 'executorConfig' and 'config' field names (backward compatibility)
+    const config = step.executorConfig || (step as any).config;
+
+    if (!config) {
+      throw new Error(`Step ${step.id} missing executorConfig/config`);
+    }
+
     switch (step.executor) {
       case 'deterministic':
         result = await executeDeterministicStep(
           step,
-          step.executorConfig as DeterministicStepConfig,
+          config as DeterministicStepConfig,
           context
         );
         break;
@@ -55,7 +62,7 @@ export async function executeStep(
       case 'tool':
         result = await executeToolStep(
           step,
-          step.executorConfig as ToolStepConfig,
+          config as ToolStepConfig,
           context
         );
         break;
@@ -63,7 +70,7 @@ export async function executeStep(
       case 'ai-prompt':
         result = await executeAIPromptStep(
           step,
-          step.executorConfig as AIPromptStepConfig,
+          config as AIPromptStepConfig,
           context
         );
         break;
@@ -71,7 +78,7 @@ export async function executeStep(
       case 'composite':
         result = await executeCompositeStep(
           step,
-          step.executorConfig as CompositeStepConfig,
+          config as CompositeStepConfig,
           context
         );
         break;

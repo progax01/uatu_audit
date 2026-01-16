@@ -7,7 +7,7 @@
 
 import { eq, asc } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { auditJobs, auditStepProgress, auditSopExecution } from '../../db/schema.js';
+import { auditJobs, auditStepProgress, auditSopExecution, auditResults } from '../../db/schema.js';
 
 import {
   startUnifiedAudit,
@@ -224,7 +224,7 @@ export async function handleAuditRoutes(
   }
 
   // ============================================================================
-  // GET /api/audit/:jobId - Get audit details
+  // GET /api/audit/:jobId - Get audit details (job + results)
   // ============================================================================
   const detailsMatch = parsed.pathname?.match(/^\/api\/audit\/([a-f0-9-]+)$/);
   if (req.method === 'GET' && detailsMatch) {
@@ -240,14 +240,20 @@ export async function handleAuditRoutes(
         return true;
       }
 
+      // Fetch SOP execution metadata (if exists)
       const [sopExec] = await db.select().from(auditSopExecution).where(eq(auditSopExecution.jobId, jobId));
 
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({
+      // Fetch audit results (if completed)
+      const [results] = await db.select().from(auditResults).where(eq(auditResults.jobId, jobId));
+
+      // Build response with both job metadata and results
+      const response: any = {
         success: true,
         audit: {
           id: job.id,
           status: job.status,
+          auditType: job.auditType,
+          visibility: job.visibility,
           sourceType: job.sourceType,
           auditDepth: job.auditDepth,
           detectedFramework: job.detectedFramework,
@@ -258,12 +264,48 @@ export async function handleAuditRoutes(
           currentStepName: job.currentStepName,
           stepsCompleted: job.stepsCompleted,
           stepsTotal: job.stepsTotal,
+          contractAddress: job.contractAddress,
+          contractNetwork: job.contractNetwork,
+          contractName: job.contractName,
+          isProxy: job.isProxy,
+          implementationAddress: job.implementationAddress,
+          deployerAddress: job.deployerAddress,
+          repo: job.repo,
+          branch: job.branch,
           createdAt: job.createdAt,
           updatedAt: job.updatedAt,
+          completedAt: job.completedAt,
           errorMessage: job.errorMessage,
         },
-        sopExecution: sopExec,
-      }));
+      };
+
+      // Include SOP execution if exists
+      if (sopExec) {
+        response.sopExecution = sopExec;
+      }
+
+      // Include results if exists
+      if (results) {
+        response.results = {
+          score: results.scoreValue,
+          grade: results.scoreLabel,
+          vulnerabilities: results.findings,
+          summary: results.summary,
+          metadata: results.metadata,
+          // Extract commonly used fields from metadata for easy access
+          technicalChecks: (results.metadata as any)?.technicalChecks || [],
+          businessRiskChecks: (results.metadata as any)?.businessRiskChecks || [],
+          functionOverview: (results.metadata as any)?.functionOverview || [],
+          contractAnalysis: (results.metadata as any)?.contractAnalysis,
+          gasOptimizations: (results.metadata as any)?.gasOptimizations,
+          bestPractices: (results.metadata as any)?.bestPractices,
+          riskLevel: (results.metadata as any)?.riskLevel,
+          scanDuration: (results.metadata as any)?.scanDuration,
+        };
+      }
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(response));
       return true;
     } catch (error: any) {
       log.error('Failed to get audit details', { jobId, error: error.message });

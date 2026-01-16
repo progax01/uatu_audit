@@ -36,6 +36,90 @@ export default function ProjectDetails() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [deleting, setDeleting] = useState(false)
     const [activeTab, setActiveTab] = useState<TabType>('sources')
+    const [startingAudit, setStartingAudit] = useState(false)
+    const [auditError, setAuditError] = useState<string | null>(null)
+
+    const handleStartAudit = async () => {
+        if (!project || !project.components || project.components.length === 0) {
+            setAuditError('No components configured')
+            return
+        }
+
+        setStartingAudit(true)
+        setAuditError(null)
+
+        try {
+            // Get the first component (for now, we'll handle multi-component later)
+            const component = project.components[0]
+
+            // Build source object based on component type
+            let source: any
+
+            if (component.type === 'github-repo') {
+                const config = component.config as any
+                source = {
+                    type: 'github-repo',
+                    owner: config.owner,
+                    repo: config.repo,
+                    branch: config.currentBranch || config.defaultBranch,
+                    repoUrl: config.cloneUrl,
+                    includePaths: config.includePaths,
+                    excludePaths: config.excludePaths
+                }
+            } else if (component.type === 'deployed-contract') {
+                const config = component.config as any
+                source = {
+                    type: 'deployed-contract',
+                    address: config.address,
+                    network: config.network,
+                    chainId: config.chainId
+                }
+            } else if (component.type === 'manual-upload') {
+                const config = component.config as any
+                source = {
+                    type: 'manual-upload',
+                    uploadId: config.uploadId,
+                    files: config.files
+                }
+            } else {
+                throw new Error(`Unsupported component type: ${component.type}`)
+            }
+
+            // Start the audit
+            // Note: Don't send projectId for file-based projects since they don't exist in the database
+            const response = await authFetch('/api/audit/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    source,
+                    depth: 'standard', // Default to standard audit
+                    visibility: 'private',
+                    // projectId: project.id  // Omitted - file-based projects aren't in DB
+                })
+            })
+
+            if (!response.ok) {
+                const data = await response.json()
+                throw new Error(data.error || 'Failed to start audit')
+            }
+
+            const result = await response.json()
+
+            if (result.success && result.jobId) {
+                // Navigate to audit progress page
+                navigate(`/audit/${result.jobId}`)
+            } else {
+                throw new Error(result.error || 'Failed to start audit')
+            }
+        } catch (err: any) {
+            console.error('Failed to start audit:', err)
+            setAuditError(err.message || 'Failed to start audit')
+        } finally {
+            setStartingAudit(false)
+        }
+    }
 
     const handleDelete = async () => {
         if (!project) return
@@ -202,15 +286,42 @@ export default function ProjectDetails() {
                     </button>
                     {project.components && project.components.length > 0 && (
                         <button
-                            onClick={() => navigate(`/preaudit-questionnaire/${project.lastAuditJobId || 'new'}`)}
+                            onClick={handleStartAudit}
+                            disabled={startingAudit}
                             className="btn-primary px-4 py-2.5 text-xs"
                         >
-                            <Play size={14} />
-                            Start Audit
+                            {startingAudit ? (
+                                <>
+                                    <Loader2 size={14} className="animate-spin" />
+                                    Starting...
+                                </>
+                            ) : (
+                                <>
+                                    <Play size={14} />
+                                    Start Audit
+                                </>
+                            )}
                         </button>
                     )}
                 </div>
             </div>
+
+            {/* Error Message */}
+            {auditError && (
+                <div className="card-premium !bg-rose-50 !border-rose-200 p-4 flex items-start gap-3">
+                    <AlertTriangle size={20} className="text-rose-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                        <h4 className="text-sm font-bold text-rose-900 mb-1">Failed to Start Audit</h4>
+                        <p className="text-xs text-rose-700">{auditError}</p>
+                    </div>
+                    <button
+                        onClick={() => setAuditError(null)}
+                        className="text-rose-400 hover:text-rose-600"
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
 
             {/* Tabs Row */}
             <div className="space-y-4">

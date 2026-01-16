@@ -8,6 +8,12 @@
 import { spawn } from 'child_process';
 import type { ToolRunnerConfig, ToolRunnerResult, StepFinding } from '../sops/definitions/types';
 import { normalizeFilePath, parseJsonOutput } from './index';
+import { runToolInDocker, checkDockerAvailable, checkDockerImageExists } from './dockerRunner.js';
+import { ECOSYSTEM_DOCKER_IMAGES } from '../config/docker.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 // ============================================================================
 // Types
@@ -74,11 +80,53 @@ const SMART_CONTRACT_CONFIGS = [
 // ============================================================================
 
 /**
+ * Check if Semgrep is available natively
+ */
+async function checkSemgrepNative(): Promise<boolean> {
+  try {
+    await execAsync('semgrep --version', { timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Run Semgrep on a project
  */
 export async function runSemgrep(config: ToolRunnerConfig): Promise<ToolRunnerResult> {
   const startTime = Date.now();
 
+  // Check if native Semgrep is available
+  const nativeAvailable = await checkSemgrepNative();
+
+  if (nativeAvailable) {
+    // Use native Semgrep
+    return runSemgrepNative(config, startTime);
+  } else {
+    // Try Docker fallback
+    const dockerAvailable = await checkDockerAvailable();
+    const imageExists = dockerAvailable ? await checkDockerImageExists(ECOSYSTEM_DOCKER_IMAGES.solidity) : false;
+
+    if (imageExists) {
+      return runSemgrepDocker(config, startTime);
+    } else {
+      return {
+        success: false,
+        findings: [],
+        error: 'Semgrep not available. Please install Semgrep locally or build the Docker image:\n' +
+               'Native: pip install semgrep\n' +
+               'Docker: docker build -f docker/solidity.Dockerfile -t uatu-audit-solidity:latest .',
+        executionTimeMs: Date.now() - startTime,
+      };
+    }
+  }
+}
+
+/**
+ * Run Semgrep natively
+ */
+async function runSemgrepNative(config: ToolRunnerConfig, startTime: number): Promise<ToolRunnerResult> {
   const args = [
     '--json',
     '--config', 'p/smart-contracts',
@@ -157,6 +205,74 @@ export async function runSemgrep(config: ToolRunnerConfig): Promise<ToolRunnerRe
       });
     });
   });
+}
+
+/**
+ * Run Semgrep via Docker
+ */
+async function runSemgrepDocker(config: ToolRunnerConfig, startTime: number): Promise<ToolRunnerResult> {
+  const args = [
+    '--json',
+    '--config', 'p/smart-contracts',
+    '--config', 'auto',
+    '--no-git-ignore',
+    '.',
+  ];
+
+  // Add additional args
+  if (config.args?.length) {
+    args.push(...config.args);
+  }
+
+  config.onProgress?.(30, 'Running Semgrep in Docker...');
+
+  try {
+    const result = await runToolInDocker({
+      ecosystem: 'solidity',
+      sourcePath: config.projectPath,
+      outputPath: '/tmp/uatu-output',
+      tool: 'semgrep',
+      args,
+      timeout: config.timeout || 120000,
+      memoryLimit: '4g',
+      cpuLimit: '2.0',
+    });
+
+    config.onProgress?.(90, 'Parsing results...');
+
+    const parsed = parseJsonOutput(result.stdout);
+
+    if (parsed) {
+      const findings = parseSemgrepOutput(parsed, config.projectPath);
+
+      return {
+        success: true,
+        findings,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        executionTimeMs: result.executionTime,
+        toolVersion: parsed.version,
+      };
+    } else {
+      return {
+        success: result.exitCode === 0,
+        findings: [],
+        error: result.exitCode !== 0 ? (result.stderr || 'Semgrep analysis failed') : undefined,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        executionTimeMs: result.executionTime,
+      };
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      findings: [],
+      error: error.message,
+      executionTimeMs: Date.now() - startTime,
+    };
+  }
 }
 
 // ============================================================================

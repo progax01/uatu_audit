@@ -7,6 +7,7 @@ import { runAll } from '../services/runAll.js';
 import { validateTestStyles } from '../services/testStyles.js';
 import { enqueue } from '../services/jobQueue.js';
 import { startDaemon } from '../server/app.js';
+import { checkAllToolsAvailability, generateToolStatusReport, generateClaudeToolContext } from '../tools/toolAvailability.js';
 
 type PkgJson = { version?: string };
 function getPackageJson(): PkgJson {
@@ -76,10 +77,34 @@ program
   });
 
 program
-  .command("daemon")
-  .action(async () => { 
+  .command("tools")
+  .description("Check availability of security tools (native and Docker)")
+  .option("--json", "output as JSON", false)
+  .option("--claude", "output as Claude-friendly markdown context", false)
+  .action(async (options) => {
     try {
-      await startDaemon(); 
+      const availability = await checkAllToolsAvailability();
+
+      if (options.json) {
+        console.log(JSON.stringify(availability, null, 2));
+      } else if (options.claude) {
+        const context = generateClaudeToolContext(availability);
+        console.log(context);
+      } else {
+        const report = await generateToolStatusReport();
+        console.log(report);
+      }
+    } catch (error) {
+      console.error('Tool check failed:', error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("daemon")
+  .action(async () => {
+    try {
+      await startDaemon();
     } catch (error) {
       console.error('Daemon failed:', error);
       process.exit(1);

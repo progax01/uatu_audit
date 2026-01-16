@@ -8,6 +8,12 @@
 import { spawn } from 'child_process';
 import type { ToolRunnerConfig, ToolRunnerResult, StepFinding } from '../sops/definitions/types';
 import { normalizeFilePath, parseJsonOutput } from './index';
+import { runToolInDocker, checkDockerAvailable, checkDockerImageExists } from './dockerRunner.js';
+import { ECOSYSTEM_DOCKER_IMAGES } from '../config/docker.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 // ============================================================================
 // Types
@@ -60,17 +66,55 @@ interface ForgeTestResult {
 // ============================================================================
 
 /**
+ * Check if Forge is available natively
+ */
+async function checkForgeNative(): Promise<boolean> {
+  try {
+    await execAsync('forge --version', { timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Run forge build
  */
 export async function runFoundry(config: ToolRunnerConfig): Promise<ToolRunnerResult> {
   const startTime = Date.now();
 
-  const args = ['build', '--force'];
+  // Check if native Forge is available
+  const nativeAvailable = await checkForgeNative();
 
-  // Add additional args
-  if (config.args?.length) {
-    args.push(...config.args);
+  if (nativeAvailable) {
+    // Use native Forge
+    return runFoundryNative(config, startTime);
+  } else {
+    // Try Docker fallback
+    const dockerAvailable = await checkDockerAvailable();
+    const imageExists = dockerAvailable ? await checkDockerImageExists(ECOSYSTEM_DOCKER_IMAGES.solidity) : false;
+
+    if (imageExists) {
+      return runFoundryDocker(config, startTime);
+    } else {
+      return {
+        success: false,
+        findings: [],
+        error: 'Forge not available. Please install Foundry locally or build the Docker image:\n' +
+               'Native: curl -L https://foundry.paradigm.xyz | bash && foundryup\n' +
+               'Docker: docker build -f docker/solidity.Dockerfile -t uatu-audit-solidity:latest .',
+        executionTimeMs: Date.now() - startTime,
+      };
+    }
   }
+}
+
+/**
+ * Run forge build natively
+ */
+async function runFoundryNative(config: ToolRunnerConfig, startTime: number): Promise<ToolRunnerResult> {
+  // Use provided args or default to build --force
+  const args = config.args?.length ? [...config.args] : ['build', '--force'];
 
   return new Promise((resolve) => {
     let stdout = '';
@@ -138,6 +182,65 @@ export async function runFoundry(config: ToolRunnerConfig): Promise<ToolRunnerRe
       });
     });
   });
+}
+
+/**
+ * Run forge build via Docker
+ */
+async function runFoundryDocker(config: ToolRunnerConfig, startTime: number): Promise<ToolRunnerResult> {
+  // Use provided args or default to build --force
+  const args = config.args?.length ? [...config.args] : ['build', '--force'];
+
+  config.onProgress?.(30, 'Running Forge in Docker...');
+
+  try {
+    const result = await runToolInDocker({
+      ecosystem: 'solidity',
+      sourcePath: config.projectPath,
+      outputPath: '/tmp/uatu-output',
+      tool: 'forge',
+      args,
+      timeout: config.timeout || 300000,
+      memoryLimit: '4g',
+      cpuLimit: '2.0',
+    });
+
+    config.onProgress?.(90, 'Parsing results...');
+
+    const executionTimeMs = Date.now() - startTime;
+
+    if (result.exitCode === 0) {
+      const findings = parseFoundryOutput({ stdout: result.stdout, stderr: result.stderr }, config.projectPath);
+
+      return {
+        success: true,
+        findings,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: 0,
+        executionTimeMs,
+      };
+    } else {
+      const findings = parseFoundryOutput({ stdout: result.stdout, stderr: result.stderr, failed: true }, config.projectPath);
+
+      return {
+        success: false,
+        findings,
+        error: result.stderr || 'Compilation failed',
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        executionTimeMs,
+      };
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      findings: [],
+      error: error.message,
+      executionTimeMs: Date.now() - startTime,
+    };
+  }
 }
 
 // ============================================================================

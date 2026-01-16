@@ -147,11 +147,11 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
   }
 
   return (
-    <>
+    <div className="relative">
       {/* Create Project Modal */}
       {showCreateModal && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
+          className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
           onClick={() => setShowCreateModal(false)}
         >
           <motion.div
@@ -401,6 +401,6 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
         </div>
       )}
       </div>
-    </>
+    </div>
   )
 }

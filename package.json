@@ -12,7 +12,8 @@
   ],
   "scripts": {
     "dev": "npm run build && UATU_PORT=9091 node dist/bin/uatu.js daemon",
-    "build": "tsc -p tsconfig.json && vite build",
+    "build": "tsc -p tsconfig.json && npm run copy-sops && vite build",
+    "copy-sops": "mkdir -p dist/sops/definitions && cp src/sops/definitions/*.sop.json dist/sops/definitions/",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . --ext .ts",
     "test": "vitest run",

@@ -240,7 +240,7 @@ export interface ToolAvailability {
 }
 
 /**
- * Check if a single tool is available
+ * Check if a single tool is available (native or Docker)
  */
 export async function checkToolAvailable(toolName: string): Promise<ToolAvailability> {
   const tool = TOOL_REGISTRY[toolName];
@@ -255,6 +255,7 @@ export async function checkToolAvailable(toolName: string): Promise<ToolAvailabi
     };
   }
 
+  // First try native check
   try {
     const { stdout } = await execAsync(tool.checkCommand, { timeout: 10000 });
     const version = extractVersion(stdout);
@@ -266,6 +267,38 @@ export async function checkToolAvailable(toolName: string): Promise<ToolAvailabi
       checkTimeMs: Date.now() - startTime,
     };
   } catch (error: any) {
+    // Native check failed, try Docker fallback
+    if (tool.dockerImage || toolName === 'slither' || toolName === 'mythril' || toolName === 'semgrep' ||
+        toolName === 'forge' || toolName === 'forge-test' || toolName === 'hardhat' || toolName === 'hardhat-test' ||
+        toolName === 'anchor' || toolName === 'anchor-test' || toolName === 'cargo-audit' ||
+        toolName === 'soteria' || toolName === 'aptos' || toolName === 'sui') {
+
+      // Check if Docker is available and our images exist
+      try {
+        await execAsync('docker --version', { timeout: 5000 });
+
+        // Map tool to Docker image
+        const dockerImage = getDockerImageForTool(toolName);
+
+        if (dockerImage) {
+          // Check if image exists
+          try {
+            await execAsync(`docker image inspect ${dockerImage}`, { timeout: 5000 });
+            return {
+              name: toolName,
+              available: true,
+              version: `docker:${dockerImage}`,
+              checkTimeMs: Date.now() - startTime,
+            };
+          } catch {
+            // Docker image doesn't exist
+          }
+        }
+      } catch {
+        // Docker not available
+      }
+    }
+
     return {
       name: toolName,
       available: false,
@@ -273,6 +306,33 @@ export async function checkToolAvailable(toolName: string): Promise<ToolAvailabi
       checkTimeMs: Date.now() - startTime,
     };
   }
+}
+
+/**
+ * Get Docker image for a tool
+ */
+function getDockerImageForTool(toolName: string): string | null {
+  // Solidity tools
+  if (['slither', 'mythril', 'forge', 'forge-test', 'semgrep', 'hardhat', 'hardhat-test'].includes(toolName)) {
+    return 'uatu-audit-solidity:latest';
+  }
+
+  // Rust/Solana tools
+  if (['anchor', 'anchor-test', 'cargo-clippy', 'cargo-audit', 'cargo-geiger', 'soteria'].includes(toolName)) {
+    return 'uatu-audit-rust:latest';
+  }
+
+  // Move tools
+  if (['aptos', 'aptos-test', 'aptos-prover', 'sui', 'sui-test'].includes(toolName)) {
+    return 'uatu-audit-move:latest';
+  }
+
+  // Substrate tools
+  if (['cargo-contract'].includes(toolName)) {
+    return 'uatu-audit-substrate:latest';
+  }
+
+  return null;
 }
 
 /**

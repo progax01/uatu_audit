@@ -18,7 +18,10 @@
         "run-slither",
         "parse-slither",
         "merge-tool-findings",
+        "deduplicate",
         "ai-quick-review",
+        "calculate-severity",
+        "ai-recommendations",
         "calculate-score",
         "generate-report"
       ],
@@ -710,7 +713,7 @@
       "category": "synthesis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 10,
-      "dependsOn": ["ai-validate-findings", "ai-access-control", "ai-reentrancy", "ai-business-logic"],
+      "dependsOn": ["merge-tool-findings"],
       "provides": ["deduplicatedFindings"],
       "requires": [],
       "config": {

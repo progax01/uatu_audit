@@ -10,6 +10,12 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import type { ToolRunnerConfig, ToolRunnerResult, StepFinding } from '../sops/definitions/types';
 import { normalizeFilePath, parseJsonOutput } from './index';
+import { runToolInDocker, checkDockerAvailable, checkDockerImageExists } from './dockerRunner.js';
+import { ECOSYSTEM_DOCKER_IMAGES } from '../config/docker.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 // ============================================================================
 // Types
@@ -96,10 +102,42 @@ const SWC_DESCRIPTIONS: Record<string, string> = {
 // ============================================================================
 
 /**
+ * Check if Mythril is available natively
+ */
+async function checkMythrilNative(): Promise<boolean> {
+  try {
+    await execAsync('myth version', { timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Run Mythril on a project
  */
 export async function runMythril(config: ToolRunnerConfig): Promise<ToolRunnerResult> {
   const startTime = Date.now();
+
+  // Check if native Mythril is available
+  const nativeAvailable = await checkMythrilNative();
+
+  if (!nativeAvailable) {
+    // Try Docker fallback
+    const dockerAvailable = await checkDockerAvailable();
+    const imageExists = dockerAvailable ? await checkDockerImageExists(ECOSYSTEM_DOCKER_IMAGES.solidity) : false;
+
+    if (!imageExists) {
+      return {
+        success: false,
+        findings: [],
+        error: 'Mythril not available. Please install Mythril locally or build the Docker image:\n' +
+               'Native: pip install mythril\n' +
+               'Docker: docker build -f docker/solidity.Dockerfile -t uatu-audit-solidity:latest .',
+        executionTimeMs: Date.now() - startTime,
+      };
+    }
+  }
 
   // Find main contract files
   const contractFiles = await findSolidityFiles(config.projectPath);
@@ -131,7 +169,9 @@ export async function runMythril(config: ToolRunnerConfig): Promise<ToolRunnerRe
   let lastError: string | undefined;
 
   for (const contractFile of mainContracts) {
-    const result = await runMythrilOnFile(contractFile, config);
+    const result = nativeAvailable
+      ? await runMythrilOnFile(contractFile, config)
+      : await runMythrilOnFileDocker(contractFile, config);
 
     if (result.success) {
       allFindings.push(...result.findings);
@@ -235,6 +275,72 @@ async function runMythrilOnFile(
       });
     });
   });
+}
+
+/**
+ * Run Mythril on a single file via Docker
+ */
+async function runMythrilOnFileDocker(
+  filePath: string,
+  config: ToolRunnerConfig
+): Promise<ToolRunnerResult> {
+  const startTime = Date.now();
+
+  // Get relative path from project root
+  const relativePath = path.relative(config.projectPath, filePath);
+
+  const args = [
+    'analyze',
+    relativePath,
+    '-o', 'json',
+    '--execution-timeout', '60',
+    '--max-depth', '22',
+  ];
+
+  try {
+    const result = await runToolInDocker({
+      ecosystem: 'solidity',
+      sourcePath: config.projectPath,
+      outputPath: '/tmp/uatu-output',
+      tool: 'myth',
+      args,
+      timeout: config.timeout || 120000,
+      memoryLimit: '4g',
+      cpuLimit: '2.0',
+    });
+
+    const parsed = parseJsonOutput(result.stdout);
+
+    if (parsed) {
+      const findings = parseMythrilOutput(parsed, config.projectPath);
+
+      return {
+        success: true,
+        findings,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        executionTimeMs: result.executionTime,
+      };
+    } else {
+      return {
+        success: result.exitCode === 0,
+        findings: [],
+        error: result.stderr || 'No issues found or analysis failed',
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        executionTimeMs: result.executionTime,
+      };
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      findings: [],
+      error: error.message,
+      executionTimeMs: Date.now() - startTime,
+    };
+  }
 }
 
 // ============================================================================

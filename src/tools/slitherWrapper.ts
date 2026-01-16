@@ -8,6 +8,12 @@
 import { spawn } from 'child_process';
 import type { ToolRunnerConfig, ToolRunnerResult, StepFinding } from '../sops/definitions/types';
 import { normalizeFilePath, parseJsonOutput } from './index';
+import { runToolInDocker, checkDockerAvailable, checkDockerImageExists } from './dockerRunner.js';
+import { ECOSYSTEM_DOCKER_IMAGES } from '../config/docker.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 // ============================================================================
 // Types
@@ -76,11 +82,53 @@ const EXCLUDED_DETECTORS = new Set([
 // ============================================================================
 
 /**
+ * Check if Slither is available natively
+ */
+async function checkSlitherNative(): Promise<boolean> {
+  try {
+    await execAsync('slither --version', { timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Run Slither on a project
  */
 export async function runSlither(config: ToolRunnerConfig): Promise<ToolRunnerResult> {
   const startTime = Date.now();
 
+  // Check if native Slither is available
+  const nativeAvailable = await checkSlitherNative();
+
+  if (nativeAvailable) {
+    // Use native Slither
+    return runSlitherNative(config, startTime);
+  } else {
+    // Try Docker fallback
+    const dockerAvailable = await checkDockerAvailable();
+    const imageExists = dockerAvailable ? await checkDockerImageExists(ECOSYSTEM_DOCKER_IMAGES.solidity) : false;
+
+    if (imageExists) {
+      return runSlitherDocker(config, startTime);
+    } else {
+      return {
+        success: false,
+        findings: [],
+        error: 'Slither not available. Please install Slither locally or build the Docker image:\n' +
+               'Native: pip install slither-analyzer\n' +
+               'Docker: docker build -f docker/solidity.Dockerfile -t uatu-audit-solidity:latest .',
+        executionTimeMs: Date.now() - startTime,
+      };
+    }
+  }
+}
+
+/**
+ * Run Slither natively
+ */
+async function runSlitherNative(config: ToolRunnerConfig, startTime: number): Promise<ToolRunnerResult> {
   const args = [
     config.projectPath,
     '--json', '-',
@@ -157,6 +205,71 @@ export async function runSlither(config: ToolRunnerConfig): Promise<ToolRunnerRe
       });
     });
   });
+}
+
+/**
+ * Run Slither via Docker
+ */
+async function runSlitherDocker(config: ToolRunnerConfig, startTime: number): Promise<ToolRunnerResult> {
+  const args = [
+    '.',
+    '--json', '-',
+    '--exclude', 'naming-convention,solc-version,pragma',
+  ];
+
+  // Add any additional args
+  if (config.args?.length) {
+    args.push(...config.args);
+  }
+
+  config.onProgress?.(30, 'Running Slither in Docker...');
+
+  try {
+    const result = await runToolInDocker({
+      ecosystem: 'solidity',
+      sourcePath: config.projectPath,
+      outputPath: '/tmp/uatu-output',
+      tool: 'slither',
+      args,
+      timeout: config.timeout || 180000,
+      memoryLimit: '4g',
+      cpuLimit: '2.0',
+    });
+
+    config.onProgress?.(90, 'Parsing results...');
+
+    const parsed = parseJsonOutput(result.stdout);
+
+    if (parsed) {
+      const findings = parseSlitherOutput(parsed, config.projectPath);
+
+      return {
+        success: true,
+        findings,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        executionTimeMs: result.executionTime,
+      };
+    } else {
+      return {
+        success: false,
+        findings: [],
+        error: result.stderr || 'Failed to parse Slither output',
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        executionTimeMs: result.executionTime,
+      };
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      findings: [],
+      error: error.message,
+      executionTimeMs: Date.now() - startTime,
+    };
+  }
 }
 
 // ============================================================================

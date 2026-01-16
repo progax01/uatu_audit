@@ -7,6 +7,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs-extra';
+import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
@@ -30,16 +31,21 @@ const log = logger.child({ module: 'unified-audit' });
 
 export interface GitHubRepoInput {
   type: 'github-repo';
+  owner: string;
+  repo: string;
   repoUrl: string;
   branch?: string;
   commitSha?: string;
   accessToken?: string;
+  includePaths?: string[];
+  excludePaths?: string[];
 }
 
 export interface DeployedContractInput {
   type: 'deployed-contract';
   address: string;
-  chain: string;
+  network: string;
+  chainId: number;
   explorerApiKey?: string;
 }
 
@@ -117,29 +123,59 @@ export class UnifiedAuditService extends EventEmitter {
     const jobId = crypto.randomUUID();
     const createdAt = new Date();
 
-    // Determine repo value based on source type
+    // Determine repo and branch values based on source type
     let repo = '';
+    let branch = 'main';
+
     if (request.source.type === 'github-repo') {
-      repo = (request.source as GitHubRepoInput).repoUrl;
+      const githubSource = request.source as GitHubRepoInput;
+      repo = githubSource.repoUrl;
+      branch = githubSource.branch || 'main';
     } else if (request.source.type === 'deployed-contract') {
       const contractSource = request.source as DeployedContractInput;
-      repo = `contract:${contractSource.chain}:${contractSource.address}`;
+      repo = `contract:${contractSource.network}:${contractSource.address}`;
+      branch = 'n/a';
     } else if (request.source.type === 'manual-upload') {
       repo = `upload:${(request.source as ManualUploadInput).uploadId}`;
+      branch = 'n/a';
     }
 
-    await db.insert(auditJobs).values({
-      id: jobId,
-      userId: request.userId,
-      projectId: request.projectId,
-      repo,
-      status: 'pending',
-      progressPct: 0,
-      sourceType: request.source.type,
-      auditDepth: request.depth,
-      visibility: request.visibility,
-      createdAt,
-    });
+    try {
+      await db.insert(auditJobs).values({
+        id: jobId,
+        userId: request.userId,
+        projectId: request.projectId || null, // Nullable - file-based projects don't exist in DB
+        repo,
+        branch,
+        status: 'pending',
+        progressPct: 0,
+        sourceType: request.source.type,
+        auditDepth: request.depth,
+        visibility: request.visibility,
+        createdAt,
+      });
+    } catch (insertError: any) {
+      // Log the full error object to see all properties
+      log.error('Database insert failed - full error', {
+        errorString: JSON.stringify(insertError, Object.getOwnPropertyNames(insertError)),
+        message: insertError.message,
+        stack: insertError.stack,
+        cause: insertError.cause,
+      });
+
+      // Check if there's a cause property with the real PostgreSQL error
+      const pgError = insertError.cause || insertError;
+      log.error('PostgreSQL error details', {
+        message: pgError.message,
+        code: pgError.code,
+        detail: pgError.detail,
+        hint: pgError.hint,
+        position: pgError.position,
+        constraint: pgError.constraint_name || pgError.constraint,
+      });
+
+      throw new Error(`Failed to create audit job: ${insertError.message}`);
+    }
 
     try {
       // Acquire source code
@@ -341,9 +377,9 @@ export class UnifiedAuditService extends EventEmitter {
       'avalanche': 'https://api.snowtrace.io/api',
     };
 
-    const apiUrl = explorerUrls[input.chain.toLowerCase()];
+    const apiUrl = explorerUrls[input.network.toLowerCase()];
     if (!apiUrl) {
-      throw new Error(`Unsupported chain: ${input.chain}`);
+      throw new Error(`Unsupported network: ${input.network}`);
     }
 
     // Fetch contract source
@@ -564,7 +600,8 @@ export class UnifiedAuditService extends EventEmitter {
         ...(request.source.type === 'github-repo' && { repoUrl: (request.source as GitHubRepoInput).repoUrl }),
         ...(request.source.type === 'deployed-contract' && {
           address: (request.source as DeployedContractInput).address,
-          chain: (request.source as DeployedContractInput).chain,
+          network: (request.source as DeployedContractInput).network,
+          chainId: (request.source as DeployedContractInput).chainId,
         }),
       },
       auditDepth: request.depth,

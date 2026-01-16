@@ -106,6 +106,11 @@ const detectFramework: DeterministicExecutor = async (step, config, context) => 
     success: true,
     findings: [],
     data: {
+      // Provide SOP-expected keys
+      framework,
+      frameworkVersion: null,
+      frameworkConfig: null,
+      // Keep legacy keys for backward compatibility
       detectedFramework: framework,
       detectedLanguage: language,
     },
@@ -164,14 +169,26 @@ const validateStructure: DeterministicExecutor = async (step, config, context) =
 
   await context.onProgress?.(100, 'Structure validated');
 
+  // Determine specific directories for SOP compatibility
+  const srcDir = existingDirs.find(d => d === 'src' || d === 'contracts') || 'src';
+  const testDir = existingDirs.find(d => d === 'test' || d === 'tests') || 'test';
+  const libDir = existingDirs.find(d => d === 'lib' || d === 'node_modules') || 'lib';
+
   return {
     success: hasSourceFiles,
     findings,
     data: {
+      // Provide SOP-expected keys
       projectStructure: {
         directories: existingDirs,
         hasSourceFiles,
       },
+      srcDir,
+      testDir,
+      libDir,
+      // Legacy keys for backward compatibility
+      projectValid: hasSourceFiles,
+      sourceDirectories: existingDirs,
     },
     error: !hasSourceFiles ? 'No source files found in project' : undefined,
   };
@@ -192,6 +209,7 @@ const parseFoundryConfig: DeterministicExecutor = async (step, config, context) 
       findings: [],
       data: {
         foundryConfig: null,
+        solcVersion: null,
       },
     };
   }
@@ -243,6 +261,8 @@ const parseFoundryConfig: DeterministicExecutor = async (step, config, context) 
       findings: [],
       data: {
         foundryConfig,
+        // Provide solcVersion as top-level key for SOP compatibility
+        solcVersion: foundryConfig.solcVersion,
       },
     };
   } catch (error: any) {
@@ -250,6 +270,125 @@ const parseFoundryConfig: DeterministicExecutor = async (step, config, context) 
       success: false,
       findings: [],
       error: `Failed to parse foundry.toml: ${error.message}`,
+    };
+  }
+};
+
+// ============================================================================
+// Hardhat Config Parser
+// ============================================================================
+
+const parseHardhatConfig: DeterministicExecutor = async (step, config, context) => {
+  await context.onProgress?.(10, 'Looking for Hardhat config...');
+
+  // Check for both JS and TS config files
+  const configFiles = ['hardhat.config.js', 'hardhat.config.ts'];
+  let configPath: string | null = null;
+
+  for (const file of configFiles) {
+    const fullPath = path.join(context.projectPath, file);
+    if (await fs.pathExists(fullPath)) {
+      configPath = fullPath;
+      break;
+    }
+  }
+
+  if (!configPath) {
+    // No config found, return defaults
+    return {
+      success: true,
+      findings: [],
+      data: {
+        hardhatConfig: {
+          paths: {
+            sources: './contracts',
+            tests: './test',
+            cache: './cache',
+            artifacts: './artifacts',
+          },
+        },
+        solcVersion: null,
+        networks: [],
+      },
+    };
+  }
+
+  try {
+    const content = await fs.readFile(configPath, 'utf-8');
+    await context.onProgress?.(50, 'Parsing configuration...');
+
+    const hardhatConfig: Record<string, any> = {
+      paths: {},
+    };
+
+    // Extract solc version (looks for solidity: { version: "0.8.0" })
+    const solcMatch = content.match(/version:\s*["']([^"']+)["']/);
+    const solcVersion = solcMatch ? solcMatch[1] : null;
+
+    // Extract paths
+    const pathsMatch = content.match(/paths:\s*\{([^}]+)\}/);
+    if (pathsMatch) {
+      const pathsStr = pathsMatch[1];
+
+      const sourcesMatch = pathsStr.match(/sources:\s*["']([^"']+)["']/);
+      hardhatConfig.paths.sources = sourcesMatch ? sourcesMatch[1] : './contracts';
+
+      const testsMatch = pathsStr.match(/tests:\s*["']([^"']+)["']/);
+      hardhatConfig.paths.tests = testsMatch ? testsMatch[1] : './test';
+
+      const cacheMatch = pathsStr.match(/cache:\s*["']([^"']+)["']/);
+      hardhatConfig.paths.cache = cacheMatch ? cacheMatch[1] : './cache';
+
+      const artifactsMatch = pathsStr.match(/artifacts:\s*["']([^"']+)["']/);
+      hardhatConfig.paths.artifacts = artifactsMatch ? artifactsMatch[1] : './artifacts';
+    } else {
+      // Default paths
+      hardhatConfig.paths = {
+        sources: './contracts',
+        tests: './test',
+        cache: './cache',
+        artifacts: './artifacts',
+      };
+    }
+
+    // Extract network names (simplified - just look for network definitions)
+    const networkMatches = content.match(/(\w+):\s*\{[^}]*url:/g);
+    const networks = networkMatches
+      ? networkMatches.map((m) => {
+          const match = m.match(/(\w+):/);
+          return match ? match[1] : null;
+        }).filter(Boolean)
+      : [];
+
+    await context.onProgress?.(100, 'Configuration parsed');
+
+    return {
+      success: true,
+      findings: [],
+      data: {
+        hardhatConfig,
+        solcVersion,
+        networks,
+      },
+    };
+  } catch (error: any) {
+    // If parsing fails, return defaults but with success=true since config is optional
+    return {
+      success: true,
+      findings: [],
+      data: {
+        hardhatConfig: {
+          paths: {
+            sources: './contracts',
+            tests: './test',
+            cache: './cache',
+            artifacts: './artifacts',
+          },
+        },
+        solcVersion: null,
+        networks: [],
+      },
+      error: `Could not fully parse config: ${error.message}`,
     };
   }
 };
@@ -308,21 +447,31 @@ const enumerateContracts: DeterministicExecutor = async (step, config, context) 
 
   await context.onProgress?.(100, `Found ${mainContracts.length} contracts`);
 
+  const testContracts = contracts.filter((c) => c.isTest);
+  const libraryContracts = contracts.filter((c) => c.isLibrary);
+
   log.info('Contracts enumerated', {
     total: contracts.length,
     main: mainContracts.length,
-    tests: contracts.filter((c) => c.isTest).length,
+    tests: testContracts.length,
     interfaces: contracts.filter((c) => c.isInterface).length,
-    libraries: contracts.filter((c) => c.isLibrary).length,
+    libraries: libraryContracts.length,
   });
 
   return {
     success: true,
     findings: [],
     data: {
-      contracts,
+      // Provide keys matching SOP definition
+      contractFiles: contracts,
       mainContracts,
+      testContracts,
+      libraryContracts,
+      // Keep legacy keys for backward compatibility
+      contracts,
       contractCount: mainContracts.length,
+      testsExist: testContracts.length > 0,
+      testFileCount: testContracts.length,
     },
   };
 };
@@ -1208,7 +1357,9 @@ const parseTestResults: DeterministicExecutor = async (step, config, context) =>
 const DETERMINISTIC_EXECUTORS: Record<string, DeterministicExecutor> = {
   'detectFramework': detectFramework,
   'validateStructure': validateStructure,
+  'validateProjectStructure': validateStructure,  // Alias for SOP compatibility
   'parseFoundryConfig': parseFoundryConfig,
+  'parseHardhatConfig': parseHardhatConfig,
   'enumerateContracts': enumerateContracts,
   'countSloc': countSloc,
   'checkSolcVersion': checkSolcVersion,
