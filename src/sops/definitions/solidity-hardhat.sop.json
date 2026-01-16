@@ -383,7 +383,7 @@
       "provides": ["parsedSlitherFindings"],
       "requires": ["slitherOutput"],
       "config": {
-        "function": "parseSlither"
+        "function": "parseSlitherOutput"
       },
       "progressWeight": 1,
       "required": false,
@@ -420,7 +420,7 @@
       "provides": ["parsedMythrilFindings"],
       "requires": ["mythrilOutput"],
       "config": {
-        "function": "parseMythril"
+        "function": "parseMythrilOutput"
       },
       "progressWeight": 1,
       "required": false,
@@ -438,7 +438,7 @@
       "requires": ["contractFiles"],
       "config": {
         "tool": "semgrep",
-        "args": ["--config", "p/smart-contracts", "--json"],
+        "args": ["--config", "auto", "--json"],
         "timeout": 120000,
         "optional": true
       },
@@ -457,7 +457,7 @@
       "provides": ["parsedSemgrepFindings"],
       "requires": ["semgrepOutput"],
       "config": {
-        "function": "parseSemgrep"
+        "function": "parseSemgrepOutput"
       },
       "progressWeight": 1,
       "required": false,
@@ -563,7 +563,7 @@
       "category": "synthesis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 10,
-      "dependsOn": ["parse-slither", "parse-mythril", "parse-semgrep"],
+      "dependsOn": [],
       "provides": ["mergedFindings", "findingsByCategory"],
       "requires": [],
       "config": {

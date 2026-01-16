@@ -38,6 +38,7 @@ export default function ProjectDetails() {
     const [activeTab, setActiveTab] = useState<TabType>('sources')
     const [startingAudit, setStartingAudit] = useState(false)
     const [auditError, setAuditError] = useState<string | null>(null)
+    const [runningJobId, setRunningJobId] = useState<string | null>(null)
 
     const handleStartAudit = async () => {
         if (!project || !project.components || project.components.length === 0) {
@@ -108,8 +109,9 @@ export default function ProjectDetails() {
             const result = await response.json()
 
             if (result.success && result.jobId) {
-                // Navigate to audit progress page
-                navigate(`/audit/${result.jobId}`)
+                // Save running job ID and switch to audits tab
+                setRunningJobId(result.jobId)
+                setActiveTab('audits')
             } else {
                 throw new Error(result.error || 'Failed to start audit')
             }
@@ -381,7 +383,11 @@ export default function ProjectDetails() {
                         />
                     )}
                     {activeTab === 'audits' && (
-                        <AuditsTab projectId={project.id} />
+                        <AuditsTab
+                            projectId={project.id}
+                            runningJobId={runningJobId}
+                            onAuditComplete={() => setRunningJobId(null)}
+                        />
                     )}
                     {activeTab === 'badge' && (
                         <BadgeTab

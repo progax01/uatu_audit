@@ -378,6 +378,47 @@ const listComponentsHandler: RouteHandler = async (req, res, ctx, params) => {
 };
 
 /**
+ * GET /api/projects/:id/audits - List audits for project
+ */
+const listProjectAuditsHandler: RouteHandler = async (req, res, ctx, params) => {
+  if (!ctx.userId) {
+    return sendError(res, 401, 'Authentication required');
+  }
+
+  const projectId = params?.id;
+  if (!projectId) {
+    return sendError(res, 400, 'Project ID required');
+  }
+
+  try {
+    // Verify project ownership
+    const project = await getProject(projectId);
+    if (!project) {
+      return sendError(res, 404, 'Project not found');
+    }
+    if (project.userId !== ctx.userId) {
+      return sendError(res, 403, 'Access denied');
+    }
+
+    // Query audits for this project
+    const { db } = await import('../../db/index.js');
+    const { auditJobs } = await import('../../db/schema.js');
+    const { eq, desc } = await import('drizzle-orm');
+
+    const audits = await db
+      .select()
+      .from(auditJobs)
+      .where(eq(auditJobs.projectId, projectId))
+      .orderBy(desc(auditJobs.createdAt));
+
+    sendJson(res, 200, { audits });
+  } catch (error: any) {
+    log.error('Failed to list audits:', error);
+    sendError(res, 500, error.message || 'Failed to list audits');
+  }
+};
+
+/**
  * PUT /api/projects/:id/components/:cid - Update component
  */
 const updateComponentHandler: RouteHandler = async (req, res, ctx, params) => {
@@ -510,6 +551,7 @@ const routes: Route[] = [
   { method: 'DELETE', pattern: '/api/projects/:id', handler: deleteProjectHandler },
   { method: 'POST', pattern: '/api/projects/:id/components', handler: addComponentHandler },
   { method: 'GET', pattern: '/api/projects/:id/components', handler: listComponentsHandler },
+  { method: 'GET', pattern: '/api/projects/:id/audits', handler: listProjectAuditsHandler },
   { method: 'PUT', pattern: '/api/projects/:id/components/:cid', handler: updateComponentHandler },
   { method: 'DELETE', pattern: '/api/projects/:id/components/:cid', handler: removeComponentHandler },
   { method: 'POST', pattern: '/api/projects/manual', handler: createManualProjectHandler },

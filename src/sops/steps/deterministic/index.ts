@@ -711,6 +711,10 @@ const generateAst: DeterministicExecutor = async (step, config, context) => {
     success: true,
     findings: [],
     data: {
+      // Provide SOP-expected keys
+      ast: astData,  // Main field expected by downstream steps
+      astNodes: Object.keys(astData),  // List of AST node names
+      // Keep legacy keys for backward compatibility
       astData,
       astAvailable: Object.keys(astData).length > 0,
     },
@@ -1183,6 +1187,9 @@ const calculateSeverity: DeterministicExecutor = async (step, config, context) =
     success: true,
     findings: [],
     data: {
+      // Provide SOP-expected key
+      severityRankedFindings: findings,
+      // Keep legacy key for backward compatibility
       finalFindings: findings,
     },
   };

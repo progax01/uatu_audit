@@ -370,8 +370,8 @@ export class SOPOrchestrator extends EventEmitter {
 
     // Check if tool is available (for tool steps)
     if (step.executor === 'tool') {
-      const toolConfig = step.executorConfig as any;
-      const toolName = toolConfig.tool;
+      const toolConfig = (step.executorConfig || (step as any).config) as any;
+      const toolName = toolConfig?.tool;
 
       if (!this.availableTools.includes(toolName)) {
         if (step.required) {
@@ -489,7 +489,8 @@ export class SOPOrchestrator extends EventEmitter {
     const stepTimeout = (step as any).timeoutSeconds || step.estimatedDurationSeconds * 3 || 300;
 
     // Get tool-specific timeout from depth config
-    const toolTimeout = toolTimeouts[(step.executorConfig as any)?.tool];
+    const toolConfig = (step.executorConfig || (step as any).config) as any;
+    const toolTimeout = toolTimeouts[toolConfig?.tool];
 
     // Use the maximum of tool timeout and step timeout (so steps can override short depth config timeouts)
     const timeout = toolTimeout
@@ -553,6 +554,21 @@ export class SOPOrchestrator extends EventEmitter {
     this.emit('step:complete', step.id, result);
 
     if (!result.success) {
+      // Log detailed error information with stdout/stderr
+      const stepConfig = (step.executorConfig || (step as any).config) as any;
+      const toolName = stepConfig?.tool;
+      const toolResult = toolName ? result.data?.[`${toolName}Result`] : result.data;
+
+      log.error('Step failed with details', {
+        stepId: step.id,
+        stepName: step.name,
+        executor: step.executor,
+        tool: toolName,
+        error: result.error,
+        exitCode: toolResult?.exitCode,
+        stdout: toolResult?.stdout?.slice?.(0, 1000), // First 1000 chars
+        stderr: toolResult?.stderr?.slice?.(0, 1000), // First 1000 chars
+      });
       throw new Error(result.error || `Step ${step.id} failed`);
     }
 

@@ -231,10 +231,24 @@ export async function handleAuditRoutes(
     const jobId = detailsMatch[1];
 
     try {
+      // Get user session for authorization check
+      const sessionId = getSessionId(req);
+      const userId = sessionId ? await loadUserId(sessionId) : undefined;
+
       const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
 
       if (!job) {
         res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: false, error: 'Audit not found' }));
+        return true;
+      }
+
+      // Check if user can view this audit
+      // Public audits: anyone can view
+      // Private audits: only the owner can view
+      if (job.visibility === 'private' && job.userId && job.userId !== userId) {
+        res.statusCode = 404; // Return 404 instead of 403 to avoid leaking audit existence
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ success: false, error: 'Audit not found' }));
         return true;

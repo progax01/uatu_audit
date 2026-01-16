@@ -13,6 +13,7 @@ export interface DockerRunConfig {
   timeout?: number;
   memoryLimit?: string;  // e.g., "4g"
   cpuLimit?: string;     // e.g., "2.0"
+  allowNetwork?: boolean;  // Allow network access (default: false for security)
 }
 
 export interface DockerRunResult {
@@ -43,7 +44,6 @@ export async function runToolInDocker(config: DockerRunConfig): Promise<DockerRu
     'run',
     '--rm',  // Remove container after exit
     '--read-only',  // Read-only root filesystem
-    '--network', 'none',  // No network access
     '--security-opt', 'no-new-privileges:true',  // Prevent privilege escalation
     '--cap-drop', 'ALL',  // Drop all capabilities
     '--cap-add', 'CHOWN',  // Only add needed capabilities
@@ -51,8 +51,14 @@ export async function runToolInDocker(config: DockerRunConfig): Promise<DockerRu
     '-v', `${config.sourcePath}:/audit/source:ro`,  // Source read-only
     '-v', `${config.outputPath}:/audit/output:rw`,  // Output writable
     '--tmpfs', '/tmp:noexec,nosuid,size=1g',  // Temp filesystem
+    '--tmpfs', '/root:size=100m',  // Writable home directory for tool configs
     '-w', '/audit/source',  // Working directory
   ];
+
+  // Add network isolation unless explicitly allowed (for tools like Semgrep that need to download rulesets)
+  if (!config.allowNetwork) {
+    dockerArgs.push('--network', 'none');
+  }
 
   // Add resource limits
   if (config.memoryLimit) {

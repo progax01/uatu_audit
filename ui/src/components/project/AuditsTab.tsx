@@ -16,17 +16,117 @@ interface AuditReport {
 
 interface AuditsTabProps {
   projectId: string
+  runningJobId?: string | null
+  onAuditComplete?: () => void
 }
 
-export default function AuditsTab({ projectId }: AuditsTabProps) {
+interface RunningAuditProgress {
+  status: string
+  pct: number
+  currentStep?: string
+  stepsCompleted?: number
+  stepsTotal?: number
+}
+
+export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: AuditsTabProps) {
   const navigate = useNavigate()
   const [audits, setAudits] = useState<AuditReport[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [runningProgress, setRunningProgress] = useState<RunningAuditProgress | null>(null)
 
   useEffect(() => {
     fetchAudits()
   }, [projectId])
+
+  // SSE streaming for running audit
+  useEffect(() => {
+    if (!runningJobId) {
+      setRunningProgress(null)
+      return
+    }
+
+    let eventSource: EventSource | null = null
+    let pollInterval: NodeJS.Timeout | null = null
+
+    const startSSE = () => {
+      const sseUrl = `/api/audit/${runningJobId}/progress/stream`
+      eventSource = new EventSource(sseUrl)
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+
+        if (data.error) {
+          console.error('SSE error:', data.error)
+          return
+        }
+
+        setRunningProgress({
+          status: data.status,
+          pct: data.overallPct || 0,
+          currentStep: data.currentStep?.name || data.currentStepName,
+          stepsCompleted: data.stepsCompleted,
+          stepsTotal: data.stepsTotal,
+        })
+
+        // Check if completed
+        if (data.status === 'completed' || data.status === 'failed') {
+          if (eventSource) {
+            eventSource.close()
+          }
+          // Refresh audit list
+          setTimeout(() => {
+            fetchAudits()
+            if (onAuditComplete) onAuditComplete()
+          }, 1000)
+        }
+      }
+
+      eventSource.onerror = () => {
+        console.warn('SSE connection failed, falling back to polling')
+        if (eventSource) {
+          eventSource.close()
+        }
+        // Fallback to polling
+        pollInterval = setInterval(async () => {
+          try {
+            const response = await fetch(`/api/audit/${runningJobId}/progress`)
+            if (response.ok) {
+              const data = await response.json()
+              setRunningProgress({
+                status: data.status,
+                pct: data.overallPct || 0,
+                currentStep: data.currentStep?.name || data.currentStepName,
+                stepsCompleted: data.stepsCompleted,
+                stepsTotal: data.stepsTotal,
+              })
+
+              if (data.status === 'completed' || data.status === 'failed') {
+                if (pollInterval) clearInterval(pollInterval)
+                setTimeout(() => {
+                  fetchAudits()
+                  if (onAuditComplete) onAuditComplete()
+                }, 1000)
+              }
+            }
+          } catch (err) {
+            console.error('Polling error:', err)
+          }
+        }, 2000)
+      }
+    }
+
+    startSSE()
+
+    return () => {
+      if (eventSource) {
+        eventSource.close()
+      }
+      if (pollInterval) {
+        clearInterval(pollInterval)
+      }
+    }
+  }, [runningJobId])
 
   const fetchAudits = async () => {
     setLoading(true)
@@ -122,6 +222,44 @@ export default function AuditsTab({ projectId }: AuditsTabProps) {
 
   return (
     <div className="space-y-4">
+      {/* Running Audit Progress */}
+      {runningJobId && runningProgress && (
+        <div className="card-premium p-6 border-indigo-200 bg-indigo-50/30">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <span className="px-2.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 border-blue-100 animate-pulse">
+                RUNNING
+              </span>
+              <span className="text-sm font-bold text-slate-700">
+                Audit in Progress
+              </span>
+            </div>
+            <span className="text-sm font-bold text-indigo-600">
+              {runningProgress.pct}%
+            </span>
+          </div>
+
+          <div className="space-y-3 mb-4">
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span>{runningProgress.currentStep || 'Initializing audit...'}</span>
+              <span>
+                {runningProgress.stepsCompleted || 0} / {runningProgress.stepsTotal || '?'} steps
+              </span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500 ease-out"
+                style={{ width: `${runningProgress.pct || 0}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="text-[10px] text-slate-400 font-mono">
+            Job ID: {runningJobId}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-black text-sm text-slate-400 uppercase tracking-widest">
           Audit History ({audits.length})
@@ -131,12 +269,13 @@ export default function AuditsTab({ projectId }: AuditsTabProps) {
       <div className="space-y-3">
         {audits.map((audit) => {
           const statusConfig = getStatusConfig(audit.status)
+          const isCompleted = audit.status === 'completed'
+          const canNavigate = isCompleted
 
           return (
-            <button
+            <div
               key={audit.id}
-              onClick={() => navigate(`/audit/${audit.jobId}`)}
-              className="w-full card-premium p-5 hover:border-indigo-200 transition-all text-left group"
+              className="w-full card-premium p-5 text-left"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -188,12 +327,17 @@ export default function AuditsTab({ projectId }: AuditsTabProps) {
                   </div>
                 </div>
 
-                <ChevronRight
-                  size={18}
-                  className="text-slate-300 group-hover:text-indigo-600 transition-colors flex-shrink-0 mt-1"
-                />
+                {canNavigate && (
+                  <button
+                    onClick={() => navigate(`/audit/${audit.jobId}`)}
+                    className="btn-primary px-4 py-2 text-xs flex-shrink-0 self-start"
+                  >
+                    View Report
+                    <ChevronRight size={14} />
+                  </button>
+                )}
               </div>
-            </button>
+            </div>
           )
         })}
       </div>

@@ -88,20 +88,53 @@ export async function executeToolStep(
 
   await context.onProgress?.(100, `${toolName} complete`);
 
+  // Build step data based on what the step provides
+  const stepData: Record<string, any> = {
+    [`${toolName}Result`]: {
+      success: result.success,
+      findings: result.findings,
+      executionTimeMs: result.executionTimeMs,
+      toolVersion: result.toolVersion,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    },
+  };
+
+  // Map tool results to expected step data fields based on step.provides
+  if (step.provides && Array.isArray(step.provides)) {
+    for (const providedField of step.provides) {
+      // Map common compilation-related fields
+      if (providedField === 'compilationSuccess') {
+        stepData.compilationSuccess = result.success;
+      } else if (providedField === 'compilationArtifacts') {
+        stepData.compilationArtifacts = result.success; // Flag that artifacts are available
+      } else if (providedField === 'compilationWarnings') {
+        stepData.compilationWarnings = result.findings?.filter(f => f.severity === 'low') || [];
+      }
+      // Map test-related fields
+      else if (providedField === 'testResults') {
+        stepData.testResults = result.stdout;
+      } else if (providedField === 'testsPassed') {
+        stepData.testsPassed = result.success;
+      } else if (providedField === 'testsFailed') {
+        stepData.testsFailed = !result.success;
+      }
+      // Map tool output fields
+      else if (providedField === `${toolName}Output`) {
+        stepData[`${toolName}Output`] = result.stdout;
+      } else if (providedField === `${toolName}Findings`) {
+        stepData[`${toolName}Findings`] = result.findings || [];
+      }
+    }
+  }
+
   // Transform result
   return {
     success: result.success,
     findings: result.findings || [],
     error: result.error,
-    data: {
-      [`${toolName}Result`]: {
-        success: result.success,
-        findings: result.findings,
-        executionTimeMs: result.executionTimeMs,
-        toolVersion: result.toolVersion,
-        exitCode: result.exitCode,
-      },
-    },
+    data: stepData,
   };
 }
 

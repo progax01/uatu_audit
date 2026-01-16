@@ -64,13 +64,46 @@ export async function executeAIPromptStep(
 
   await context.onProgress?.(100, `Found ${findings.length} issues`);
 
+  // Build step data based on what the step provides
+  const stepData: Record<string, any> = {
+    // Always include the generic findings field for backward compatibility
+    [`${step.id.replace(/-/g, '')}Findings`]: findings,
+    aiAnalysisRaw: response,
+  };
+
+  // Map AI results to expected step data fields based on step.provides
+  if (step.provides && Array.isArray(step.provides)) {
+    for (const providedField of step.provides) {
+      // Map common AI output fields
+      if (providedField === 'recommendations') {
+        stepData.recommendations = findings;
+      } else if (providedField === 'remediationPlan') {
+        stepData.remediationPlan = findings.map((f: any) => ({
+          issue: f.title,
+          recommendation: f.recommendation,
+          severity: f.severity,
+        }));
+      } else if (providedField === 'validatedFindings') {
+        stepData.validatedFindings = findings;
+      } else if (providedField === 'falsePositives') {
+        stepData.falsePositives = [];
+      } else if (providedField === 'adminFunctions' || providedField === 'privilegedOperations') {
+        // For admin function identification steps
+        stepData[providedField] = findings;
+      } else if (providedField === 'accessControlFindings' || providedField === 'roleAnalysis') {
+        // For access control analysis steps
+        stepData[providedField] = findings;
+      } else {
+        // Default: provide the field with findings
+        stepData[providedField] = findings;
+      }
+    }
+  }
+
   return {
     success: true,
     findings,
-    data: {
-      [`${step.id.replace(/-/g, '')}Findings`]: findings,
-      aiAnalysisRaw: response,
-    },
+    data: stepData,
   };
 }
 
@@ -87,17 +120,32 @@ interface PromptTemplate {
 const AI_PROMPTS: Record<string, PromptTemplate> = {
   // Admin Function Identification
   'identify-admin-functions': {
-    system: `You are an expert smart contract security auditor specializing in access control analysis.
-Your task is to identify all privileged/admin functions in the provided smart contract code.
+    system: `OUTPUT FORMAT: JSON array only. NO explanations, NO markdown, NO text.
 
-For each admin function found, provide:
-1. Function name and signature
-2. File location
-3. Access control mechanism used (onlyOwner, role-based, etc.)
-4. Potential risks if compromised
-5. Severity assessment`,
+You are a smart contract security auditor. Identify all privileged/admin functions.
 
-    user: `Analyze the following smart contract code and identify all admin/privileged functions:
+RESPONSE REQUIREMENTS:
+1. Start your response with [
+2. End your response with ]
+3. Each finding must be a JSON object with: severity, title, description, file, line, recommendation
+4. If no findings, return []
+5. NO text before the [
+6. NO text after the ]
+7. NO markdown code blocks
+8. NO explanations
+
+VALID RESPONSE EXAMPLE:
+[{"severity":"high","title":"Unrestricted admin function","description":"The setAdmin() function lacks access control","file":"MyContract.sol","line":42,"recommendation":"Add onlyOwner modifier"}]
+
+INVALID RESPONSES (DO NOT DO THIS):
+- "I found the following issues: [...]"
+- Markdown code blocks with json
+- "Here is the analysis... [...]"
+
+YOUR RESPONSE MUST START WITH [ AND END WITH ]`,
+
+    user: `Analyze the smart contract code and identify admin/privileged functions.
+Output ONLY a JSON array starting with [ and ending with ]:
 
 {{contractCode}}
 
@@ -114,147 +162,155 @@ Respond in JSON format with an array of findings.`,
 
   // Access Control Analysis
   'analyze-access-control': {
-    system: `You are an expert smart contract security auditor specializing in access control patterns.
-Analyze the provided code for access control vulnerabilities including:
-- Missing access modifiers on sensitive functions
-- Incorrect role hierarchy
-- Centralization risks
-- Missing multi-sig requirements for critical operations
-- Improper initialization of access control`,
+    system: `OUTPUT FORMAT: JSON array only. NO explanations, NO markdown, NO text.
 
-    user: `Analyze the access control implementation in this smart contract:
+You are a smart contract security auditor. Analyze access control vulnerabilities: missing modifiers, incorrect roles, centralization risks, missing multi-sig, improper initialization.
+
+RESPONSE REQUIREMENTS:
+1. Start with [
+2. End with ]
+3. Each finding: {"severity":"critical|high|medium|low|info","title":"...","description":"...","file":"...","line":123,"recommendation":"..."}
+4. If no findings, return []
+5. NO text outside the JSON array
+
+YOUR RESPONSE MUST START WITH [ AND END WITH ]`,
+
+    user: `Analyze access control in this smart contract.
+Output ONLY a JSON array starting with [ and ending with ]:
 
 {{contractCode}}
 
-Admin functions identified:
-{{adminFunctions}}
-
-Inheritance hierarchy:
-{{inheritanceMap}}
-
-Provide findings for any access control issues found.`,
+Admin functions: {{adminFunctions}}
+Inheritance: {{inheritanceMap}}`,
 
     responseFormat: 'findings',
   },
 
   // Reentrancy Deep Check
   'check-reentrancy': {
-    system: `You are an expert smart contract security auditor specializing in reentrancy vulnerabilities.
-Perform a deep analysis of potential reentrancy attack vectors including:
-- Cross-function reentrancy
-- Cross-contract reentrancy
-- Read-only reentrancy
-- Reentrancy via callbacks
-- State inconsistency during external calls`,
+    system: `OUTPUT FORMAT: JSON array only. NO explanations, NO markdown, NO text.
 
-    user: `Analyze the following code for reentrancy vulnerabilities:
+You are a smart contract security auditor. Analyze reentrancy vulnerabilities: cross-function, cross-contract, read-only, callbacks, state inconsistency during external calls.
+
+RESPONSE REQUIREMENTS:
+1. Start with [
+2. End with ]
+3. Each finding: {"severity":"critical|high|medium|low|info","title":"...","description":"...","file":"...","line":123,"recommendation":"..."}
+4. If no findings, return []
+5. NO text outside the JSON array
+
+YOUR RESPONSE MUST START WITH [ AND END WITH ]`,
+
+    user: `Analyze reentrancy vulnerabilities in this smart contract.
+Output ONLY a JSON array starting with [ and ending with ]:
 
 {{contractCode}}
 
-External calls identified:
-{{externalCalls}}
-
-Tool findings related to reentrancy:
-{{reentrancyFindings}}
-
-Provide detailed findings for any reentrancy risks.`,
+External calls: {{externalCalls}}
+Tool reentrancy findings: {{reentrancyFindings}}`,
 
     responseFormat: 'findings',
   },
 
   // Oracle Manipulation Check
   'check-oracle': {
-    system: `You are an expert smart contract security auditor specializing in oracle and price feed security.
-Analyze for oracle manipulation vulnerabilities including:
-- Flash loan attack vectors
-- Price manipulation via liquidity
-- Stale price data
-- Single oracle dependency
-- TWAP manipulation`,
+    system: `OUTPUT FORMAT: JSON array only. NO explanations, NO markdown, NO text.
 
-    user: `Analyze the following code for oracle manipulation vulnerabilities:
+You are a smart contract security auditor. Analyze oracle manipulation vulnerabilities: flash loan attacks, price manipulation, stale prices, single oracle dependency, TWAP manipulation.
+
+RESPONSE REQUIREMENTS:
+1. Start with [
+2. End with ]
+3. Each finding: {"severity":"critical|high|medium|low|info","title":"...","description":"...","file":"...","line":123,"recommendation":"..."}
+4. If no findings, return []
+5. NO text outside the JSON array
+
+YOUR RESPONSE MUST START WITH [ AND END WITH ]`,
+
+    user: `Analyze oracle manipulation vulnerabilities in this smart contract.
+Output ONLY a JSON array starting with [ and ending with ]:
 
 {{contractCode}}
 
-External dependencies:
-{{externalDependencies}}
-
-Identified interfaces:
-{{implementedInterfaces}}
-
-Provide findings for any oracle-related risks.`,
+External dependencies: {{externalDependencies}}
+Interfaces: {{implementedInterfaces}}`,
 
     responseFormat: 'findings',
   },
 
   // Business Logic Analysis
   'analyze-business-logic': {
-    system: `You are an expert smart contract security auditor specializing in business logic vulnerabilities.
-Analyze for logic flaws including:
-- Incorrect state transitions
-- Missing validation
-- Edge case handling
-- Economic exploits
-- Griefing vectors
-- Front-running opportunities`,
+    system: `OUTPUT FORMAT: JSON array only. NO explanations, NO markdown, NO text.
 
-    user: `Analyze the business logic of this smart contract:
+You are a smart contract security auditor. Analyze business logic vulnerabilities: incorrect state transitions, missing validation, edge cases, economic exploits, griefing vectors, front-running.
+
+RESPONSE REQUIREMENTS:
+1. Start with [
+2. End with ]
+3. Each finding: {"severity":"critical|high|medium|low|info","title":"...","description":"...","file":"...","line":123,"recommendation":"..."}
+4. If no findings, return []
+5. NO text outside the JSON array
+
+YOUR RESPONSE MUST START WITH [ AND END WITH ]`,
+
+    user: `Analyze business logic vulnerabilities in this smart contract.
+Output ONLY a JSON array starting with [ and ending with ]:
 
 {{contractCode}}
 
-Function signatures:
-{{functionSignatures}}
-
-SLOC statistics:
-{{sloc}}
-
-Provide findings for any business logic issues.`,
+Function signatures: {{functionSignatures}}
+SLOC: {{sloc}}`,
 
     responseFormat: 'findings',
   },
 
   // Finding Validation
   'validate-findings': {
-    system: `You are an expert smart contract security auditor reviewing tool-generated findings.
-For each finding, assess:
-1. Is this a true positive or false positive?
-2. What is the actual severity given the contract context?
-3. What is the exploitability?
-4. Provide concrete remediation steps`,
+    system: `OUTPUT FORMAT: JSON array only. NO explanations, NO markdown, NO text.
 
-    user: `Review and validate these automated tool findings:
+You are a smart contract security auditor reviewing tool-generated findings. For each: assess true/false positive, severity, exploitability, remediation.
 
-{{mergedFindings}}
+RESPONSE REQUIREMENTS:
+1. Start with [
+2. End with ]
+3. Each finding: {"severity":"critical|high|medium|low|info","title":"...","description":"...","file":"...","line":123,"recommendation":"..."}
+4. If no findings, return []
+5. NO text outside the JSON array
 
-Contract code for context:
-{{contractCode}}
+YOUR RESPONSE MUST START WITH [ AND END WITH ]`,
 
-Mark each finding as confirmed, likely false positive, or needs manual review.`,
+    user: `Review and validate these automated tool findings.
+Output ONLY a JSON array starting with [ and ending with ]:
+
+Tool findings: {{mergedFindings}}
+Contract code: {{contractCode}}`,
 
     responseFormat: 'validation',
   },
 
   // Recommendations Generation
   'generate-recommendations': {
-    system: `You are an expert smart contract security auditor generating actionable recommendations.
-Based on the audit findings, provide:
-1. Prioritized remediation steps
-2. Code examples for fixes where applicable
-3. Best practice recommendations
-4. Testing suggestions`,
+    system: `OUTPUT FORMAT: JSON array only. NO explanations, NO markdown, NO text.
 
-    user: `Generate recommendations based on these audit findings:
+You are a smart contract security auditor generating recommendations. Provide: prioritized steps, code examples, best practices, testing suggestions.
 
-{{finalFindings}}
+RESPONSE REQUIREMENTS:
+1. Start with [
+2. End with ]
+3. Each recommendation: {"severity":"critical|high|medium|low|info","title":"...","description":"...","file":"...","line":123,"recommendation":"..."}
+4. If no recommendations, return []
+5. NO text outside the JSON array
 
-Contract context:
-- Framework: {{framework}}
-- Language: {{language}}
-- Dependencies: {{dependencies}}
+YOUR RESPONSE MUST START WITH [ AND END WITH ]`,
 
-Score: {{auditScore}}/100
+    user: `Generate recommendations based on these audit findings.
+Output ONLY a JSON array starting with [ and ending with ]:
 
-Provide actionable recommendations.`,
+Findings: {{finalFindings}}
+Framework: {{framework}}
+Language: {{language}}
+Dependencies: {{dependencies}}
+Score: {{auditScore}}/100`,
 
     responseFormat: 'recommendations',
   },
@@ -338,35 +394,33 @@ async function executeAIAnalysis(
   config: AIPromptStepConfig,
   context: StepContext
 ): Promise<string> {
-  // In production, this would call the Claude API
-  // For now, we implement a mock that can be replaced with the actual API call
+  // Try to use simpleClaudeExecutor directly
+  try {
+    const { executeStreamingClaude } = await import('../../../services/ai/simpleClaudeExecutor.js');
 
-  // Check if we have a Claude executor service available
-  const claudeExecutor = (global as any).claudeExecutor;
+    // Build full prompt - system prompts now have explicit JSON formatting requirements
+    const fullPrompt = `${prompt.system}
 
-  if (claudeExecutor && typeof claudeExecutor.execute === 'function') {
-    try {
-      const result = await claudeExecutor.execute({
-        systemPrompt: prompt.system,
-        userPrompt: prompt.user,
-        maxTokens: config.maxTokens || 4096,
-        temperature: config.temperature || 0.3,
-      });
+${prompt.user}`;
 
-      return result.response || '';
-    } catch (error: any) {
-      log.error('Claude execution failed', { error: error.message });
-      throw error;
-    }
+    // Execute with Claude CLI
+    const result = await executeStreamingClaude(fullPrompt, {
+      timeout: (config.maxTokens || 4096) * 100, // ~100ms per token
+      model: 'claude-sonnet-4-5-20250929', // Use Sonnet for AI steps
+      cwd: context.projectPath,
+    });
+
+    return result.output || '';
+  } catch (error: any) {
+    log.error('Claude execution failed', { error: error.message });
+
+    // Fallback to mock
+    log.warn('Using mock AI response - Claude executor not available');
+    return JSON.stringify({
+      findings: [],
+      summary: 'AI analysis would be performed here in production',
+    });
   }
-
-  // Mock implementation for development/testing
-  log.warn('Using mock AI response - Claude executor not available');
-
-  return JSON.stringify({
-    findings: [],
-    summary: 'AI analysis would be performed here in production',
-  });
 }
 
 // ============================================================================
@@ -384,12 +438,56 @@ function parseAIResponse(
     // Try to parse as JSON first
     let parsed: any;
 
-    // Extract JSON from markdown code blocks if present
-    const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      parsed = JSON.parse(jsonMatch[1]);
-    } else {
-      parsed = JSON.parse(response);
+    // Step 1: Try direct parse (for well-formatted responses)
+    try {
+      parsed = JSON.parse(response.trim());
+    } catch {
+      // Step 2: Extract JSON from various formats
+      const patterns = [
+        // Markdown code blocks
+        /```json\s*([\s\S]*?)```/,
+        /```\s*([\s\S]*?)```/,
+        // JSON arrays with surrounding text
+        /\[\s*\{[\s\S]*?\}\s*\]/,
+        // Look for arrays after common prefixes
+        /(?:findings|results|issues|array)[\s:]*(\[\s*\{[\s\S]*?\}\s*\])/i,
+        // Find any JSON-like array structure
+        /(\[\s*\{[^[\]]*"severity"[^[\]]*\}\s*(?:,\s*\{[^[\]]*"severity"[^[\]]*\}\s*)*\])/,
+      ];
+
+      let jsonText = response.trim();
+
+      for (const pattern of patterns) {
+        const match = response.match(pattern);
+        if (match) {
+          jsonText = match[1] || match[0];
+          // Remove markdown and common artifacts
+          jsonText = jsonText
+            .replace(/^```json?\s*/, '')
+            .replace(/```\s*$/, '')
+            .replace(/^[^[]*\[/, '[')  // Remove text before first [
+            .replace(/\][^[\]]*$/, ']')  // Remove text after last ]
+            .trim();
+
+          try {
+            parsed = JSON.parse(jsonText);
+            break;
+          } catch {
+            // Try next pattern
+            continue;
+          }
+        }
+      }
+
+      // If still not parsed, throw to fall through to text extraction
+      if (!parsed) {
+        throw new Error('No valid JSON found in response');
+      }
+    }
+
+    // Successfully parsed JSON - now extract findings
+    if (!parsed) {
+      throw new Error('Failed to parse any JSON');
     }
 
     // Handle different response formats
@@ -411,7 +509,10 @@ function parseAIResponse(
     }
   } catch (error) {
     // If JSON parsing fails, try to extract findings from text
-    log.warn('Failed to parse AI response as JSON, attempting text extraction');
+    log.warn('Failed to parse AI response as JSON, attempting text extraction', {
+      error: (error as Error).message,
+      responsePreview: response.slice(0, 200)
+    });
     const textFindings = extractFindingsFromText(response, stepId);
     findings.push(...textFindings);
   }

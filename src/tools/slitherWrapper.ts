@@ -129,16 +129,12 @@ export async function runSlither(config: ToolRunnerConfig): Promise<ToolRunnerRe
  * Run Slither natively
  */
 async function runSlitherNative(config: ToolRunnerConfig, startTime: number): Promise<ToolRunnerResult> {
-  const args = [
-    config.projectPath,
+  // Use args from SOP config, or use defaults
+  const args = config.args?.length ? [...config.args] : [
+    '.',
     '--json', '-',
     '--exclude', 'naming-convention,solc-version,pragma',
   ];
-
-  // Add any additional args
-  if (config.args?.length) {
-    args.push(...config.args);
-  }
 
   return new Promise((resolve) => {
     let stdout = '';
@@ -211,16 +207,12 @@ async function runSlitherNative(config: ToolRunnerConfig, startTime: number): Pr
  * Run Slither via Docker
  */
 async function runSlitherDocker(config: ToolRunnerConfig, startTime: number): Promise<ToolRunnerResult> {
-  const args = [
+  // Use args from SOP config, or use defaults
+  const args = config.args?.length ? [...config.args] : [
     '.',
     '--json', '-',
     '--exclude', 'naming-convention,solc-version,pragma',
   ];
-
-  // Add any additional args
-  if (config.args?.length) {
-    args.push(...config.args);
-  }
 
   config.onProgress?.(30, 'Running Slither in Docker...');
 

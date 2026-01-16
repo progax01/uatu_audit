@@ -11,7 +11,7 @@ import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
-import { auditJobs, auditReports, users } from '../db/schema';
+import { auditJobs, auditReports, auditResults, users } from '../db/schema';
 import type {
   SOPDefinition,
   AuditDepth,
@@ -343,15 +343,104 @@ export class UnifiedAuditService extends EventEmitter {
         stderr += data.toString();
       });
 
-      proc.on('close', (code) => {
+      proc.on('close', async (code) => {
         if (code === 0) {
-          resolve(path.join(workDir, 'source'));
+          const sourcePath = path.join(workDir, 'source');
+
+          try {
+            // Install dependencies after cloning
+            await this.installDependencies(sourcePath);
+            resolve(sourcePath);
+          } catch (installError: any) {
+            log.warn('Failed to install dependencies, continuing anyway', {
+              error: installError.message,
+            });
+            // Continue even if dependency installation fails
+            resolve(sourcePath);
+          }
         } else {
           reject(new Error(`Git clone failed: ${stderr}`));
         }
       });
 
       proc.on('error', (err) => {
+        reject(err);
+      });
+    });
+  }
+
+  /**
+   * Install project dependencies (npm/yarn/pnpm)
+   */
+  private async installDependencies(projectPath: string): Promise<void> {
+    log.info('Installing project dependencies', { projectPath });
+
+    // Detect package manager from lock files
+    let packageManager = 'npm';
+    let installCommand = 'npm install';
+
+    if (await fs.pathExists(path.join(projectPath, 'pnpm-lock.yaml'))) {
+      packageManager = 'pnpm';
+      installCommand = 'pnpm install --frozen-lockfile';
+    } else if (await fs.pathExists(path.join(projectPath, 'yarn.lock'))) {
+      packageManager = 'yarn';
+      installCommand = 'yarn install --frozen-lockfile';
+    } else if (await fs.pathExists(path.join(projectPath, 'package-lock.json'))) {
+      packageManager = 'npm';
+      installCommand = 'npm ci'; // Use ci for faster, reproducible installs
+    } else if (await fs.pathExists(path.join(projectPath, 'package.json'))) {
+      // package.json exists but no lock file - use regular install
+      packageManager = 'npm';
+      installCommand = 'npm install';
+    } else {
+      // No package.json - skip dependency installation
+      log.info('No package.json found, skipping dependency installation');
+      return;
+    }
+
+    log.info('Running dependency installation', { packageManager, command: installCommand });
+
+    const { spawn } = await import('child_process');
+
+    return new Promise((resolve, reject) => {
+      const [cmd, ...args] = installCommand.split(' ');
+
+      const proc = spawn(cmd, args, {
+        cwd: projectPath,
+        timeout: 300000, // 5 minutes timeout
+        env: { ...process.env },
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      proc.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      proc.on('close', (code) => {
+        if (code === 0) {
+          log.info('Dependencies installed successfully', {
+            packageManager,
+            stdout: stdout.slice(0, 500), // First 500 chars
+          });
+          resolve();
+        } else {
+          log.error('Dependency installation failed', {
+            packageManager,
+            exitCode: code,
+            stderr: stderr.slice(0, 1000),
+          });
+          reject(new Error(`${packageManager} install failed with code ${code}: ${stderr}`));
+        }
+      });
+
+      proc.on('error', (err) => {
+        log.error('Failed to spawn dependency installation process', { error: err.message });
         reject(err);
       });
     });
@@ -510,9 +599,32 @@ export class UnifiedAuditService extends EventEmitter {
       score,
     });
 
+    // Calculate grade
+    const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
+
     // Generate report
     const reportId = crypto.randomUUID();
     const report = this.generateReport(findings, score, request);
+
+    // Save structured results to audit_results table
+    await db.insert(auditResults).values({
+      jobId,
+      scoreValue: score,
+      scoreLabel: grade,
+      findings: findings as any, // JSONB field
+      summary: `Found ${findings.length} findings with audit score ${score}`,
+      metadata: {
+        findingsCount: findings.length,
+        bySeverity: {
+          critical: findings.filter(f => f.severity === 'critical').length,
+          high: findings.filter(f => f.severity === 'high').length,
+          medium: findings.filter(f => f.severity === 'medium').length,
+          low: findings.filter(f => f.severity === 'low').length,
+          info: findings.filter(f => f.severity === 'info').length,
+        },
+        depth: request.depth,
+      },
+    });
 
     // Save report
     await db.insert(auditReports).values({
@@ -522,12 +634,13 @@ export class UnifiedAuditService extends EventEmitter {
       createdAt: new Date(),
     });
 
-    // Update job status
+    // Update job status with completedAt timestamp
     await db
       .update(auditJobs)
       .set({
         status: 'completed',
         progressPct: 100,
+        completedAt: new Date(),
         updatedAt: new Date(),
       })
       .where(eq(auditJobs.id, jobId));

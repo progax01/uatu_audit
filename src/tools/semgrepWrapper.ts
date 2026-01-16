@@ -127,17 +127,15 @@ export async function runSemgrep(config: ToolRunnerConfig): Promise<ToolRunnerRe
  * Run Semgrep natively
  */
 async function runSemgrepNative(config: ToolRunnerConfig, startTime: number): Promise<ToolRunnerResult> {
-  const args = [
+  // Start with args from SOP config, or use defaults
+  const args = config.args?.length ? [...config.args] : [
     '--json',
     '--config', 'p/smart-contracts',
-    '--config', 'auto',
-    '--no-git-ignore', // Include all files
-    '.',
   ];
 
-  // Add additional args
-  if (config.args?.length) {
-    args.push(...config.args);
+  // Add scan target if not already present
+  if (!args.includes('.') && !args.some(arg => !arg.startsWith('-'))) {
+    args.push('.');
   }
 
   return new Promise((resolve) => {
@@ -211,17 +209,15 @@ async function runSemgrepNative(config: ToolRunnerConfig, startTime: number): Pr
  * Run Semgrep via Docker
  */
 async function runSemgrepDocker(config: ToolRunnerConfig, startTime: number): Promise<ToolRunnerResult> {
-  const args = [
+  // Start with args from SOP config, or use defaults
+  const args = config.args?.length ? [...config.args] : [
     '--json',
     '--config', 'p/smart-contracts',
-    '--config', 'auto',
-    '--no-git-ignore',
-    '.',
   ];
 
-  // Add additional args
-  if (config.args?.length) {
-    args.push(...config.args);
+  // Add scan target if not already present
+  if (!args.includes('.') && !args.some(arg => !arg.startsWith('-'))) {
+    args.push('.');
   }
 
   config.onProgress?.(30, 'Running Semgrep in Docker...');
@@ -236,6 +232,7 @@ async function runSemgrepDocker(config: ToolRunnerConfig, startTime: number): Pr
       timeout: config.timeout || 120000,
       memoryLimit: '4g',
       cpuLimit: '2.0',
+      allowNetwork: true,  // Semgrep needs network to download rulesets
     });
 
     config.onProgress?.(90, 'Parsing results...');

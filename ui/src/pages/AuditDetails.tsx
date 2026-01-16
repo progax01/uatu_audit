@@ -614,7 +614,10 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
 
     fetchReport();
 
-    let intervalId: NodeJS.Timeout;
+    let intervalId: NodeJS.Timeout | null = null;
+    let eventSource: EventSource | null = null;
+
+    // Legacy numeric job ID - use polling
     if (jobId && /^\d+$/.test(jobId)) {
       intervalId = setInterval(() => {
         // Check both status and completedAt to determine if job is done
@@ -624,9 +627,81 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
         }
       }, 5000);
     }
+    // UUID job ID - use SSE streaming for real-time progress
+    else if (jobId && isUUID(jobId)) {
+      const sseUrl = `/api/audit/${jobId}/progress/stream`;
+      console.log('Connecting to SSE:', sseUrl);
+
+      eventSource = new EventSource(sseUrl);
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('SSE progress update:', data);
+
+          // Update progress state
+          if (data.status === 'running') {
+            setProgress({
+              status: data.status,
+              pct: data.overallPct || 0,
+              currentStep: data.currentStep?.name || data.currentStepName,
+              stepsCompleted: data.stepsCompleted,
+              stepsTotal: data.stepsTotal,
+            });
+
+            // Also update job info if audit completes
+            if (data.status === 'completed' || data.status === 'failed') {
+              setJobInfo(prev => ({
+                ...prev,
+                status: data.status,
+                completedAt: new Date().toISOString()
+              }));
+
+              // Fetch final results
+              fetchUnifiedAudit();
+
+              // Close SSE
+              if (eventSource) {
+                eventSource.close();
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error parsing SSE message:', err);
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error('SSE connection error:', err);
+        eventSource?.close();
+
+        // Fallback to polling if SSE fails
+        intervalId = setInterval(async () => {
+          const response = await fetch(`/api/audit/${jobId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.audit) {
+              setProgress({
+                status: data.audit.status,
+                pct: data.audit.progressPct || 0,
+                currentStep: data.audit.currentStepName,
+                stepsCompleted: data.audit.stepsCompleted,
+                stepsTotal: data.audit.stepsTotal,
+              });
+
+              if (data.audit.status === 'completed' || data.audit.status === 'failed') {
+                fetchUnifiedAudit();
+                if (intervalId) clearInterval(intervalId);
+              }
+            }
+          }
+        }, 2000);
+      };
+    }
 
     return () => {
       if (intervalId) clearInterval(intervalId);
+      if (eventSource) eventSource.close();
     };
   }, [jobId]);
 
@@ -905,30 +980,66 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
             <div className="bg-white border border-slate-200 p-10 rounded-[40px] shadow-sm">
               <div className="flex items-center justify-between mb-10 pb-6 border-b border-slate-100">
                 <div>
-                  <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Live Processing Stream</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Real-time reasoning log for {jobInfo.project}</p>
+                  <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">
+                    {progress?.phases ? 'Live Processing Stream' : 'Audit Progress'}
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    {progress?.phases
+                      ? `Real-time reasoning log for ${jobInfo.project}`
+                      : progress?.stepsCompleted !== undefined
+                        ? `Step ${progress.stepsCompleted} of ${progress.stepsTotal}: ${progress.currentStep || 'Processing...'}`
+                        : `Analyzing ${jobInfo.project}`
+                    }
+                  </p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-2xl font-black text-slate-900 tracking-tighter">{Math.round(progress?.overall_pct || 0)}%</span>
+                  <span className="text-2xl font-black text-slate-900 tracking-tighter">
+                    {Math.round(progress?.pct || progress?.overall_pct || 0)}%
+                  </span>
                   <div className="w-32 h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
                     <motion.div
                       initial={{ width: 0 }}
-                      animate={{ width: `${progress?.overall_pct || 0}%` }}
+                      animate={{ width: `${progress?.pct || progress?.overall_pct || 0}%` }}
                       className="h-full bg-indigo-500"
+                      transition={{ duration: 0.5 }}
                     />
                   </div>
                 </div>
               </div>
-              <MilestoneTracker
-                milestones={progress?.phases?.map((p: any, idx: number) => ({
-                  number: idx + 1,
-                  name: p.name.replace(/_/g, ' '),
-                  description: p.step || 'Processing...',
-                  status: (p.pct === 100 ? 'completed' : p.pct > 0 ? 'running' : 'pending') as any,
-                  progress: p.pct,
-                  step: p.step
-                })) || []}
-              />
+              {progress?.phases ? (
+                <MilestoneTracker
+                  milestones={progress.phases.map((p: any, idx: number) => ({
+                    number: idx + 1,
+                    name: p.name.replace(/_/g, ' '),
+                    description: p.step || 'Processing...',
+                    status: (p.pct === 100 ? 'completed' : p.pct > 0 ? 'running' : 'pending') as any,
+                    progress: p.pct,
+                    step: p.step
+                  }))}
+                />
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-slate-600">
+                      {progress?.currentStep || 'Initializing audit...'}
+                    </span>
+                    <span className="font-bold text-indigo-600">
+                      {progress?.stepsCompleted || 0} / {progress?.stepsTotal || '?'} steps
+                    </span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-indigo-500 to-violet-500"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress?.pct || 0}%` }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400 italic">
+                    {progress?.status === 'running' ? 'Audit in progress... This may take several minutes.' : 'Preparing audit...'}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
