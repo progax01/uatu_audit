@@ -140,11 +140,26 @@ export class UnifiedAuditService extends EventEmitter {
       branch = 'n/a';
     }
 
+    // Validate projectId if provided
+    let validatedProjectId: string | null = null;
+    if (request.projectId) {
+      const { projects } = await import('../db/schema.js');
+      const [project] = await db.select().from(projects).where(eq(projects.id, request.projectId));
+      if (project) {
+        validatedProjectId = request.projectId;
+        log.info('Audit linked to project', { projectId: request.projectId, projectName: project.name });
+      } else {
+        log.warn('Project not found in database, audit will be created without projectId', {
+          projectId: request.projectId
+        });
+      }
+    }
+
     try {
       await db.insert(auditJobs).values({
         id: jobId,
         userId: request.userId,
-        projectId: request.projectId || null, // Nullable - file-based projects don't exist in DB
+        projectId: validatedProjectId, // Only set if project exists in DB
         repo,
         branch,
         status: 'pending',
@@ -350,6 +365,10 @@ export class UnifiedAuditService extends EventEmitter {
           try {
             // Install dependencies after cloning
             await this.installDependencies(sourcePath);
+
+            // Create ignore files to exclude node_modules and other directories from analysis
+            await this.createIgnoreFiles(sourcePath);
+
             resolve(sourcePath);
           } catch (installError: any) {
             log.warn('Failed to install dependencies, continuing anyway', {
@@ -443,6 +462,42 @@ export class UnifiedAuditService extends EventEmitter {
         log.error('Failed to spawn dependency installation process', { error: err.message });
         reject(err);
       });
+    });
+  }
+
+  /**
+   * Create ignore files to exclude unwanted directories from analysis
+   */
+  private async createIgnoreFiles(projectPath: string): Promise<void> {
+    // Directories to exclude from analysis
+    const excludeDirs = [
+      'node_modules',
+      '.git',
+      'dist',
+      'build',
+      'out',
+      'cache',
+      'artifacts',
+      'coverage',
+      '.next',
+      '.turbo',
+      'test',
+      'tests',
+      'scripts',
+      'docs',
+    ];
+
+    // Create .slitherignore
+    const slitherIgnorePath = path.join(projectPath, '.slitherignore');
+    await fs.writeFile(slitherIgnorePath, excludeDirs.join('\n'));
+
+    // Create .semgrepignore
+    const semgrepIgnorePath = path.join(projectPath, '.semgrepignore');
+    await fs.writeFile(semgrepIgnorePath, excludeDirs.join('\n'));
+
+    log.info('Created ignore files to exclude directories', {
+      excludeDirs,
+      projectPath,
     });
   }
 

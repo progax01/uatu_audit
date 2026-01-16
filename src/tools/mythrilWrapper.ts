@@ -368,7 +368,14 @@ export function parseMythrilOutput(output: any, projectPath: string): StepFindin
       title: issue.title || getSWCTitle(issue.swc_id),
       description: issue.description || '',
       confidence: issue.severity === 'High' ? 0.9 : issue.severity === 'Medium' ? 0.7 : 0.5,
-      rawOutput: issue,
+      rawOutput: {
+        swc_id: issue.swc_id,
+        title: issue.title,
+        severity: issue.severity,
+        contract: issue.contract,
+        function: issue.function,
+        description: issue.description,
+      },
     };
 
     // Add location

@@ -39,6 +39,9 @@ export default function ProjectDetails() {
     const [startingAudit, setStartingAudit] = useState(false)
     const [auditError, setAuditError] = useState<string | null>(null)
     const [runningJobId, setRunningJobId] = useState<string | null>(null)
+    const [showAuditOptions, setShowAuditOptions] = useState(false)
+    const [auditDepth, setAuditDepth] = useState<'quick' | 'standard' | 'deep'>('standard')
+    const [auditVisibility, setAuditVisibility] = useState<'private' | 'public'>('private')
 
     const handleStartAudit = async () => {
         if (!project || !project.components || project.components.length === 0) {
@@ -87,7 +90,6 @@ export default function ProjectDetails() {
             }
 
             // Start the audit
-            // Note: Don't send projectId for file-based projects since they don't exist in the database
             const response = await authFetch('/api/audit/start', {
                 method: 'POST',
                 headers: {
@@ -95,9 +97,9 @@ export default function ProjectDetails() {
                 },
                 body: JSON.stringify({
                     source,
-                    depth: 'standard', // Default to standard audit
-                    visibility: 'private',
-                    // projectId: project.id  // Omitted - file-based projects aren't in DB
+                    depth: auditDepth,
+                    visibility: auditVisibility,
+                    projectId: project.id
                 })
             })
 
@@ -250,6 +252,97 @@ export default function ProjectDetails() {
                 </div>
             )}
 
+            {/* Audit Options Modal */}
+            {showAuditOptions && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl">
+                        <div className="w-14 h-14 rounded-xl bg-indigo-50 flex items-center justify-center mx-auto mb-5">
+                            <Play size={28} className="text-indigo-600" />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 text-center mb-2">Start Security Audit</h3>
+                        <p className="text-sm text-slate-500 text-center mb-6">
+                            Configure your audit parameters
+                        </p>
+
+                        {/* Audit Depth */}
+                        <div className="mb-6">
+                            <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-3">
+                                Audit Depth
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {(['quick', 'standard', 'deep'] as const).map((depth) => (
+                                    <button
+                                        key={depth}
+                                        onClick={() => setAuditDepth(depth)}
+                                        className={`px-4 py-3 rounded-lg text-sm font-bold transition-all ${
+                                            auditDepth === depth
+                                                ? 'bg-indigo-600 text-white'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        {depth === 'quick' && '⚡ Quick'}
+                                        {depth === 'standard' && '🎯 Standard'}
+                                        {depth === 'deep' && '🔬 Deep'}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-2">
+                                {auditDepth === 'quick' && '~10 min • Basic security checks'}
+                                {auditDepth === 'standard' && '~30 min • Comprehensive analysis'}
+                                {auditDepth === 'deep' && '~2 hours • Maximum coverage with advanced techniques'}
+                            </p>
+                        </div>
+
+                        {/* Visibility */}
+                        <div className="mb-8">
+                            <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-3">
+                                Visibility
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {(['private', 'public'] as const).map((visibility) => (
+                                    <button
+                                        key={visibility}
+                                        onClick={() => setAuditVisibility(visibility)}
+                                        className={`px-4 py-3 rounded-lg text-sm font-bold transition-all ${
+                                            auditVisibility === visibility
+                                                ? 'bg-indigo-600 text-white'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        {visibility === 'private' && '🔒 Private'}
+                                        {visibility === 'public' && '🌐 Public'}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-2">
+                                {auditVisibility === 'private' && 'Only you can view this audit'}
+                                {auditVisibility === 'public' && 'Anyone with the link can view'}
+                            </p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowAuditOptions(false)}
+                                className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowAuditOptions(false)
+                                    handleStartAudit()
+                                }}
+                                className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <Play size={16} />
+                                Start Audit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Top Row: Back Button | Project Name | Actions */}
             <div className="flex items-center justify-between gap-4">
                 {/* Back Button */}
@@ -288,7 +381,7 @@ export default function ProjectDetails() {
                     </button>
                     {project.components && project.components.length > 0 && (
                         <button
-                            onClick={handleStartAudit}
+                            onClick={() => setShowAuditOptions(true)}
                             disabled={startingAudit}
                             className="btn-primary px-4 py-2.5 text-xs"
                         >

@@ -5,7 +5,7 @@ import {
   ShieldCheck, Download, AlertCircle, AlertTriangle,
   Code2, Timer, Target, Zap, Globe,
   CheckCircle2, XCircle, Binary, ArrowRight, ArrowLeft,
-  User, Lock, Unlock, ChevronDown, RefreshCw
+  User, Lock, Unlock, ChevronDown, RefreshCw, Package
 } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import LiabilityTriage from '../components/LiabilityTriage'
@@ -127,13 +127,26 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       }
     };
 
+    const formatLocation = (loc: any) => {
+      if (!loc) return '';
+      if (typeof loc === 'string') return loc;
+      if (typeof loc === 'object') {
+        const parts = [];
+        if (loc.file) parts.push(loc.file);
+        if (loc.line) parts.push(`L${loc.line}`);
+        if (loc.column) parts.push(`C${loc.column}`);
+        return parts.join(':');
+      }
+      return '';
+    };
+
     const vulnerabilitiesHTML = auditData.vulnerabilities?.map((v: any) => `
       <div style="border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 16px; overflow: hidden;">
         <div style="background: ${severityColor(v.severity)}15; padding: 16px; border-bottom: 1px solid #e2e8f0;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
               <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #1e293b;">${v.title}</h4>
-              <p style="margin: 4px 0 0; font-size: 11px; color: #64748b; font-family: monospace;">${v.location || ''}</p>
+              <p style="margin: 4px 0 0; font-size: 11px; color: #64748b; font-family: monospace;">${formatLocation(v.location)}</p>
             </div>
             <span style="background: ${severityColor(v.severity)}; color: white; padding: 4px 12px; border-radius: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase;">${v.severity}</span>
           </div>
@@ -390,11 +403,23 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
           if (data.success && data.audit) {
             console.log('Unified audit data:', data);
 
+            // Determine project name based on source type
+            let projectName = 'Unknown Project';
+            if (data.audit.contractName) {
+              projectName = data.audit.contractName;
+            } else if (data.audit.contractAddress) {
+              projectName = `Contract ${data.audit.contractAddress.slice(0, 8)}`;
+            } else if (data.audit.repo) {
+              // Extract repo name from GitHub URL
+              const repoMatch = data.audit.repo.match(/github\.com\/([^\/]+\/[^\/\.]+)/);
+              projectName = repoMatch ? repoMatch[1] : data.audit.repo;
+            }
+
             // Set job info
             setJobInfo({
               id: data.audit.id,
               legacyId: data.audit.legacyId,
-              project: data.audit.contractName || `Contract ${data.audit.contractAddress?.slice(0, 8)}`,
+              project: projectName,
               status: data.audit.status,
               auditType: data.audit.auditType,
               contractAddress: data.audit.contractAddress,
@@ -416,7 +441,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
             if (data.results) {
               const metadata = data.results.metadata || {};
               setAuditData({
-                projectName: data.audit.contractName || `Contract ${data.audit.contractAddress?.slice(0, 8)}`,
+                projectName,
                 auditType: data.audit.auditType === 'quick' ? 'Quick Scan' : 'Full Audit',
                 score: data.results.score,
                 grade: data.results.grade,
@@ -1385,7 +1410,11 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                   </div>
                                   <div className="text-left">
                                     <h4 className="text-base font-black text-slate-900 tracking-tight">{v.title}</h4>
-                                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block mt-1">{v.location}</span>
+                                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block mt-1">
+                                      {typeof v.location === 'object' && v.location ?
+                                        `${v.location.file || ''}${v.location.line ? `:L${v.location.line}` : ''}${v.location.column ? `:C${v.location.column}` : ''}` :
+                                        v.location || ''}
+                                    </span>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-4">
@@ -1518,7 +1547,11 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                   <div className="flex items-center justify-between mb-3">
                                     <div className="flex items-center gap-3">
                                       <Zap size={16} className="text-amber-500" />
-                                      <span className="text-[11px] font-mono font-bold text-slate-500">{opt.location}</span>
+                                      <span className="text-[11px] font-mono font-bold text-slate-500">
+                                        {typeof opt.location === 'object' && opt.location ?
+                                          `${opt.location.file || ''}${opt.location.line ? `:L${opt.location.line}` : ''}` :
+                                          opt.location || ''}
+                                      </span>
                                     </div>
                                     {opt.estimatedSavings && (
                                       <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-lg">
@@ -1702,8 +1735,8 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                               </div>
                             </div>
                           </div>
-                        ) : (
-                          /* Full audit test execution data */
+                        ) : auditData.test_execution && auditData.test_execution.length > 0 ? (
+                          /* Full audit test execution data - only show if real data exists */
                           <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
                             <table className="w-full text-left border-collapse">
                               <thead>
@@ -1715,13 +1748,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
-                                {(auditData.test_execution || [
-                                  { suite: 'Liveness Invariants', target: 'Protocol Continuity', assertions: 240, status: 'Passed' },
-                                  { suite: 'Access Control Matrix', target: 'Permission Integrity', assertions: 850, status: 'Passed' },
-                                  { suite: 'Arithmetic Fuzzing', target: 'Edge Case Safety', assertions: '1.2M', status: 'Passed' },
-                                  { suite: 'Economic Sanity', target: 'Oracle Manipulation', assertions: 45, status: 'Warning' },
-                                  { suite: 'Reentrancy Guard', target: 'State Consistency', assertions: 120, status: 'Passed' },
-                                ]).map((test: any, idx: number) => (
+                                {auditData.test_execution.map((test: any, idx: number) => (
                                   <tr key={idx} className="group hover:bg-slate-50 transition-colors">
                                     <td className="px-8 py-6">
                                       <span className="text-[13px] font-black text-slate-900">{test.suite}</span>
@@ -1742,6 +1769,17 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                 ))}
                               </tbody>
                             </table>
+                          </div>
+                        ) : (
+                          /* No test execution data available */
+                          <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center">
+                            <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                              <Package size={28} className="text-slate-300" />
+                            </div>
+                            <h3 className="font-black text-slate-900 mb-2">No Test Execution Data</h3>
+                            <p className="text-sm text-slate-400">
+                              Test results will appear here when available from the audit process.
+                            </p>
                           </div>
                         )}
                       </motion.div>

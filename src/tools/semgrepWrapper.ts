@@ -299,7 +299,15 @@ export function parseSemgrepOutput(output: any, projectPath: string): StepFindin
       title: formatRuleTitle(result.check_id),
       description: result.extra.message,
       confidence: mapConfidence(metadata.confidence),
-      rawOutput: result,
+      rawOutput: {
+        check_id: result.check_id,
+        severity: result.extra.severity,
+        message: result.extra.message,
+        category: metadata.category,
+        cwe: metadata.cwe,
+        owasp: metadata.owasp,
+        fix: result.extra.fix,
+      },
     };
 
     // Add location

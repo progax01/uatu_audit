@@ -438,7 +438,13 @@ export function parseFoundryTestOutput(output: any, projectPath: string): StepFi
           title: `Failed Test: ${testName}`,
           description: result.reason || 'Test failed without explicit reason',
           confidence: 1,
-          rawOutput: result,
+          rawOutput: {
+            testName,
+            status: result.status,
+            reason: result.reason,
+            counterexample: result.counterexample,
+            gasUsed: result.gasUsed,
+          },
         };
 
         // Extract file from contract path

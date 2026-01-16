@@ -23,6 +23,7 @@ import { getJobProgress } from '../../services/microStepProgressService.js';
 import { getAllAvailableSOPs } from '../../sops/definitions/index.js';
 import { checkToolsAvailable, getAvailableToolNames } from '../../tools/index.js';
 import { getSessionId, loadUserId } from './auth.js';
+import { verifyAuth } from '../middleware/auth.js';
 import { logger } from '../../utils/logger.js';
 
 const log = logger.child({ module: 'audit-routes' });
@@ -46,11 +47,20 @@ export async function handleAuditRoutes(
       for await (const c of req) chunks.push(c);
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 
-      // Get user session
+      // Get user session - check session-based auth first, then JWT auth as fallback
       const sessionId = getSessionId(req);
       let userId: string | undefined;
       if (sessionId) {
         userId = (await loadUserId(sessionId)) || undefined;
+      }
+
+      // If no session-based userId, try JWT auth
+      if (!userId) {
+        const jwtAuth = await verifyAuth(req);
+        if (jwtAuth) {
+          userId = jwtAuth.user.id;
+          log.info('Authenticated audit request via JWT', { userId });
+        }
       }
 
       // Validate request

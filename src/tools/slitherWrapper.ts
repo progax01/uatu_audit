@@ -298,7 +298,15 @@ export function parseSlitherOutput(output: any, projectPath: string): StepFindin
       title: formatDetectorTitle(detector.check),
       description: detector.description || detector.markdown || '',
       confidence: detector.confidence === 'High' ? 1 : detector.confidence === 'Medium' ? 0.7 : 0.4,
-      rawOutput: detector,
+      rawOutput: {
+        id: detector.check,
+        check: detector.check,
+        impact: detector.impact,
+        confidence: detector.confidence,
+        description: detector.description,
+        markdown: detector.markdown,
+        first_markdown_element: detector.first_markdown_element,
+      },
     };
 
     // Add location if available
