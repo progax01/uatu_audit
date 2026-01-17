@@ -20,6 +20,7 @@ import {
   handlePublicAuditRoutes,
   handleAuditRoutes,
   handleInteractiveAuditRoutes,
+  handleAuditQuestionnaireRoutes,
   getSessionId,
   loadUserId,
 } from "./routes/index.js";
@@ -141,6 +142,7 @@ async function handleRequest(req: any, res: any) {
     if (await handleScanRoutes(req, res, parsed)) return;
     if (await handlePublicAuditRoutes(req, res, parsed)) return;
     if (await handleAuditRoutes(req, res, parsed)) return;
+    if (await handleAuditQuestionnaireRoutes(req, res, parsed)) return;
     if (await handleInteractiveAuditRoutes(req, res, parsed)) return;
 
     // Project routes (with user context)

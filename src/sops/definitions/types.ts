@@ -32,6 +32,7 @@ export type StepExecutorType =
   | 'tool'          // Run external CLI tool (slither, mythril, etc.)
   | 'deterministic' // Run TypeScript function (no AI)
   | 'ai-prompt'     // Send to Claude for AI analysis
+  | 'interactive'   // Require user interaction (Deep scans only)
   | 'composite';    // Multiple sub-steps combined
 
 export type StepCategory =
@@ -114,6 +115,15 @@ export interface DepthConfig {
 
   /** Timeout overrides per tool (tool name -> seconds) */
   toolTimeouts: Record<string, number>;
+
+  /** Skip compilation steps (Quick scan only) */
+  skipCompilation?: boolean;
+
+  /** Skip dependency installation (Quick scan only) */
+  skipDependencyInstall?: boolean;
+
+  /** Enable interactive questionnaires (Deep scan only) */
+  interactive?: boolean;
 }
 
 /**
@@ -188,6 +198,7 @@ export type StepExecutorConfig =
   | ToolExecutorConfig
   | DeterministicExecutorConfig
   | AIPromptExecutorConfig
+  | InteractiveExecutorConfig
   | CompositeExecutorConfig;
 
 export interface ToolExecutorConfig {
@@ -222,6 +233,16 @@ export interface AIPromptExecutorConfig {
   maxTokens?: number;
   /** Temperature (0-1) */
   temperature?: number;
+}
+
+export interface InteractiveExecutorConfig {
+  type: 'interactive';
+  /** Function name to call from interactive step executors */
+  function: string;
+  /** Whether this step blocks audit progress until answered */
+  blocking?: boolean;
+  /** Timeout in milliseconds for user response */
+  timeout?: number;
 }
 
 export interface CompositeExecutorConfig {
@@ -536,6 +557,9 @@ export type ToolStepConfig = ToolExecutorConfig;
 
 /** Alias for AI prompt step configuration */
 export type AIPromptStepConfig = AIPromptExecutorConfig;
+
+/** Alias for interactive step configuration */
+export type InteractiveStepConfig = InteractiveExecutorConfig;
 
 /** Alias for composite step configuration */
 export type CompositeStepConfig = CompositeExecutorConfig;

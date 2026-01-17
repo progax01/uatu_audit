@@ -1358,6 +1358,184 @@ const parseTestResults: DeterministicExecutor = async (step, config, context) =>
 };
 
 // ============================================================================
+// Contract Type Classification
+// ============================================================================
+
+const classifyContractType: DeterministicExecutor = async (step, config, context) => {
+  await context.onProgress?.(10, 'Classifying contract type...');
+
+  try {
+    // Import the contract type detector service
+    const { detectContractType } = await import('../../../services/contractTypeDetector.js');
+
+    // Run contract type detection
+    const classification = await detectContractType(context.projectPath);
+
+    await context.onProgress?.(100, `Detected: ${classification.category}`);
+
+    log.info('Contract classified', {
+      category: classification.category,
+      confidence: classification.confidence,
+    });
+
+    return {
+      success: true,
+      findings: [],
+      data: {
+        contractClassification: classification,
+        contractCategory: classification.category,
+        detectedInterfaces: classification.interfaces,
+        detectedPatterns: classification.patterns,
+      },
+    };
+  } catch (error: any) {
+    log.warn('Contract classification failed', { error: error.message });
+
+    return {
+      success: true,  // Don't fail the audit if classification fails
+      findings: [],
+      data: {
+        contractCategory: 'generic',
+        detectedInterfaces: [],
+        detectedPatterns: [],
+      },
+      error: `Classification failed: ${error.message}`,
+    };
+  }
+};
+
+// ============================================================================
+// Simple Interface Detection (Regex-based, no compilation)
+// ============================================================================
+
+const detectInterfacesSimple: DeterministicExecutor = async (step, config, context) => {
+  const contracts = context.data.contractFiles || [];
+
+  await context.onProgress?.(10, 'Detecting interfaces (regex)...');
+
+  const detectedInterfaces = new Set<string>();
+
+  // Known ERC interfaces to detect
+  const knownInterfaces = [
+    'IERC20',
+    'IERC721',
+    'IERC1155',
+    'IERC2981',
+    'IERC165',
+    'IERC4626',
+    'IERC777',
+    'IERC1155MetadataURI',
+    'IERC721Metadata',
+    'IERC721Enumerable',
+    'Ownable',
+    'Pausable',
+    'AccessControl',
+    'ReentrancyGuard',
+  ];
+
+  // Regex patterns to detect interfaces
+  const interfaceRegex = new RegExp(`(${knownInterfaces.join('|')})`, 'gi');
+  const inheritanceRegex = /contract\s+\w+\s+is\s+([^{]+)/g;
+  const importRegex = /import\s+.*["']([^"']*\/)?(I[A-Z]\w+)["']/g;
+
+  for (const contract of contracts) {
+    const fullPath = path.join(context.projectPath, contract.path);
+
+    try {
+      const content = await fs.readFile(fullPath, 'utf-8');
+
+      // Check inheritance
+      let match;
+      while ((match = inheritanceRegex.exec(content)) !== null) {
+        const parents = match[1].split(',').map((p) => p.trim().split('(')[0].trim());
+        parents.forEach((parent) => {
+          if (knownInterfaces.includes(parent)) {
+            detectedInterfaces.add(parent);
+          }
+        });
+      }
+
+      // Check imports for interface names
+      while ((match = importRegex.exec(content)) !== null) {
+        const interfaceName = match[2];
+        if (knownInterfaces.includes(interfaceName)) {
+          detectedInterfaces.add(interfaceName);
+        }
+      }
+
+      // Direct pattern matching
+      const matches = content.match(interfaceRegex);
+      if (matches) {
+        matches.forEach((m) => detectedInterfaces.add(m));
+      }
+    } catch {
+      // Skip files that can't be read
+    }
+  }
+
+  await context.onProgress?.(100, `Found ${detectedInterfaces.size} interfaces`);
+
+  return {
+    success: true,
+    findings: [],
+    data: {
+      detectedInterfacesSimple: Array.from(detectedInterfaces),
+    },
+  };
+};
+
+// ============================================================================
+// Simple Function Signature Extraction (Regex-based, no compilation)
+// ============================================================================
+
+const extractFunctionSignaturesRegex: DeterministicExecutor = async (step, config, context) => {
+  const contracts = context.data.contractFiles || context.data.mainContracts || [];
+
+  await context.onProgress?.(10, 'Extracting function signatures (regex)...');
+
+  const signatures: Record<string, Array<{
+    name: string;
+    visibility: string;
+    stateMutability: string;
+  }>> = {};
+
+  // Simplified function regex (less precise than AST but works without compilation)
+  const funcRegex = /function\s+(\w+)\s*\([^)]*\)\s*(public|external|internal|private)?\s*(view|pure|payable)?/g;
+
+  for (const contract of contracts) {
+    const fullPath = path.join(context.projectPath, contract.path);
+
+    try {
+      const content = await fs.readFile(fullPath, 'utf-8');
+      const contractFuncs: typeof signatures[string] = [];
+      let match;
+
+      while ((match = funcRegex.exec(content)) !== null) {
+        contractFuncs.push({
+          name: match[1],
+          visibility: match[2] || 'public',
+          stateMutability: match[3] || '',
+        });
+      }
+
+      signatures[contract.name || contract.path] = contractFuncs;
+    } catch {
+      // Skip files that can't be read
+    }
+  }
+
+  await context.onProgress?.(100, 'Signatures extracted');
+
+  return {
+    success: true,
+    findings: [],
+    data: {
+      functionSignaturesRegex: signatures,
+    },
+  };
+};
+
+// ============================================================================
 // Executor Registry
 // ============================================================================
 
@@ -1387,6 +1565,10 @@ const DETERMINISTIC_EXECUTORS: Record<string, DeterministicExecutor> = {
   'calculateSeverity': calculateSeverity,
   'calculateScore': calculateScore,
   'generateReport': generateReport,
+  // New step executors for three-tier depths
+  'classifyContractType': classifyContractType,
+  'detectInterfacesSimple': detectInterfacesSimple,
+  'extractFunctionSignaturesRegex': extractFunctionSignaturesRegex,
 };
 
 // ============================================================================

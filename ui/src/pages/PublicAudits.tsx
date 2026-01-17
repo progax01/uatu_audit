@@ -470,7 +470,7 @@ export default function PublicAudits() {
                                                                     onClick={() => navigate(`/audit/${audit.id}`)}
                                                                     className="inline-flex items-center gap-2 px-5 py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest whitespace-nowrap hover:bg-indigo-600 transition-all shadow-lg shadow-slate-900/5 hover:shadow-indigo-500/20 group/btn"
                                                                 >
-                                                                    View Report
+                                                                    View Public Reports
                                                                     <ArrowRight size={12} className="group-hover/btn:translate-x-1 transition-transform" />
                                                                 </button>
                                                             )}
@@ -564,7 +564,7 @@ export default function PublicAudits() {
                                                         </div>
                                                     )}
                                                     <div className="flex items-center gap-1 text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
-                                                        {status.isInProgress ? 'View Progress' : 'View Report'}
+                                                        {status.isInProgress ? 'View Progress' : 'View Public Reports'}
                                                         <ArrowRight size={10} />
                                                     </div>
                                                 </div>

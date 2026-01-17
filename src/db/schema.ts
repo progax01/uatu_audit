@@ -538,6 +538,56 @@ export const auditClarifications = pgTable(
 
 
 // ============================================================================
+// CONTRACT CLASSIFICATIONS TABLE
+// ============================================================================
+
+export const contractCategoryEnum = pgEnum('contract_category', [
+  'erc20-token',
+  'erc721-nft',
+  'erc1155-multi',
+  'defi-amm',
+  'defi-lending',
+  'defi-staking',
+  'governance',
+  'bridge',
+  'proxy-upgradeable',
+  'multisig-wallet',
+  'generic',
+]);
+
+export const contractClassifications = pgTable(
+  'contract_classifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .unique()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+
+    // Classification results
+    category: contractCategoryEnum('category').notNull(),
+    subCategory: varchar('sub_category', { length: 100 }),
+
+    // Detection details
+    interfaces: jsonb('interfaces').notNull().default([]), // ['IERC20', 'Ownable']
+    patterns: jsonb('patterns').notNull().default([]),     // ['minting', 'burning', 'staking']
+    confidence: smallint('confidence'),                     // 0-100
+
+    // Metadata
+    detectionMetadata: jsonb('detection_metadata').notNull().default({}),
+    detectedAt: timestamp('detected_at', { withTimezone: true }).notNull().defaultNow(),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    jobIdIdx: uniqueIndex('contract_classifications_job_id_idx').on(table.jobId),
+    categoryIdx: index('contract_classifications_category_idx').on(table.category),
+    confidenceIdx: index('contract_classifications_confidence_idx').on(table.confidence),
+  })
+);
+
+// ============================================================================
 // XP TRANSACTIONS TABLE
 // ============================================================================
 
@@ -789,6 +839,13 @@ export const auditClarificationsRelations = relations(auditClarifications, ({ on
   }),
 }));
 
+export const contractClassificationsRelations = relations(contractClassifications, ({ one }) => ({
+  job: one(auditJobs, {
+    fields: [contractClassifications.jobId],
+    references: [auditJobs.id],
+  }),
+}));
+
 export const auditResultsRelations = relations(auditResults, ({ one }) => ({
   job: one(auditJobs, {
     fields: [auditResults.jobId],
@@ -887,6 +944,10 @@ export type AuditVisibility = (typeof auditVisibilityEnum.enumValues)[number];
 // Table types
 export type AuditClarification = typeof auditClarifications.$inferSelect;
 export type NewAuditClarification = typeof auditClarifications.$inferInsert;
+
+export type ContractClassification = typeof contractClassifications.$inferSelect;
+export type NewContractClassification = typeof contractClassifications.$inferInsert;
+export type ContractCategory = (typeof contractCategoryEnum.enumValues)[number];
 
 // ============================================================================
 // SOP STEP STATUS ENUM

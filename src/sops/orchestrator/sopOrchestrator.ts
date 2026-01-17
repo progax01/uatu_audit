@@ -252,7 +252,41 @@ export class SOPOrchestrator extends EventEmitter {
     }
 
     // Get enabled steps for this depth
-    this.enabledSteps = getEnabledSteps(this.config.sop, this.config.auditDepth);
+    let enabledSteps = getEnabledSteps(this.config.sop, this.config.auditDepth);
+
+    // Apply depth-specific filters
+    const depthConfig = this.config.sop.depths[this.config.auditDepth];
+
+    // Skip compilation steps if configured
+    if (depthConfig.skipCompilation) {
+      enabledSteps = enabledSteps.filter((step) => {
+        // Skip steps that involve compilation
+        const compilationSteps = [
+          'run-hardhat-compile',
+          'run-forge-build',
+          'parse-compilation',
+          'generate-ast',
+        ];
+        return !compilationSteps.includes(step.id);
+      });
+      log.info('Skipping compilation steps per depth configuration');
+    }
+
+    // Skip dependency installation if configured
+    if (depthConfig.skipDependencyInstall) {
+      enabledSteps = enabledSteps.filter((step) => {
+        // Skip steps that install dependencies
+        const dependencySteps = [
+          'install-dependencies',
+          'npm-install',
+          'forge-install',
+        ];
+        return !dependencySteps.includes(step.id);
+      });
+      log.info('Skipping dependency installation per depth configuration');
+    }
+
+    this.enabledSteps = enabledSteps;
 
     // Build execution order based on dependencies
     this.executionLayers = buildExecutionOrder(this.enabledSteps);

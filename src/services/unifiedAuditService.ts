@@ -11,7 +11,7 @@ import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
-import { auditJobs, auditReports, auditResults, users } from '../db/schema';
+import { auditJobs, auditReports, auditResults, users, contractClassifications } from '../db/schema';
 import type {
   SOPDefinition,
   AuditDepth,
@@ -21,6 +21,7 @@ import type {
 import { SOPOrchestrator } from '../sops/orchestrator/sopOrchestrator';
 import { selectSOP } from './sopSelectionService';
 import { MicroStepProgressService, getJobProgress } from './microStepProgressService';
+import { detectContractType } from './contractTypeDetector';
 import { logger } from '../utils/logger';
 
 const log = logger.child({ module: 'unified-audit' });
@@ -201,6 +202,43 @@ export class UnifiedAuditService extends EventEmitter {
         .update(auditJobs)
         .set({ projectPath })
         .where(eq(auditJobs.id, jobId));
+
+      // Detect contract type (for Solidity projects only)
+      let contractClassification;
+      try {
+        log.info('Detecting contract type', { jobId, projectPath });
+        contractClassification = await detectContractType(projectPath);
+
+        // Store classification in database
+        await db.insert(contractClassifications).values({
+          jobId,
+          category: contractClassification.category,
+          subCategory: contractClassification.subCategory,
+          interfaces: contractClassification.interfaces,
+          patterns: contractClassification.patterns,
+          confidence: contractClassification.confidence,
+          detectionMetadata: contractClassification.detectionMetadata,
+        });
+
+        log.info('Contract type detected and stored', {
+          jobId,
+          category: contractClassification.category,
+          confidence: contractClassification.confidence,
+        });
+      } catch (detectionError: any) {
+        // Don't fail audit if detection fails, just log and continue
+        log.warn('Contract type detection failed, continuing with generic', {
+          jobId,
+          error: detectionError.message,
+        });
+        contractClassification = {
+          category: 'generic' as const,
+          interfaces: [],
+          patterns: [],
+          confidence: 0,
+          detectionMetadata: { filesAnalyzed: 0 },
+        };
+      }
 
       // Select SOP
       const sopResult = await selectSOP({

@@ -35,6 +35,11 @@ export async function executeAIPromptStep(
     prompt: config.prompt,
   });
 
+  // Special handling for clarification generation - use deterministic service
+  if (config.prompt === 'generate-clarification-questions') {
+    return await generateClarificationsStep(step, config, context);
+  }
+
   await context.onProgress?.(5, 'Building prompt...');
 
   // Get the prompt template
@@ -314,6 +319,136 @@ Score: {{auditScore}}/100`,
 
     responseFormat: 'recommendations',
   },
+
+  // Quick Review (for Quick scans without compilation)
+  'quick-review': {
+    system: `OUTPUT FORMAT: JSON array only. NO explanations, NO markdown, NO text.
+
+You are a smart contract security auditor performing a quick pattern-based review. Focus on obvious security issues that can be detected without compilation: hardcoded addresses, unprotected functions, missing validation, dangerous patterns.
+
+RESPONSE REQUIREMENTS:
+1. Start with [
+2. End with ]
+3. Each finding: {"severity":"critical|high|medium|low|info","title":"...","description":"...","file":"...","line":123,"recommendation":"..."}
+4. If no findings, return []
+5. NO text outside the JSON array
+
+YOUR RESPONSE MUST START WITH [ AND END WITH ]`,
+
+    user: `Perform a quick security review of this smart contract code.
+Output ONLY a JSON array starting with [ and ending with ]:
+
+{{contractCode}}
+
+Previous tool findings: {{mergedFindings}}`,
+
+    responseFormat: 'findings',
+  },
+
+  // Generate Clarification Questions (for Deep scans)
+  'generate-clarification-questions': {
+    system: `OUTPUT FORMAT: JSON array only. NO explanations, NO markdown, NO text.
+
+You are a smart contract security auditor. Based on the findings, generate clarification questions for the developer. Focus on: ambiguous access control, unclear business logic, suspicious patterns that might be intentional.
+
+RESPONSE REQUIREMENTS:
+1. Start with [
+2. End with ]
+3. Each question: {"severity":"high|medium|low","title":"Question title","description":"Question details","recommendation":"What to ask"}
+4. If no questions needed, return []
+5. NO text outside the JSON array
+
+YOUR RESPONSE MUST START WITH [ AND END WITH ]`,
+
+    user: `Based on these findings, generate clarification questions for the developer.
+Output ONLY a JSON array starting with [ and ending with ]:
+
+Findings: {{mergedFindings}}
+Contract code: {{contractCode}}`,
+
+    responseFormat: 'findings',
+  },
+
+  // Business Logic Deep Analysis (with user context)
+  'analyze-business-logic-deep': {
+    system: `OUTPUT FORMAT: JSON array only. NO explanations, NO markdown, NO text.
+
+You are a smart contract security auditor performing deep business logic analysis with developer context. Analyze: state transitions, economic exploits, edge cases, invariant violations, flash loan vectors, MEV opportunities.
+
+RESPONSE REQUIREMENTS:
+1. Start with [
+2. End with ]
+3. Each finding: {"severity":"critical|high|medium|low|info","title":"...","description":"...","file":"...","line":123,"recommendation":"..."}
+4. If no findings, return []
+5. NO text outside the JSON array
+
+YOUR RESPONSE MUST START WITH [ AND END WITH ]`,
+
+    user: `Perform deep business logic analysis with developer context.
+Output ONLY a JSON array starting with [ and ending with ]:
+
+{{contractCode}}
+
+Function signatures: {{functionSignatures}}
+User context from questionnaire: {{preAuditAnswers}}
+Clarification answers: {{clarificationAnswers}}`,
+
+    responseFormat: 'findings',
+  },
+
+  // Token Economics Analysis (for DeFi/Token contracts)
+  'analyze-token-economics': {
+    system: `OUTPUT FORMAT: JSON array only. NO explanations, NO markdown, NO text.
+
+You are a smart contract security auditor analyzing token economics. Focus on: supply manipulation, inflation/deflation mechanisms, fee models, mint/burn patterns, transfer restrictions, economic attack vectors.
+
+RESPONSE REQUIREMENTS:
+1. Start with [
+2. End with ]
+3. Each finding: {"severity":"critical|high|medium|low|info","title":"...","description":"...","file":"...","line":123,"recommendation":"..."}
+4. If no findings, return []
+5. NO text outside the JSON array
+
+YOUR RESPONSE MUST START WITH [ AND END WITH ]`,
+
+    user: `Analyze token economics and economic security.
+Output ONLY a JSON array starting with [ and ending with ]:
+
+{{contractCode}}
+
+User context: {{preAuditAnswers}}
+Detected interfaces: {{implementedInterfaces}}`,
+
+    responseFormat: 'findings',
+  },
+
+  // Custom Recommendations (with user context)
+  'generate-custom-recommendations': {
+    system: `OUTPUT FORMAT: JSON array only. NO explanations, NO markdown, NO text.
+
+You are a smart contract security auditor generating context-aware recommendations based on developer input. Provide specific, actionable advice tailored to their use case.
+
+RESPONSE REQUIREMENTS:
+1. Start with [
+2. End with ]
+3. Each recommendation: {"severity":"critical|high|medium|low|info","title":"...","description":"...","file":"...","line":123,"recommendation":"..."}
+4. If no recommendations, return []
+5. NO text outside the JSON array
+
+YOUR RESPONSE MUST START WITH [ AND END WITH ]`,
+
+    user: `Generate custom recommendations based on findings and developer context.
+Output ONLY a JSON array starting with [ and ending with ]:
+
+Findings: {{finalFindings}}
+Score: {{auditScore}}/100
+User context: {{preAuditAnswers}}
+Clarifications: {{clarificationAnswers}}
+Framework: {{framework}}
+Dependencies: {{dependencies}}`,
+
+    responseFormat: 'recommendations',
+  },
 };
 
 // ============================================================================
@@ -350,6 +485,9 @@ async function buildPrompt(
     '{{language}}': context.data.detectedLanguage || 'unknown',
     '{{dependencies}}': JSON.stringify(context.data.identifiedDependencies || [], null, 2),
     '{{auditScore}}': String(context.data.auditScore || 0),
+    // New context variables for Deep scans
+    '{{preAuditAnswers}}': JSON.stringify(context.data.preAuditAnswers || {}, null, 2),
+    '{{clarificationAnswers}}': JSON.stringify(context.data.clarificationAnswers || {}, null, 2),
   };
 
   for (const [key, value] of Object.entries(replacements)) {
@@ -592,4 +730,72 @@ function inferSeverityFromText(text: string): StepFinding['severity'] {
   if (lower.includes('info') || lower.includes('note')) return 'info';
 
   return 'medium';
+}
+
+// ============================================================================
+// Clarification Generation Step
+// ============================================================================
+
+/**
+ * Generate clarification questions using the deterministic service
+ */
+async function generateClarificationsStep(
+  step: StepDefinition,
+  config: AIPromptStepConfig,
+  context: StepContext
+): Promise<StepResult> {
+  await context.onProgress?.(10, 'Analyzing findings for clarifications...');
+
+  try {
+    // Import clarification generator service
+    const { generateClarificationQuestions } = await import('../../../services/clarificationGeneratorService.js');
+
+    const mergedFindings = context.data.mergedFindings || [];
+    const contractCategory = context.data.contractCategory;
+    const jobId = context.job.id || '';
+
+    await context.onProgress?.(50, 'Generating questions...');
+
+    // Generate clarification questions
+    const result = generateClarificationQuestions(jobId, mergedFindings, contractCategory);
+
+    await context.onProgress?.(80, 'Storing clarifications...');
+
+    // Store clarification requests in database
+    if (result.questions.length > 0) {
+      const { storeClarificationRequests } = await import('../../../repositories/auditJobRepository.js');
+      await storeClarificationRequests(jobId, result.questions);
+    }
+
+    await context.onProgress?.(100, `Generated ${result.questions.length} questions`);
+
+    log.info('Clarification questions generated', {
+      jobId,
+      totalQuestions: result.totalQuestions,
+      blockingQuestions: result.blockingQuestions,
+    });
+
+    return {
+      success: true,
+      findings: [],
+      data: {
+        clarificationRequests: result.questions,
+        clarificationCount: result.totalQuestions,
+        blockingClarifications: result.blockingQuestions,
+      },
+    };
+  } catch (error: any) {
+    log.error('Clarification generation failed', { error: error.message });
+
+    return {
+      success: true, // Don't fail the audit if clarification generation fails
+      findings: [],
+      data: {
+        clarificationRequests: [],
+        clarificationCount: 0,
+        blockingClarifications: 0,
+      },
+      error: `Clarification generation failed: ${error.message}`,
+    };
+  }
 }

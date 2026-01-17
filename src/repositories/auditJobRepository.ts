@@ -22,6 +22,7 @@ import { getDb } from '../db';
 import {
   auditJobs,
   auditResults,
+  auditClarifications,
   type AuditJob,
   type NewAuditJob,
   type AuditResult,
@@ -695,4 +696,119 @@ export async function cleanupStuckJobs(maxAgeMinutes: number = 30): Promise<numb
   }
 
   return stuckJobs.length;
+}
+
+// ============================================================================
+// CLARIFICATION OPERATIONS (for Deep Scans)
+// ============================================================================
+
+/**
+ * Store clarification requests for a job
+ */
+export async function storeClarificationRequests(
+  jobId: string,
+  questions: Array<{
+    id: string;
+    questionText: string;
+    questionType: string;
+    options?: string[];
+    context: any;
+    urgency: string;
+    findingId?: string;
+  }>
+): Promise<void> {
+  const db = getDb();
+
+  for (const question of questions) {
+    await db.insert(auditClarifications).values({
+      jobId,
+      phase: 'post_audit', // During-audit clarifications map to post_audit phase
+      questionKey: question.id,
+      questionText: question.questionText,
+      questionType: question.questionType,
+      options: question.options ? JSON.parse(JSON.stringify(question.options)) : null,
+      context: question.context,
+      status: 'pending',
+    });
+  }
+
+  log.info('Stored clarification requests', { jobId, count: questions.length });
+}
+
+/**
+ * Get clarification requests for a job
+ */
+export async function getClarificationRequests(
+  jobId: string,
+  phase?: 'pre_audit' | 'post_audit'
+): Promise<any[]> {
+  const db = getDb();
+
+  const conditions = phase
+    ? and(eq(auditClarifications.jobId, jobId), eq(auditClarifications.phase, phase))
+    : eq(auditClarifications.jobId, jobId);
+
+  const requests = await db
+    .select()
+    .from(auditClarifications)
+    .where(conditions)
+    .orderBy(auditClarifications.createdAt);
+
+  return requests;
+}
+
+/**
+ * Get clarification answers for a job
+ */
+export async function getAuditClarificationAnswers(
+  jobId: string,
+  phase?: 'pre_audit' | 'post_audit'
+): Promise<any[]> {
+  const db = getDb();
+
+  const conditions = phase
+    ? and(
+        eq(auditClarifications.jobId, jobId),
+        eq(auditClarifications.phase, phase),
+        eq(auditClarifications.status, 'answered')
+      )
+    : and(
+        eq(auditClarifications.jobId, jobId),
+        eq(auditClarifications.status, 'answered')
+      );
+
+  const answers = await db
+    .select()
+    .from(auditClarifications)
+    .where(conditions)
+    .orderBy(auditClarifications.answeredAt);
+
+  return answers;
+}
+
+/**
+ * Store a clarification answer
+ */
+export async function storeClarificationAnswer(
+  jobId: string,
+  questionText: string,
+  answer: any
+): Promise<void> {
+  const db = getDb();
+
+  await db
+    .update(auditClarifications)
+    .set({
+      answerValue: typeof answer === 'string' ? JSON.parse(`"${answer}"`) : answer,
+      status: 'answered',
+      answeredAt: new Date(),
+    })
+    .where(
+      and(
+        eq(auditClarifications.jobId, jobId),
+        eq(auditClarifications.questionText, questionText)
+      )
+    );
+
+  log.info('Stored clarification answer', { jobId, questionText });
 }

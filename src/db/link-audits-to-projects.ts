@@ -100,24 +100,15 @@ async function linkAuditsToProjects() {
         if (existing.length === 0) {
           // Insert project into database
           await db.insert(projects).values({
-            id: project.id,
             slug: project.slug,
             name: project.name,
             description: project.description || null,
             userId: project.userId,
             organizationId: project.organizationId || null,
-            type: project.type,
-            ecosystems: project.ecosystems || [],
-            networks: project.networks || [],
-            components: project.components || [],
-            settings: project.settings || {},
+            type: project.type || 'full',
             status: project.status || 'draft',
-            tags: project.tags || [],
-            auditCount: project.auditCount || 0,
+            settings: project.settings || {},
             aggregatedScore: project.aggregatedScore || null,
-            lastAuditAt: project.lastAuditAt || null,
-            createdAt: new Date(project.createdAt),
-            updatedAt: new Date(project.updatedAt),
           });
 
           console.log(`  ✓ Synced project "${project.name}" to database`);

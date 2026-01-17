@@ -150,7 +150,65 @@ const listProjectsHandler: RouteHandler = async (req, res, ctx) => {
 
   try {
     const projects = await listProjects(ctx.userId);
-    sendJson(res, 200, { projects });
+
+    // Enrich projects with audit data from database
+    const { db } = await import('../../db/index.js');
+    const { auditJobs, auditResults } = await import('../../db/schema.js');
+    const { eq, desc, and, isNotNull } = await import('drizzle-orm');
+
+    const enrichedProjects = await Promise.all(
+      projects.map(async (project) => {
+        // Get all audits for this project
+        const audits = await db
+          .select({
+            job: auditJobs,
+            results: auditResults,
+          })
+          .from(auditJobs)
+          .leftJoin(auditResults, eq(auditJobs.id, auditResults.jobId))
+          .where(eq(auditJobs.projectId, project.id))
+          .orderBy(desc(auditJobs.createdAt));
+
+        // Calculate audit stats
+        const auditCount = audits.length;
+        const completedAudits = audits.filter(
+          (a) => a.job.status === 'completed' && a.results?.scoreValue !== null
+        );
+
+        let aggregatedScore = null;
+        let lastAuditAt = null;
+        let lastAuditJobId = null;
+
+        if (completedAudits.length > 0) {
+          // Get the latest completed audit
+          const latestAudit = completedAudits[0];
+          lastAuditAt = latestAudit.job.completedAt || latestAudit.job.createdAt;
+          lastAuditJobId = latestAudit.job.id;
+
+          // Use the latest audit's score as aggregated score
+          if (latestAudit.results && latestAudit.results.scoreValue !== null) {
+            aggregatedScore = {
+              value: latestAudit.results.scoreValue,
+              grade: latestAudit.results.scoreLabel || 'N/A',
+            };
+          }
+        }
+
+        // Calculate component count from project.components array
+        const componentCount = project.components?.length || 0;
+
+        return {
+          ...project,
+          auditCount,
+          aggregatedScore,
+          lastAuditAt,
+          lastAuditJobId,
+          componentCount,
+        };
+      })
+    );
+
+    sendJson(res, 200, { projects: enrichedProjects });
   } catch (error: any) {
     log.error('Failed to list projects:', error);
     sendError(res, 500, error.message || 'Failed to list projects');
@@ -411,7 +469,13 @@ const listProjectAuditsHandler: RouteHandler = async (req, res, ctx, params) => 
       .where(eq(auditJobs.projectId, projectId))
       .orderBy(desc(auditJobs.createdAt));
 
-    sendJson(res, 200, { audits });
+    // Transform to include jobId field for frontend compatibility
+    const transformedAudits = audits.map(audit => ({
+      ...audit,
+      jobId: audit.id,
+    }));
+
+    sendJson(res, 200, { audits: transformedAudits });
   } catch (error: any) {
     log.error('Failed to list audits:', error);
     sendError(res, 500, error.message || 'Failed to list audits');

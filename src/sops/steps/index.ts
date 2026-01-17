@@ -12,11 +12,13 @@ import type {
   DeterministicStepConfig,
   ToolStepConfig,
   AIPromptStepConfig,
+  InteractiveStepConfig,
   CompositeStepConfig,
 } from '../definitions/types';
 import { executeDeterministicStep } from './deterministic';
 import { executeToolStep } from './tools';
 import { executeAIPromptStep } from './ai';
+import { executeInteractiveStep } from './interactive';
 import { logger } from '../../utils/logger';
 
 const log = logger.child({ module: 'step-executor' });
@@ -71,6 +73,14 @@ export async function executeStep(
         result = await executeAIPromptStep(
           step,
           config as AIPromptStepConfig,
+          context
+        );
+        break;
+
+      case 'interactive':
+        result = await executeInteractiveStep(
+          step,
+          config as InteractiveStepConfig,
           context
         );
         break;
@@ -182,3 +192,4 @@ async function executeCompositeStep(
 export { executeDeterministicStep } from './deterministic';
 export { executeToolStep } from './tools';
 export { executeAIPromptStep } from './ai';
+export { executeInteractiveStep } from './interactive';

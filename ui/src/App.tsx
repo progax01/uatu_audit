@@ -36,6 +36,7 @@ import ProjectCreate from './pages/ProjectCreate';
 import AddComponents from './pages/AddComponents';
 import PreAuditQuestionnaire from './pages/PreAuditQuestionnaire';
 import AuditClarifications from './pages/AuditClarifications';
+import AuditQuestionnaire from './pages/AuditQuestionnaire';
 
 import ProjectDetails from './pages/ProjectDetails';
 import Onboarding from './pages/Onboarding';
@@ -190,6 +191,7 @@ function App() {
                   }}
                 />
               } />
+              <Route path="/audits/:jobId/questionnaire" element={<AuditQuestionnaire />} />
 
               {/* Onboarding - Protected but standalone (no dashboard layout) */}
               <Route path="/onboarding" element={
