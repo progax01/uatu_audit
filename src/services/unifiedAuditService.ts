@@ -401,6 +401,28 @@ export class UnifiedAuditService extends EventEmitter {
           const sourcePath = path.join(workDir, 'source');
 
           try {
+            // Capture commit SHA immediately after clone
+            const { getFullCommitHash } = await import('./gitService.js');
+            const commitSha = await getFullCommitHash(sourcePath);
+
+            if (commitSha) {
+              log.info('Captured commit SHA after clone', { commitSha: commitSha.substring(0, 7), full: commitSha });
+
+              // Update audit job with commit SHA
+              const { db } = await import('../db/index.js');
+              const { auditJobs } = await import('../db/schema.js');
+              const { eq } = await import('drizzle-orm');
+
+              await db
+                .update(auditJobs)
+                .set({ commitSha, branch: input.branch || 'main' })
+                .where(eq(auditJobs.id, jobId));
+
+              log.info('Updated audit job with commit SHA', { jobId, commitSha: commitSha.substring(0, 7) });
+            } else {
+              log.warn('Failed to capture commit SHA', { sourcePath });
+            }
+
             // Install dependencies after cloning
             await this.installDependencies(sourcePath);
 

@@ -281,6 +281,30 @@ export const projects = pgTable(
 );
 
 // ============================================================================
+// BADGE SETTINGS TABLE
+// ============================================================================
+
+export const badgeSettings = pgTable(
+  'badge_settings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id')
+      .notNull()
+      .unique()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    isPublic: boolean('is_public').notNull().default(false),
+    selectedAuditId: uuid('selected_audit_id').references(() => auditJobs.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    projectIdIdx: index('badge_settings_project_id_idx').on(table.projectId),
+  })
+);
+
+// ============================================================================
 // COMPONENTS TABLE
 // ============================================================================
 

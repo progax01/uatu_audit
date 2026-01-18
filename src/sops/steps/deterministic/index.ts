@@ -643,8 +643,51 @@ const parseCompilation: DeterministicExecutor = async (step, config, context) =>
   }
 
   // Check for compilation warnings in the build output
+  // Filter to only include security-relevant warnings, exclude noise
   if (buildResult.warnings) {
-    for (const warning of buildResult.warnings) {
+    const meaningfulWarnings = buildResult.warnings.filter((warning: string) => {
+      const lowerWarning = warning.toLowerCase();
+
+      // Exclude common noise warnings
+      const noisePatterns = [
+        'spdx license',
+        'unused local variable',
+        'unused function parameter',
+        'unused return value',
+        'contract code size',
+        'shadowed declaration',
+        'unreachable code',
+        'this contract has a payable fallback',
+        'function state mutability can be restricted',
+        'unary negation overflow',
+        'this declaration has the same name',
+        'different number of components',
+      ];
+
+      // If warning contains any noise pattern, skip it
+      if (noisePatterns.some(pattern => lowerWarning.includes(pattern))) {
+        return false;
+      }
+
+      // Include security-relevant warnings
+      const securityPatterns = [
+        'reentrancy',
+        'overflow',
+        'underflow',
+        'unchecked',
+        'delegatecall',
+        'selfdestruct',
+        'suicide',
+        'tx.origin',
+        'block.timestamp',
+        'now',
+        'deprecated',
+      ];
+
+      return securityPatterns.some(pattern => lowerWarning.includes(pattern));
+    });
+
+    for (const warning of meaningfulWarnings) {
       findings.push({
         stepId: step.id,
         findingId: `compilation-warning-${findings.length}`,

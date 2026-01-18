@@ -460,20 +460,60 @@ const listProjectAuditsHandler: RouteHandler = async (req, res, ctx, params) => 
 
     // Query audits for this project
     const { db } = await import('../../db/index.js');
-    const { auditJobs } = await import('../../db/schema.js');
+    const { auditJobs, auditResults } = await import('../../db/schema.js');
     const { eq, desc } = await import('drizzle-orm');
 
     const audits = await db
-      .select()
+      .select({
+        job: auditJobs,
+        results: auditResults,
+      })
       .from(auditJobs)
+      .leftJoin(auditResults, eq(auditJobs.id, auditResults.jobId))
       .where(eq(auditJobs.projectId, projectId))
       .orderBy(desc(auditJobs.createdAt));
 
-    // Transform to include jobId field for frontend compatibility
-    const transformedAudits = audits.map(audit => ({
-      ...audit,
-      jobId: audit.id,
-    }));
+    // Transform to include jobId field and score for frontend compatibility
+    const transformedAudits = audits.map(({ job, results }) => {
+      const metadata = results?.metadata as any || {};
+      const findings = results?.findings as any[] || [];
+
+      // Extract sources and GitHub info from job metadata
+      const sources: string[] = [];
+      let repoOwner: string | null = null;
+      let repoName: string | null = null;
+
+      if (job.repo) {
+        const repoFullName = job.repo.split('/').pop()?.replace('.git', '') || job.repo;
+        sources.push(repoFullName);
+
+        // Extract owner and repo from repo URL
+        // Format: https://github.com/owner/repo.git or git@github.com:owner/repo.git
+        const match = job.repo.match(/github\.com[/:]([\w-]+)\/([\w-]+?)(?:\.git)?$/);
+        if (match) {
+          repoOwner = match[1];
+          repoName = match[2];
+        }
+      }
+      if (job.contractAddress) {
+        sources.push(job.contractAddress.substring(0, 10) + '...');
+      }
+
+      return {
+        ...job,
+        jobId: job.id,
+        score: results?.scoreValue || null,
+        grade: results?.scoreLabel || null,
+        sloc: metadata.sloc || metadata.contractAnalysis?.sloc || null,
+        fileCount: metadata.fileCount || null,
+        sources: sources.length > 0 ? sources : ['Unknown'],
+        findingsCount: findings.length || 0,
+        commitSha: job.commitSha || null,
+        branch: job.branch || null,
+        repoOwner,
+        repoName,
+      };
+    });
 
     sendJson(res, 200, { audits: transformedAudits });
   } catch (error: any) {
@@ -596,6 +636,127 @@ const createManualProjectHandler: RouteHandler = async (req, res, ctx) => {
   }
 };
 
+/**
+ * GET /api/projects/:id/badge-settings - Get badge settings
+ */
+const getBadgeSettingsHandler: RouteHandler = async (req, res, ctx, params) => {
+  if (!ctx.userId) {
+    return sendError(res, 401, 'Authentication required');
+  }
+
+  const projectId = params?.id;
+  if (!projectId) {
+    return sendError(res, 400, 'Project ID required');
+  }
+
+  try {
+    // Verify project ownership
+    const project = await getProject(projectId);
+    if (!project) {
+      return sendError(res, 404, 'Project not found');
+    }
+    if (project.userId !== ctx.userId) {
+      return sendError(res, 403, 'Access denied');
+    }
+
+    // Get badge settings from database
+    const { db } = await import('../../db/index.js');
+    const { badgeSettings } = await import('../../db/schema.js');
+    const { eq } = await import('drizzle-orm');
+
+    const settings = await db
+      .select()
+      .from(badgeSettings)
+      .where(eq(badgeSettings.projectId, projectId))
+      .limit(1);
+
+    if (settings.length === 0) {
+      // Return default settings if none exist
+      sendJson(res, 200, {
+        isPublic: false,
+        selectedAuditId: null,
+      });
+    } else {
+      sendJson(res, 200, {
+        isPublic: settings[0].isPublic,
+        selectedAuditId: settings[0].selectedAuditId,
+      });
+    }
+  } catch (error: any) {
+    log.error('Failed to get badge settings:', error);
+    sendError(res, 500, error.message || 'Failed to get badge settings');
+  }
+};
+
+/**
+ * PUT /api/projects/:id/badge-settings - Update badge settings
+ */
+const updateBadgeSettingsHandler: RouteHandler = async (req, res, ctx, params) => {
+  if (!ctx.userId) {
+    return sendError(res, 401, 'Authentication required');
+  }
+
+  const projectId = params?.id;
+  if (!projectId) {
+    return sendError(res, 400, 'Project ID required');
+  }
+
+  try {
+    // Verify project ownership
+    const project = await getProject(projectId);
+    if (!project) {
+      return sendError(res, 404, 'Project not found');
+    }
+    if (project.userId !== ctx.userId) {
+      return sendError(res, 403, 'Access denied');
+    }
+
+    const body = await parseJsonBody<{
+      isPublic: boolean;
+      selectedAuditId?: string | null;
+    }>(req);
+
+    // Update or insert badge settings
+    const { db } = await import('../../db/index.js');
+    const { badgeSettings } = await import('../../db/schema.js');
+    const { eq } = await import('drizzle-orm');
+
+    const existing = await db
+      .select()
+      .from(badgeSettings)
+      .where(eq(badgeSettings.projectId, projectId))
+      .limit(1);
+
+    if (existing.length === 0) {
+      // Insert new settings
+      await db.insert(badgeSettings).values({
+        projectId,
+        isPublic: body.isPublic,
+        selectedAuditId: body.selectedAuditId || null,
+      });
+    } else {
+      // Update existing settings
+      await db
+        .update(badgeSettings)
+        .set({
+          isPublic: body.isPublic,
+          selectedAuditId: body.selectedAuditId || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(badgeSettings.projectId, projectId));
+    }
+
+    sendJson(res, 200, {
+      success: true,
+      isPublic: body.isPublic,
+      selectedAuditId: body.selectedAuditId || null,
+    });
+  } catch (error: any) {
+    log.error('Failed to update badge settings:', error);
+    sendError(res, 500, error.message || 'Failed to update badge settings');
+  }
+};
+
 // ============================================================================
 // ROUTE DEFINITIONS
 // ============================================================================
@@ -616,6 +777,8 @@ const routes: Route[] = [
   { method: 'POST', pattern: '/api/projects/:id/components', handler: addComponentHandler },
   { method: 'GET', pattern: '/api/projects/:id/components', handler: listComponentsHandler },
   { method: 'GET', pattern: '/api/projects/:id/audits', handler: listProjectAuditsHandler },
+  { method: 'GET', pattern: '/api/projects/:id/badge-settings', handler: getBadgeSettingsHandler },
+  { method: 'PUT', pattern: '/api/projects/:id/badge-settings', handler: updateBadgeSettingsHandler },
   { method: 'PUT', pattern: '/api/projects/:id/components/:cid', handler: updateComponentHandler },
   { method: 'DELETE', pattern: '/api/projects/:id/components/:cid', handler: removeComponentHandler },
   { method: 'POST', pattern: '/api/projects/manual', handler: createManualProjectHandler },

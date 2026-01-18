@@ -133,19 +133,7 @@ async function handleRequest(req: any, res: any) {
       }
     }
 
-    // Route to specific handlers
-    if (await handleHealthRoutes(req, res, parsed, PORT, CONCURRENCY)) return;
-    if (await handleAuthRoutes(req, res, parsed, PORT)) return;
-    if (await handleGitHubRoutes(req, res, parsed)) return;
-    if (await handleJobRoutes(req, res, parsed)) return;
-    if (await handleReportRoutes(req, res, parsed)) return;
-    if (await handleScanRoutes(req, res, parsed)) return;
-    if (await handlePublicAuditRoutes(req, res, parsed)) return;
-    if (await handleAuditRoutes(req, res, parsed)) return;
-    if (await handleAuditQuestionnaireRoutes(req, res, parsed)) return;
-    if (await handleInteractiveAuditRoutes(req, res, parsed)) return;
-
-    // Project routes (with user context)
+    // Extract auth context early (for all authenticated routes)
     // Check session-based auth first, then JWT auth as fallback
     const sessionId = getSessionId(req);
     let userId = sessionId ? await loadUserId(sessionId) : undefined;
@@ -157,6 +145,18 @@ async function handleRequest(req: any, res: any) {
         userId = jwtAuth.user.id;
       }
     }
+
+    // Route to specific handlers
+    if (await handleHealthRoutes(req, res, parsed, PORT, CONCURRENCY)) return;
+    if (await handleAuthRoutes(req, res, parsed, PORT)) return;
+    if (await handleGitHubRoutes(req, res, parsed)) return;
+    if (await handleJobRoutes(req, res, parsed)) return;
+    if (await handleReportRoutes(req, res, parsed)) return;
+    if (await handleScanRoutes(req, res, parsed)) return;
+    if (await handlePublicAuditRoutes(req, res, parsed)) return;
+    if (await handleAuditRoutes(req, res, parsed)) return;
+    if (await handleAuditQuestionnaireRoutes(req, res, parsed)) return;
+    if (await handleInteractiveAuditRoutes(req, res, parsed)) return;
 
     if (await handleProjectRoutes(req, res, { userId: userId || undefined, sessionId: sessionId || undefined })) return;
 

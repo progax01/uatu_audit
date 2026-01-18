@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FileText, Calendar, Clock, ChevronRight, Loader2 } from 'lucide-react'
+import { FileText, Calendar, Clock, ChevronRight, Loader2, Globe, Lock, Eye, EyeOff } from 'lucide-react'
 import { authFetch } from '../../services/authService'
 import { useNavigate } from 'react-router-dom'
 
@@ -12,6 +12,11 @@ interface AuditReport {
   sources: string[]
   score?: number
   findingsCount: number
+  visibility?: 'private' | 'public' | 'unlisted'
+  commitSha?: string
+  branch?: string
+  repoOwner?: string
+  repoName?: string
 }
 
 interface AuditsTabProps {
@@ -135,6 +140,7 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
       const res = await authFetch(`/api/projects/${projectId}/audits`)
       if (res.ok) {
         const data = await res.json()
+        console.log('Fetched audits:', data.audits?.length, data.audits)
         setAudits(data.audits || [])
       } else {
         setError('Failed to load audits')
@@ -143,6 +149,32 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
       setError('Failed to load audits')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const toggleVisibility = async (auditId: string, currentVisibility: string) => {
+    const newVisibility = currentVisibility === 'public' ? 'private' : 'public'
+
+    try {
+      const res = await authFetch(`/api/audit/${auditId}/visibility`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility: newVisibility })
+      })
+
+      if (res.ok) {
+        // Update local state
+        setAudits(audits.map(audit =>
+          audit.jobId === auditId
+            ? { ...audit, visibility: newVisibility as 'private' | 'public' | 'unlisted' }
+            : audit
+        ))
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        console.error('Failed to update visibility', { status: res.status, error: errorData, auditId })
+      }
+    } catch (err) {
+      console.error('Error updating visibility:', err)
     }
   }
 
@@ -288,6 +320,29 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
                         {audit.score}/100
                       </span>
                     )}
+                    {audit.status === 'completed' && (
+                      <button
+                        onClick={() => toggleVisibility(audit.jobId, audit.visibility || 'private')}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-colors ${
+                          audit.visibility === 'public'
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                        }`}
+                        title={audit.visibility === 'public' ? 'Make Private' : 'Make Public'}
+                      >
+                        {audit.visibility === 'public' ? (
+                          <>
+                            <Globe size={10} />
+                            PUBLIC
+                          </>
+                        ) : (
+                          <>
+                            <Lock size={10} />
+                            PRIVATE
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-4 text-xs text-slate-400 mb-3">
@@ -322,8 +377,48 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
                     </div>
                   )}
 
-                  <div className="mt-3 text-[10px] text-slate-300 font-mono">
-                    ID: {audit.jobId}
+                  <div className="mt-3 space-y-1">
+                    <div className="text-[10px] text-slate-300 font-mono">
+                      ID: {audit.jobId}
+                    </div>
+                    {audit.commitSha && (
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                        <span className="font-bold">Commit:</span>
+                        {audit.repoOwner && audit.repoName ? (
+                          <a
+                            href={`https://github.com/${audit.repoOwner}/${audit.repoName}/commit/${audit.commitSha}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer"
+                            title="View commit on GitHub"
+                          >
+                            {audit.commitSha.substring(0, 7)}
+                          </a>
+                        ) : (
+                          <span className="font-mono px-2 py-0.5 bg-slate-50 rounded border border-slate-200">
+                            {audit.commitSha.substring(0, 7)}
+                          </span>
+                        )}
+                        {audit.branch && (
+                          <span className="text-slate-300">
+                            on{' '}
+                            {audit.repoOwner && audit.repoName ? (
+                              <a
+                                href={`https://github.com/${audit.repoOwner}/${audit.repoName}/tree/${audit.branch}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-mono font-bold text-indigo-600 hover:text-indigo-700 hover:underline"
+                                title="View branch on GitHub"
+                              >
+                                {audit.branch}
+                              </a>
+                            ) : (
+                              <span className="font-mono font-bold">{audit.branch}</span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

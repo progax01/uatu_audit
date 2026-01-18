@@ -33,22 +33,34 @@ export function extractBearerToken(req: IncomingMessage): string | null {
  * Returns null if token is invalid or user not found
  */
 export async function verifyAuth(req: IncomingMessage): Promise<AuthContext | null> {
+  const authHeader = req.headers.authorization;
+  console.log('[verifyAuth] Authorization header:', authHeader ? `${authHeader.substring(0, 20)}...` : 'MISSING');
+
   const token = extractBearerToken(req);
   if (!token) {
+    console.log('[verifyAuth] No Bearer token found');
     return null;
   }
+
+  console.log('[verifyAuth] Token extracted:', token.substring(0, 20) + '...');
 
   // Verify the JWT
   const decoded = verifyAccessToken(token);
   if (!decoded) {
+    console.log('[verifyAuth] Token verification failed');
     return null;
   }
+
+  console.log('[verifyAuth] Token decoded, userId:', decoded.sub);
 
   // Get user from database
   const user = await findUserById(decoded.sub);
   if (!user) {
+    console.log('[verifyAuth] User not found in DB:', decoded.sub);
     return null;
   }
+
+  console.log('[verifyAuth] SUCCESS - User authenticated:', user.id);
 
   return {
     user,

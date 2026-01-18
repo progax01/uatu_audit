@@ -7,6 +7,7 @@ import { authFetch } from '../services/authService'
 import SourcesTab from '../components/project/SourcesTab'
 import AuditsTab from '../components/project/AuditsTab'
 import BadgeTab from '../components/project/BadgeTab'
+import { fetchGitHubBranches } from '../services/githubService'
 
 interface Project {
     id: string
@@ -42,6 +43,52 @@ export default function ProjectDetails() {
     const [showAuditOptions, setShowAuditOptions] = useState(false)
     const [auditDepth, setAuditDepth] = useState<'quick' | 'standard' | 'deep'>('standard')
     const [auditVisibility, setAuditVisibility] = useState<'private' | 'public'>('private')
+    const [selectedBranch, setSelectedBranch] = useState<string>('')
+    const [selectedComponentId, setSelectedComponentId] = useState<string>('')
+    const [availableBranches, setAvailableBranches] = useState<string[]>([])
+    const [loadingBranches, setLoadingBranches] = useState(false)
+
+    const loadBranchesForComponent = async (componentId: string) => {
+        const component = project?.components.find(c => c.id === componentId)
+        if (!component || component.type !== 'github-repo') {
+            setAvailableBranches([])
+            return
+        }
+
+        const config = component.config as any
+        if (!config.owner || !config.repo) {
+            setAvailableBranches([])
+            return
+        }
+
+        setLoadingBranches(true)
+        try {
+            const branches = await fetchGitHubBranches(config.owner, config.repo)
+            setAvailableBranches(branches)
+
+            // Auto-select default branch if not already selected
+            if (!selectedBranch && config.defaultBranch && branches.includes(config.defaultBranch)) {
+                setSelectedBranch(config.defaultBranch)
+            } else if (!selectedBranch && branches.length > 0) {
+                // If no default, select first branch
+                setSelectedBranch(branches[0])
+            } else if (!selectedBranch) {
+                // Fallback to 'main'
+                setSelectedBranch('main')
+            }
+        } catch (error) {
+            console.error('Failed to load branches:', error)
+            setAvailableBranches([])
+            // Auto-set default branch on error
+            if (!selectedBranch && config.defaultBranch) {
+                setSelectedBranch(config.defaultBranch)
+            } else if (!selectedBranch) {
+                setSelectedBranch('main')
+            }
+        } finally {
+            setLoadingBranches(false)
+        }
+    }
 
     const handleStartAudit = async () => {
         if (!project || !project.components || project.components.length === 0) {
@@ -53,19 +100,21 @@ export default function ProjectDetails() {
         setAuditError(null)
 
         try {
-            // Get the first component (for now, we'll handle multi-component later)
-            const component = project.components[0]
+            // Get the selected component or first component
+            const componentId = selectedComponentId || project.components[0].id
+            const component = project.components.find(c => c.id === componentId) || project.components[0]
 
             // Build source object based on component type
             let source: any
 
             if (component.type === 'github-repo') {
                 const config = component.config as any
+                const branchToUse = selectedBranch || config.currentBranch || config.defaultBranch || 'main'
                 source = {
                     type: 'github-repo',
                     owner: config.owner,
                     repo: config.repo,
-                    branch: config.currentBranch || config.defaultBranch,
+                    branch: branchToUse,
                     repoUrl: config.cloneUrl,
                     includePaths: config.includePaths,
                     excludePaths: config.excludePaths
@@ -167,6 +216,17 @@ export default function ProjectDetails() {
         }
     }, [slug])
 
+    // Auto-load branches when modal opens for GitHub repos
+    useEffect(() => {
+        if (showAuditOptions && project?.components && project.components.length > 0) {
+            const firstComponent = project.components[0]
+            if (firstComponent.type === 'github-repo') {
+                setSelectedComponentId(firstComponent.id)
+                loadBranchesForComponent(firstComponent.id)
+            }
+        }
+    }, [showAuditOptions, project])
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[60vh]">
@@ -254,77 +314,172 @@ export default function ProjectDetails() {
 
             {/* Audit Options Modal */}
             {showAuditOptions && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl">
-                        <div className="w-14 h-14 rounded-xl bg-indigo-50 flex items-center justify-center mx-auto mb-5">
-                            <Play size={28} className="text-indigo-600" />
+                <div className="fixed inset-y-0 left-64 right-0 bg-black/30 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto border border-slate-200">
+                        {/* Header */}
+                        <div className="px-6 py-5 border-b border-slate-200">
+                            <h3 className="text-lg font-bold text-slate-900">Start Audit</h3>
+                            <p className="text-sm text-slate-500 mt-0.5">Configure audit parameters</p>
                         </div>
-                        <h3 className="text-xl font-black text-slate-900 text-center mb-2">Start Security Audit</h3>
-                        <p className="text-sm text-slate-500 text-center mb-6">
-                            Configure your audit parameters
-                        </p>
 
-                        {/* Audit Depth */}
-                        <div className="mb-6">
-                            <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-3">
-                                Audit Depth
-                            </label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {(['quick', 'standard', 'deep'] as const).map((depth) => (
-                                    <button
-                                        key={depth}
-                                        onClick={() => setAuditDepth(depth)}
-                                        className={`px-4 py-3 rounded-lg text-sm font-bold transition-all ${
-                                            auditDepth === depth
-                                                ? 'bg-indigo-600 text-white'
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
-                                    >
-                                        {depth === 'quick' && '⚡ Quick'}
-                                        {depth === 'standard' && '🎯 Standard'}
-                                        {depth === 'deep' && '🔬 Deep'}
-                                    </button>
-                                ))}
+                        <div className="px-6 py-5 space-y-5">
+                            {/* Component Selection (if multiple) */}
+                            {project.components && project.components.length > 1 && (
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-700 mb-2">
+                                        Source Component
+                                    </label>
+                                    <div className="space-y-2">
+                                        {project.components.map((component) => {
+                                            const isSelected = selectedComponentId === component.id || (!selectedComponentId && component.id === project.components[0].id)
+                                            return (
+                                                <button
+                                                    key={component.id}
+                                                    onClick={() => {
+                                                        setSelectedComponentId(component.id)
+                                                        loadBranchesForComponent(component.id)
+                                                    }}
+                                                    className={`w-full px-3 py-2.5 rounded-md text-left transition-all border ${
+                                                        isSelected
+                                                            ? 'bg-indigo-600 border-indigo-600'
+                                                            : 'bg-white border-slate-300 hover:border-slate-400'
+                                                    }`}
+                                                >
+                                                    <div className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                                                        {component.displayName}
+                                                    </div>
+                                                    <div className={`text-xs mt-0.5 ${isSelected ? 'text-indigo-100' : 'text-slate-500'}`}>
+                                                        {component.type}
+                                                    </div>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Branch Selection (GitHub repos only) */}
+                            {(() => {
+                                const selectedComponent = project.components.find(c => c.id === selectedComponentId) || project.components[0]
+                                return selectedComponent?.type === 'github-repo' && (
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-2">
+                                            Branch
+                                        </label>
+                                        {loadingBranches ? (
+                                            <div className="w-full px-3 py-2.5 rounded-md border border-slate-200 bg-slate-50 flex items-center justify-center gap-2 text-xs text-slate-500">
+                                                <Loader2 size={14} className="animate-spin" />
+                                                Loading...
+                                            </div>
+                                        ) : availableBranches.length > 0 ? (
+                                            <>
+                                                <select
+                                                    value={selectedBranch}
+                                                    onChange={(e) => setSelectedBranch(e.target.value)}
+                                                    className="w-full px-3 py-2.5 rounded-md border border-slate-300 bg-white text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                >
+                                                    {availableBranches.map((branch) => (
+                                                        <option key={branch} value={branch}>
+                                                            {branch}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <p className="text-xs text-slate-500 mt-1.5">
+                                                    {availableBranches.length} branch{availableBranches.length !== 1 ? 'es' : ''} available
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <input
+                                                    type="text"
+                                                    value={selectedBranch}
+                                                    onChange={(e) => setSelectedBranch(e.target.value)}
+                                                    placeholder={(selectedComponent.config as any)?.defaultBranch || 'main'}
+                                                    className="w-full px-3 py-2.5 rounded-md border border-slate-300 bg-white text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder:text-slate-400"
+                                                />
+                                                <p className="text-xs text-slate-500 mt-1.5">
+                                                    Default: {(selectedComponent.config as any)?.defaultBranch || 'main'}
+                                                </p>
+                                            </>
+                                        )}
+                                    </div>
+                                )
+                            })()}
+
+                            {/* Audit Depth */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-2">
+                                    Audit Depth
+                                </label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {[
+                                        { value: 'quick', label: 'Quick', desc: '~10 min' },
+                                        { value: 'standard', label: 'Standard', desc: '~30 min' },
+                                        { value: 'deep', label: 'Deep', desc: '~2 hours' },
+                                    ].map((depth) => {
+                                        const isSelected = auditDepth === depth.value
+                                        return (
+                                            <button
+                                                key={depth.value}
+                                                onClick={() => setAuditDepth(depth.value as any)}
+                                                className={`px-3 py-2.5 rounded-md text-center transition-all border ${
+                                                    isSelected
+                                                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                                                        : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
+                                                }`}
+                                            >
+                                                <div className="text-sm font-semibold">{depth.label}</div>
+                                                <div className={`text-xs mt-0.5 ${isSelected ? 'text-indigo-100' : 'text-slate-500'}`}>
+                                                    {depth.desc}
+                                                </div>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
                             </div>
-                            <p className="text-xs text-slate-400 mt-2">
-                                {auditDepth === 'quick' && '~10 min • Basic security checks'}
-                                {auditDepth === 'standard' && '~30 min • Comprehensive analysis'}
-                                {auditDepth === 'deep' && '~2 hours • Maximum coverage with advanced techniques'}
-                            </p>
-                        </div>
 
-                        {/* Visibility */}
-                        <div className="mb-8">
-                            <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-3">
-                                Visibility
-                            </label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {(['private', 'public'] as const).map((visibility) => (
-                                    <button
-                                        key={visibility}
-                                        onClick={() => setAuditVisibility(visibility)}
-                                        className={`px-4 py-3 rounded-lg text-sm font-bold transition-all ${
-                                            auditVisibility === visibility
-                                                ? 'bg-indigo-600 text-white'
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
-                                    >
-                                        {visibility === 'private' && '🔒 Private'}
-                                        {visibility === 'public' && '🌐 Public'}
-                                    </button>
-                                ))}
+                            {/* Visibility */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-2">
+                                    Visibility
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { value: 'private', label: 'Private', desc: 'Only you' },
+                                        { value: 'public', label: 'Public', desc: 'Anyone' },
+                                    ].map((visibility) => {
+                                        const isSelected = auditVisibility === visibility.value
+                                        return (
+                                            <button
+                                                key={visibility.value}
+                                                onClick={() => setAuditVisibility(visibility.value as any)}
+                                                className={`px-3 py-2.5 rounded-md text-left transition-all border ${
+                                                    isSelected
+                                                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                                                        : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
+                                                }`}
+                                            >
+                                                <div className="text-sm font-semibold">{visibility.label}</div>
+                                                <div className={`text-xs mt-0.5 ${isSelected ? 'text-indigo-100' : 'text-slate-500'}`}>
+                                                    {visibility.desc}
+                                                </div>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
                             </div>
-                            <p className="text-xs text-slate-400 mt-2">
-                                {auditVisibility === 'private' && 'Only you can view this audit'}
-                                {auditVisibility === 'public' && 'Anyone with the link can view'}
-                            </p>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex gap-3">
+                        {/* Footer Actions */}
+                        <div className="px-6 py-4 border-t border-slate-200 flex gap-3">
                             <button
-                                onClick={() => setShowAuditOptions(false)}
-                                className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+                                onClick={() => {
+                                    setShowAuditOptions(false)
+                                    setSelectedComponentId('')
+                                    setSelectedBranch('')
+                                    setAvailableBranches([])
+                                }}
+                                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md font-medium text-sm hover:bg-slate-50 transition-colors"
                             >
                                 Cancel
                             </button>
@@ -333,9 +488,8 @@ export default function ProjectDetails() {
                                     setShowAuditOptions(false)
                                     handleStartAudit()
                                 }}
-                                className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md font-medium text-sm hover:bg-indigo-700 transition-colors"
                             >
-                                <Play size={16} />
                                 Start Audit
                             </button>
                         </div>

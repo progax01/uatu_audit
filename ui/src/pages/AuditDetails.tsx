@@ -15,6 +15,7 @@ import MouseTooltip from '../components/MouseTooltip'
 import MilestoneTracker from '../components/MilestoneTracker'
 import { Link } from 'react-router-dom'
 import AuthModal from '../components/AuthModal'
+import { authFetch } from '../services/authService'
 
 interface AuditDetailsProps {
   jobId?: number | string
@@ -397,15 +398,29 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
 
       try {
         // Fetch from unified audit endpoint (includes job + results)
-        const response = await fetch(`/api/audit/${jobId}`);
+        const response = await authFetch(`/api/audit/${jobId}`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.audit) {
             console.log('Unified audit data:', data);
 
-            // Determine project name based on source type
+            // Determine project name - prioritize project data from backend
             let projectName = 'Unknown Project';
-            if (data.audit.contractName) {
+            let projectDescription = '';
+            let projectLogoUrl = '';
+            let projectGithubUrl = '';
+            let projectWebsiteUrl = '';
+
+            // First check if we have project data from backend
+            if (data.project) {
+              projectName = data.project.name;
+              projectDescription = data.project.description || '';
+              projectLogoUrl = data.project.logoUrl || '';
+              projectGithubUrl = data.project.githubUrl || '';
+              projectWebsiteUrl = data.project.websiteUrl || '';
+            }
+            // Fallback to extracting from audit data
+            else if (data.audit.contractName) {
               projectName = data.audit.contractName;
             } else if (data.audit.contractAddress) {
               projectName = `Contract ${data.audit.contractAddress.slice(0, 8)}`;
@@ -413,6 +428,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
               // Extract repo name from GitHub URL
               const repoMatch = data.audit.repo.match(/github\.com\/([^\/]+\/[^\/\.]+)/);
               projectName = repoMatch ? repoMatch[1] : data.audit.repo;
+              projectGithubUrl = data.audit.repo;
             }
 
             // Set job info
@@ -442,12 +458,17 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
               const metadata = data.results.metadata || {};
               setAuditData({
                 projectName,
+                projectDescription,
+                projectLogoUrl,
+                projectGithubUrl,
+                projectWebsiteUrl,
                 auditType: data.audit.auditType === 'quick' ? 'Quick Scan' : 'Full Audit',
                 score: data.results.score,
                 grade: data.results.grade,
                 network: data.audit.contractNetwork,
                 contractAddress: data.audit.contractAddress,
-                sloc: data.results.contractAnalysis?.sloc || metadata.contractAnalysis?.sloc,
+                sloc: data.results.contractAnalysis?.sloc || metadata.contractAnalysis?.sloc || metadata.sloc,
+                fileCount: data.results.contractAnalysis?.fileCount || metadata.contractAnalysis?.fileCount || metadata.fileCount,
                 compiler: metadata.compiler || data.results.contractAnalysis?.compiler,
                 scanTime: data.results.scanDuration || metadata.scanDuration,
                 vulnerabilities: (data.results.vulnerabilities || []).map((v: any, idx: number) => ({
@@ -652,12 +673,16 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
         }
       }, 5000);
     }
-    // UUID job ID - use SSE streaming for real-time progress
+    // UUID job ID - use SSE streaming for real-time progress (only if not completed)
     else if (jobId && isUUID(jobId)) {
-      const sseUrl = `/api/audit/${jobId}/progress/stream`;
-      console.log('Connecting to SSE:', sseUrl);
+      // Skip SSE if audit is already completed
+      const isComplete = jobInfo?.status === 'completed' || jobInfo?.status === 'failed' || jobInfo?.completedAt;
 
-      eventSource = new EventSource(sseUrl);
+      if (!isComplete) {
+        const sseUrl = `/api/audit/${jobId}/progress/stream`;
+        console.log('Connecting to SSE:', sseUrl);
+
+        eventSource = new EventSource(sseUrl);
 
       eventSource.onmessage = (event) => {
         try {
@@ -702,7 +727,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
 
         // Fallback to polling if SSE fails
         intervalId = setInterval(async () => {
-          const response = await fetch(`/api/audit/${jobId}`);
+          const response = await authFetch(`/api/audit/${jobId}`);
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.audit) {
@@ -722,6 +747,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
           }
         }, 2000);
       };
+      }  // Close if (!isComplete)
     }
 
     return () => {
@@ -909,6 +935,12 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
           <div onClick={onHomeClick} className="cursor-pointer group flex items-center gap-6">
             <img src={logo} alt="Uatu" className="h-8 object-contain" />
             <div className="h-8 w-px bg-slate-200" />
+            {auditData?.projectLogoUrl && (
+              <>
+                <img src={auditData.projectLogoUrl} alt={auditData.projectName} className="h-10 w-10 object-contain rounded-lg" />
+                <div className="h-8 w-px bg-slate-200" />
+              </>
+            )}
             <div className="flex flex-col">
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">{auditData?.projectName || jobInfo?.project || 'Audit Details'}</h1>
@@ -917,8 +949,26 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                     {auditData?.auditType || jobInfo?.status?.replace(/_/g, ' ')}
                   </span>
                 )}
+                {auditData?.projectGithubUrl && (
+                  <a
+                    href={auditData.projectGithubUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2 py-1 rounded bg-emerald-50 text-emerald-600 border border-emerald-200 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
+                    title="Verified on GitHub"
+                  >
+                    <CheckCircle2 size={10} />
+                    VERIFIED
+                  </a>
+                )}
               </div>
               <div className="flex items-center gap-2.5 mt-1.5">
+                {auditData?.projectDescription && (
+                  <>
+                    <span className="text-xs text-slate-600">{auditData.projectDescription}</span>
+                    <span className="text-slate-300">•</span>
+                  </>
+                )}
                 <span className="text-[10px] font-mono text-slate-400 tracking-tight leading-none">ID: {jobId?.toUpperCase()}</span>
               </div>
             </div>
@@ -1161,9 +1211,14 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
             {/* Balanced Technical Vitals Bar */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
               {[
-                { label: 'Network Deployment', value: auditData.network ? auditData.network.charAt(0).toUpperCase() + auditData.network.slice(1) : 'Mainnet', icon: Globe, color: 'text-indigo-500' },
-                { label: 'Compilation Logic', value: auditData.compiler || '0.8.x', icon: Code2, color: 'text-slate-500' },
-                { label: 'Code Base Assets', value: `${auditData.sloc || 'N/A'} SLOC`, icon: Binary, color: 'text-slate-500' },
+                { label: 'Network Deployment', value: jobInfo?.contractAddress ? (auditData.network ? auditData.network.charAt(0).toUpperCase() + auditData.network.slice(1) : 'Mainnet') : 'GitHub Repository', icon: Globe, color: 'text-indigo-500' },
+                { label: 'Compilation Logic', value: auditData.compiler || 'Solidity', icon: Code2, color: 'text-slate-500' },
+                { label: 'Code Base Assets', value: (() => {
+                  if (auditData.sloc && auditData.fileCount) return `${auditData.sloc.toLocaleString()} SLOC • ${auditData.fileCount} files`;
+                  if (auditData.sloc) return `${auditData.sloc.toLocaleString()} SLOC`;
+                  if (auditData.fileCount) return `${auditData.fileCount} files`;
+                  return jobInfo?.status === 'completed' ? 'N/A' : 'Analyzing...';
+                })(), icon: Binary, color: 'text-slate-500' },
                 { label: 'Scan Duration', value: auditData.scanTime ? `${(auditData.scanTime / 1000).toFixed(1)}s` : 'N/A', icon: Timer, color: 'text-slate-500' }
               ].map((spec, i) => (
                 <div key={i} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex items-center gap-5 group hover:border-indigo-100 transition-colors">
@@ -1187,16 +1242,19 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                 Technical Findings Log
                 {activeTab === 'report' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-slate-900" />}
               </button>
-              <button
-                onClick={() => setActiveTab('triage')}
-                className={`px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'triage' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                Liability Triage
-                {auditData.questions?.length > 0 && (
-                  <span className="ml-3 px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full">{auditData.questions.length}</span>
-                )}
-                {activeTab === 'triage' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-slate-900" />}
-              </button>
+              {/* Hide LIABILITY TRIAGE tab for Quick Scans */}
+              {!isQuickScan && (
+                <button
+                  onClick={() => setActiveTab('triage')}
+                  className={`px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'triage' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  Liability Triage
+                  {auditData.questions?.length > 0 && (
+                    <span className="ml-3 px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full">{auditData.questions.length}</span>
+                  )}
+                  {activeTab === 'triage' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-slate-900" />}
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab('testcases')}
                 className={`px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'testcases' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
@@ -1789,31 +1847,99 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="space-y-6"
+                        className="space-y-8"
                       >
-                        {[
-                          {
-                            q: "What does an 'A+' grade signify?",
-                            a: "An A+ grade represents near-perfect adherence to security best practices, zero high-risk vulnerabilities, and robust test coverage. It's the highest institutional seal of excellence."
-                          },
-                          {
-                            q: "How often should I re-audit?",
-                            a: "We recommend a full audit for every major protocol upgrade or at least once every 6 months to ensure safety against newly discovered attack vectors."
-                          },
-                          {
-                            q: "What is SLOC and why does it matter?",
-                            a: "Source Lines of Code (SLOC) is an indicator of codebase complexity. Higher SLOC often requires more intensive manual review and formal verification passes."
-                          },
-                          {
-                            q: "Can I share this report publicly?",
-                            a: "Yes, this digital dossier is designed for public verification. You can share the URL or export the signed PDF certificate for institutional stakeholders."
-                          }
-                        ].map((item, i) => (
-                          <div key={i} className="bg-white border border-slate-200 p-8 rounded-3xl shadow-sm">
-                            <h4 className="text-base font-black text-slate-900 mb-3 tracking-tight">{item.q}</h4>
-                            <p className="text-[13px] text-slate-500 leading-relaxed font-bold">{item.a}</p>
+                        {/* Grading & Scoring */}
+                        <div className="space-y-4">
+                          <div className="border-l-4 border-indigo-600 pl-4 mb-5">
+                            <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Grading & Scoring</h3>
+                            <p className="text-[10px] text-slate-400 mt-1 font-bold">Understanding audit scores</p>
                           </div>
-                        ))}
+                          {[
+                            {
+                              q: "What does an 'A+' grade signify?",
+                              a: "An A+ grade represents near-perfect adherence to security best practices, zero high-risk vulnerabilities, and robust test coverage. It's the highest institutional seal of excellence."
+                            },
+                            {
+                              q: "How is the security score calculated?",
+                              a: "The score is calculated based on vulnerability severity (weighted by impact), code quality metrics, test coverage, and adherence to security best practices. Critical issues have the highest negative impact."
+                            }
+                          ].map((item, i) => (
+                            <div key={`grade-${i}`} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-slate-300 transition-colors">
+                              <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">{item.q}</h4>
+                              <p className="text-[13px] text-slate-500 leading-relaxed">{item.a}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Audit Process */}
+                        <div className="space-y-4">
+                          <div className="border-l-4 border-emerald-600 pl-4 mb-5">
+                            <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Audit Process</h3>
+                            <p className="text-[10px] text-slate-400 mt-1 font-bold">How audits work</p>
+                          </div>
+                          {[
+                            {
+                              q: "How often should I re-audit?",
+                              a: "We recommend a full audit for every major protocol upgrade or at least once every 6 months to ensure safety against newly discovered attack vectors."
+                            },
+                            {
+                              q: "What's the difference between audit depths?",
+                              a: "Quick scans use static analysis (~5 min). Standard audits include compilation and multiple tools (~30 min). Deep audits add interactive questionnaires and business logic analysis (~2 hours)."
+                            }
+                          ].map((item, i) => (
+                            <div key={`process-${i}`} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-slate-300 transition-colors">
+                              <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">{item.q}</h4>
+                              <p className="text-[13px] text-slate-500 leading-relaxed">{item.a}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Technical Details */}
+                        <div className="space-y-4">
+                          <div className="border-l-4 border-amber-600 pl-4 mb-5">
+                            <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Technical Details</h3>
+                            <p className="text-[10px] text-slate-400 mt-1 font-bold">Understanding metrics</p>
+                          </div>
+                          {[
+                            {
+                              q: "What is SLOC and why does it matter?",
+                              a: "Source Lines of Code (SLOC) is an indicator of codebase complexity. Higher SLOC often requires more intensive manual review and formal verification passes."
+                            },
+                            {
+                              q: "Which tools are used in audits?",
+                              a: "We use industry-standard tools including Slither (static analysis), Mythril (symbolic execution), Semgrep (pattern matching), and custom AI-powered vulnerability detection."
+                            }
+                          ].map((item, i) => (
+                            <div key={`technical-${i}`} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-slate-300 transition-colors">
+                              <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">{item.q}</h4>
+                              <p className="text-[13px] text-slate-500 leading-relaxed">{item.a}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Sharing & Reports */}
+                        <div className="space-y-4">
+                          <div className="border-l-4 border-violet-600 pl-4 mb-5">
+                            <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Sharing & Reports</h3>
+                            <p className="text-[10px] text-slate-400 mt-1 font-bold">Public reports and exports</p>
+                          </div>
+                          {[
+                            {
+                              q: "Can I share this report publicly?",
+                              a: "Yes, this digital dossier is designed for public verification. You can share the URL or export the signed PDF certificate for institutional stakeholders."
+                            },
+                            {
+                              q: "How do I make my audit report public?",
+                              a: "Toggle the visibility from the project's Audits tab. Public reports are indexed and searchable, while private reports are only accessible to you."
+                            }
+                          ].map((item, i) => (
+                            <div key={`sharing-${i}`} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-slate-300 transition-colors">
+                              <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">{item.q}</h4>
+                              <p className="text-[13px] text-slate-500 leading-relaxed">{item.a}</p>
+                            </div>
+                          ))}
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>

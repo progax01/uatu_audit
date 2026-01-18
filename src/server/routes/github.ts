@@ -1,7 +1,12 @@
 import { getSessionId, loadToken } from "./auth.js";
+import { verifyAuth } from "../middleware/auth.js";
+import { db } from "../../db/index.js";
+import { sessions } from "../../db/schema.js";
+import { eq, and, isNull, gt } from "drizzle-orm";
+import { getDecryptedGithubToken } from "../../repositories/sessionRepository.js";
 
 /**
- * Get GitHub token from request - checks PAT header first, then OAuth session
+ * Get GitHub token from request - checks PAT header, session cookie, then JWT auth
  */
 async function getGitHubToken(req: any): Promise<string | null> {
   // First check for PAT in header (from Settings page)
@@ -10,13 +15,47 @@ async function getGitHubToken(req: any): Promise<string | null> {
     return patHeader.trim();
   }
 
-  // Fall back to OAuth session token
+  // Check session cookie (OAuth flow)
   const sessionId = getSessionId(req);
   if (sessionId) {
     const token = await loadToken(sessionId);
     if (token) return token;
   }
 
+  // Fall back to JWT auth - look up user's active GitHub session
+  const jwtAuth = await verifyAuth(req);
+  console.log('[getGitHubToken] JWT auth result:', jwtAuth ? `userId=${jwtAuth.user.id}` : 'NONE');
+
+  if (jwtAuth) {
+    // Find user's most recent active session with GitHub token
+    const userSessions = await db
+      .select()
+      .from(sessions)
+      .where(
+        and(
+          eq(sessions.userId, jwtAuth.user.id),
+          isNull(sessions.revokedAt),
+          gt(sessions.expiresAt, new Date()),
+          eq(sessions.authMethod, 'github')
+        )
+      )
+      .orderBy(sessions.createdAt)
+      .limit(1);
+
+    console.log('[getGitHubToken] Found GitHub sessions:', userSessions.length);
+
+    if (userSessions.length > 0) {
+      console.log('[getGitHubToken] Session has encrypted token:', !!userSessions[0].githubTokenEncrypted);
+
+      if (userSessions[0].githubTokenEncrypted) {
+        const githubToken = getDecryptedGithubToken(userSessions[0]);
+        console.log('[getGitHubToken] Decrypted token:', githubToken ? 'SUCCESS' : 'FAILED');
+        if (githubToken) return githubToken;
+      }
+    }
+  }
+
+  console.log('[getGitHubToken] No GitHub token found via any method');
   return null;
 }
 

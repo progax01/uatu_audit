@@ -7,7 +7,7 @@
 
 import { eq, asc } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { auditJobs, auditStepProgress, auditSopExecution, auditResults } from '../../db/schema.js';
+import { auditJobs, auditStepProgress, auditSopExecution, auditResults, projects } from '../../db/schema.js';
 
 import {
   startUnifiedAudit,
@@ -241,28 +241,70 @@ export async function handleAuditRoutes(
     const jobId = detailsMatch[1];
 
     try {
-      // Get user session for authorization check
+      // Get user session for authorization check - try session first, then JWT
       const sessionId = getSessionId(req);
-      const userId = sessionId ? await loadUserId(sessionId) : undefined;
+      let userId = sessionId ? await loadUserId(sessionId) : undefined;
+      let authMethod = 'none';
 
-      const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
+      log.info('Session check', { sessionId: sessionId?.substring(0, 8), sessionUserId: userId });
 
-      if (!job) {
+      // If no session-based userId, try JWT auth
+      if (!userId) {
+        const jwtAuth = await verifyAuth(req);
+        log.info('JWT auth result', { jwtAuth: !!jwtAuth, userId: jwtAuth?.user?.id });
+        if (jwtAuth) {
+          userId = jwtAuth.user.id;
+          authMethod = 'jwt';
+        }
+      } else {
+        authMethod = 'session';
+      }
+
+      log.info('GET audit details request', { jobId, userId, authMethod, hasAuth: !!userId });
+
+      // Fetch job with project information
+      const jobWithProject = await db
+        .select({
+          job: auditJobs,
+          project: projects,
+        })
+        .from(auditJobs)
+        .leftJoin(projects, eq(auditJobs.projectId, projects.id))
+        .where(eq(auditJobs.id, jobId))
+        .limit(1);
+
+      if (!jobWithProject.length) {
+        log.warn('Audit not found in DB', { jobId });
         res.statusCode = 404;
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ success: false, error: 'Audit not found' }));
         return true;
       }
 
+      const { job, project } = jobWithProject[0];
+
+      log.info('Audit job found', {
+        jobId,
+        found: !!job,
+        jobUserId: job?.userId,
+        requestUserId: userId,
+        visibility: job?.visibility,
+        match: job?.userId === userId,
+        hasProject: !!project
+      });
+
       // Check if user can view this audit
       // Public audits: anyone can view
       // Private audits: only the owner can view
       if (job.visibility === 'private' && job.userId && job.userId !== userId) {
+        log.warn('Access denied - user mismatch', { jobId, jobUserId: job.userId, requestUserId: userId, visibility: job.visibility });
         res.statusCode = 404; // Return 404 instead of 403 to avoid leaking audit existence
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ success: false, error: 'Audit not found' }));
         return true;
       }
+
+      log.info('Access granted to audit details', { jobId, userId });
 
       // Fetch SOP execution metadata (if exists)
       const [sopExec] = await db.select().from(auditSopExecution).where(eq(auditSopExecution.jobId, jobId));
@@ -302,6 +344,21 @@ export async function handleAuditRoutes(
           errorMessage: job.errorMessage,
         },
       };
+
+      // Include project information if available
+      if (project) {
+        response.project = {
+          id: project.id,
+          name: project.name,
+          description: project.description,
+          logoUrl: project.logoUrl,
+          websiteUrl: project.websiteUrl,
+          githubUrl: project.githubUrl,
+          twitterUrl: project.twitterUrl,
+          discordUrl: project.discordUrl,
+          docsUrl: project.docsUrl,
+        };
+      }
 
       // Include SOP execution if exists
       if (sopExec) {
@@ -470,6 +527,97 @@ export async function handleAuditRoutes(
       return true;
     } catch (error: any) {
       log.error('Failed to check tools', { error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ success: false, error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // PUT /api/audit/:id/visibility - Update audit visibility
+  // ============================================================================
+  const visibilityMatch = parsed.pathname.match(/^\/api\/audit\/([a-f0-9-]{36})\/visibility$/);
+  if (req.method === 'PUT' && visibilityMatch) {
+    try {
+      const jobId = visibilityMatch[1];
+      log.info('Visibility update request received', { jobId, pathname: parsed.pathname });
+
+      // Parse request body
+      const chunks: any[] = [];
+      for await (const c of req) chunks.push(c);
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+
+      const { visibility } = body;
+      log.info('Visibility update parsed', { jobId, visibility });
+
+      if (!visibility || !['private', 'public', 'unlisted'].includes(visibility)) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Valid visibility required (private, public, or unlisted)'
+        }));
+        return true;
+      }
+
+      // Get current user - try session first, then JWT
+      const sessionId = getSessionId(req);
+      let userId = sessionId ? await loadUserId(sessionId) : null;
+
+      // If no session-based userId, try JWT auth
+      if (!userId) {
+        const jwtAuth = await verifyAuth(req);
+        if (jwtAuth) {
+          userId = jwtAuth.user.id;
+        }
+      }
+
+      // Debug: Check all audits for this user
+      const userAudits = await db.select({ id: auditJobs.id, status: auditJobs.status, visibility: auditJobs.visibility })
+        .from(auditJobs)
+        .where(eq(auditJobs.userId, userId || ''));
+      log.info('User audits list', { userId, count: userAudits.length, audits: userAudits.slice(0, 5) });
+
+      // Get audit job
+      const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
+      log.info('Audit job query result', { jobId, found: !!job, jobData: job ? { id: job.id, status: job.status, userId: job.userId, visibility: job.visibility } : null });
+
+      if (!job) {
+        log.warn('Audit not found for visibility update', { jobId, userId });
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: false, error: 'Audit not found' }));
+        return true;
+      }
+
+      // Check ownership - only owner can change visibility
+      if (job.userId && job.userId !== userId) {
+        res.statusCode = 403;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: false, error: 'Access denied' }));
+        return true;
+      }
+
+      // Update visibility
+      await db
+        .update(auditJobs)
+        .set({
+          visibility: visibility as 'private' | 'public' | 'unlisted',
+          updatedAt: new Date(),
+        })
+        .where(eq(auditJobs.id, jobId));
+
+      log.info('Audit visibility updated', { jobId, visibility, userId });
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        success: true,
+        visibility,
+      }));
+      return true;
+    } catch (error: any) {
+      log.error('Failed to update audit visibility', { error: error.message });
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ success: false, error: error.message }));
