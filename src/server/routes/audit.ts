@@ -864,7 +864,7 @@ export async function handleAuditRoutes(
         return true;
       }
 
-      const { triages, projectPath } = body;
+      const { triages } = body;
 
       if (!triages || !Array.isArray(triages) || triages.length === 0) {
         res.statusCode = 400;
@@ -873,66 +873,21 @@ export async function handleAuditRoutes(
         return true;
       }
 
-      // Import rescoring service
-      const { createTriageVerificationAgent } = await import('../../services/triageVerificationAgent.js');
-      const { recalculateAuditScore } = await import('../../services/rescoringService.js');
-
-      // Create verification agent
-      const agent = createTriageVerificationAgent();
-
-      // Extract findings from results
-      const findingsArray = Array.isArray(results.findings) ? results.findings : [];
-      const findings = findingsArray.map((f: any) => ({
-        findingId: f.findingId || f.id || `finding-${Math.random()}`,
-        title: f.title,
-        description: f.description,
-        severity: f.severity,
-        location: {
-          file: f.file || f.location?.file || '',
-          line: f.line || f.location?.line,
-          column: f.column || f.location?.column,
-        },
-        codeSnippet: f.code_snippet || f.codeSnippet,
-        recommendation: f.recommendation || f.rec,
-      }));
-
-      log.info('Starting triage verification and rescoring', {
+      log.info('Saving triage answers', {
         jobId,
         triageCount: triages.length,
-        findingsCount: findings.length,
       });
 
-      // Verify triages
-      const verifications = await agent.verifyBatch(findings, triages, projectPath || '');
-
-      // Recalculate score
-      const rescoringResult = await recalculateAuditScore(
-        results.scoreValue || 0,
-        findings,
-        verifications
-      );
-
-      log.info('Rescoring complete', {
-        jobId,
-        originalScore: results.scoreValue,
-        newScore: rescoringResult.newScore,
-        verifiedCount: verifications.filter(v => v.verificationStatus === 'accurate').length,
-      });
-
-      // Update audit results with new score and verifications
-      // Store verification results in metadata
+      // Store triage answers in metadata (no verification for now)
       const updatedMetadata = {
         ...(typeof results.metadata === 'object' ? results.metadata : {}),
-        triageVerifications: verifications,
-        originalScore: results.scoreValue,
-        rescoredAt: new Date().toISOString(),
+        triageAnswers: triages,
+        triageSubmittedAt: new Date().toISOString(),
       };
 
       await db
         .update(auditResults)
         .set({
-          scoreValue: rescoringResult.newScore,
-          scoreLabel: rescoringResult.newGrade,
           metadata: updatedMetadata,
         })
         .where(eq(auditResults.jobId, jobId));
@@ -940,8 +895,7 @@ export async function handleAuditRoutes(
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({
         success: true,
-        rescoring: rescoringResult,
-        verifications,
+        message: 'Triage answers saved successfully',
       }));
       return true;
     } catch (error: any) {
