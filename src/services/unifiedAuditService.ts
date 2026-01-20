@@ -817,20 +817,48 @@ export class UnifiedAuditService extends EventEmitter {
       createdAt: new Date(),
     });
 
-    // Generate post-audit clarification questions for liability triage
+    // Generate post-audit clarification questions for liability triage (with intelligence)
     try {
       const { generatePostAuditClarifications } = await import('./postAuditClarificationGenerator.js');
+      const { analyzeAllClarificationNeeds, generateIntelligenceReport } = await import('./clarificationIntelligence.js');
+
       // Map StepFinding to Finding type for clarification generator
       const mappedFindings = filteredFindings.map(f => ({
         id: f.findingId || crypto.randomUUID(),
         title: f.title || 'Unknown',
         description: f.description || '',
         severity: f.severity as 'critical' | 'high' | 'medium' | 'low' | 'info',
-        location: f.location,
+        location: f.location ? {
+          file: f.location.file,
+          line: f.location.line
+        } : undefined,
+        recommendation: f.recommendation,
         rawOutput: f.rawOutput,
       }));
-      const questionCount = await generatePostAuditClarifications(jobId, mappedFindings);
-      log.info('Post-audit clarifications generated', { jobId, questionCount });
+
+      // Get business risk checks from audit results (may not exist for all audit types)
+      const businessRisks: any[] = []; // TODO: Extract from results when available
+
+      // Run clarification intelligence analysis
+      const intelligence = analyzeAllClarificationNeeds(mappedFindings, businessRisks);
+
+      // Log intelligence report for debugging
+      const report = generateIntelligenceReport(mappedFindings, businessRisks);
+      log.info('Clarification intelligence analysis', {
+        jobId,
+        questionsNeeded: intelligence.questionsNeeded,
+        questionsSkipped: intelligence.questionsSkipped,
+        report
+      });
+
+      // Generate only questions that intelligence system approves
+      const questionCount = await generatePostAuditClarifications(jobId, mappedFindings, intelligence);
+
+      log.info('Post-audit clarifications generated', {
+        jobId,
+        questionCount,
+        intelligentlySkipped: intelligence.questionsSkipped
+      });
     } catch (error: any) {
       log.error('Failed to generate post-audit clarifications', { jobId, error: error.message });
       // Don't fail the audit if clarification generation fails

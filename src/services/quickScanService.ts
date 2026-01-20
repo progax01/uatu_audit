@@ -110,6 +110,63 @@ ANALYSIS METHODOLOGY:
 6. Analyze gas efficiency and optimization opportunities
 7. Evaluate code quality and best practices
 
+**CRITICAL: ADAPTIVE CHECKLIST CREATION**
+After understanding the code, create a nested security checklist based on the contract type:
+
+**If TOKEN CONTRACT (ERC20/ERC721/ERC1155):**
+- Token minting controls (supply cap? who can mint? rate limits?)
+- Transfer restrictions (blacklist? whitelist? pausable? cooldowns?)
+- Fee mechanisms (buy/sell tax? caps? timelock for changes?)
+- Burning mechanisms (who can burn? from any address or only holders?)
+- Approval/allowance handling (proper checks? front-running protection?)
+- Balance manipulation vectors
+- **Read ALL code comments** - they often reveal intended behavior vs actual implementation
+
+**If DEFI PROTOCOL (AMM/DEX/Lending/Staking):**
+- Price oracle manipulation (TWAP? external oracle? manipulation vectors?)
+- Flash loan attack vectors (reentrancy? price manipulation?)
+- Liquidity provision/withdrawal logic (can users always exit? lock periods?)
+- Reward calculation accuracy (rounding? precision loss? manipulation?)
+- Collateral ratio enforcement (liquidation thresholds? oracle dependencies?)
+- Slippage protection (user-specified minimums? sandwich attack prevention?)
+- **Read TODO/FIXME comments** - unfinished security work is critical
+
+**If VAULT/TREASURY (Yield/Governance/Multisig):**
+- Admin rebalancing controls (who? when? safeguards? timelocks?)
+- Fund withdrawal restrictions (cooldowns? limits? governance?)
+- Strategy execution permissions (who can change? emergency pause?)
+- Deposit/withdrawal fee structures (capped? disclosed? fair?)
+- Emergency withdrawal mechanisms (user protection vs admin control?)
+- **Read @audit comments** - previous audit findings or known issues
+
+**If PROXY/UPGRADEABLE:**
+- Upgrade authorization (multisig? timelock? governance?)
+- Storage collision risks (inheritance order? variable layout?)
+- Initialization protection (can't be re-initialized?)
+- Function selector clashing
+- Delegatecall safety
+- **Read @notice/@dev comments** - upgrade procedures and risks
+
+**CODE VERIFICATION RULES:**
+1. **NEVER assume from function names** - Read the actual implementation
+2. **Check ACTUAL require() statements** - Don't guess at validation
+3. **Verify claimed caps in code** - Comment says "10% max" but is require() there?
+4. **Read inline comments** - They reveal intent, TODOs, and known issues
+5. **Trace the full execution path** - Don't stop at the first function call
+6. **Check modifier implementations** - onlyOwner might be broken
+7. **Verify inheritance** - Parent contracts might have dangerous functions
+8. **Look for commented-out code** - Previous bugs or removed safeguards
+
+**EXAMPLE - VERIFY IN CODE:**
+❌ WRONG: "Function name is setMaxFee so it probably sets a maximum"
+✅ CORRECT: Read setMaxFee() body, verify it has require(_maxFee <= 1000)
+
+❌ WRONG: "Comment says 24h timelock, marking as safe"
+✅ CORRECT: Check if timelock variable is actually enforced in code
+
+❌ WRONG: "Uses ReentrancyGuard so reentrancy is prevented"
+✅ CORRECT: Check if modifier is ACTUALLY applied to vulnerable functions
+
 VULNERABILITY CATEGORIES TO ANALYZE:
 
 **Critical (Immediate fund loss risk):**
@@ -137,11 +194,11 @@ VULNERABILITY CATEGORIES TO ANALYZE:
 - Timestamp dependence for critical logic
 - Block.number dependence
 - Denial of Service vectors (unbounded loops, gas griefing)
-- **Centralization risks with admin controls but reasonable limits**
+- **Centralization risks ONLY if admin can act maliciously with no safeguards**
 - Insufficient event logging for critical operations
 - Missing zero-address checks
 - **Fees between 10-20% but properly limited (disclose as warning)**
-- **Pausable functionality without clear governance**
+- **Pausable functionality without clear governance or timelock**
 
 **Low (Minor issues):**
 - Gas inefficiencies
@@ -150,12 +207,25 @@ VULNERABILITY CATEGORIES TO ANALYZE:
 - Redundant code
 - Suboptimal patterns
 
-**Informational:**
+**Informational (Disclosure, NOT vulnerabilities):**
 - Best practice recommendations
 - Code organization suggestions
 - Potential future risks
-- **Fees ≤10% with hardcoded maximum limits (normal business logic - NOT a vulnerability)**
-- **Admin functions with proper timelocks and limits**
+- **Fees ≤10% with hardcoded maximum limits + timelock (normal business logic - NOT a vulnerability)**
+- **Admin functions with proper timelocks (24h+) and hard limits (NOT vulnerabilities)**
+- **Managed vault designs where admin rebalancing is intentional (NOT a vulnerability if disclosed)**
+- **Revenue collection mechanisms with standard fee controls (NOT a vulnerability)**
+- **Two-tier admin/owner access control that's properly implemented (NOT a vulnerability)**
+
+**CRITICAL DISTINCTION - Centralization vs Vulnerability:**
+- ✅ INFORMATIONAL: Admin can change fees BUT capped at ≤10% AND 24h timelock → This is disclosed business logic
+- ❌ MEDIUM: Admin can change fees to 100% with no limit → This is a vulnerability
+- ✅ INFORMATIONAL: Admin can rebalance funds in a managed vault with cooldowns → Expected behavior
+- ❌ HIGH: Admin can steal all funds with no restrictions → This is a vulnerability
+- ✅ INFORMATIONAL: Admin multisig controls revenue address with timelock → Standard treasury management
+- ❌ MEDIUM: Admin can change revenue address instantly to any address → Risky
+
+**DO NOT flag properly controlled admin functions as vulnerabilities. They are business/trust decisions.**
 
 OUTPUT FORMAT (strict JSON, no markdown):
 {

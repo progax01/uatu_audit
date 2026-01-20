@@ -1,5 +1,5 @@
 /**
- * Post-Audit Clarification Generator (SMART VERSION)
+ * Post-Audit Clarification Generator (INTELLIGENT VERSION)
  *
  * Generates liability triage questions AFTER audit completes.
  * ONLY for HIGH/MEDIUM severity findings that need business justification.
@@ -9,10 +9,12 @@
  * - Deduplication: Groups similar findings into single questions
  * - Smart detection: Requires specific security patterns, not broad keywords
  * - Excludes compiler noise: Never asks about SPDX, unused vars, etc.
+ * - Intelligence integration: Uses clarificationIntelligence to skip redundant questions
  */
 
 import { addClarification, type AddClarificationParams } from './clarificationService.js';
 import { logger } from '../utils/logger.js';
+import type { IntelligenceAnalysis } from './clarificationIntelligence.js';
 
 const log = logger.child({ module: 'post-audit-clarification-gen' });
 
@@ -37,15 +39,32 @@ export interface Finding {
 // Main Generation Function
 // ============================================================================
 
+export interface ClarificationIntelligence {
+  feeControls: IntelligenceAnalysis;
+  rebalanceControls: IntelligenceAnalysis;
+  pauseControls: IntelligenceAnalysis;
+  upgradeControls: IntelligenceAnalysis;
+  withdrawalControls: IntelligenceAnalysis;
+  supplyControls: IntelligenceAnalysis;
+  questionsNeeded: number;
+  questionsSkipped: number;
+  skipReasons: string[];
+}
+
 /**
  * Generate post-audit clarification questions from completed audit findings
- * SMART VERSION: Filters, deduplicates, and groups findings intelligently
+ * INTELLIGENT VERSION: Uses clarification intelligence to skip redundant questions
  */
 export async function generatePostAuditClarifications(
   jobId: string,
-  findings: Finding[]
+  findings: Finding[],
+  intelligence?: ClarificationIntelligence
 ): Promise<number> {
-  log.info('Generating post-audit clarifications (SMART)', { jobId, totalFindings: findings.length });
+  log.info('Generating post-audit clarifications (INTELLIGENT)', {
+    jobId,
+    totalFindings: findings.length,
+    hasIntelligence: !!intelligence
+  });
 
   // STEP 1: Filter out noise - only MEDIUM+ severity
   const relevantFindings = findings.filter(f => {
@@ -74,13 +93,24 @@ export async function generatePostAuditClarifications(
   });
 
   let questionCount = 0;
+  let intelligentlySkipped = 0;
 
-  // STEP 2: Group and generate questions by category
+  // STEP 2: Group and generate questions by category (with intelligence filtering)
 
   // Admin/Owner controls - GROUP BY FUNCTION TYPE
   const adminGroups = groupAdminControlFindings(relevantFindings);
   for (const [groupKey, groupFindings] of Object.entries(adminGroups)) {
-    const added = await generateGroupedAdminQuestion(jobId, groupKey, groupFindings);
+    // Check intelligence before generating
+    if (intelligence && shouldSkipByIntelligence(groupKey, intelligence)) {
+      log.info('Intelligence: Skipping question', {
+        category: groupKey,
+        reason: getIntelligenceReason(groupKey, intelligence)
+      });
+      intelligentlySkipped++;
+      continue;
+    }
+
+    const added = await generateGroupedAdminQuestion(jobId, groupKey, groupFindings, intelligence);
     if (added) questionCount++;
   }
 
@@ -94,20 +124,45 @@ export async function generatePostAuditClarifications(
   // Upgrade mechanisms - ONE QUESTION if found
   const upgradeFindings = relevantFindings.filter(f => isUpgradeMechanismFinding(f));
   if (upgradeFindings.length > 0) {
-    const added = await generateUpgradeQuestion(jobId, upgradeFindings);
-    if (added) questionCount++;
+    // Check intelligence for upgrade controls
+    if (intelligence?.upgradeControls && !intelligence.upgradeControls.shouldAskQuestion) {
+      log.info('Intelligence: Skipping upgrade question', {
+        reason: intelligence.upgradeControls.reason
+      });
+      intelligentlySkipped++;
+    } else {
+      const added = await generateUpgradeQuestion(jobId, upgradeFindings);
+      if (added) questionCount++;
+    }
   }
 
   // Pause/Emergency - ONE QUESTION if found
   const pauseFindings = relevantFindings.filter(f => isPauseMechanismFinding(f));
   if (pauseFindings.length > 0) {
-    const added = await generatePauseQuestion(jobId, pauseFindings);
-    if (added) questionCount++;
+    // Check intelligence for pause controls
+    if (intelligence?.pauseControls && !intelligence.pauseControls.shouldAskQuestion) {
+      log.info('Intelligence: Skipping pause question', {
+        reason: intelligence.pauseControls.reason
+      });
+      intelligentlySkipped++;
+    } else {
+      const added = await generatePauseQuestion(jobId, pauseFindings);
+      if (added) questionCount++;
+    }
   }
 
   // Economic controls (fees, minting, etc) - GROUP BY TYPE
   const economicGroups = groupEconomicFindings(relevantFindings);
   for (const [groupKey, groupFindings] of Object.entries(economicGroups)) {
+    // Check intelligence for supply controls
+    if (groupKey === 'minting-control' && intelligence?.supplyControls && !intelligence.supplyControls.shouldAskQuestion) {
+      log.info('Intelligence: Skipping supply question', {
+        reason: intelligence.supplyControls.reason
+      });
+      intelligentlySkipped++;
+      continue;
+    }
+
     const added = await generateGroupedEconomicQuestion(jobId, groupKey, groupFindings);
     if (added) questionCount++;
   }
@@ -115,11 +170,58 @@ export async function generatePostAuditClarifications(
   log.info('Post-audit clarifications generated', {
     jobId,
     questionCount,
+    intelligentlySkipped,
     relevantFindings: relevantFindings.length,
     totalFindings: findings.length
   });
 
   return questionCount;
+}
+
+// ============================================================================
+// Intelligence Helper Functions
+// ============================================================================
+
+/**
+ * Check if a question category should be skipped based on intelligence analysis
+ */
+function shouldSkipByIntelligence(groupKey: string, intelligence: ClarificationIntelligence): boolean {
+  const categoryMap: Record<string, keyof ClarificationIntelligence> = {
+    'fee-controls': 'feeControls',
+    'supply-controls': 'supplyControls',
+    'emergency-controls': 'pauseControls',
+    'upgrade-controls': 'upgradeControls',
+    'withdrawal-controls': 'withdrawalControls',
+  };
+
+  const intelligenceKey = categoryMap[groupKey];
+  if (!intelligenceKey) return false;
+
+  const analysis = intelligence[intelligenceKey];
+  if (!analysis || typeof analysis !== 'object') return false;
+
+  return !(analysis as IntelligenceAnalysis).shouldAskQuestion;
+}
+
+/**
+ * Get the intelligence reason for skipping a question
+ */
+function getIntelligenceReason(groupKey: string, intelligence: ClarificationIntelligence): string {
+  const categoryMap: Record<string, keyof ClarificationIntelligence> = {
+    'fee-controls': 'feeControls',
+    'supply-controls': 'supplyControls',
+    'emergency-controls': 'pauseControls',
+    'upgrade-controls': 'upgradeControls',
+    'withdrawal-controls': 'withdrawalControls',
+  };
+
+  const intelligenceKey = categoryMap[groupKey];
+  if (!intelligenceKey) return 'Unknown';
+
+  const analysis = intelligence[intelligenceKey];
+  if (!analysis || typeof analysis !== 'object') return 'No analysis available';
+
+  return (analysis as IntelligenceAnalysis).reason || 'No reason provided';
 }
 
 // ============================================================================
@@ -316,9 +418,51 @@ function isEconomicControlFinding(finding: Finding): boolean {
 async function generateGroupedAdminQuestion(
   jobId: string,
   groupKey: string,
-  findings: Finding[]
+  findings: Finding[],
+  intelligence?: ClarificationIntelligence
 ): Promise<boolean> {
   if (findings.length === 0) return false;
+
+  // INTELLIGENCE-BASED HANDLING: Check intelligence analysis first
+  if (intelligence && shouldSkipByIntelligence(groupKey, intelligence)) {
+    log.info('Intelligence: Skipping admin question', {
+      jobId,
+      category: groupKey,
+      reason: getIntelligenceReason(groupKey, intelligence),
+      findingCount: findings.length
+    });
+    return false;
+  }
+
+  // LEGACY HANDLING: Skip fee-controls question if fees are already validated
+  // (This is kept for backwards compatibility when intelligence is not available)
+  if (groupKey === 'fee-controls' && !intelligence) {
+    // Check if ALL findings are INFO severity (meaning fees are properly controlled)
+    const allInfoSeverity = findings.every(f => f.severity === 'info');
+
+    // Check if findings mention proper fee controls
+    const hasProperControls = findings.some(f => {
+      const text = `${f.title} ${f.description}`.toLowerCase();
+      return (
+        text.includes('capped at') ||
+        text.includes('max') ||
+        text.includes('limit') ||
+        text.includes('timelock') ||
+        text.includes('cooldown')
+      );
+    });
+
+    // If fees are info-level AND have proper controls, skip the question
+    if (allInfoSeverity || hasProperControls) {
+      log.info('Legacy: Skipping fee-controls question - fees already validated', {
+        jobId,
+        findingCount: findings.length,
+        allInfo: allInfoSeverity,
+        hasControls: hasProperControls
+      });
+      return false; // Don't generate question
+    }
+  }
 
   // Create comprehensive question for ALL findings in this group
   const functionNames = findings.map(f => extractFunctionName(f)).filter(Boolean);
