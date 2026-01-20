@@ -7,7 +7,7 @@
 
 import { eq, asc } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { auditJobs, auditStepProgress, auditSopExecution, auditResults, projects } from '../../db/schema.js';
+import { auditJobs, auditStepProgress, auditSopExecution, auditResults, projects, auditClarifications } from '../../db/schema.js';
 
 import {
   startUnifiedAudit,
@@ -1045,6 +1045,184 @@ export async function handleAuditRoutes(
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // GET /api/audits/:jobId/triage - Get triage questions with answers
+  // ============================================================================
+  if (req.method === 'GET' && parsed.pathname.match(/^\/api\/audits\/([^/]+)\/triage$/)) {
+    const jobId = parsed.pathname.split('/')[3];
+
+    try {
+      // Get all post-audit triage clarifications
+      const triage = await db
+        .select()
+        .from(auditClarifications)
+        .where(eq(auditClarifications.jobId, jobId));
+
+      const triageQuestions = triage
+        .filter(c => c.phase === 'post_audit')
+        .map(q => ({
+          id: q.id,
+          findingId: (q.context as any)?.findingId,
+          questionText: q.questionText,
+          finding: (q.context as any)?.finding,
+          answerValue: q.answerValue,
+          status: q.status,
+          answeredAt: q.answeredAt
+        }));
+
+      log.info('Retrieved triage questions', {
+        jobId,
+        count: triageQuestions.length,
+        answered: triageQuestions.filter(q => q.status === 'answered').length
+      });
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        success: true,
+        questions: triageQuestions
+      }));
+      return true;
+    } catch (error: any) {
+      log.error('Failed to get triage questions', { jobId, error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ success: false, error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // POST /api/audits/:jobId/generate-triage - Generate triage questions from findings
+  // ============================================================================
+  if (req.method === 'POST' && parsed.pathname.match(/^\/api\/audits\/([^/]+)\/generate-triage$/)) {
+    const jobId = parsed.pathname.split('/')[3];
+
+    try {
+      // Get audit results
+      const [results] = await db.select().from(auditResults).where(eq(auditResults.jobId, jobId));
+
+      if (!results) {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: false, error: 'Audit results not found' }));
+        return true;
+      }
+
+      // Get findings that need triage (critical, high)
+      const findings = Array.isArray(results.findings) ? results.findings : [];
+      const criticalFindings = findings.filter((f: any) =>
+        f.severity === 'critical' || f.severity === 'high'
+      );
+
+      log.info('Generating triage questions', {
+        jobId,
+        totalFindings: findings.length,
+        criticalFindings: criticalFindings.length
+      });
+
+      // Check if triage questions already exist
+      const existingClarifications = await db
+        .select()
+        .from(auditClarifications)
+        .where(eq(auditClarifications.jobId, jobId));
+
+      const existingTriageQuestions = existingClarifications.filter(c => c.phase === 'post_audit');
+
+      // If triage questions already exist, return them
+      if (existingTriageQuestions.length > 0) {
+        log.info('Triage questions already exist', {
+          jobId,
+          count: existingTriageQuestions.length
+        });
+
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({
+          success: true,
+          questions: existingTriageQuestions.map(q => ({
+            id: q.id,
+            findingId: (q.context as any)?.findingId,
+            questionText: q.questionText,
+            finding: (q.context as any)?.finding,
+            answerValue: q.answerValue,
+            status: q.status
+          })),
+          message: 'Loaded existing triage questions'
+        }));
+        return true;
+      }
+
+      // Generate new triage questions from critical/high findings
+      const triageQuestions = [];
+      for (const finding of criticalFindings) {
+        const findingId = finding.findingId || finding.id || `finding-${Math.random().toString(36).substr(2, 9)}`;
+
+        // Create a triage question for this finding
+        const questionText = `[${finding.severity.toUpperCase()}] ${finding.title}: Please explain if this is a false positive, intentionally designed, or has been mitigated elsewhere.`;
+
+        const [clarification] = await db
+          .insert(auditClarifications)
+          .values({
+            jobId: jobId,
+            phase: 'post_audit',
+            questionText: questionText,
+            questionKey: `triage_${findingId}`,
+            questionType: 'text',
+            status: 'pending',
+            context: {
+              findingId: findingId,
+              finding: {
+                title: finding.title,
+                severity: finding.severity,
+                description: finding.description,
+                file: finding.file,
+                line: finding.line,
+                recommendation: finding.rec || finding.recommendation,
+                code_snippet: finding.code_snippet || finding.codeSnippet
+              },
+              category: 'triage',
+              generatedFromFinding: true
+            },
+            createdAt: new Date()
+          })
+          .returning();
+
+        triageQuestions.push({
+          id: clarification.id,
+          findingId: findingId,
+          questionText: questionText,
+          finding: {
+            title: finding.title,
+            severity: finding.severity,
+            description: finding.description,
+            file: finding.file,
+            line: finding.line,
+            recommendation: finding.rec || finding.recommendation
+          },
+          status: 'pending'
+        });
+      }
+
+      log.info('Generated triage questions', {
+        jobId,
+        count: triageQuestions.length
+      });
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        success: true,
+        questions: triageQuestions,
+        message: `Generated ${triageQuestions.length} triage questions from critical/high findings`
+      }));
+      return true;
+    } catch (error: any) {
+      log.error('Failed to generate triage questions', { jobId, error: error.message, stack: error.stack });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ success: false, error: error.message }));
       return true;
     }
   }

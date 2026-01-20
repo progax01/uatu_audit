@@ -249,7 +249,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                 </td>
                 <td style="padding: 10px 16px; font-size: 10px; color: #475569;">${fn.observation}</td>
                 <td style="padding: 10px 16px; text-align: center;">
-                  <span style="padding: 3px 10px; border-radius: 4px; font-size: 9px; font-weight: 700; background: ${fn.conclusion === 'No Issue' ? '#ecfdf5' : fn.conclusion === 'Warning' ? '#fffbeb' : '#fef2f2'}; color: ${fn.conclusion === 'No Issue' ? '#059669' : fn.conclusion === 'Warning' ? '#d97706' : '#dc2626'};">${fn.conclusion}</span>
+                  <span style="padding: 3px 10px; border-radius: 4px; font-size: 9px; font-weight: 700; white-space: nowrap; background: ${fn.conclusion === 'No Issue' ? '#ecfdf5' : fn.conclusion === 'Warning' ? '#fffbeb' : '#fef2f2'}; color: ${fn.conclusion === 'No Issue' ? '#059669' : fn.conclusion === 'Warning' ? '#d97706' : '#dc2626'};">${fn.conclusion}</span>
                 </td>
               </tr>
             `).join('')}
@@ -1710,7 +1710,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                       <span className="text-[11px] text-slate-600">{fn.observation}</span>
                                     </td>
                                     <td className="px-6 py-3 text-center">
-                                      <span className={`px-3 py-1 rounded-lg text-[10px] font-bold ${
+                                      <span className={`px-3 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap ${
                                         fn.conclusion === 'No Issue' ? 'bg-emerald-50 text-emerald-600' :
                                         fn.conclusion === 'Warning' ? 'bg-amber-50 text-amber-600' :
                                         'bg-rose-50 text-rose-600'

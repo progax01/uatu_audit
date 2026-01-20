@@ -57,7 +57,7 @@ export interface FunctionOverview {
   type: 'read' | 'write' | 'external' | 'internal' | 'constructor';
   visibility: 'public' | 'external' | 'internal' | 'private';
   observation: string;
-  conclusion: 'No Issue' | 'Warning' | 'See Findings';
+  conclusion: 'No Issue' | 'Warning' | 'In Findings';
 }
 
 export interface QuickScanResult {
@@ -119,6 +119,8 @@ VULNERABILITY CATEGORIES TO ANALYZE:
 - Arithmetic overflow/underflow (pre-0.8.0 without SafeMath)
 - Signature replay attacks
 - Flash loan attack vectors
+- **Fee manipulation with NO maximum limit - admin can set to 100% (honeypot risk)**
+- **Blacklist can block all selling with no safeguards**
 
 **High (Significant financial/operational risk):**
 - Oracle manipulation
@@ -127,14 +129,19 @@ VULNERABILITY CATEGORIES TO ANALYZE:
 - Front-running vulnerabilities
 - Incorrect inheritance order
 - Storage collision in proxies
+- **Admin can change fees instantly without timelock (if fees can exceed 20%)**
+- **Unlimited minting capability with no cap or disclosure**
+- **Transfer restrictions that can trap user funds**
 
 **Medium (Moderate risk):**
 - Timestamp dependence for critical logic
 - Block.number dependence
 - Denial of Service vectors (unbounded loops, gas griefing)
-- Centralization risks
-- Insufficient event logging
+- **Centralization risks with admin controls but reasonable limits**
+- Insufficient event logging for critical operations
 - Missing zero-address checks
+- **Fees between 10-20% but properly limited (disclose as warning)**
+- **Pausable functionality without clear governance**
 
 **Low (Minor issues):**
 - Gas inefficiencies
@@ -147,11 +154,11 @@ VULNERABILITY CATEGORIES TO ANALYZE:
 - Best practice recommendations
 - Code organization suggestions
 - Potential future risks
+- **Fees ≤10% with hardcoded maximum limits (normal business logic - NOT a vulnerability)**
+- **Admin functions with proper timelocks and limits**
 
 OUTPUT FORMAT (strict JSON, no markdown):
 {
-  "score": <number 0-100>,
-  "riskLevel": "<CRITICAL|HIGH|MEDIUM|LOW|SAFE>",
   "summary": "<3-4 sentence executive summary>",
   "contractAnalysis": {
     "purpose": "<what this contract does>",
@@ -211,7 +218,7 @@ OUTPUT FORMAT (strict JSON, no markdown):
       "type": "<read|write|external|internal|constructor>",
       "visibility": "<public|external|internal|private>",
       "observation": "<brief observation about the function - what issues if any>",
-      "conclusion": "<No Issue|Warning|See Findings>"
+      "conclusion": "<No Issue|Warning|In Findings>"
     }
   ]
 }
@@ -246,16 +253,71 @@ Business Risk:
 - Double spend protection
 
 BUSINESS RISK CHECKS TO EVALUATE (include ALL that apply):
-- Buy Tax (percentage or "No")
-- Sell Tax (percentage or "No")
-- Is Honeypot (Yes/No/Not Detected)
+
+**FEE EVALUATION RULES (CRITICAL - FOLLOW EXACTLY):**
+When evaluating fees (buy tax, sell tax, withdrawal fee, etc.), you MUST check for hardcoded maximum limits:
+
+1. **SAFE (severity: "safe")** - Fees with strict hardcoded limits:
+   - Buy/Sell Tax: Capped at ≤10% (e.g., require(fee <= 1000) where 10000 = 100%)
+   - Withdrawal Fee: Capped at ≤5% with proper bounds checking
+   - Fee changes: Require timelock or cooldown period
+   - Example result: "5%" or "Max 10%" (show the cap!)
+
+2. **WARNING (severity: "warning")** - Fees with moderate limits:
+   - Buy/Sell Tax: Capped at 11-20%
+   - Withdrawal Fee: Capped at 6-10%
+   - Fee changes: Admin can change but with reasonable limits
+   - Example result: "10-20% (admin adjustable)"
+
+3. **DANGER (severity: "danger")** - Honeypot indicators:
+   - Fees with NO maximum limit (admin can set to 100%)
+   - Fees > 20% or no upper bound checks
+   - Hidden fee logic or obfuscated calculations
+   - Fees can be changed instantly to block selling
+   - Example result: "No limit (honeypot risk)"
+
+**FEE DETECTION CHECKLIST:**
+- Search for: buyFee, sellFee, transferTax, withdrawalFee, feePercent, taxRate
+- Check for: require(fee <= maxFee), if (fee > MAX_FEE) revert, constant max definitions
+- Look for: setBuyFee(), setSellFee(), setWithdrawalFee() functions and their bounds
+- If fee variables exist but no max check found → DANGER
+- If max limit found and reasonable (≤10%) → SAFE
+- If max limit found but high (11-20%) → WARNING
+
+**EXAMPLE FEE ANALYSIS:**
+
+SAFE - Hardcoded 10% max:
+  function setWithdrawalFee(uint256 _fee) external onlyOwner {
+      require(_fee <= 1000, "Max 10%"); // 1000 out of 10000 basis points
+      withdrawalFee = _fee;
+  }
+  → Result: "Max 10%" | severity: "safe"
+  → NO vulnerability created (this is normal business logic)
+
+DANGER - No limit, honeypot risk:
+  function setWithdrawalFee(uint256 _fee) external onlyOwner {
+      withdrawalFee = _fee; // Can be set to 100%!
+  }
+  → Result: "No limit (honeypot risk)" | severity: "danger"
+  → MUST create a CRITICAL vulnerability: "Unlimited Fee Manipulation"
+
+WARNING - High but limited:
+  function setSellFee(uint256 _fee) external onlyOwner {
+      require(_fee <= 2000, "Max 20%");
+      sellFee = _fee;
+  }
+  → Result: "Max 20% (high)" | severity: "warning"
+  → Create a MEDIUM vulnerability: "High Fee Limits Without Disclosure"
+
+**OTHER BUSINESS RISKS:**
+- Is Honeypot (Yes/No/Not Detected) - Mark "Yes" if fees unlimited or >50%
 - Trading Cooldown (Yes/No/Not Detected)
 - Can Pause Trade (Yes/No)
 - Pause Transfer (Yes/No)
 - Anti-whale mechanism (Yes/No/Not Detected)
 - Anti-bot mechanism (Yes/No/Not Detected)
 - Blacklist capability (Yes/No)
-- Can Mint (Yes/No)
+- Can Mint (Yes/No) - If unlimited minting → include in vulnerabilities
 - Is Proxy (Yes/No)
 - Can Take Ownership (Yes/No)
 - Hidden Owner (Yes/No/Not Detected)
@@ -278,6 +340,9 @@ IMPORTANT:
 - Account for compiler optimizations if enabled
 - Analyze the full attack surface including MEV
 - Output ONLY valid JSON - no explanations outside JSON
+- **DO NOT flag properly limited fees (≤10% max) as vulnerabilities - they are normal business logic**
+- **ONLY flag unlimited fees or fees >20% as vulnerabilities**
+- **Always check for hardcoded maximum limits before flagging fee-related issues**
 
 CRITICAL FORMATTING RULES FOR VULNERABILITIES:
 - ONE issue per vulnerability entry - NEVER combine multiple issues into one card
@@ -442,16 +507,18 @@ ${userPrompt}`;
 
     const scanDuration = Date.now() - startTime;
 
-    // Determine grade from score
-    const score = Math.max(0, Math.min(100, result.score || 0));
+    // Calculate score deterministically from vulnerabilities (ignore AI's score)
+    const vulnerabilities = result.vulnerabilities || [];
+    const score = calculateScoreFromVulnerabilities(vulnerabilities);
     const grade = scoreToGrade(score);
 
     log.info('Quick scan complete', {
       contractName: input.contractName,
       score,
       grade,
-      vulnerabilityCount: result.vulnerabilities?.length || 0,
-      scanDuration
+      vulnerabilityCount: vulnerabilities.length,
+      scanDuration,
+      aiScore: result.score // Log AI's score for comparison
     });
 
     return {
@@ -495,12 +562,59 @@ ${userPrompt}`;
 }
 
 /**
- * Convert score to letter grade
+ * Calculate deterministic score from vulnerabilities
+ * Uses weighted penalty system based on severity
+ */
+function calculateScoreFromVulnerabilities(vulnerabilities: any[]): number {
+  // Start at 100 (perfect score)
+  let score = 100;
+
+  // Severity penalty weights
+  const SEVERITY_PENALTIES = {
+    critical: 25,  // Each critical finding removes 25 points
+    high: 15,      // Each high finding removes 15 points
+    medium: 8,     // Each medium finding removes 8 points
+    low: 3,        // Each low finding removes 3 points
+    info: 0        // Informational findings don't affect score
+  };
+
+  // Count vulnerabilities by severity
+  const counts = {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+    info: 0
+  };
+
+  for (const vuln of vulnerabilities) {
+    const severity = vuln.severity?.toLowerCase() || 'info';
+    if (severity in counts) {
+      counts[severity as keyof typeof counts]++;
+    }
+  }
+
+  // Apply penalties
+  score -= counts.critical * SEVERITY_PENALTIES.critical;
+  score -= counts.high * SEVERITY_PENALTIES.high;
+  score -= counts.medium * SEVERITY_PENALTIES.medium;
+  score -= counts.low * SEVERITY_PENALTIES.low;
+
+  // Floor at 0
+  return Math.max(0, score);
+}
+
+/**
+ * Convert score to letter grade (stricter thresholds)
  */
 function scoreToGrade(score: number): string {
+  if (score >= 95) return 'A+';
   if (score >= 90) return 'A';
+  if (score >= 85) return 'B+';
   if (score >= 80) return 'B';
+  if (score >= 75) return 'C+';
   if (score >= 70) return 'C';
+  if (score >= 65) return 'D+';
   if (score >= 60) return 'D';
   return 'F';
 }
