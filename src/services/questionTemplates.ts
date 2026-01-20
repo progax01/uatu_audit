@@ -58,11 +58,12 @@ const GENERIC_QUESTIONS: PreAuditQuestion[] = [
   },
   {
     key: 'deployment_networks',
-    text: 'Which networks will this contract be deployed on?',
+    text: 'Which blockchain networks will this contract be deployed on?',
     type: 'multiselect',
     options: ['Ethereum Mainnet', 'Polygon', 'Arbitrum', 'Optimism', 'Base', 'BSC', 'Avalanche', 'Other'],
     priority: 'HIGH',
     category: 'general',
+    helpText: 'Select all networks where you plan to deploy. Different chains have different security considerations (block times, gas costs, cross-chain risks).',
   },
   {
     key: 'external_dependencies',
@@ -83,7 +84,7 @@ const GENERIC_QUESTIONS: PreAuditQuestion[] = [
   },
   {
     key: 'admin_privileges',
-    text: 'What admin privileges exist in the contract?',
+    text: 'Which admin controls are present in your contract?',
     type: 'multiselect',
     options: [
       'Pause/unpause functionality',
@@ -92,12 +93,12 @@ const GENERIC_QUESTIONS: PreAuditQuestion[] = [
       'Mint tokens',
       'Blacklist addresses',
       'Emergency withdraw',
-      'None',
+      'None - fully decentralized',
       'Other'
     ],
     priority: 'HIGH',
     category: 'general',
-    helpText: 'Select all admin capabilities present in the contract',
+    helpText: '⚡ Transparency Matters: Disclosing admin controls upfront shows good faith. Hidden admin privileges receive higher severity ratings than disclosed ones. Admin controls are common in early-stage contracts — what matters is that they\'re clearly documented and protected by timelocks or multisig.',
   },
   {
     key: 'timelock_protection',

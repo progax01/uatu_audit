@@ -15,6 +15,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'node:path';
 import { logger } from '../utils/logger.js';
+import { shouldScanFile } from '../services/frameworkFileFilter.js';
 
 const execAsync = promisify(exec);
 const log = logger.child({ service: 'structure-analyzer' });
@@ -389,13 +390,26 @@ async function getDirectories(projectPath: string): Promise<string[]> {
 export async function analyzeStructure(projectPath: string): Promise<StructureSummary> {
     log.info('Starting shell-based structure analysis', { projectPath });
 
-    const [files, importGraph, exports, directories, ecosystem] = await Promise.all([
+    const [allFiles, importGraph, exports, directories, ecosystem] = await Promise.all([
         getFileList(projectPath),
         buildImportGraph(projectPath),
         analyzeExports(projectPath),
         getDirectories(projectPath),
         detectEcosystemQuick(projectPath),
     ]);
+
+    // Apply framework-based file filtering
+    const framework = ecosystem.primary || 'unknown';
+    const filesBefore = allFiles.length;
+    const files = allFiles.filter(file => shouldScanFile(file.relativePath, framework));
+    const filesExcluded = filesBefore - files.length;
+
+    log.info('Framework-based file filtering applied', {
+        framework,
+        before: filesBefore,
+        after: files.length,
+        excluded: filesExcluded
+    });
 
     const entryPoints = await detectEntryPoints(projectPath, files);
 

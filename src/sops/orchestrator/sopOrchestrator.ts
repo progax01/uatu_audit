@@ -6,6 +6,8 @@
  */
 
 import { EventEmitter } from 'events';
+import * as fs from 'fs-extra';
+import * as path from 'path';
 import type {
   SOPDefinition,
   StepDefinition,
@@ -31,6 +33,7 @@ import {
 } from './interactiveOrchestrator';
 import type { AddressType } from '../../db/schema';
 import { logger } from '../../utils/logger';
+import { moduleRegistry } from '../modules/registry.js';
 
 const log = logger.child({ module: 'sop-orchestrator' });
 
@@ -286,6 +289,41 @@ export class SOPOrchestrator extends EventEmitter {
       log.info('Skipping dependency installation per depth configuration');
     }
 
+    // ========================================================================
+    // MODULE SYSTEM: Load and merge specialized audit modules
+    // ========================================================================
+    // This happens AFTER basic filtering but BEFORE execution order is built
+    // Modules are activated based on detected contract patterns
+
+    // Check if we should activate modules (only for deep scans)
+    if (this.config.auditDepth === 'deep' || this.config.auditDepth === 'standard') {
+      try {
+        // Get applicable modules based on current context
+        // Context will include detected contract patterns once pattern detection runs
+        const moduleContext = {
+          data: {
+            contractPatterns: null, // Will be populated after pattern detection
+            detectedFramework: null,
+            projectPath: this.config.projectPath,
+          },
+        };
+
+        // Get modules that might apply (we'll check again after pattern detection)
+        const applicableModules = moduleRegistry.getApplicableModules(moduleContext);
+
+        if (applicableModules.length > 0) {
+          log.info('Modules will be activated after pattern detection', {
+            potentialModules: applicableModules.length,
+          });
+
+          // Store modules for later activation
+          this.stepData.set('pendingModules', applicableModules);
+        }
+      } catch (error: any) {
+        log.error('Failed to initialize module system', { error: error.message });
+      }
+    }
+
     this.enabledSteps = enabledSteps;
 
     // Build execution order based on dependencies
@@ -332,6 +370,9 @@ export class SOPOrchestrator extends EventEmitter {
     // Set initial data
     this.stepData.set('projectPath', this.config.projectPath);
     this.stepData.set('jobId', this.config.jobId);
+
+    // Load persisted stepData if available (for resume)
+    await this.loadStepData();
 
     log.info('Orchestrator initialized', {
       totalSteps: this.enabledSteps.length,
@@ -387,6 +428,19 @@ export class SOPOrchestrator extends EventEmitter {
         throw new Error(
           `Required step ${step.id} cannot run: dependencies not met`
         );
+      }
+
+      // Record skip reason for test steps
+      if (step.id.includes('test') || step.id.includes('Test')) {
+        const missingData = step.requires?.filter((key) => !this.stepData.has(key)) || [];
+        const skipReason = `Missing required data: ${missingData.join(', ')}`;
+        this.stepData.set('testSkipReason', skipReason);
+
+        log.info('Test step skipped', {
+          stepId: step.id,
+          reason: skipReason,
+          missingData,
+        });
       }
 
       // Skip optional step
@@ -559,6 +613,20 @@ export class SOPOrchestrator extends EventEmitter {
       for (const [key, value] of Object.entries(result.data)) {
         this.stepData.set(key, value);
       }
+
+      // Persist stepData to filesystem for resume capability
+      await this.persistStepData().catch((err) => {
+        log.warn('Failed to persist step data', { error: err.message });
+        // Don't fail the step if persistence fails
+      });
+
+      // ========================================================================
+      // DYNAMIC MODULE ACTIVATION
+      // ========================================================================
+      // After contract pattern detection completes, activate specialized modules
+      if (step.id === 'detect-contract-patterns' && result.data.contractPatterns) {
+        await this.activateSpecializedModules(result.data.contractPatterns);
+      }
     }
 
     // Collect findings (already enriched if interactive mode)
@@ -632,6 +700,93 @@ export class SOPOrchestrator extends EventEmitter {
     data.jobId = this.config.jobId;
 
     return data;
+  }
+
+  /**
+   * Activate specialized audit modules based on detected contract patterns
+   */
+  private async activateSpecializedModules(contractPatterns: any): Promise<void> {
+    try {
+      log.info('Activating specialized modules', {
+        patterns: Object.keys(contractPatterns).filter(k => contractPatterns[k]),
+      });
+
+      // Build context with detected patterns
+      const moduleContext = {
+        data: {
+          contractPatterns,
+          detectedFramework: this.stepData.get('detectedFramework'),
+          projectPath: this.config.projectPath,
+        },
+      };
+
+      // Get applicable modules
+      const applicableModules = moduleRegistry.getApplicableModules(moduleContext);
+
+      if (applicableModules.length === 0) {
+        log.info('No specialized modules applicable for this project');
+        return;
+      }
+
+      log.info('Activating modules', {
+        count: applicableModules.length,
+        modules: applicableModules.map(m => m.id),
+      });
+
+      // Merge modules into current SOP
+      const mergedSOP = moduleRegistry.mergeSOP(this.config.sop, applicableModules);
+
+      // Update SOP and rebuild execution plan
+      this.config.sop = mergedSOP;
+
+      // Get enabled steps for current depth
+      let enabledSteps = getEnabledSteps(mergedSOP, this.config.auditDepth);
+
+      // Filter out already completed steps
+      const completedStepIds = Array.from(this.stepStatus.entries())
+        .filter(([, status]) => status === 'completed')
+        .map(([id]) => id);
+
+      enabledSteps = enabledSteps.filter(step => !completedStepIds.includes(step.id));
+
+      // Update enabled steps
+      this.enabledSteps = [...this.enabledSteps, ...enabledSteps.filter(s =>
+        !this.enabledSteps.some(existing => existing.id === s.id)
+      )];
+
+      // Rebuild execution layers with new steps
+      this.executionLayers = buildExecutionOrder(this.enabledSteps);
+
+      // Recalculate total weight
+      this.totalWeight = calculateTotalWeight(this.enabledSteps);
+
+      // Initialize status for new steps
+      for (const step of enabledSteps) {
+        if (!this.stepStatus.has(step.id)) {
+          this.stepStatus.set(step.id, 'pending');
+        }
+      }
+
+      log.info('Modules activated successfully', {
+        newStepsAdded: enabledSteps.length,
+        totalSteps: this.enabledSteps.length,
+        totalLayers: this.executionLayers.length,
+      });
+
+      // Store activated modules info
+      this.stepData.set('activatedModules', applicableModules.map(m => ({
+        id: m.id,
+        name: m.name,
+        stepsAdded: m.additionalSteps.length,
+      })));
+
+    } catch (error: any) {
+      log.error('Failed to activate specialized modules', {
+        error: error.message,
+        stack: error.stack,
+      });
+      // Don't fail the audit if module activation fails
+    }
   }
 
   /**
@@ -859,5 +1014,128 @@ export class SOPOrchestrator extends EventEmitter {
    */
   getInteractiveOrchestrator(): InteractiveOrchestrator | null {
     return this.interactiveOrchestrator;
+  }
+
+  // ==========================================================================
+  // Step Data Persistence Methods (for Resume Capability)
+  // ==========================================================================
+
+  /**
+   * Get the path to the stepData persistence file
+   */
+  private getStepDataPath(): string {
+    const workspaceDir = this.config.projectPath;
+    return path.join(workspaceDir, '.uatu', 'stepData.json');
+  }
+
+  /**
+   * Get the path to save the Claude session ID
+   */
+  private getSessionIdPath(): string {
+    const workspaceDir = this.config.projectPath;
+    return path.join(workspaceDir, '.uatu', 'session.json');
+  }
+
+  /**
+   * Persist stepData to filesystem for resume capability
+   */
+  private async persistStepData(): Promise<void> {
+    const stepDataPath = this.getStepDataPath();
+
+    // Convert Map to plain object for JSON serialization
+    const dataToSave = Object.fromEntries(this.stepData);
+
+    // Ensure .uatu directory exists
+    await fs.ensureDir(path.dirname(stepDataPath));
+
+    // Save to file with pretty printing for debugging
+    await fs.writeJson(stepDataPath, {
+      jobId: this.config.jobId,
+      savedAt: new Date().toISOString(),
+      stepData: dataToSave,
+    }, { spaces: 2 });
+
+    log.debug('Step data persisted', {
+      jobId: this.config.jobId,
+      dataKeys: Object.keys(dataToSave).length,
+      path: stepDataPath,
+    });
+  }
+
+  /**
+   * Load persisted stepData from filesystem (for resume)
+   */
+  private async loadStepData(): Promise<void> {
+    const stepDataPath = this.getStepDataPath();
+
+    if (!(await fs.pathExists(stepDataPath))) {
+      log.debug('No persisted step data found', { path: stepDataPath });
+      return;
+    }
+
+    try {
+      const saved = await fs.readJson(stepDataPath);
+
+      // Validate it's for the same job (or allow resume from previous job)
+      if (saved.stepData) {
+        // Restore stepData Map from saved object
+        for (const [key, value] of Object.entries(saved.stepData)) {
+          this.stepData.set(key, value);
+        }
+
+        log.info('Step data loaded from previous run', {
+          jobId: this.config.jobId,
+          previousJobId: saved.jobId,
+          savedAt: saved.savedAt,
+          dataKeys: Object.keys(saved.stepData).length,
+        });
+      }
+    } catch (error: any) {
+      log.warn('Failed to load persisted step data', {
+        error: error.message,
+        path: stepDataPath,
+      });
+      // Don't throw - continue with empty stepData
+    }
+  }
+
+  /**
+   * Save Claude session ID for resume
+   */
+  async saveSessionId(sessionId: string): Promise<void> {
+    const sessionPath = this.getSessionIdPath();
+
+    await fs.ensureDir(path.dirname(sessionPath));
+    await fs.writeJson(sessionPath, {
+      sessionId,
+      jobId: this.config.jobId,
+      savedAt: new Date().toISOString(),
+    }, { spaces: 2 });
+
+    log.info('Claude session ID saved', { sessionId, jobId: this.config.jobId });
+  }
+
+  /**
+   * Load saved Claude session ID
+   */
+  async loadSessionId(): Promise<string | null> {
+    const sessionPath = this.getSessionIdPath();
+
+    if (!(await fs.pathExists(sessionPath))) {
+      return null;
+    }
+
+    try {
+      const saved = await fs.readJson(sessionPath);
+      log.info('Claude session ID loaded', {
+        sessionId: saved.sessionId,
+        previousJobId: saved.jobId,
+        savedAt: saved.savedAt,
+      });
+      return saved.sessionId;
+    } catch (error: any) {
+      log.warn('Failed to load session ID', { error: error.message });
+      return null;
+    }
   }
 }

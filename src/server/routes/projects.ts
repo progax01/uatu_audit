@@ -512,6 +512,8 @@ const listProjectAuditsHandler: RouteHandler = async (req, res, ctx, params) => 
         branch: job.branch || null,
         repoOwner,
         repoName,
+        auditDepth: job.auditDepth || (job.auditType === 'quick' ? 'quick' : 'standard'),
+        auditType: job.auditType,
       };
     });
 
@@ -633,6 +635,83 @@ const createManualProjectHandler: RouteHandler = async (req, res, ctx) => {
   } catch (error: any) {
     log.error('Failed to create manual project:', error);
     sendError(res, 500, error.message || 'Failed to create manual project');
+  }
+};
+
+/**
+ * PATCH /api/projects/:id/settings - Update project branding settings
+ */
+const updateProjectSettingsHandler: RouteHandler = async (req, res, ctx, params) => {
+  if (!ctx.userId) {
+    return sendError(res, 401, 'Authentication required');
+  }
+
+  const projectId = params?.id;
+  if (!projectId) {
+    return sendError(res, 400, 'Project ID required');
+  }
+
+  try {
+    // Check ownership
+    const existing = await getProject(projectId);
+    if (!existing) {
+      return sendError(res, 404, 'Project not found');
+    }
+    if (existing.userId !== ctx.userId) {
+      return sendError(res, 403, 'Access denied');
+    }
+
+    const body = await parseJsonBody<{
+      logoUrl?: string;
+      websiteUrl?: string;
+      primaryColor?: string;
+      contractAddress?: string;
+      chainId?: string;
+      docsUrl?: string;
+      githubUrl?: string;
+      twitterUrl?: string;
+      discordUrl?: string;
+    }>(req);
+
+    // Validate base64 image if logoUrl is provided
+    if (body.logoUrl && body.logoUrl.startsWith('data:image/')) {
+      // Check size limit (2MB for base64 is roughly 2.7MB encoded)
+      const base64Data = body.logoUrl.split(',')[1] || '';
+      const sizeInBytes = (base64Data.length * 3) / 4;
+      const maxSize = 2 * 1024 * 1024; // 2MB
+
+      if (sizeInBytes > maxSize) {
+        return sendError(res, 400, 'Logo image must be less than 2MB');
+      }
+    }
+
+    // Validate color format if provided
+    if (body.primaryColor && !/^#[0-9A-Fa-f]{6}$/.test(body.primaryColor)) {
+      return sendError(res, 400, 'Invalid color format. Use hex format like #5C61FF');
+    }
+
+    // Update only the provided settings fields
+    const updates: Record<string, unknown> = {};
+    if (body.logoUrl !== undefined) updates.logoUrl = body.logoUrl;
+    if (body.websiteUrl !== undefined) updates.websiteUrl = body.websiteUrl;
+    if (body.primaryColor !== undefined) updates.primaryColor = body.primaryColor;
+    if (body.contractAddress !== undefined) updates.contractAddress = body.contractAddress;
+    if (body.chainId !== undefined) updates.chainId = body.chainId;
+    if (body.docsUrl !== undefined) updates.docsUrl = body.docsUrl;
+    if (body.githubUrl !== undefined) updates.githubUrl = body.githubUrl;
+    if (body.twitterUrl !== undefined) updates.twitterUrl = body.twitterUrl;
+    if (body.discordUrl !== undefined) updates.discordUrl = body.discordUrl;
+
+    const updated = await updateProject(projectId, updates);
+    if (!updated) {
+      return sendError(res, 500, 'Failed to update project settings');
+    }
+
+    log.info(`Updated settings for project: ${projectId}`);
+    sendJson(res, 200, { success: true, settings: updated });
+  } catch (error: any) {
+    log.error('Failed to update project settings:', error);
+    sendError(res, 500, error.message || 'Failed to update project settings');
   }
 };
 
@@ -774,6 +853,7 @@ const routes: Route[] = [
   { method: 'GET', pattern: '/api/projects/:id', handler: getProjectHandler },
   { method: 'PUT', pattern: '/api/projects/:id', handler: updateProjectHandler },
   { method: 'DELETE', pattern: '/api/projects/:id', handler: deleteProjectHandler },
+  { method: 'PATCH', pattern: '/api/projects/:id/settings', handler: updateProjectSettingsHandler },
   { method: 'POST', pattern: '/api/projects/:id/components', handler: addComponentHandler },
   { method: 'GET', pattern: '/api/projects/:id/components', handler: listComponentsHandler },
   { method: 'GET', pattern: '/api/projects/:id/audits', handler: listProjectAuditsHandler },

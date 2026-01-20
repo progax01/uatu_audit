@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ShieldCheck, Download, AlertCircle, AlertTriangle,
@@ -16,6 +16,10 @@ import MilestoneTracker from '../components/MilestoneTracker'
 import { Link } from 'react-router-dom'
 import AuthModal from '../components/AuthModal'
 import { authFetch } from '../services/authService'
+import { TestExecutionReport } from '../components/TestExecutionReport'
+import { GroupedDependencyFindings } from '../components/DependencyFindingCard'
+import { organizeFindings } from '../services/findingSorter'
+import SEO from '../components/SEO'
 
 interface AuditDetailsProps {
   jobId?: number | string
@@ -46,8 +50,9 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   const { jobId: urlId } = useParams<{ jobId: string }>()
   const jobId = urlId || propJobId?.toString()
   const { address, isConnected } = useAccount()
+  const navigate = useNavigate()
 
-  const [activeTab, setActiveTab] = useState<'report' | 'triage' | 'faq' | 'testcases'>('report')
+  const [activeTab, setActiveTab] = useState<'report' | 'dependencies' | 'tests' | 'triage' | 'faq' | 'testcases'>('report')
   const [loading, setLoading] = useState(true)
   const [auditData, setAuditData] = useState<any>(null)
   const [jobInfo, setJobInfo] = useState<any>(null)
@@ -58,6 +63,11 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   const [showClaimModal, setShowClaimModal] = useState(false)
   const [isClaimed, setIsClaimed] = useState(false)
   const [addressMismatchError, setAddressMismatchError] = useState<string | null>(null)
+  const [clarifications, setClarifications] = useState<any[]>([])
+  const [clarificationsLoading, setClarificationsLoading] = useState(false)
+  const [questionnaireAnswers, setQuestionnaireAnswers] = useState<any[]>([])
+  const [triageAnswers, setTriageAnswers] = useState<any[]>([])
+  const [faqLoading, setFaqLoading] = useState(false)
 
   const toggleVuln = (id: string) => {
     setExpandedVulns(prev => {
@@ -391,6 +401,96 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
     }, 500);
   };
 
+  // Fetch post-audit clarification questions
+  const fetchClarifications = async (auditJobId: string) => {
+    setClarificationsLoading(true);
+    try {
+      const response = await authFetch(`/api/audit/${auditJobId}/clarifications`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Fetched clarifications:', data.clarifications);
+        setClarifications(data.clarifications || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch clarifications:', err);
+    } finally {
+      setClarificationsLoading(false);
+    }
+  };
+
+  // Fetch pre-audit questionnaire answers
+  const fetchQuestionnaireAnswers = async () => {
+    if (!jobId) return;
+    setFaqLoading(true);
+    try {
+      const response = await authFetch(`/api/audits/${jobId}/questionnaire`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Fetched questionnaire answers:', data.answers);
+        setQuestionnaireAnswers(data.answers || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch questionnaire answers:', err);
+    } finally {
+      setFaqLoading(false);
+    }
+  };
+
+  // Fetch triage answers
+  const fetchTriageAnswers = async () => {
+    if (!jobId) return;
+    try {
+      const response = await authFetch(`/api/audits/${jobId}/clarifications`);
+      if (response.ok) {
+        const data = await response.json();
+        const answeredTriage = data.clarifications?.filter((c: any) => c.phase === 'post_audit' && c.status === 'answered') || [];
+        console.log('Fetched triage answers:', answeredTriage);
+        setTriageAnswers(answeredTriage);
+      }
+    } catch (err) {
+      console.error('Failed to fetch triage answers:', err);
+    }
+  };
+
+  // Fetch FAQ data when FAQ tab is active
+  useEffect(() => {
+    if (activeTab === 'faq' && jobId) {
+      fetchQuestionnaireAnswers();
+      fetchTriageAnswers();
+    }
+  }, [activeTab, jobId]);
+
+  // Handle triage submission
+  const handleTriageSubmit = async (answers: any) => {
+    if (!jobId) return;
+
+    try {
+      const response = await authFetch(`/api/audits/${jobId}/triage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit triage answers');
+      }
+
+      const data = await response.json();
+      console.log('Triage submission successful:', data);
+
+      // Reload clarifications to update status
+      await fetchClarifications(jobId);
+
+      // Reload audit data to get re-scored findings
+      window.location.reload();
+
+      alert('✅ Triage answers saved! Report has been re-scored based on your disclosures.');
+    } catch (err) {
+      console.error('Triage submission failed:', err);
+      alert('❌ Failed to save triage answers. Please try again.');
+    }
+  };
+
   useEffect(() => {
     // Fetch from new unified audit API (UUID format)
     const fetchUnifiedAudit = async () => {
@@ -451,6 +551,11 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
             // Set quick scan flag based on audit type
             if (data.audit.auditType === 'quick') {
               setIsQuickScan(true);
+            }
+
+            // Fetch post-audit clarifications if audit is completed
+            if (data.audit.status === 'completed') {
+              fetchClarifications(jobId);
             }
 
             // If audit has results, map them to component state
@@ -782,11 +887,11 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
 
         {/* Header */}
         <header className="h-16 flex items-center justify-between px-8 relative z-10">
-          <div onClick={onHomeClick} className="cursor-pointer flex items-center gap-3 group">
+          <div onClick={() => navigate('/dashboard')} className="cursor-pointer flex items-center gap-3 group">
             <img src={logo} alt="Uatu" className="h-6" />
           </div>
           <button
-            onClick={onHomeClick}
+            onClick={() => navigate('/dashboard')}
             className="flex items-center gap-2 text-[11px] font-bold text-slate-500 hover:text-rose-600 transition-colors"
           >
             <ArrowLeft size={14} />
@@ -828,7 +933,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
             {/* Actions */}
             <div className="flex gap-3 justify-center mb-8">
               <button
-                onClick={onHomeClick}
+                onClick={() => navigate('/dashboard')}
                 className="group px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold text-[13px] hover:bg-slate-200 transition-all flex items-center gap-2"
               >
                 <ArrowLeft size={14} />
@@ -853,6 +958,157 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
     );
   }
 
+  // Show running/progress page for audits in progress
+  if (!auditData && jobInfo && (jobInfo.status === 'running' || jobInfo.status === 'pending' || jobInfo.status === 'queued')) {
+    return (
+      <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
+        {/* Header */}
+        <header className="h-16 flex items-center justify-between px-8 bg-white border-b border-slate-200 flex-shrink-0">
+          <div onClick={() => navigate('/dashboard')} className="cursor-pointer flex items-center gap-3 group">
+            <img src={logo} alt="Uatu" className="h-6" />
+          </div>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-2 text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors"
+          >
+            <ArrowLeft size={14} />
+            Back to Dashboard
+          </button>
+        </header>
+
+        {/* Two Column Layout */}
+        <div className="flex-1 grid grid-cols-2 gap-0 overflow-hidden">
+          {/* Left Column - Progress Info */}
+          <div className="flex flex-col justify-center items-center px-12 bg-white border-r border-slate-200">
+            <div className="w-full max-w-md">
+              {/* Status Icon */}
+              <div className="mb-8 flex justify-center">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-xl">
+                  <Timer size={48} className="text-white animate-pulse" />
+                </div>
+              </div>
+
+              {/* Message */}
+              <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-4 text-center">
+                Audit In Progress
+              </h1>
+              <p className="text-slate-500 text-base leading-relaxed mb-10 text-center">
+                Your audit is currently running. This page will automatically update when complete.
+              </p>
+
+              {/* Progress Info */}
+              {progress && (
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-black text-slate-700 uppercase tracking-wider">Status</span>
+                      <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
+                        {progress.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  {progress.currentStep && (
+                    <div>
+                      <div className="text-sm font-black text-slate-700 uppercase tracking-wider mb-3">Current Step</div>
+                      <div className="text-base text-slate-900 font-medium bg-slate-50 px-4 py-3 rounded-xl border border-slate-200">
+                        {progress.currentStep}
+                      </div>
+                    </div>
+                  )}
+
+                  {typeof progress.pct === 'number' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-black text-slate-700 uppercase tracking-wider">Progress</span>
+                        <span className="text-2xl font-black text-indigo-600">{progress.pct}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500 rounded-full"
+                          style={{ width: `${progress.pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Project Info */}
+              {jobInfo && (
+                <div className="mt-10 pt-6 border-t border-slate-200 text-sm text-slate-500">
+                  <div className="font-mono mb-2"><span className="font-bold text-slate-700">Project:</span> {jobInfo.project}</div>
+                  {jobInfo.detectedFramework && (
+                    <div className="font-mono"><span className="font-bold text-slate-700">Framework:</span> {jobInfo.detectedFramework}</div>
+                  )}
+                </div>
+              )}
+
+            {/* ID Reference */}
+            <p className="text-[10px] text-slate-400 font-mono text-center mt-10">
+              Job ID: {jobId}
+            </p>
+          </div>
+        </div>
+
+        {/* Right Column - Terminal Output */}
+        <div className="flex flex-col justify-center items-center px-12 bg-slate-900">
+          {progress && progress.currentStep && (
+            <div className="w-full max-w-3xl">
+              <div className="bg-slate-800 rounded-2xl p-8 font-mono text-sm shadow-2xl border border-slate-700">
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-700">
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-2">
+                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                      <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                    </div>
+                    <span className="text-slate-400 ml-2">uatu-audit — {jobId?.toString().slice(0, 8)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span className="text-emerald-400 text-[10px] font-bold">LIVE</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-slate-500">
+                    <span className="text-indigo-400">$</span> uatu audit start --depth {jobInfo?.depth || 'standard'} --project "{jobInfo?.project || 'project'}"
+                  </div>
+                  <div className="text-emerald-400 flex items-center gap-2">
+                    <CheckCircle2 size={14} />
+                    Framework detected: {jobInfo?.detectedFramework || 'analyzing...'}
+                  </div>
+                  <div className="text-slate-400">
+                    → Loading audit pipeline...
+                  </div>
+                  <div className="text-yellow-400 flex items-center gap-2 font-bold">
+                    <Zap size={14} className="animate-pulse" />
+                    Running: {progress.currentStep}
+                  </div>
+                  <div className="flex items-center gap-2 text-indigo-400 mt-4">
+                    <div className="flex gap-1">
+                      <div className="w-1 h-4 bg-indigo-500 animate-pulse rounded"></div>
+                      <div className="w-1 h-4 bg-indigo-500 animate-pulse rounded" style={{ animationDelay: '100ms' }}></div>
+                      <div className="w-1 h-4 bg-indigo-500 animate-pulse rounded" style={{ animationDelay: '200ms' }}></div>
+                    </div>
+                    <span>Processing... {progress.pct}%</span>
+                  </div>
+                  <div className="text-slate-700 my-3">
+                    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  </div>
+                  <div className="text-slate-500 italic text-xs">
+                    Page auto-updates when complete. No refresh needed.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+    );
+  }
+
   // Show branded 404 page when audit not found
   if (error || !auditData) {
     return (
@@ -864,11 +1120,11 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
 
         {/* Header */}
         <header className="h-16 flex items-center justify-between px-8 relative z-10">
-          <div onClick={onHomeClick} className="cursor-pointer flex items-center gap-3 group">
+          <div onClick={() => navigate('/dashboard')} className="cursor-pointer flex items-center gap-3 group">
             <img src={logo} alt="Uatu" className="h-6" />
           </div>
           <button
-            onClick={onHomeClick}
+            onClick={() => navigate('/dashboard')}
             className="flex items-center gap-2 text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors"
           >
             <ArrowRight size={14} className="rotate-180" />
@@ -895,7 +1151,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
             {/* Actions */}
             <div className="flex gap-3 justify-center mb-8">
               <button
-                onClick={onHomeClick}
+                onClick={() => navigate('/dashboard')}
                 className="group px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-[13px] hover:bg-slate-800 transition-all flex items-center gap-2"
               >
                 Dashboard
@@ -920,9 +1176,29 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
     )
   }
 
+  // Generate dynamic SEO metadata
+  const projectName = auditData?.projectName || jobInfo?.project || 'Smart Contract'
+  const auditScore = auditData?.score || 0
+  const grade = auditData?.grade || 'N/A'
+  const severityCounts = auditData?.severity || {}
+  const totalIssues = Object.values(severityCounts).reduce((sum: number, count: any) => sum + (count || 0), 0) as number
+
+  const seoTitle = `${projectName} Security Audit Report | Uatu Protocol Intelligence`
+  const seoDescription = `Comprehensive smart contract security audit for ${projectName} by Uatu. Security Score: ${auditScore}/100 (${grade}). ${totalIssues} findings analyzed including ${severityCounts.critical || 0} critical and ${severityCounts.high || 0} high severity issues. View detailed blockchain audit results.`
+  const seoKeywords = `${projectName} audit, ${projectName} security, smart contract audit, blockchain security, Uatu audit, ${projectName} vulnerabilities, DeFi security, contract analysis, security score ${auditScore}, ${auditData?.network || 'ethereum'} audit`
+  const ogImageUrl = `${window.location.origin}/og-images/${jobId}.png`
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] selection:bg-indigo-500/10 text-slate-950 font-sans relative">
-      <MouseTooltip />
+    <>
+      <SEO
+        title={seoTitle}
+        description={seoDescription}
+        keywords={seoKeywords}
+        url={`https://uatu.xyz/audit/${jobId}`}
+        image={ogImageUrl}
+      />
+      <div className="min-h-screen bg-[#F8FAFC] selection:bg-indigo-500/10 text-slate-950 font-sans relative">
+        <MouseTooltip />
 
       {/* Institutional Body Watermark */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden flex items-center justify-center opacity-[0.03]">
@@ -932,7 +1208,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       {/* Refined Institutional Header */}
       <header className="h-24 bg-white border-b border-slate-200 flex items-center justify-between px-12 sticky top-0 z-50">
         <div className="flex items-center gap-10">
-          <div onClick={onHomeClick} className="cursor-pointer group flex items-center gap-6">
+          <div onClick={() => navigate('/dashboard')} className="cursor-pointer group flex items-center gap-6">
             <img src={logo} alt="Uatu" className="h-8 object-contain" />
             <div className="h-8 w-px bg-slate-200" />
             {auditData?.projectLogoUrl && (
@@ -1239,8 +1515,25 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                 onClick={() => setActiveTab('report')}
                 className={`px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'report' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                Technical Findings Log
+                Project Findings
                 {activeTab === 'report' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-slate-900" />}
+              </button>
+              <button
+                onClick={() => setActiveTab('dependencies')}
+                className={`px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'dependencies' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Dependencies
+                {auditData?.dependencyFindings && auditData.dependencyFindings.length > 0 && (
+                  <span className="ml-3 px-2 py-0.5 bg-amber-500 text-white text-[9px] rounded-full">{auditData.dependencyFindings.length}</span>
+                )}
+                {activeTab === 'dependencies' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-slate-900" />}
+              </button>
+              <button
+                onClick={() => setActiveTab('tests')}
+                className={`px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'tests' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Test Execution
+                {activeTab === 'tests' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-slate-900" />}
               </button>
               {/* Hide LIABILITY TRIAGE tab for Quick Scans */}
               {!isQuickScan && (
@@ -1249,19 +1542,12 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                   className={`px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'triage' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   Liability Triage
-                  {auditData.questions?.length > 0 && (
-                    <span className="ml-3 px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full">{auditData.questions.length}</span>
+                  {clarifications?.length > 0 && (
+                    <span className="ml-3 px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full">{clarifications.length}</span>
                   )}
                   {activeTab === 'triage' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-slate-900" />}
                 </button>
               )}
-              <button
-                onClick={() => setActiveTab('testcases')}
-                className={`px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'testcases' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                Test Execution
-                {activeTab === 'testcases' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-slate-900" />}
-              </button>
               <button
                 onClick={() => setActiveTab('faq')}
                 className={`px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'faq' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
@@ -1305,7 +1591,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         )}
 
                         {/* Technical Quick Stats Table */}
-                        {isQuickScan && auditData.technicalChecks && auditData.technicalChecks.length > 0 && (
+                        {auditData.technicalChecks && auditData.technicalChecks.length > 0 && (
                           <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
                             <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between">
                               <div className="flex items-center gap-3">
@@ -1352,7 +1638,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         )}
 
                         {/* Business Risk Analysis Table */}
-                        {isQuickScan && auditData.businessRiskChecks && auditData.businessRiskChecks.length > 0 && (
+                        {auditData.businessRiskChecks && auditData.businessRiskChecks.length > 0 && (
                           <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
                             <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between">
                               <div className="flex items-center gap-3">
@@ -1442,11 +1728,34 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         {/* Vulnerabilities - Accordion Style */}
                         {auditData.vulnerabilities?.map((v: any) => {
                           const isExpanded = expandedVulns.has(v.id)
+                          const wasDisclosureAdjusted = v.description?.includes('[Note: Severity reduced because')
                           return (
                             <div
                               key={v.id}
                               className="border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all"
                             >
+                              {/* Disclosure Marker */}
+                              {wasDisclosureAdjusted && (
+                                <div className="px-8 py-4 bg-emerald-50 border-b border-emerald-200 flex items-center gap-3">
+                                  <ShieldCheck size={16} className="text-emerald-600 flex-shrink-0" />
+                                  <div className="flex-1">
+                                    <p className="text-xs font-black text-emerald-900">Severity Adjusted for Transparency</p>
+                                    <p className="text-[10px] text-emerald-700 font-medium mt-0.5">
+                                      Severity reduced because this control was disclosed in the pre-audit questionnaire
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveTab('faq');
+                                    }}
+                                    className="text-[9px] font-black text-emerald-600 underline uppercase hover:text-emerald-700 transition-colors"
+                                  >
+                                    View FAQ
+                                  </button>
+                                </div>
+                              )}
+
                               {/* Accordion Header - Always visible */}
                               <button
                                 onClick={() => toggleVuln(v.id)}
@@ -1738,9 +2047,89 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         exit={{ opacity: 0 }}
                       >
                         <LiabilityTriage
-                          questions={auditData.questions}
-                          onSubmit={(ans) => console.log('Submitting triage:', ans)}
+                          questions={clarifications.filter(c => c.status === 'pending').map(c => ({
+                            id: c.id,
+                            component_id: c.context?.findingId || 'unknown',
+                            component_label: c.context?.category || 'Security',
+                            question: c.questionText,
+                            suggested_scope: 'INTERNAL'
+                          }))}
+                          onSubmit={handleTriageSubmit}
                         />
+                      </motion.div>
+                    ) : activeTab === 'dependencies' ? (
+                      <motion.div
+                        key="dependencies"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="space-y-6"
+                      >
+                        <div className="bg-amber-50 border-l-4 border-amber-500 p-6 mb-6 rounded-r-xl">
+                          <h3 className="font-bold text-amber-900 text-lg mb-2">Third-Party Dependencies</h3>
+                          <p className="text-sm text-amber-800">
+                            Issues found in external libraries and frameworks (node_modules, OpenZeppelin, Solady, etc.). These require updating dependencies or finding alternatives.
+                          </p>
+                        </div>
+
+                        {auditData?.dependencyFindings && auditData.dependencyFindings.length > 0 ? (
+                          <GroupedDependencyFindings findings={auditData.dependencyFindings} />
+                        ) : (
+                          <div className="bg-green-50 border-2 border-green-200 rounded-xl p-12 text-center">
+                            <CheckCircle2 className="mx-auto mb-4 text-green-600" size={48} />
+                            <h3 className="font-bold text-green-900 text-xl mb-2">No Dependency Issues Found</h3>
+                            <p className="text-green-700">
+                              All third-party libraries passed security checks. Your dependencies are clean.
+                            </p>
+                          </div>
+                        )}
+
+                        {auditData?.filterStats && (
+                          <div className="mt-8 p-4 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
+                            <p className="font-bold mb-2">Filtering Statistics:</p>
+                            <p>Total findings analyzed: {auditData.filterStats.total}</p>
+                            <p>Project findings: {auditData.filterStats.project}</p>
+                            <p>Dependency findings: {auditData.filterStats.dependencies}</p>
+                            <p>Filtered (noise): {auditData.filterStats.filtered}</p>
+                          </div>
+                        )}
+                      </motion.div>
+                    ) : activeTab === 'tests' ? (
+                      <motion.div
+                        key="tests"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="space-y-6"
+                      >
+                        <TestExecutionReport report={auditData?.testReport} />
+
+                        {auditData?.testReport?.executed && auditData.testReport.stats && (
+                          <div className="mt-8">
+                            <h3 className="font-bold text-gray-900 text-lg mb-4">Test Results Breakdown</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="bg-white border-2 border-gray-200 rounded-xl p-6">
+                                <h4 className="text-sm font-bold text-gray-700 mb-3">Pass Rate</h4>
+                                <div className="text-4xl font-black text-green-600">
+                                  {((auditData.testReport.stats.passed / auditData.testReport.stats.total) * 100).toFixed(0)}%
+                                </div>
+                                <p className="text-xs text-gray-600 mt-2">
+                                  {auditData.testReport.stats.passed} of {auditData.testReport.stats.total} tests passed
+                                </p>
+                              </div>
+
+                              <div className="bg-white border-2 border-gray-200 rounded-xl p-6">
+                                <h4 className="text-sm font-bold text-gray-700 mb-3">Framework</h4>
+                                <div className="text-2xl font-black text-blue-600 uppercase">
+                                  {auditData.testReport.framework || 'Unknown'}
+                                </div>
+                                <p className="text-xs text-gray-600 mt-2">
+                                  Test runner used for execution
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </motion.div>
                     ) : activeTab === 'testcases' ? (
                       <motion.div
@@ -1849,97 +2238,203 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         exit={{ opacity: 0 }}
                         className="space-y-8"
                       >
-                        {/* Grading & Scoring */}
-                        <div className="space-y-4">
-                          <div className="border-l-4 border-indigo-600 pl-4 mb-5">
-                            <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Grading & Scoring</h3>
-                            <p className="text-[10px] text-slate-400 mt-1 font-bold">Understanding audit scores</p>
+                        {faqLoading ? (
+                          <div className="flex items-center justify-center py-12">
+                            <RefreshCw className="animate-spin text-indigo-600" size={32} />
                           </div>
-                          {[
-                            {
-                              q: "What does an 'A+' grade signify?",
-                              a: "An A+ grade represents near-perfect adherence to security best practices, zero high-risk vulnerabilities, and robust test coverage. It's the highest institutional seal of excellence."
-                            },
-                            {
-                              q: "How is the security score calculated?",
-                              a: "The score is calculated based on vulnerability severity (weighted by impact), code quality metrics, test coverage, and adherence to security best practices. Critical issues have the highest negative impact."
-                            }
-                          ].map((item, i) => (
-                            <div key={`grade-${i}`} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-slate-300 transition-colors">
-                              <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">{item.q}</h4>
-                              <p className="text-[13px] text-slate-500 leading-relaxed">{item.a}</p>
-                            </div>
-                          ))}
-                        </div>
+                        ) : (
+                          <>
+                            {/* Pre-Audit Questionnaire Section */}
+                            <div className="space-y-4">
+                              <div className="border-l-4 border-indigo-600 pl-4 mb-5">
+                                <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">
+                                  Pre-Audit Questionnaire
+                                </h3>
+                                <p className="text-[10px] text-slate-400 mt-1 font-bold">
+                                  Information provided before audit
+                                </p>
+                              </div>
 
-                        {/* Audit Process */}
-                        <div className="space-y-4">
-                          <div className="border-l-4 border-emerald-600 pl-4 mb-5">
-                            <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Audit Process</h3>
-                            <p className="text-[10px] text-slate-400 mt-1 font-bold">How audits work</p>
-                          </div>
-                          {[
-                            {
-                              q: "How often should I re-audit?",
-                              a: "We recommend a full audit for every major protocol upgrade or at least once every 6 months to ensure safety against newly discovered attack vectors."
-                            },
-                            {
-                              q: "What's the difference between audit depths?",
-                              a: "Quick scans use static analysis (~5 min). Standard audits include compilation and multiple tools (~30 min). Deep audits add interactive questionnaires and business logic analysis (~2 hours)."
-                            }
-                          ].map((item, i) => (
-                            <div key={`process-${i}`} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-slate-300 transition-colors">
-                              <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">{item.q}</h4>
-                              <p className="text-[13px] text-slate-500 leading-relaxed">{item.a}</p>
+                              {questionnaireAnswers.length > 0 ? (
+                                questionnaireAnswers.map((qa: any, i: number) => (
+                                  <div key={i} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-slate-300 transition-colors">
+                                    <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">{qa.question}</h4>
+                                    <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                      {typeof qa.answer === 'object' ? JSON.stringify(qa.answer, null, 2) : qa.answer}
+                                    </p>
+                                    {qa.status === 'answered' && qa.answeredAt && (
+                                      <p className="text-[10px] text-slate-400 mt-2">
+                                        Answered: {new Date(qa.answeredAt).toLocaleDateString()}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="bg-white border border-slate-200 p-8 rounded-2xl text-center">
+                                  <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                                    <Package size={20} className="text-slate-300" />
+                                  </div>
+                                  <p className="text-sm text-slate-500 font-medium">No questionnaire answers available</p>
+                                  <p className="text-xs text-slate-400 mt-1">Pre-audit questions will appear here when answered</p>
+                                </div>
+                              )}
                             </div>
-                          ))}
-                        </div>
 
-                        {/* Technical Details */}
-                        <div className="space-y-4">
-                          <div className="border-l-4 border-amber-600 pl-4 mb-5">
-                            <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Technical Details</h3>
-                            <p className="text-[10px] text-slate-400 mt-1 font-bold">Understanding metrics</p>
-                          </div>
-                          {[
-                            {
-                              q: "What is SLOC and why does it matter?",
-                              a: "Source Lines of Code (SLOC) is an indicator of codebase complexity. Higher SLOC often requires more intensive manual review and formal verification passes."
-                            },
-                            {
-                              q: "Which tools are used in audits?",
-                              a: "We use industry-standard tools including Slither (static analysis), Mythril (symbolic execution), Semgrep (pattern matching), and custom AI-powered vulnerability detection."
-                            }
-                          ].map((item, i) => (
-                            <div key={`technical-${i}`} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-slate-300 transition-colors">
-                              <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">{item.q}</h4>
-                              <p className="text-[13px] text-slate-500 leading-relaxed">{item.a}</p>
-                            </div>
-                          ))}
-                        </div>
+                            {/* Liability Triage Answers Section */}
+                            {triageAnswers.length > 0 && (
+                              <div className="space-y-4">
+                                <div className="border-l-4 border-amber-600 pl-4 mb-5">
+                                  <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">
+                                    Liability Triage Responses
+                                  </h3>
+                                  <p className="text-[10px] text-slate-400 mt-1 font-bold">
+                                    Clarifications provided after audit
+                                  </p>
+                                </div>
 
-                        {/* Sharing & Reports */}
-                        <div className="space-y-4">
-                          <div className="border-l-4 border-violet-600 pl-4 mb-5">
-                            <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Sharing & Reports</h3>
-                            <p className="text-[10px] text-slate-400 mt-1 font-bold">Public reports and exports</p>
-                          </div>
-                          {[
-                            {
-                              q: "Can I share this report publicly?",
-                              a: "Yes, this digital dossier is designed for public verification. You can share the URL or export the signed PDF certificate for institutional stakeholders."
-                            },
-                            {
-                              q: "How do I make my audit report public?",
-                              a: "Toggle the visibility from the project's Audits tab. Public reports are indexed and searchable, while private reports are only accessible to you."
-                            }
-                          ].map((item, i) => (
-                            <div key={`sharing-${i}`} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-slate-300 transition-colors">
-                              <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">{item.q}</h4>
-                              <p className="text-[13px] text-slate-500 leading-relaxed">{item.a}</p>
+                                {triageAnswers.map((ta: any, i: number) => (
+                                  <div key={i} className="bg-white border border-amber-200 p-6 rounded-2xl shadow-sm hover:border-amber-300 transition-colors">
+                                    <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">
+                                      {ta.questionText}
+                                    </h4>
+                                    <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                      {typeof ta.answerValue === 'object' && ta.answerValue?.answer
+                                        ? ta.answerValue.answer
+                                        : typeof ta.answerValue === 'string'
+                                        ? ta.answerValue
+                                        : JSON.stringify(ta.answerValue, null, 2)}
+                                    </p>
+                                    {ta.answerValue?.url && (
+                                      <a
+                                        href={ta.answerValue.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-indigo-600 hover:underline mt-2 inline-block font-bold"
+                                      >
+                                        View Evidence →
+                                      </a>
+                                    )}
+                                    {ta.answeredAt && (
+                                      <p className="text-[10px] text-slate-400 mt-2">
+                                        Answered: {new Date(ta.answeredAt).toLocaleDateString()}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Default FAQ Sections */}
+                            <div className="space-y-4 mt-8">
+                              <div className="border-l-4 border-slate-600 pl-4 mb-5">
+                                <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">
+                                  Grading & Scoring
+                                </h3>
+                              </div>
+
+                              <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">How is the security score calculated?</h4>
+                                <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                  The security score is calculated using a weighted severity system. Critical findings have the highest impact, followed by high, medium, low, and informational findings. The score ranges from 0-100, where 100 represents perfect security with no findings.
+                                </p>
+                              </div>
+
+                              <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">What do the letter grades mean?</h4>
+                                <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                  A+ (95-100): Exceptional security with minimal to no issues. A (85-94): Strong security posture. B (70-84): Good security with minor issues. C (50-69): Moderate security concerns. D (30-49): Significant security issues. F (0-29): Critical security problems requiring immediate attention.
+                                </p>
+                              </div>
                             </div>
-                          ))}
-                        </div>
+
+                            <div className="space-y-4 mt-8">
+                              <div className="border-l-4 border-slate-600 pl-4 mb-5">
+                                <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">
+                                  Audit Process
+                                </h3>
+                              </div>
+
+                              <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">What tools are used in the audit?</h4>
+                                <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                  Uatu uses a combination of industry-standard security tools including Slither for static analysis, Mythril for symbolic execution, Semgrep for pattern matching, and custom AI-powered analysis. Each tool specializes in detecting different types of vulnerabilities.
+                                </p>
+                              </div>
+
+                              <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">How long does an audit take?</h4>
+                                <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                  Quick scans typically complete in 2-5 minutes. Deep audits can take 15-30 minutes depending on codebase size and complexity. Real-time progress updates are provided throughout the audit process.
+                                </p>
+                              </div>
+
+                              <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">Can I re-run audits?</h4>
+                                <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                  Yes, you can run audits as many times as needed. It's recommended to run a new audit after making significant code changes or fixing identified vulnerabilities to verify the improvements.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="space-y-4 mt-8">
+                              <div className="border-l-4 border-slate-600 pl-4 mb-5">
+                                <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">
+                                  Technical Details
+                                </h3>
+                              </div>
+
+                              <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">What types of vulnerabilities are detected?</h4>
+                                <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                  The audit detects a wide range of vulnerabilities including reentrancy attacks, access control issues, integer overflow/underflow, unchecked external calls, gas optimization issues, and code quality concerns. Each finding includes severity rating, location, and remediation guidance.
+                                </p>
+                              </div>
+
+                              <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">Are false positives possible?</h4>
+                                <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                  Yes, automated tools may occasionally flag false positives. Each finding should be reviewed in context. The severity rating and detailed description help you assess whether a finding represents a real security risk in your specific implementation.
+                                </p>
+                              </div>
+
+                              <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">What frameworks are supported?</h4>
+                                <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                  Uatu supports Hardhat, Foundry, Truffle, and other popular Solidity development frameworks. The audit automatically detects your project's framework and applies appropriate analysis techniques.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="space-y-4 mt-8">
+                              <div className="border-l-4 border-slate-600 pl-4 mb-5">
+                                <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">
+                                  Sharing & Reports
+                                </h3>
+                              </div>
+
+                              <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">Can I share audit reports?</h4>
+                                <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                  Yes, you can generate shareable audit reports. Reports can be made public or kept private. Public reports are accessible via a unique URL and can be embedded as badges on your project website or documentation.
+                                </p>
+                              </div>
+
+                              <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">What export formats are available?</h4>
+                                <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                  Audit reports can be exported as JSON for integration with other tools, or viewed in the browser with a clean, professional layout. Additional export formats may be added based on user needs.
+                                </p>
+                              </div>
+
+                              <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                                <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">How do I display my audit badge?</h4>
+                                <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                  After publishing your audit, you'll receive an embeddable badge with your security score. The badge can be placed on your project's README, website, or documentation to showcase your security commitment to users and investors.
+                                </p>
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -2075,5 +2570,6 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
         }}
       />
     </div>
+    </>
   )
 }

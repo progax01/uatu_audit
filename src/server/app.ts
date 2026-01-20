@@ -5,8 +5,10 @@ import path from "node:path";
 import fs from "fs-extra";
 import { recoverStuckJobs } from "../services/jobQueue.js";
 import { cleanupStuckJobs } from "../repositories/auditJobRepository.js";
+import { detectAndRecoverStuckJobs } from "../services/stuckJobDetector.js";
 import { logger } from "../utils/logger.js";
 import { startWorker } from "./worker.js";
+import { startDatabaseWorker, recoverPendingDatabaseJobs } from "./databaseWorker.js";
 import {
   handleAuthRoutes,
   handleGitHubRoutes,
@@ -21,6 +23,7 @@ import {
   handleAuditRoutes,
   handleInteractiveAuditRoutes,
   handleAuditQuestionnaireRoutes,
+  handleOGImageRoutes,
   getSessionId,
   loadUserId,
 } from "./routes/index.js";
@@ -148,6 +151,7 @@ async function handleRequest(req: any, res: any) {
 
     // Route to specific handlers
     if (await handleHealthRoutes(req, res, parsed, PORT, CONCURRENCY)) return;
+    if (await handleOGImageRoutes(req, res, parsed)) return; // OG images before auth (public)
     if (await handleAuthRoutes(req, res, parsed, PORT)) return;
     if (await handleGitHubRoutes(req, res, parsed)) return;
     if (await handleJobRoutes(req, res, parsed)) return;
@@ -205,14 +209,23 @@ async function handleRequest(req: any, res: any) {
 export async function startDaemon() {
   // Crash recovery
   logger.info("Performing crash recovery...");
+
+  // Recover old JSON queue jobs
   await recoverStuckJobs();
+
+  // Recover new database queue jobs
+  const dbRecovery = await recoverPendingDatabaseJobs();
+  logger.info("Database queue recovery complete", dbRecovery);
 
   logger.info(`Starting Uatu daemon`, { port: PORT, concurrency: CONCURRENCY });
 
-  // Start worker pool
+  // Start worker pools (both old JSON queue and new database queue)
   for (let i = 0; i < CONCURRENCY; i++) {
-    startWorker(i);
-    logger.info(`Started worker ${i}`, { workerId: i });
+    startWorker(i); // Old JSON queue worker
+    logger.info(`Started legacy queue worker ${i}`, { workerId: i });
+
+    startDatabaseWorker(i); // New database queue worker
+    logger.info(`Started database queue worker ${i}`, { workerId: i });
   }
 
   // Start GitHub Webhook Server
@@ -231,22 +244,31 @@ export async function startDaemon() {
     logger.info(`Server ready at http://0.0.0.0:${PORT}`);
   });
 
-  // Periodic cleanup of stuck jobs (every 5 minutes)
+  // Periodic detection and recovery of stuck jobs (every 5 minutes)
   const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-  const MAX_JOB_AGE_MINUTES = 15; // Jobs running longer than 15 minutes are considered stuck
 
   setInterval(async () => {
     try {
-      const cleanedCount = await cleanupStuckJobs(MAX_JOB_AGE_MINUTES);
-      if (cleanedCount > 0) {
-        logger.info(`Cleaned up ${cleanedCount} stuck audit jobs`);
+      const result = await detectAndRecoverStuckJobs();
+      if (result.detected > 0) {
+        logger.info(`Stuck job detection complete`, {
+          detected: result.detected,
+          recovered: result.recovered,
+          resetToPending: result.resetToPending,
+          markedFailed: result.markedFailed,
+          message: `${result.resetToPending} jobs will be auto-resumed, ${result.markedFailed} marked as failed`
+        });
       }
     } catch (error) {
-      logger.error('Failed to cleanup stuck jobs', { error });
+      logger.error('Failed to detect/recover stuck jobs', { error });
     }
   }, CLEANUP_INTERVAL_MS);
 
-  logger.info('Started periodic stuck job cleanup', { intervalMs: CLEANUP_INTERVAL_MS, maxJobAgeMinutes: MAX_JOB_AGE_MINUTES });
+  logger.info('Started periodic stuck job detection and auto-recovery', {
+    intervalMs: CLEANUP_INTERVAL_MS,
+    inactivityThreshold: '10 minutes',
+    behavior: 'Stuck jobs with step data will be auto-resumed from last step'
+  });
 
   // Graceful shutdown
   process.on("SIGINT", () => {

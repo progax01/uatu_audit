@@ -492,6 +492,9 @@ export interface ToolRunnerResult {
 
   /** Error message if failed */
   error?: string;
+
+  /** Additional metadata (e.g., test results, parsed data) */
+  metadata?: any;
 }
 
 // ============================================================================
@@ -563,3 +566,14 @@ export type InteractiveStepConfig = InteractiveExecutorConfig;
 
 /** Alias for composite step configuration */
 export type CompositeStepConfig = CompositeExecutorConfig;
+
+// ============================================================================
+// Executor Function Types
+// ============================================================================
+
+/** Type for deterministic step executor functions */
+export type DeterministicExecutor = (
+  step: StepDefinition,
+  config: DeterministicExecutorConfig,
+  context: StepContext
+) => Promise<StepResult>;

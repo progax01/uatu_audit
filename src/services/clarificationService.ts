@@ -28,9 +28,12 @@ export interface ClarificationContext {
     file?: string;
     line?: number;
     findingId?: string;
+    findingIds?: string[];  // For grouped questions
     snippet?: string;
     category?: string;
     severity?: string;
+    count?: number;  // Number of findings in group
+    functions?: string[];  // Function names in group
 }
 
 export interface ClarificationOptions {

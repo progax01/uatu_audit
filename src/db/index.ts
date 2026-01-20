@@ -1,6 +1,9 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
+import { logger } from '../utils/logger';
+
+const log = logger.child({ module: 'database' });
 
 // Database connection URL from environment
 const DATABASE_URL = process.env.DATABASE_URL || '';
@@ -18,8 +21,43 @@ function getPool(): Pool {
       connectionString: DATABASE_URL,
       ssl: DATABASE_URL.includes('azure.com') ? { rejectUnauthorized: false } : undefined,
       max: 20,
-      idleTimeoutMillis: 30000,
+      idleTimeoutMillis: 60000, // 60 seconds (increased for long-running audits)
       connectionTimeoutMillis: 10000,
+      keepAlive: true, // Keep connections alive to prevent timeouts
+      keepAliveInitialDelayMillis: 10000,
+    });
+
+    // Critical: Add error handler to prevent server crashes
+    pool.on('error', (err: Error, client) => {
+      log.error('Unexpected database pool error', {
+        error: err.message,
+        code: (err as any).code,
+        stack: err.stack,
+      });
+      // Don't crash the server - just log the error
+      // The pool will handle removing the bad connection
+    });
+
+    // Log pool events for debugging
+    pool.on('connect', (client) => {
+      log.debug('New database client connected', {
+        totalCount: pool?.totalCount,
+        idleCount: pool?.idleCount,
+        waitingCount: pool?.waitingCount,
+      });
+    });
+
+    pool.on('remove', (client) => {
+      log.debug('Database client removed from pool', {
+        totalCount: pool?.totalCount,
+        idleCount: pool?.idleCount,
+        waitingCount: pool?.waitingCount,
+      });
+    });
+
+    log.info('Database pool created', {
+      maxConnections: 20,
+      idleTimeoutMs: 60000,
     });
   }
   return pool;

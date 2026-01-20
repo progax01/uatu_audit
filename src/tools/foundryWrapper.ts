@@ -12,8 +12,10 @@ import { runToolInDocker, checkDockerAvailable, checkDockerImageExists } from '.
 import { ECOSYSTEM_DOCKER_IMAGES } from '../config/docker.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { logger } from '../utils/logger.js';
 
 const execAsync = promisify(exec);
+const log = logger.child({ service: 'foundry-wrapper' });
 
 // ============================================================================
 // Types
@@ -288,6 +290,15 @@ export async function runFoundryTest(config: ToolRunnerConfig): Promise<ToolRunn
       const executionTimeMs = Date.now() - startTime;
       const parsed = parseJsonOutput(stdout);
 
+      // Parse test results using the new structured parser
+      let testResults: any = null;
+      try {
+        const { parseTestOutput } = require('../services/testResultParser.js');
+        testResults = parseTestOutput(stdout + '\n' + stderr, 'foundry');
+      } catch (err: any) {
+        log.warn('Failed to parse test results with structured parser', { error: err.message });
+      }
+
       if (parsed) {
         const findings = parseFoundryTestOutput(parsed, config.projectPath);
 
@@ -298,6 +309,9 @@ export async function runFoundryTest(config: ToolRunnerConfig): Promise<ToolRunn
           stderr,
           exitCode: code || 0,
           executionTimeMs,
+          metadata: {
+            testResults, // Include structured test results
+          },
         });
       } else {
         resolve({
@@ -308,6 +322,9 @@ export async function runFoundryTest(config: ToolRunnerConfig): Promise<ToolRunn
           stderr,
           exitCode: code || 0,
           executionTimeMs,
+          metadata: {
+            testResults,
+          },
         });
       }
     });

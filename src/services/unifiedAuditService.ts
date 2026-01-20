@@ -11,7 +11,7 @@ import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
-import { auditJobs, auditReports, auditResults, users, contractClassifications } from '../db/schema';
+import { auditJobs, auditReports, auditResults, users, contractClassifications, projects } from '../db/schema';
 import type {
   SOPDefinition,
   AuditDepth,
@@ -248,11 +248,12 @@ export class UnifiedAuditService extends EventEmitter {
         forceSOP: request.options?.forceSOP,
       });
 
-      // Update job with detection info
+      // Update job with detection info and mark as started
       await db
         .update(auditJobs)
         .set({
           status: 'running',
+          startedAt: new Date(),
           detectedFramework: sopResult.detection.framework,
           sopId: sopResult.sop.id,
           sopVersion: sopResult.sop.version,
@@ -301,7 +302,7 @@ export class UnifiedAuditService extends EventEmitter {
         .update(auditJobs)
         .set({
           status: 'failed',
-          errorMessage: error.message,
+          errorMessage: 'Audit initialization failed. Please retry the audit.',
         })
         .where(eq(auditJobs.id, jobId));
 
@@ -331,6 +332,59 @@ export class UnifiedAuditService extends EventEmitter {
       .where(eq(auditJobs.id, jobId));
 
     this.emit('audit:cancelled', jobId);
+  }
+
+  /**
+   * Resume a pending audit job
+   * Used by database queue worker to resume jobs after server restart
+   */
+  async resumeAudit(jobId: string): Promise<void> {
+    log.info('Resuming audit', { jobId });
+
+    // Get job from database
+    const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
+
+    if (!job) {
+      throw new Error(`Job ${jobId} not found`);
+    }
+
+    if (!job.projectPath) {
+      throw new Error(`Job ${jobId} has no project path - cannot resume`);
+    }
+
+    if (!job.sopId) {
+      throw new Error(`Job ${jobId} has no SOP assigned - cannot resume`);
+    }
+
+    // Load SOP
+    const { loadSOP } = await import('../sops/definitions/index.js');
+    const sop = await loadSOP(job.sopId);
+
+    if (!sop) {
+      throw new Error(`SOP ${job.sopId} not found`);
+    }
+
+    // Construct minimal request for orchestrator
+    const request: UnifiedAuditRequest = {
+      source: {
+        type: job.sourceType as any,
+        // We don't need full source details since we already have the code
+      } as any,
+      depth: job.auditDepth as AuditDepth,
+      visibility: job.visibility as 'private' | 'public',
+      userId: job.userId || undefined,
+      projectId: job.projectId || undefined,
+    };
+
+    log.info('Resuming orchestrator', {
+      jobId,
+      sopId: job.sopId,
+      currentStep: job.currentStepId,
+      progress: job.progressPct,
+    });
+
+    // Resume orchestrator
+    this.runOrchestrator(jobId, job.projectPath, sop, request);
   }
 
   /**
@@ -714,28 +768,42 @@ export class UnifiedAuditService extends EventEmitter {
       score,
     });
 
+    // Apply final filtering to remove any noise that slipped through
+    const filteredFindings = this.filterNoisyFindings(findings);
+    const removedCount = findings.length - filteredFindings.length;
+
+    if (removedCount > 0) {
+      log.info('Filtered noisy findings', {
+        jobId,
+        originalCount: findings.length,
+        filteredCount: filteredFindings.length,
+        removed: removedCount,
+      });
+    }
+
     // Calculate grade
     const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
 
     // Generate report
     const reportId = crypto.randomUUID();
-    const report = this.generateReport(findings, score, request);
+    const report = this.generateReport(filteredFindings, score, request);
 
     // Save structured results to audit_results table
     await db.insert(auditResults).values({
       jobId,
       scoreValue: score,
       scoreLabel: grade,
-      findings: findings as any, // JSONB field
-      summary: `Found ${findings.length} findings with audit score ${score}`,
+      findings: filteredFindings as any, // JSONB field
+      summary: `Found ${filteredFindings.length} findings with audit score ${score}`,
       metadata: {
-        findingsCount: findings.length,
+        findingsCount: filteredFindings.length,
+        filteredOutCount: removedCount,
         bySeverity: {
-          critical: findings.filter(f => f.severity === 'critical').length,
-          high: findings.filter(f => f.severity === 'high').length,
-          medium: findings.filter(f => f.severity === 'medium').length,
-          low: findings.filter(f => f.severity === 'low').length,
-          info: findings.filter(f => f.severity === 'info').length,
+          critical: filteredFindings.filter(f => f.severity === 'critical').length,
+          high: filteredFindings.filter(f => f.severity === 'high').length,
+          medium: filteredFindings.filter(f => f.severity === 'medium').length,
+          low: filteredFindings.filter(f => f.severity === 'low').length,
+          info: filteredFindings.filter(f => f.severity === 'info').length,
         },
         depth: request.depth,
       },
@@ -748,6 +816,87 @@ export class UnifiedAuditService extends EventEmitter {
       reportData: report,
       createdAt: new Date(),
     });
+
+    // Generate post-audit clarification questions for liability triage
+    try {
+      const { generatePostAuditClarifications } = await import('./postAuditClarificationGenerator.js');
+      // Map StepFinding to Finding type for clarification generator
+      const mappedFindings = filteredFindings.map(f => ({
+        id: f.findingId || crypto.randomUUID(),
+        title: f.title || 'Unknown',
+        description: f.description || '',
+        severity: f.severity as 'critical' | 'high' | 'medium' | 'low' | 'info',
+        location: f.location,
+        rawOutput: f.rawOutput,
+      }));
+      const questionCount = await generatePostAuditClarifications(jobId, mappedFindings);
+      log.info('Post-audit clarifications generated', { jobId, questionCount });
+    } catch (error: any) {
+      log.error('Failed to generate post-audit clarifications', { jobId, error: error.message });
+      // Don't fail the audit if clarification generation fails
+    }
+
+    // Generate OG image for social sharing
+    try {
+      const { generateOGImage } = await import('./ogImageGenerator.js');
+
+      // Determine project name from source
+      let projectName = 'Smart Contract';
+      if (request.source.type === 'github-repo') {
+        const repoUrl = request.source.repoUrl;
+        const match = repoUrl.match(/github\.com\/[^/]+\/([^/.]+)/);
+        projectName = match ? match[1] : projectName;
+      } else if (request.source.type === 'deployed-contract') {
+        // Use first 8 chars of address as fallback name
+        projectName = request.source.address.slice(0, 10) + '...';
+      }
+
+      // Fetch project logo if projectId is provided
+      let projectLogoUrl: string | undefined;
+      if (request.projectId) {
+        try {
+          const [project] = await db.select().from(projects).where(eq(projects.id, request.projectId));
+          if (project?.logoUrl) {
+            projectLogoUrl = project.logoUrl;
+            log.info('Found project logo for OG image', { projectId: request.projectId });
+          }
+        } catch (err: any) {
+          log.warn('Failed to fetch project logo', { projectId: request.projectId, error: err.message });
+        }
+      }
+
+      // Determine status based on score
+      let status: 'verified' | 'warning' | 'critical' = 'verified';
+      const criticalCount = filteredFindings.filter(f => f.severity === 'critical').length;
+      const highCount = filteredFindings.filter(f => f.severity === 'high').length;
+
+      if (criticalCount > 0) {
+        status = 'critical';
+      } else if (highCount > 0 || score < 70) {
+        status = 'warning';
+      }
+
+      await generateOGImage(jobId, {
+        projectName,
+        auditType: request.depth,
+        grade,
+        score,
+        status,
+        reportId: jobId.slice(0, 8).toUpperCase(),
+        projectLogoUrl, // Pass project logo if available
+        severityCounts: {
+          critical: filteredFindings.filter(f => f.severity === 'critical').length,
+          high: filteredFindings.filter(f => f.severity === 'high').length,
+          medium: filteredFindings.filter(f => f.severity === 'medium').length,
+          low: filteredFindings.filter(f => f.severity === 'low').length,
+        },
+      });
+
+      log.info('OG image generated', { jobId, projectName, hasProjectLogo: !!projectLogoUrl });
+    } catch (error: any) {
+      log.error('Failed to generate OG image', { jobId, error: error.message });
+      // Don't fail the audit if OG image generation fails
+    }
 
     // Update job status with completedAt timestamp
     await db
@@ -769,21 +918,91 @@ export class UnifiedAuditService extends EventEmitter {
   }
 
   /**
+   * Sanitize error message to be user-friendly (hide technical details)
+   */
+  private sanitizeErrorMessage(error: string, currentStep?: string): string {
+    // Log the real error for debugging
+    log.debug('Original error message', { error });
+
+    // If we have a current step, show a clean message
+    if (currentStep) {
+      return `Audit incomplete. Last step: ${currentStep}. Please retry the audit.`;
+    }
+
+    // Generic fallback message
+    return 'Audit failed. Please retry the audit.';
+  }
+
+  /**
    * Handle audit failure
    */
   private async handleAuditFailed(jobId: string, error: string): Promise<void> {
     log.error('Audit failed', { jobId, error });
 
+    // Get current step name for better error message
+    const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
+    const currentStep = job?.currentStepName || undefined;
+
+    // Sanitize error message for users
+    const userFriendlyError = this.sanitizeErrorMessage(error, currentStep);
+
     await db
       .update(auditJobs)
       .set({
         status: 'failed',
-        errorMessage: error,
+        errorMessage: userFriendlyError,
         updatedAt: new Date(),
       })
       .where(eq(auditJobs.id, jobId));
 
     this.emit('audit:failed', { jobId, error });
+  }
+
+  /**
+   * Filter out noisy findings before storage
+   */
+  private filterNoisyFindings(findings: StepFinding[]): StepFinding[] {
+    return findings.filter(finding => {
+      // Filter out findings with invalid/empty descriptions
+      if (!finding.description || finding.description.trim().length < 3) {
+        return false;
+      }
+
+      // Filter out findings that only contain non-alphabetic characters
+      if (/^[^a-zA-Z]*$/.test(finding.description)) {
+        return false;
+      }
+
+      // Filter out frontend files that slipped through
+      const filePath = finding.location?.file || '';
+      const normalizedPath = filePath.replace(/\\/g, '/').toLowerCase();
+
+      const frontendPaths = [
+        'frontend/',
+        'ui/',
+        'app/',
+        'pages/',
+        'components/',
+        'examples/',
+        'public/',
+        'dist/',
+        'build/',
+        '.next/',
+        '.nuxt/',
+      ];
+
+      if (frontendPaths.some(dir => normalizedPath.includes(dir))) {
+        return false;
+      }
+
+      const frontendExtensions = ['.tsx', '.jsx', '.vue', '.svelte', '.html', '.css', '.scss'];
+      if (frontendExtensions.some(ext => normalizedPath.endsWith(ext))) {
+        return false;
+      }
+
+      // Keep the finding if it passed all filters
+      return true;
+    });
   }
 
   /**

@@ -23,6 +23,7 @@ import {
   auditJobs,
   auditResults,
   auditClarifications,
+  projects,
   type AuditJob,
   type NewAuditJob,
   type AuditResult,
@@ -179,6 +180,25 @@ export async function completeQuickScanJob(
     },
   });
 
+  // Generate post-audit clarification questions for liability triage
+  try {
+    const { generatePostAuditClarifications } = await import('../services/postAuditClarificationGenerator.js');
+    const findings = result.vulnerabilities.map((v: any) => ({
+      id: v.id || crypto.randomUUID(),
+      title: v.title,
+      description: v.description,
+      severity: v.severity,
+      category: v.category,
+      location: v.location,
+      rawOutput: v.rawOutput,
+    }));
+    const questionCount = await generatePostAuditClarifications(jobId, findings);
+    log.info('Post-audit clarifications generated for quick scan', { jobId, questionCount });
+  } catch (error: any) {
+    log.error('Failed to generate post-audit clarifications', { jobId, error: error.message });
+    // Don't fail the audit if clarification generation fails
+  }
+
   log.info('Completed quick scan job', {
     jobId,
     score: result.score,
@@ -232,6 +252,8 @@ export interface PublicAuditListItem {
   contractName: string | null;
   isProxy: boolean;
   repo: string;
+  branch: string;
+  commitSha: string | null;
   createdAt: Date;
   completedAt: Date | null;
   scoreValue: number | null;
@@ -241,6 +263,11 @@ export interface PublicAuditListItem {
   status: JobStatus;
   progressPct: number;
   progressMessage: string | null;
+  // Project information
+  projectName: string | null;
+  projectDescription: string | null;
+  projectLogoUrl: string | null;
+  projectGithubUrl: string | null;
 }
 
 /**
@@ -306,7 +333,7 @@ export async function getPublicAudits(options: GetPublicAuditsOptions = {}): Pro
     );
   }
 
-  // Query with join to auditResults
+  // Query with join to auditResults and projects
   const audits = await db
     .select({
       id: auditJobs.id,
@@ -317,6 +344,8 @@ export async function getPublicAudits(options: GetPublicAuditsOptions = {}): Pro
       contractName: auditJobs.contractName,
       isProxy: auditJobs.isProxy,
       repo: auditJobs.repo,
+      branch: auditJobs.branch,
+      commitSha: auditJobs.commitSha,
       createdAt: auditJobs.createdAt,
       completedAt: auditJobs.completedAt,
       scoreValue: auditResults.scoreValue,
@@ -326,9 +355,15 @@ export async function getPublicAudits(options: GetPublicAuditsOptions = {}): Pro
       status: auditJobs.status,
       progressPct: auditJobs.progressPct,
       progressMessage: auditJobs.progressMessage,
+      // Project information
+      projectName: projects.name,
+      projectDescription: projects.description,
+      projectLogoUrl: projects.logoUrl,
+      projectGithubUrl: projects.githubUrl,
     })
     .from(auditJobs)
     .leftJoin(auditResults, eq(auditJobs.id, auditResults.jobId))
+    .leftJoin(projects, eq(auditJobs.projectId, projects.id))
     .where(and(...conditions))
     // Order by: true in-progress first (no completedAt), then completed
     // Jobs with completedAt set are treated as completed regardless of status field

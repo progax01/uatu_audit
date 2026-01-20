@@ -101,10 +101,13 @@ const waitForQuestionnaireAnswers: InteractiveExecutor = async (step, config, co
   // Poll the database for questionnaire answers
   // This is a blocking operation until the user submits answers
   const { getAuditClarificationAnswers } = await import('../../../repositories/auditJobRepository.js');
+  const fs = await import('fs-extra');
+  const path = await import('path');
 
   const pollInterval = 5000; // 5 seconds
-  const timeout = config.timeout || 3600000; // 1 hour default
+  const timeout = config.timeout || 604800000; // 7 days (matches workspace lifetime) - effectively infinite
   const startTime = Date.now();
+  let lastStepDataUpdate = Date.now();
 
   while (Date.now() - startTime < timeout) {
     // Check if answers have been submitted
@@ -141,13 +144,39 @@ const waitForQuestionnaireAnswers: InteractiveExecutor = async (step, config, co
       };
     }
 
+    // Every 5 minutes, touch the stepData.json file to prevent stuck job detection
+    const now = Date.now();
+    if (now - lastStepDataUpdate >= 5 * 60 * 1000) {
+      try {
+        const stepDataPath = path.join(context.projectPath, '.uatu', 'stepData.json');
+        if (await fs.pathExists(stepDataPath)) {
+          // Update file modification time by touching it
+          const stepData = await fs.readJson(stepDataPath);
+          stepData.lastActivity = new Date().toISOString();
+          stepData.waitingForUserInput = true;
+          stepData.currentStep = 'wait-for-questionnaire-answers';
+          await fs.writeJson(stepDataPath, stepData, { spaces: 2 });
+          lastStepDataUpdate = now;
+          log.debug('Updated stepData.json during questionnaire wait', { jobId });
+        }
+      } catch (err: any) {
+        log.warn('Failed to update stepData during questionnaire wait', {
+          jobId,
+          error: err.message
+        });
+      }
+    }
+
     // Wait before polling again
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
 
     const elapsed = Math.round((Date.now() - startTime) / 1000);
+    const hours = Math.floor(elapsed / 3600);
+    const minutes = Math.floor((elapsed % 3600) / 60);
+    const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
     await context.onProgress?.(
-      Math.min(90, (elapsed / (timeout / 1000)) * 90),
-      `Waiting for answers (${elapsed}s)...`
+      50, // Fixed at 50% since we're paused waiting for input
+      `Waiting for questionnaire answers (${timeStr})...`
     );
   }
 
@@ -193,10 +222,13 @@ const waitForClarificationAnswers: InteractiveExecutor = async (step, config, co
 
   // Poll the database for clarification answers
   const { getAuditClarificationAnswers } = await import('../../../repositories/auditJobRepository.js');
+  const fs = await import('fs-extra');
+  const path = await import('path');
 
   const pollInterval = 5000; // 5 seconds
   const timeout = config.timeout || 1800000; // 30 minutes default
   const startTime = Date.now();
+  let lastStepDataUpdate = Date.now();
 
   while (Date.now() - startTime < timeout) {
     // Check if answers have been submitted
@@ -230,6 +262,29 @@ const waitForClarificationAnswers: InteractiveExecutor = async (step, config, co
           clarificationAnswers: answerMap,
         },
       };
+    }
+
+    // Every 5 minutes, touch the stepData.json file to prevent stuck job detection
+    const now = Date.now();
+    if (now - lastStepDataUpdate >= 5 * 60 * 1000) {
+      try {
+        const stepDataPath = path.join(context.projectPath, '.uatu', 'stepData.json');
+        if (await fs.pathExists(stepDataPath)) {
+          // Update file modification time by touching it
+          const stepData = await fs.readJson(stepDataPath);
+          stepData.lastActivity = new Date().toISOString();
+          stepData.waitingForUserInput = true;
+          stepData.currentStep = 'wait-for-clarification-answers';
+          await fs.writeJson(stepDataPath, stepData, { spaces: 2 });
+          lastStepDataUpdate = now;
+          log.debug('Updated stepData.json during clarification wait', { jobId });
+        }
+      } catch (err: any) {
+        log.warn('Failed to update stepData during clarification wait', {
+          jobId,
+          error: err.message
+        });
+      }
     }
 
     // Wait before polling again

@@ -139,7 +139,7 @@ export async function executeSimpleClaude(
   const startTime = Date.now();
   const {
     timeout = 180000,
-    model = 'claude-sonnet-4-20250514',
+    model = 'claude-opus-4-5-20251101',
     cwd = process.cwd()
   } = options;
 
@@ -326,7 +326,7 @@ export async function executeStreamingClaude(
   const startTime = Date.now();
   const {
     timeout = 600000, // 10 minutes - complex contracts can take a while
-    model = 'claude-sonnet-4-20250514',
+    model = 'claude-opus-4-5-20251101',
     cwd = process.cwd(),
     onProgress,
     onLog,

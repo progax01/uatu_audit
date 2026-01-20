@@ -66,6 +66,15 @@ export async function handleAuditRoutes(
       // Validate request
       const { source, depth, visibility, projectId, options } = body;
 
+      // Log audit request details for debugging
+      log.info('Audit request details', {
+        sourceType: source?.type,
+        repo: source?.type === 'github-repo' ? source.repoUrl : undefined,
+        branch: source?.type === 'github-repo' ? source.branch || 'main' : undefined,
+        depth,
+        projectId
+      });
+
       if (!source || !source.type) {
         res.statusCode = 400;
         res.setHeader('Content-Type', 'application/json');
@@ -155,7 +164,22 @@ export async function handleAuditRoutes(
         const progress = await getJobProgress(jobId);
 
         if (progress) {
-          res.write(`data: ${JSON.stringify(progress)}\n\n`);
+          // Check if waiting for questionnaire
+          const isWaitingForQuestionnaire =
+            progress.currentStep?.id === 'wait-for-questionnaire-answers' ||
+            progress.currentStep?.name?.includes('Wait for Questionnaire');
+
+          if (isWaitingForQuestionnaire) {
+            // Send special questionnaire_ready event
+            res.write(`data: ${JSON.stringify({
+              ...progress,
+              questionnaireReady: true,
+              questionnaireUrl: `/audits/${jobId}/questionnaire`,
+              message: 'Questionnaire ready - please answer to continue audit'
+            })}\n\n`);
+          } else {
+            res.write(`data: ${JSON.stringify(progress)}\n\n`);
+          }
 
           // Check if audit is complete
           if (progress.status === 'completed' || progress.status === 'failed') {
@@ -226,6 +250,87 @@ export async function handleAuditRoutes(
       return true;
     } catch (error: any) {
       log.error('Failed to cancel audit', { jobId, error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ success: false, error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // POST /api/audit/:jobId/retry - Retry a failed audit
+  // ============================================================================
+  const retryMatch = parsed.pathname?.match(/^\/api\/audit\/([a-f0-9-]+)\/retry$/);
+  if (req.method === 'POST' && retryMatch) {
+    const jobId = retryMatch[1];
+
+    try {
+      const sessionId = getSessionId(req);
+      const userId = sessionId ? await loadUserId(sessionId) : undefined;
+
+      const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
+
+      if (!job) {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: false, error: 'Audit not found' }));
+        return true;
+      }
+
+      // Authorization check
+      if (job.visibility === 'private' && job.userId !== userId) {
+        res.statusCode = 403;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+        return true;
+      }
+
+      // Only allow retrying failed/cancelled audits
+      if (job.status !== 'failed' && job.status !== 'cancelled') {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({
+          success: false,
+          error: `Cannot retry audit with status: ${job.status}`
+        }));
+        return true;
+      }
+
+      // Reset job to pending so workers can pick it up
+      // If job has projectPath + sopId, it can be resumed
+      // Otherwise, it needs to be started from scratch
+      if (job.projectPath && job.sopId) {
+        // Can be resumed - reset to pending
+        await db
+          .update(auditJobs)
+          .set({
+            status: 'pending',
+            errorMessage: null,
+            completedAt: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(auditJobs.id, jobId));
+
+        log.info('Audit reset to pending for retry', { jobId });
+
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({
+          success: true,
+          message: 'Audit reset to pending - will be picked up by workers'
+        }));
+      } else {
+        // Can't be resumed - need to create new audit
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Cannot retry - audit never initialized. Please start a new audit instead.'
+        }));
+      }
+
+      return true;
+    } catch (error: any) {
+      log.error('Failed to retry audit', { jobId, error: error.message });
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ success: false, error: error.message }));
@@ -438,6 +543,84 @@ export async function handleAuditRoutes(
   }
 
   // ============================================================================
+  // GET /api/audit/:jobId/clarifications - Get post-audit clarification questions
+  // ============================================================================
+  const clarificationsMatch = parsed.pathname?.match(/^\/api\/audit\/([a-f0-9-]+)\/clarifications$/);
+  if (req.method === 'GET' && clarificationsMatch) {
+    const jobId = clarificationsMatch[1];
+
+    try {
+      const { getAllClarifications } = await import('../../services/clarificationService.js');
+
+      // Get post-audit clarifications
+      const clarifications = await getAllClarifications(jobId, 'post_audit');
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        success: true,
+        clarifications: clarifications.map((c) => ({
+          id: c.id,
+          questionKey: c.questionKey,
+          questionText: c.questionText,
+          questionType: c.questionType,
+          options: c.options,
+          context: c.context,
+          status: c.status,
+          answerValue: c.answerValue,
+          answeredAt: c.answeredAt,
+        })),
+      }));
+      return true;
+    } catch (error: any) {
+      log.error('Failed to get clarifications', { jobId, error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ success: false, error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // POST /api/audit/:jobId/clarifications/:clarificationId/answer - Submit answer
+  // ============================================================================
+  const answerMatch = parsed.pathname?.match(/^\/api\/audit\/([a-f0-9-]+)\/clarifications\/([a-f0-9-]+)\/answer$/);
+  if (req.method === 'POST' && answerMatch) {
+    const jobId = answerMatch[1];
+    const clarificationId = answerMatch[2];
+
+    try {
+      const chunks: any[] = [];
+      for await (const c of req) chunks.push(c);
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+
+      const { answer } = body;
+
+      if (answer === undefined || answer === null) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: false, error: 'answer is required' }));
+        return true;
+      }
+
+      const { submitAnswer } = await import('../../services/clarificationService.js');
+      const updated = await submitAnswer(clarificationId, answer);
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        success: true,
+        clarification: updated,
+      }));
+      return true;
+    } catch (error: any) {
+      log.error('Failed to submit clarification answer', { jobId, clarificationId, error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ success: false, error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
   // POST /api/audit/detect - Detect ecosystem for a project
   // ============================================================================
   if (req.method === 'POST' && parsed.pathname === '/api/audit/detect') {
@@ -621,6 +804,293 @@ export async function handleAuditRoutes(
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ success: false, error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // POST /api/audit/:jobId/rescore - Rescore audit after triage
+  // ============================================================================
+  const rescoreMatch = parsed.pathname?.match(/^\/api\/audit\/([a-f0-9-]+)\/rescore$/);
+  if (req.method === 'POST' && rescoreMatch) {
+    const jobId = rescoreMatch[1];
+
+    try {
+      // Parse request body
+      const chunks: any[] = [];
+      for await (const c of req) chunks.push(c);
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+
+      // Get user session
+      const sessionId = getSessionId(req);
+      let userId: string | undefined;
+      if (sessionId) {
+        userId = (await loadUserId(sessionId)) || undefined;
+      }
+
+      // If no session-based userId, try JWT auth
+      if (!userId) {
+        const jwtAuth = await verifyAuth(req);
+        if (jwtAuth) {
+          userId = jwtAuth.user.id;
+        }
+      }
+
+      // Get audit job
+      const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
+
+      if (!job) {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: false, error: 'Audit not found' }));
+        return true;
+      }
+
+      // Check ownership
+      if (job.userId && job.userId !== userId) {
+        res.statusCode = 403;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: false, error: 'Access denied' }));
+        return true;
+      }
+
+      // Get audit results
+      const [results] = await db.select().from(auditResults).where(eq(auditResults.jobId, jobId));
+
+      if (!results) {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: false, error: 'Audit results not found' }));
+        return true;
+      }
+
+      const { triages, projectPath } = body;
+
+      if (!triages || !Array.isArray(triages) || triages.length === 0) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: false, error: 'triages array is required' }));
+        return true;
+      }
+
+      // Import rescoring service
+      const { createTriageVerificationAgent } = await import('../../services/triageVerificationAgent.js');
+      const { recalculateAuditScore } = await import('../../services/rescoringService.js');
+
+      // Create verification agent
+      const agent = createTriageVerificationAgent();
+
+      // Extract findings from results
+      const findingsArray = Array.isArray(results.findings) ? results.findings : [];
+      const findings = findingsArray.map((f: any) => ({
+        findingId: f.findingId || f.id || `finding-${Math.random()}`,
+        title: f.title,
+        description: f.description,
+        severity: f.severity,
+        location: {
+          file: f.file || f.location?.file || '',
+          line: f.line || f.location?.line,
+          column: f.column || f.location?.column,
+        },
+        codeSnippet: f.code_snippet || f.codeSnippet,
+        recommendation: f.recommendation || f.rec,
+      }));
+
+      log.info('Starting triage verification and rescoring', {
+        jobId,
+        triageCount: triages.length,
+        findingsCount: findings.length,
+      });
+
+      // Verify triages
+      const verifications = await agent.verifyBatch(findings, triages, projectPath || '');
+
+      // Recalculate score
+      const rescoringResult = await recalculateAuditScore(
+        results.scoreValue || 0,
+        findings,
+        verifications
+      );
+
+      log.info('Rescoring complete', {
+        jobId,
+        originalScore: results.scoreValue,
+        newScore: rescoringResult.newScore,
+        verifiedCount: verifications.filter(v => v.verificationStatus === 'accurate').length,
+      });
+
+      // Update audit results with new score and verifications
+      // Store verification results in metadata
+      const updatedMetadata = {
+        ...(typeof results.metadata === 'object' ? results.metadata : {}),
+        triageVerifications: verifications,
+        originalScore: results.scoreValue,
+        rescoredAt: new Date().toISOString(),
+      };
+
+      await db
+        .update(auditResults)
+        .set({
+          scoreValue: rescoringResult.newScore,
+          scoreLabel: rescoringResult.newGrade,
+          metadata: updatedMetadata,
+        })
+        .where(eq(auditResults.jobId, jobId));
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        success: true,
+        rescoring: rescoringResult,
+        verifications,
+      }));
+      return true;
+    } catch (error: any) {
+      log.error('Failed to rescore audit', { jobId, error: error.message, stack: error.stack });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ success: false, error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // POST /api/audits/:jobId/triage - Submit triage answers
+  // ============================================================================
+  if (req.method === 'POST' && parsed.pathname.match(/^\/api\/audits\/([^/]+)\/triage$/)) {
+    const jobId = parsed.pathname.split('/')[3];
+
+    try {
+      const chunks: any[] = [];
+      for await (const c of req) chunks.push(c);
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+      const { answers } = body;
+
+      if (!answers || typeof answers !== 'object') {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'answers object required' }));
+        return true;
+      }
+
+      // Import clarification service
+      const { submitAnswer, getAllClarifications } = await import('../../services/clarificationService.js');
+
+      // Submit each answer
+      const savedAnswers = [];
+      for (const [clarificationId, response] of Object.entries(answers)) {
+        if (response && typeof response === 'object' && 'answer' in response) {
+          const answer = await submitAnswer(clarificationId, response);
+          savedAnswers.push(answer);
+        }
+      }
+
+      log.info('Triage answers submitted', {
+        jobId,
+        count: savedAnswers.length,
+      });
+
+      // Trigger re-scoring with disclosure
+      const { rescoreWithDisclosure } = await import('../../services/rescoreService.js');
+      await rescoreWithDisclosure(jobId);
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        success: true,
+        answers: savedAnswers,
+        rescored: true,
+      }));
+      return true;
+    } catch (error: any) {
+      log.error('Failed to submit triage', { jobId, error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // GET /api/audits/:jobId/questionnaire - Get pre-audit questionnaire answers
+  // ============================================================================
+  if (req.method === 'GET' && parsed.pathname.match(/^\/api\/audits\/([^/]+)\/questionnaire$/)) {
+    const jobId = parsed.pathname.split('/')[3];
+
+    try {
+      const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
+
+      if (!job) {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Audit not found' }));
+        return true;
+      }
+
+      // Get pre-audit clarifications for this job
+      const { getAllClarifications } = await import('../../services/clarificationService.js');
+      const clarifications = await getAllClarifications(jobId, 'pre_audit');
+
+      // Format for display - extract actual values from answerValue
+      const answers = clarifications.map(c => {
+        let formattedAnswer = 'Not answered';
+
+        if (c.answerValue) {
+          // answerValue is typically { value: <actual answer>, questionKey: <key> }
+          const answerObj = c.answerValue as any;
+          if (answerObj.value !== undefined) {
+            const value = answerObj.value;
+            // Format arrays nicely
+            if (Array.isArray(value)) {
+              formattedAnswer = value.length > 0 ? value.join(', ') : 'None';
+            } else {
+              formattedAnswer = String(value);
+            }
+          } else {
+            // Fallback to stringifying if structure is different
+            formattedAnswer = typeof c.answerValue === 'string'
+              ? c.answerValue
+              : JSON.stringify(c.answerValue);
+          }
+        }
+
+        return {
+          question: c.questionText,
+          answer: formattedAnswer,
+          category: (c.context as any)?.category || 'general',
+          status: c.status,
+          answeredAt: c.answeredAt,
+        };
+      });
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ answers }));
+      return true;
+    } catch (error: any) {
+      log.error('Failed to get questionnaire', { jobId, error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // GET /api/audits/:jobId/clarifications - Get all clarifications with answers
+  // ============================================================================
+  if (req.method === 'GET' && parsed.pathname.match(/^\/api\/audits\/([^/]+)\/clarifications$/)) {
+    const jobId = parsed.pathname.split('/')[3];
+
+    try {
+      const { getAllClarifications } = await import('../../services/clarificationService.js');
+      const clarifications = await getAllClarifications(jobId);
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ clarifications }));
+      return true;
+    } catch (error: any) {
+      log.error('Failed to get clarifications', { jobId, error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: error.message }));
       return true;
     }
   }

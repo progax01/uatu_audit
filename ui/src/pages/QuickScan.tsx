@@ -39,6 +39,7 @@ interface ContractInfo {
     explorerUrl: string
     deployerAddress?: string
     creationTxHash?: string
+    sourceCodePreview?: string
 }
 
 interface ScanPhase {
@@ -627,7 +628,7 @@ export default function QuickScan() {
                                     {/* Code with Scanner Line */}
                                     <div className="relative h-[400px] overflow-hidden">
                                         <pre className="p-4 text-[11px] font-mono leading-relaxed overflow-hidden">
-                                            {MOCK_CONTRACT_CODE.split('\n').map((line, idx) => (
+                                            {(contractInfo?.sourceCodePreview || MOCK_CONTRACT_CODE).split('\n').map((line, idx) => (
                                                 <div
                                                     key={idx}
                                                     className="flex text-slate-500"
@@ -668,6 +669,37 @@ export default function QuickScan() {
                                             className="absolute top-0 left-0 right-0 bg-gradient-to-b from-emerald-500/10 via-emerald-500/5 to-transparent pointer-events-none"
                                             animate={{ height: `${(scanProgress?.pct || 0)}%` }}
                                             transition={{ duration: 0.8, ease: 'easeOut' }}
+                                        />
+                                    </div>
+
+                                    {/* Terminal-like bottom section with Uatu logo */}
+                                    <div className="border-t border-slate-700/50 bg-slate-800/50 px-5 py-3 flex items-center gap-4">
+                                        {/* Uatu Logo */}
+                                        <div className="flex-shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 70 72" fill="none">
+                                                <rect x="-0.719388" y="0.719388" width="69.4184" height="71.4181" rx="34.7092" transform="matrix(-1 0 0 1 69.4184 0.0715637)" fill="#5C61FF"/>
+                                                <path fillRule="evenodd" clipRule="evenodd" d="M21.1193 23.9218L20.0046 29.4646C19.9671 29.6505 20.167 29.7941 20.3362 29.7028C21.1582 29.2564 23.1464 28.4336 26.2678 28.722C29.4016 29.0114 31.5408 31.1268 32.4333 32.1945C32.7308 32.5507 32.8761 33.0039 32.8409 33.4626C32.7122 35.145 32.5445 39.554 34.2344 40.5666C34.3934 40.6618 34.6097 40.7222 34.795 40.7182C35.2144 40.7105 35.6428 40.7105 36.0622 40.7182C36.2475 40.7209 36.4637 40.6618 36.6226 40.5665C38.3129 39.5531 38.146 35.144 38.0163 33.4626C37.9811 33.0039 38.1264 32.5507 38.4239 32.1945C39.3164 31.1268 41.4556 29.0114 44.5894 28.722C47.7108 28.4336 49.699 29.2564 50.521 29.7028C50.6902 29.7952 50.8901 29.6505 50.8526 29.4646L49.7379 23.9218C49.7371 23.918 49.74 23.9146 49.7438 23.9146C49.7476 23.9146 49.7504 23.9108 49.7496 23.9071C48.9756 20.2006 46.3708 21.1591 46.1552 21.2459C46.1514 21.2472 46.1479 21.2486 46.1444 21.2499C46.1363 21.2529 46.1287 21.2558 46.12 21.2581C45.7703 21.3661 41.0423 22.8335 38.8168 23.9869C36.6072 25.1337 36.7276 28.4314 36.7423 28.7209V28.7643L36.4914 36.3194C36.4903 36.3573 36.4846 36.394 36.4755 36.4307C36.4403 36.5677 36.3256 36.8594 35.9827 36.8594C35.9794 36.8594 35.7855 36.7967 35.6217 36.7437C35.5607 36.724 35.5039 36.7057 35.4627 36.6924C35.4499 36.6883 35.4393 36.6847 35.4305 36.6816C35.4292 36.6817 35.4279 36.6817 35.4271 36.6815L35.41 36.6758C35.4036 36.6736 35.3968 36.6784 35.3968 36.6852C35.3968 36.6895 35.3942 36.6932 35.3901 36.6945C35.3527 36.7066 35.3037 36.7224 35.251 36.7394C35.0843 36.7932 34.8793 36.8594 34.8768 36.8594C34.535 36.8594 34.4192 36.5677 34.384 36.4307C34.3738 36.394 34.3692 36.3573 34.3681 36.3194L34.1172 28.7643V28.7209C34.1319 28.4314 34.2523 25.1337 32.0427 23.9869C29.8161 22.8324 25.088 21.3661 24.7383 21.2581C24.7258 21.2548 24.7145 21.2503 24.7031 21.2459C24.4875 21.1602 21.8828 20.2006 21.1076 23.9071C21.1068 23.9108 21.1096 23.9146 21.1134 23.9146C21.1172 23.9146 21.1201 23.918 21.1193 23.9218ZM35.4305 36.6816C35.3682 36.6596 35.4009 36.6619 35.4311 36.6661C35.4398 36.6673 35.4428 36.678 35.4345 36.6808C35.4336 36.6811 35.432 36.6814 35.4305 36.6816ZM23.5215 33.7255C22.7643 33.5255 21.9886 33.9794 21.8148 34.7254C20.9482 38.4564 20.0102 48.8497 35.3377 51.9201C35.3945 51.9312 35.465 51.9312 35.5218 51.9201C50.8493 48.8497 49.9125 38.4564 49.0447 34.7254C48.8709 33.9794 48.0941 33.5255 47.3379 33.7255L43.212 34.813C42.3615 35.0366 41.9357 35.9735 42.3466 36.7353C48.5763 48.2722 36.7199 49.7765 35.485 49.9001C35.449 49.904 35.4105 49.904 35.3745 49.9001C34.1396 49.7765 22.282 48.2733 28.5129 36.7353C28.9238 35.9747 28.498 35.0377 27.6475 34.813L23.5215 33.7255Z" fill="#FFFFFF"/>
+                                                <rect x="-0.719388" y="0.719388" width="69.4184" height="71.4181" rx="34.7092" transform="matrix(-1 0 0 1 69.4184 0.0715637)" stroke="#FFFFFF" strokeWidth="1.43878"/>
+                                            </svg>
+                                        </div>
+
+                                        {/* Terminal text */}
+                                        <div className="flex-1 flex items-center gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                                <span className="text-[10px] font-mono text-emerald-400 font-bold">uatu@scanner</span>
+                                            </div>
+                                            <span className="text-slate-500">~</span>
+                                            <span className="text-[10px] font-mono text-slate-400">
+                                                {scanProgress?.message || 'Analyzing contract security...'}
+                                            </span>
+                                        </div>
+
+                                        {/* Blinking cursor */}
+                                        <motion.div
+                                            className="w-2 h-4 bg-emerald-400"
+                                            animate={{ opacity: [1, 0, 1] }}
+                                            transition={{ duration: 1, repeat: Infinity }}
                                         />
                                     </div>
                                 </div>

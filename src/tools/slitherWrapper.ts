@@ -69,13 +69,65 @@ const SLITHER_SEVERITY_MAP: Record<string, StepFinding['severity']> = {
 
 // Detectors to exclude (too noisy or not security-relevant)
 const EXCLUDED_DETECTORS = new Set([
+  // Naming/style (not security)
   'naming-convention',
+  'similar-names',
+
+  // Compiler version (handled separately)
   'solc-version',
   'pragma',
+
+  // Optimization (not security)
+  'constable-states',
+  'external-function',
+  'immutable-states',
+
+  // Noise
   'too-many-digits',
-  'assembly',
+  'assembly',        // Often intentional
   'low-level-calls', // Often intentional
+
+  // Code quality (not security)
+  'dead-code',
+  'unused-state',
+  'unused-return',
+  'costly-loop',
+  'cache-array-length',
 ]);
+
+/**
+ * Check if a Slither finding should be excluded based on detector type and file location
+ */
+function shouldExcludeSlitherFinding(detector: SlitherDetector, sourceMapping: any): boolean {
+  const file = sourceMapping?.filename_relative || sourceMapping?.filename_absolute || '';
+
+  // Always exclude node_modules
+  if (file.includes('node_modules/')) {
+    return true;
+  }
+
+  // Exclude certain detectors in third-party libraries
+  if (file.includes('@openzeppelin/') || file.includes('lib/') || file.includes('forge-std/') || file.includes('solady/')) {
+    const libraryExcluded = [
+      'incorrect-exp',           // Only in OpenZeppelin
+      'divide-before-multiply',  // Only in dependencies
+      'timestamp',               // Often false positive in libraries
+      'block-timestamp',         // Often false positive in libraries
+    ];
+
+    if (libraryExcluded.includes(detector.check)) {
+      return true;
+    }
+
+    // Only keep high/critical issues from dependencies
+    if (detector.impact === 'Low' || detector.impact === 'Informational') {
+      return true;
+    }
+  }
+
+  // Check global exclusion list
+  return EXCLUDED_DETECTORS.has(detector.check);
+}
 
 // ============================================================================
 // Runner
@@ -281,14 +333,14 @@ export function parseSlitherOutput(output: any, projectPath: string): StepFindin
   const detectors = output.results.detectors as SlitherDetector[];
 
   for (const detector of detectors) {
-    // Skip excluded detectors
-    if (EXCLUDED_DETECTORS.has(detector.check)) {
-      continue;
-    }
-
     // Extract location from first element
     const firstElement = detector.elements?.[0];
     const sourceMapping = firstElement?.source_mapping;
+
+    // Skip excluded detectors (based on type AND location)
+    if (shouldExcludeSlitherFinding(detector, sourceMapping)) {
+      continue;
+    }
 
     const finding: StepFinding = {
       stepId: 'run-slither',

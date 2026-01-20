@@ -14,6 +14,7 @@ import {
   type ThreatModelSummary,
   type AttackSurfaceOverview
 } from "../../types.js";
+import { classifyFindings, extractLibraryName } from "../findingClassifier.js";
 
 // Certificate data format for the new dark-themed template
 interface CertificateData {
@@ -204,6 +205,28 @@ interface UatuData {
     rec: string;
     code_snippet?: string;
   }>;
+  // NEW: Dependency findings and severity (separate from project findings)
+  dependencyFindings?: Array<{
+    severity: string;
+    title: string;
+    library: string;
+    file: string;
+    rec: string;
+    affectedVersion?: string;
+  }>;
+  dependencySeverity?: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  filterStats?: {
+    total: number;
+    project: number;
+    dependencies: number;
+    filtered: number;
+    filteredReasons: Record<string, number>;
+  };
   undeclaredComponents?: Array<{
     name: string;
     type: string;
@@ -521,20 +544,47 @@ export async function generateReportFromResults(
   const undeclaredCount = (breakdown as any).undeclared_count ?? countBySeverity(results.analysis.findings, "undeclared");
 
   // Separate undeclared findings for special display
-  const regularFindings = results.analysis.findings.filter(f =>
+  const allRegularFindings = results.analysis.findings.filter(f =>
     f.severity !== 'undeclared' && !(f as any).isUndeclared
   );
   const undeclaredFindings = results.analysis.findings.filter(f =>
     f.severity === 'undeclared' || (f as any).isUndeclared
   );
 
-  // Build severity counts object
+  // NEW: Classify findings into project vs dependencies vs filtered
+  const classified = classifyFindings(allRegularFindings as any);
+  const projectFindings = classified.project;
+  const dependencyFindings = classified.dependencies;
+
+  console.log('[ReportGenerator] Finding classification:', {
+    total: classified.stats.total,
+    project: classified.stats.project,
+    dependencies: classified.stats.dependencies,
+    filtered: classified.stats.filtered,
+    filteredReasons: classified.stats.filteredReasons
+  });
+
+  // Build severity counts object (now based on project findings only, not dependencies)
+  const projectCriticalCount = countBySeverity(projectFindings as any, "critical");
+  const projectHighCount = countBySeverity(projectFindings as any, "high");
+  const projectMediumCount = countBySeverity(projectFindings as any, "medium");
+  const projectLowCount = countBySeverity(projectFindings as any, "low");
+  const projectInfoCount = countBySeverity(projectFindings as any, "info");
+
   const severityCounts: SeverityCounts = {
-    critical: criticalCount,
-    high: highCount,
-    medium: mediumCount,
-    low: lowCount,
-    info: infoCount
+    critical: projectCriticalCount,
+    high: projectHighCount,
+    medium: projectMediumCount,
+    low: projectLowCount,
+    info: projectInfoCount
+  };
+
+  // Dependency severity counts (separate from project)
+  const dependencySeverityCounts = {
+    critical: countBySeverity(dependencyFindings as any, "critical"),
+    high: countBySeverity(dependencyFindings as any, "high"),
+    medium: countBySeverity(dependencyFindings as any, "medium"),
+    low: countBySeverity(dependencyFindings as any, "low"),
   };
 
   // Build meta object
@@ -573,23 +623,35 @@ export async function generateReportFromResults(
       functions: 0
     },
     severity: {
-      critical: criticalCount,
-      high: highCount,
-      medium: mediumCount,
-      low: lowCount,
-      info: infoCount,
+      critical: projectCriticalCount,
+      high: projectHighCount,
+      medium: projectMediumCount,
+      low: projectLowCount,
+      info: projectInfoCount,
       undeclared: undeclaredCount
     },
     contractsAnalyzed: results.analysis.contracts_analyzed || 0,
-    findings: regularFindings.map(f => ({
+    // Project findings only (dependencies are separate)
+    findings: projectFindings.map(f => ({
       severity: f.severity,
       title: f.title,
-      file: (f.file || 'N/A') + (f.line ? `:${f.line}` : ""),
-      rec: typeof f.recommendation === 'object'
-        ? ((f.recommendation as any).text || (f.recommendation as any).description || JSON.stringify(f.recommendation))
-        : (f.recommendation || 'Review recommended'),
-      code_snippet: f.code_snippet
+      file: (f.location?.file || 'N/A') + (f.location?.line ? `:${f.location.line}` : ""),
+      rec: f.recommendation || 'Review recommended',
+      code_snippet: (f as any).code_snippet
     })),
+    // NEW: Dependency findings (from node_modules, OpenZeppelin, etc.)
+    dependencyFindings: dependencyFindings.map(f => ({
+      severity: f.severity,
+      title: f.title,
+      library: extractLibraryName(f.location?.file || ''),
+      file: f.location?.file || 'N/A',
+      rec: f.recommendation || 'Review recommended',
+      affectedVersion: undefined // Could be populated from package.json later
+    })),
+    // NEW: Dependency severity counts
+    dependencySeverity: dependencySeverityCounts,
+    // NEW: Filter statistics (for debugging)
+    filterStats: classified.stats,
     timeline: [
       { step: "bootstrap", label: "Bootstrap", pct: 100, detail: "Completed" },
       { step: "inventory", label: "Inventory", pct: 100, detail: `${contractsAnalyzed} contracts` },

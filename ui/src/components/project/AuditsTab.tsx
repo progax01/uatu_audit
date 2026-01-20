@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FileText, Calendar, Clock, ChevronRight, Loader2, Globe, Lock, Eye, EyeOff } from 'lucide-react'
+import { FileText, Calendar, Clock, ChevronRight, Loader2, Globe, Lock, Eye, EyeOff, RotateCcw, X } from 'lucide-react'
 import { authFetch } from '../../services/authService'
 import { useNavigate } from 'react-router-dom'
 
@@ -17,6 +17,9 @@ interface AuditReport {
   branch?: string
   repoOwner?: string
   repoName?: string
+  auditDepth?: 'quick' | 'standard' | 'deep'
+  auditType?: 'quick' | 'full'
+  errorMessage?: string
 }
 
 interface AuditsTabProps {
@@ -44,9 +47,21 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
     fetchAudits()
   }, [projectId])
 
-  // SSE streaming for running audit
+  // SSE streaming for running audit - auto-detects from audit list OR uses prop
   useEffect(() => {
-    if (!runningJobId) {
+    // Determine which job to track:
+    // 1. Use runningJobId prop if provided (newly started audit)
+    // 2. Otherwise, auto-detect from audits list (page reload case)
+    let activeJobId = runningJobId
+
+    if (!activeJobId) {
+      const runningAudit = audits.find(audit =>
+        audit.status === 'running' || audit.status === 'pending'
+      )
+      activeJobId = runningAudit?.jobId || null
+    }
+
+    if (!activeJobId) {
       setRunningProgress(null)
       return
     }
@@ -55,7 +70,7 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
     let pollInterval: NodeJS.Timeout | null = null
 
     const startSSE = () => {
-      const sseUrl = `/api/audit/${runningJobId}/progress/stream`
+      const sseUrl = `/api/audit/${activeJobId}/progress/stream`
       eventSource = new EventSource(sseUrl)
 
       eventSource.onmessage = (event) => {
@@ -63,6 +78,14 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
 
         if (data.error) {
           console.error('SSE error:', data.error)
+          return
+        }
+
+        // Check if questionnaire is ready
+        if (data.questionnaireReady && data.questionnaireUrl) {
+          console.log('📋 Questionnaire ready!', data.questionnaireUrl)
+          // Navigate to questionnaire immediately
+          window.location.href = data.questionnaireUrl
           return
         }
 
@@ -95,7 +118,7 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
         // Fallback to polling
         pollInterval = setInterval(async () => {
           try {
-            const response = await fetch(`/api/audit/${runningJobId}/progress`)
+            const response = await fetch(`/api/audit/${activeJobId}/progress`)
             if (response.ok) {
               const data = await response.json()
               setRunningProgress({
@@ -131,7 +154,7 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
         clearInterval(pollInterval)
       }
     }
-  }, [runningJobId])
+  }, [runningJobId, audits, projectId])
 
   const fetchAudits = async () => {
     setLoading(true)
@@ -175,6 +198,35 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
       }
     } catch (err) {
       console.error('Error updating visibility:', err)
+    }
+  }
+
+  const retryAudit = async (auditId: string) => {
+    if (!confirm('Retry this failed audit? It will be added back to the queue.')) {
+      return
+    }
+
+    try {
+      const res = await authFetch(`/api/audit/${auditId}/retry`, {
+        method: 'POST'
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        console.log('Audit retry queued:', data)
+
+        // Refresh audit list
+        fetchAudits()
+
+        alert('Audit has been queued for retry')
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        alert(errorData.error || 'Failed to retry audit')
+        console.error('Failed to retry audit', { status: res.status, error: errorData, auditId })
+      }
+    } catch (err) {
+      console.error('Error retrying audit:', err)
+      alert('Error retrying audit')
     }
   }
 
@@ -255,7 +307,7 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
   return (
     <div className="space-y-4">
       {/* Running Audit Progress */}
-      {runningJobId && runningProgress && (
+      {runningProgress && (
         <div className="card-premium p-6 border-indigo-200 bg-indigo-50/30">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -286,8 +338,21 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
             </div>
           </div>
 
-          <div className="text-[10px] text-slate-400 font-mono">
-            Job ID: {runningJobId}
+          <div className="flex items-center justify-between">
+            {runningJobId && (
+              <div className="text-[10px] text-slate-400 font-mono">
+                Job ID: {runningJobId}
+              </div>
+            )}
+            {runningJobId && (
+              <button
+                onClick={() => navigate(`/audit/${runningJobId}`)}
+                className="btn-primary px-4 py-2 text-xs ml-auto"
+              >
+                Show Progress
+                <ChevronRight size={14} />
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -311,10 +376,21 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-3 mb-3 flex-wrap">
                     <span className={`px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest ${statusConfig.colorClass}`}>
                       {statusConfig.label}
                     </span>
+                    {audit.auditDepth && (
+                      <span className={`px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest ${
+                        audit.auditDepth === 'deep' ? 'bg-violet-50 text-violet-600 border-violet-200' :
+                        audit.auditDepth === 'standard' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                        'bg-amber-50 text-amber-600 border-amber-200'
+                      }`}>
+                        {audit.auditDepth === 'deep' ? 'DEEP' :
+                         audit.auditDepth === 'standard' ? 'STANDARD' :
+                         'QUICK'}
+                      </span>
+                    )}
                     {audit.score !== undefined && audit.status === 'completed' && (
                       <span className={`px-2.5 py-1 rounded-lg text-xs font-black ${getScoreColor(audit.score)}`}>
                         {audit.score}/100
@@ -419,18 +495,49 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
                         )}
                       </div>
                     )}
+
+                    {/* Show error message for failed audits */}
+                    {audit.status === 'failed' && audit.errorMessage && (
+                      <div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <div className="text-rose-500 mt-0.5">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs font-bold text-rose-700 mb-1">Error:</p>
+                            <p className="text-xs text-rose-600 leading-relaxed">{audit.errorMessage}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {canNavigate && (
-                  <button
-                    onClick={() => navigate(`/audit/${audit.jobId}`)}
-                    className="btn-primary px-4 py-2 text-xs flex-shrink-0 self-start"
-                  >
-                    View Report
-                    <ChevronRight size={14} />
-                  </button>
-                )}
+                {/* Action buttons */}
+                <div className="flex flex-col gap-2 flex-shrink-0 self-start">
+                  {canNavigate && (
+                    <button
+                      onClick={() => navigate(`/audit/${audit.jobId}`)}
+                      className="btn-primary px-4 py-2 text-xs"
+                    >
+                      View Report
+                      <ChevronRight size={14} />
+                    </button>
+                  )}
+
+                  {audit.status === 'failed' && (
+                    <button
+                      onClick={() => retryAudit(audit.jobId)}
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-amber-50 text-amber-700 border-2 border-amber-200 rounded-xl hover:bg-amber-100 hover:border-amber-300 transition-all"
+                      title="Retry this audit"
+                    >
+                      <RotateCcw size={14} />
+                      Retry Audit
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )

@@ -92,6 +92,44 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
     loadProjects()
   }, [])
 
+  // Polling for auditing projects - refetch every 20 seconds if any project is auditing
+  useEffect(() => {
+    const hasAuditingProjects = projects.some(p => p.status === 'auditing')
+
+    if (!hasAuditingProjects) {
+      return
+    }
+
+    // Poll every 20 seconds to check for status updates (not too aggressive)
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await authFetch('/api/projects')
+        if (response.ok) {
+          const data = await response.json()
+          const transformedProjects = (data.projects || []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+            type: p.type || 'full',
+            status: p.status || 'draft',
+            componentCount: p.componentCount || 0,
+            lastAuditAt: p.lastAuditAt,
+            lastAuditJobId: p.lastAuditJobId,
+            aggregatedScore: p.aggregatedScore,
+            category: p.category,
+          }))
+          setProjects(transformedProjects)
+        }
+      } catch (err) {
+        console.error('Failed to refresh projects', err)
+      }
+    }, 20000)
+
+    return () => {
+      clearInterval(pollInterval)
+    }
+  }, [projects])
+
   const handleCreateProject = async () => {
     if (projectName.trim().length < 3) return
 

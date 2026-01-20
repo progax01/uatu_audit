@@ -5,7 +5,6 @@
   "framework": "hardhat",
   "language": "solidity",
   "description": "Standard Operating Procedure for auditing Solidity smart contracts using Hardhat framework",
-
   "depths": {
     "quick": {
       "skipCompilation": true,
@@ -128,7 +127,6 @@
       "parallelization": "high"
     }
   },
-
   "steps": [
     {
       "id": "detect-framework",
@@ -137,7 +135,10 @@
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
       "dependsOn": [],
-      "provides": ["detectedFramework", "detectedLanguage"],
+      "provides": [
+        "detectedFramework",
+        "detectedLanguage"
+      ],
       "requires": [],
       "config": {
         "function": "detectFramework"
@@ -153,9 +154,16 @@
       "category": "setup",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["detect-framework"],
-      "provides": ["projectValid", "sourceDirectories"],
-      "requires": ["detectedFramework"],
+      "dependsOn": [
+        "detect-framework"
+      ],
+      "provides": [
+        "projectValid",
+        "sourceDirectories"
+      ],
+      "requires": [
+        "detectedFramework"
+      ],
       "config": {
         "function": "validateStructure"
       },
@@ -170,9 +178,17 @@
       "category": "setup",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["validate-structure"],
-      "provides": ["hardhatConfig", "solcVersion", "networks"],
-      "requires": ["projectValid"],
+      "dependsOn": [
+        "validate-structure"
+      ],
+      "provides": [
+        "hardhatConfig",
+        "solcVersion",
+        "networks"
+      ],
+      "requires": [
+        "projectValid"
+      ],
       "config": {
         "function": "parseHardhatConfig"
       },
@@ -187,9 +203,18 @@
       "category": "discovery",
       "executor": "deterministic",
       "estimatedDurationSeconds": 10,
-      "dependsOn": ["validate-structure"],
-      "provides": ["contractFiles", "mainContracts", "testContracts", "libraryContracts"],
-      "requires": ["sourceDirectories"],
+      "dependsOn": [
+        "validate-structure"
+      ],
+      "provides": [
+        "contractFiles",
+        "mainContracts",
+        "testContracts",
+        "libraryContracts"
+      ],
+      "requires": [
+        "sourceDirectories"
+      ],
       "config": {
         "function": "enumerateContracts"
       },
@@ -204,9 +229,16 @@
       "category": "discovery",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["enumerate-contracts"],
-      "provides": ["sloc", "complexity"],
-      "requires": ["contractFiles"],
+      "dependsOn": [
+        "enumerate-contracts"
+      ],
+      "provides": [
+        "sloc",
+        "complexity"
+      ],
+      "requires": [
+        "contractFiles"
+      ],
       "config": {
         "function": "countSloc"
       },
@@ -221,9 +253,16 @@
       "category": "discovery",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["enumerate-contracts"],
-      "provides": ["solcVersions", "versionWarnings"],
-      "requires": ["contractFiles"],
+      "dependsOn": [
+        "enumerate-contracts"
+      ],
+      "provides": [
+        "solcVersions",
+        "versionWarnings"
+      ],
+      "requires": [
+        "contractFiles"
+      ],
       "config": {
         "function": "checkSolcVersion"
       },
@@ -238,13 +277,23 @@
       "category": "compilation",
       "executor": "tool",
       "estimatedDurationSeconds": 45,
-      "dependsOn": ["parse-hardhat-config"],
-      "provides": ["compilationSuccess", "compilationArtifacts", "compilationWarnings"],
-      "requires": ["hardhatConfig"],
+      "dependsOn": [
+        "parse-hardhat-config"
+      ],
+      "provides": [
+        "compilationSuccess",
+        "compilationArtifacts",
+        "compilationWarnings"
+      ],
+      "requires": [
+        "hardhatConfig"
+      ],
       "config": {
         "tool": "hardhat",
         "command": "compile",
-        "args": ["--force"],
+        "args": [
+          "--force"
+        ],
         "timeout": 120000
       },
       "progressWeight": 5,
@@ -258,9 +307,17 @@
       "category": "compilation",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["run-hardhat-compile"],
-      "provides": ["parsedArtifacts", "contractBytecode", "contractAbi"],
-      "requires": ["compilationArtifacts"],
+      "dependsOn": [
+        "run-hardhat-compile"
+      ],
+      "provides": [
+        "parsedArtifacts",
+        "contractBytecode",
+        "contractAbi"
+      ],
+      "requires": [
+        "compilationArtifacts"
+      ],
       "config": {
         "function": "parseCompilation"
       },
@@ -275,9 +332,16 @@
       "category": "analysis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 15,
-      "dependsOn": ["run-hardhat-compile"],
-      "provides": ["ast", "astNodes"],
-      "requires": ["compilationArtifacts"],
+      "dependsOn": [
+        "run-hardhat-compile"
+      ],
+      "provides": [
+        "ast",
+        "astNodes"
+      ],
+      "requires": [
+        "compilationArtifacts"
+      ],
       "config": {
         "function": "generateAst"
       },
@@ -292,9 +356,16 @@
       "category": "analysis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 15,
-      "dependsOn": ["generate-ast"],
-      "provides": ["inheritanceMap", "inheritanceDepth"],
-      "requires": ["ast"],
+      "dependsOn": [
+        "generate-ast"
+      ],
+      "provides": [
+        "inheritanceMap",
+        "inheritanceDepth"
+      ],
+      "requires": [
+        "ast"
+      ],
       "config": {
         "function": "mapInheritance"
       },
@@ -309,9 +380,16 @@
       "category": "analysis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 10,
-      "dependsOn": ["enumerate-contracts"],
-      "provides": ["importGraph", "externalDependencies"],
-      "requires": ["contractFiles"],
+      "dependsOn": [
+        "enumerate-contracts"
+      ],
+      "provides": [
+        "importGraph",
+        "externalDependencies"
+      ],
+      "requires": [
+        "contractFiles"
+      ],
       "config": {
         "function": "analyzeImports"
       },
@@ -326,9 +404,16 @@
       "category": "analysis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 10,
-      "dependsOn": ["map-inheritance"],
-      "provides": ["implementedInterfaces", "interfaceCompliance"],
-      "requires": ["inheritanceMap"],
+      "dependsOn": [
+        "map-inheritance"
+      ],
+      "provides": [
+        "implementedInterfaces",
+        "interfaceCompliance"
+      ],
+      "requires": [
+        "inheritanceMap"
+      ],
       "config": {
         "function": "detectInterfaces"
       },
@@ -343,9 +428,17 @@
       "category": "analysis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 15,
-      "dependsOn": ["generate-ast"],
-      "provides": ["functionSignatures", "functionVisibility", "stateVariables"],
-      "requires": ["ast"],
+      "dependsOn": [
+        "generate-ast"
+      ],
+      "provides": [
+        "functionSignatures",
+        "functionVisibility",
+        "stateVariables"
+      ],
+      "requires": [
+        "ast"
+      ],
       "config": {
         "function": "extractSignatures"
       },
@@ -360,9 +453,16 @@
       "category": "analysis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 20,
-      "dependsOn": ["extract-signatures"],
-      "provides": ["externalCalls", "callGraph"],
-      "requires": ["functionSignatures"],
+      "dependsOn": [
+        "extract-signatures"
+      ],
+      "provides": [
+        "externalCalls",
+        "callGraph"
+      ],
+      "requires": [
+        "functionSignatures"
+      ],
       "config": {
         "function": "identifyExternalCalls"
       },
@@ -377,12 +477,23 @@
       "category": "tool-analysis",
       "executor": "tool",
       "estimatedDurationSeconds": 45,
-      "dependsOn": ["run-hardhat-compile"],
-      "provides": ["slitherOutput", "slitherFindings"],
-      "requires": ["compilationSuccess"],
+      "dependsOn": [
+        "run-hardhat-compile"
+      ],
+      "provides": [
+        "slitherOutput",
+        "slitherFindings"
+      ],
+      "requires": [
+        "compilationSuccess"
+      ],
       "config": {
         "tool": "slither",
-        "args": [".", "--json", "-"],
+        "args": [
+          ".",
+          "--json",
+          "-"
+        ],
         "timeout": 180000,
         "optional": false
       },
@@ -397,9 +508,15 @@
       "category": "tool-analysis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["run-slither"],
-      "provides": ["parsedSlitherFindings"],
-      "requires": ["slitherOutput"],
+      "dependsOn": [
+        "run-slither"
+      ],
+      "provides": [
+        "parsedSlitherFindings"
+      ],
+      "requires": [
+        "slitherOutput"
+      ],
       "config": {
         "function": "parseSlitherOutput"
       },
@@ -414,12 +531,23 @@
       "category": "tool-analysis",
       "executor": "tool",
       "estimatedDurationSeconds": 120,
-      "dependsOn": ["run-hardhat-compile"],
-      "provides": ["mythrilOutput", "mythrilFindings"],
-      "requires": ["compilationSuccess"],
+      "dependsOn": [
+        "run-hardhat-compile"
+      ],
+      "provides": [
+        "mythrilOutput",
+        "mythrilFindings"
+      ],
+      "requires": [
+        "compilationSuccess"
+      ],
       "config": {
         "tool": "mythril",
-        "args": ["analyze", "--solc-json", "artifacts/build-info/*.json"],
+        "args": [
+          "analyze",
+          "--solc-json",
+          "artifacts/build-info/*.json"
+        ],
         "timeout": 300000,
         "optional": true
       },
@@ -434,9 +562,15 @@
       "category": "tool-analysis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["run-mythril"],
-      "provides": ["parsedMythrilFindings"],
-      "requires": ["mythrilOutput"],
+      "dependsOn": [
+        "run-mythril"
+      ],
+      "provides": [
+        "parsedMythrilFindings"
+      ],
+      "requires": [
+        "mythrilOutput"
+      ],
       "config": {
         "function": "parseMythrilOutput"
       },
@@ -451,12 +585,23 @@
       "category": "tool-analysis",
       "executor": "tool",
       "estimatedDurationSeconds": 30,
-      "dependsOn": ["enumerate-contracts"],
-      "provides": ["semgrepOutput", "semgrepFindings"],
-      "requires": ["contractFiles"],
+      "dependsOn": [
+        "enumerate-contracts"
+      ],
+      "provides": [
+        "semgrepOutput",
+        "semgrepFindings"
+      ],
+      "requires": [
+        "contractFiles"
+      ],
       "config": {
         "tool": "semgrep",
-        "args": ["--config", "auto", "--json"],
+        "args": [
+          "--config",
+          "auto",
+          "--json"
+        ],
         "timeout": 120000,
         "optional": true
       },
@@ -471,9 +616,15 @@
       "category": "tool-analysis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["run-semgrep"],
-      "provides": ["parsedSemgrepFindings"],
-      "requires": ["semgrepOutput"],
+      "dependsOn": [
+        "run-semgrep"
+      ],
+      "provides": [
+        "parsedSemgrepFindings"
+      ],
+      "requires": [
+        "semgrepOutput"
+      ],
       "config": {
         "function": "parseSemgrepOutput"
       },
@@ -488,9 +639,17 @@
       "category": "testing",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["validate-structure"],
-      "provides": ["testsExist", "testFiles", "testFramework"],
-      "requires": ["sourceDirectories"],
+      "dependsOn": [
+        "validate-structure"
+      ],
+      "provides": [
+        "testsExist",
+        "testFiles",
+        "testFramework"
+      ],
+      "requires": [
+        "sourceDirectories"
+      ],
       "config": {
         "function": "checkTestsExist"
       },
@@ -505,9 +664,19 @@
       "category": "testing",
       "executor": "tool",
       "estimatedDurationSeconds": 60,
-      "dependsOn": ["run-hardhat-compile", "check-tests-exist"],
-      "provides": ["testResults", "testsPassed", "testsFailed"],
-      "requires": ["compilationSuccess", "testsExist"],
+      "dependsOn": [
+        "run-hardhat-compile",
+        "check-tests-exist"
+      ],
+      "provides": [
+        "testResults",
+        "testsPassed",
+        "testsFailed"
+      ],
+      "requires": [
+        "compilationSuccess",
+        "testsExist"
+      ],
       "config": {
         "tool": "hardhat",
         "command": "test",
@@ -526,9 +695,16 @@
       "category": "testing",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["run-hardhat-test"],
-      "provides": ["parsedTestResults", "testCoverage"],
-      "requires": ["testResults"],
+      "dependsOn": [
+        "run-hardhat-test"
+      ],
+      "provides": [
+        "parsedTestResults",
+        "testCoverage"
+      ],
+      "requires": [
+        "testResults"
+      ],
       "config": {
         "function": "parseTestResults"
       },
@@ -543,9 +719,16 @@
       "category": "testing",
       "executor": "tool",
       "estimatedDurationSeconds": 90,
-      "dependsOn": ["run-hardhat-test"],
-      "provides": ["coverageReport", "coveragePct"],
-      "requires": ["testsPassed"],
+      "dependsOn": [
+        "run-hardhat-test"
+      ],
+      "provides": [
+        "coverageReport",
+        "coveragePct"
+      ],
+      "requires": [
+        "testsPassed"
+      ],
       "config": {
         "tool": "hardhat",
         "command": "coverage",
@@ -564,9 +747,16 @@
       "category": "testing",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["run-hardhat-coverage"],
-      "provides": ["parsedCoverage", "uncoveredLines"],
-      "requires": ["coverageReport"],
+      "dependsOn": [
+        "run-hardhat-coverage"
+      ],
+      "provides": [
+        "parsedCoverage",
+        "uncoveredLines"
+      ],
+      "requires": [
+        "coverageReport"
+      ],
       "config": {
         "function": "parseCoverageResults"
       },
@@ -582,7 +772,10 @@
       "executor": "deterministic",
       "estimatedDurationSeconds": 10,
       "dependsOn": [],
-      "provides": ["mergedFindings", "findingsByCategory"],
+      "provides": [
+        "mergedFindings",
+        "findingsByCategory"
+      ],
       "requires": [],
       "config": {
         "function": "mergeToolFindings"
@@ -598,9 +791,17 @@
       "category": "ai-analysis",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 45,
-      "dependsOn": ["merge-tool-findings", "enumerate-contracts"],
-      "provides": ["quickReviewFindings"],
-      "requires": ["mergedFindings", "mainContracts"],
+      "dependsOn": [
+        "merge-tool-findings",
+        "enumerate-contracts"
+      ],
+      "provides": [
+        "quickReviewFindings"
+      ],
+      "requires": [
+        "mergedFindings",
+        "mainContracts"
+      ],
       "config": {
         "prompt": "quick-review",
         "maxTokens": 4096,
@@ -617,9 +818,18 @@
       "category": "ai-analysis",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 30,
-      "dependsOn": ["identify-external-calls", "detect-interfaces"],
-      "provides": ["adminFunctions", "privilegedOperations"],
-      "requires": ["externalCalls", "implementedInterfaces"],
+      "dependsOn": [
+        "identify-external-calls",
+        "detect-interfaces"
+      ],
+      "provides": [
+        "adminFunctions",
+        "privilegedOperations"
+      ],
+      "requires": [
+        "externalCalls",
+        "implementedInterfaces"
+      ],
       "config": {
         "prompt": "identify-admin-functions",
         "maxTokens": 4096,
@@ -636,9 +846,18 @@
       "category": "ai-analysis",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 45,
-      "dependsOn": ["ai-admin-functions", "map-inheritance"],
-      "provides": ["accessControlFindings", "roleAnalysis"],
-      "requires": ["adminFunctions", "inheritanceMap"],
+      "dependsOn": [
+        "ai-admin-functions",
+        "map-inheritance"
+      ],
+      "provides": [
+        "accessControlFindings",
+        "roleAnalysis"
+      ],
+      "requires": [
+        "adminFunctions",
+        "inheritanceMap"
+      ],
       "config": {
         "prompt": "analyze-access-control",
         "maxTokens": 4096,
@@ -655,9 +874,18 @@
       "category": "ai-analysis",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 45,
-      "dependsOn": ["identify-external-calls", "merge-tool-findings"],
-      "provides": ["reentrancyFindings", "reentrancyVectors"],
-      "requires": ["externalCalls", "mergedFindings"],
+      "dependsOn": [
+        "identify-external-calls",
+        "merge-tool-findings"
+      ],
+      "provides": [
+        "reentrancyFindings",
+        "reentrancyVectors"
+      ],
+      "requires": [
+        "externalCalls",
+        "mergedFindings"
+      ],
       "config": {
         "prompt": "check-reentrancy",
         "maxTokens": 4096,
@@ -674,9 +902,18 @@
       "category": "ai-analysis",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 30,
-      "dependsOn": ["analyze-imports", "detect-interfaces"],
-      "provides": ["oracleFindings", "priceManipulationRisks"],
-      "requires": ["externalDependencies", "implementedInterfaces"],
+      "dependsOn": [
+        "analyze-imports",
+        "detect-interfaces"
+      ],
+      "provides": [
+        "oracleFindings",
+        "priceManipulationRisks"
+      ],
+      "requires": [
+        "externalDependencies",
+        "implementedInterfaces"
+      ],
       "config": {
         "prompt": "check-oracle",
         "maxTokens": 4096,
@@ -693,9 +930,18 @@
       "category": "ai-analysis",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 60,
-      "dependsOn": ["extract-signatures", "count-sloc"],
-      "provides": ["businessLogicFindings", "logicFlaws"],
-      "requires": ["functionSignatures", "sloc"],
+      "dependsOn": [
+        "extract-signatures",
+        "count-sloc"
+      ],
+      "provides": [
+        "businessLogicFindings",
+        "logicFlaws"
+      ],
+      "requires": [
+        "functionSignatures",
+        "sloc"
+      ],
       "config": {
         "prompt": "analyze-business-logic",
         "maxTokens": 4096,
@@ -712,9 +958,16 @@
       "category": "ai-analysis",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 30,
-      "dependsOn": ["merge-tool-findings"],
-      "provides": ["validatedFindings", "falsePositives"],
-      "requires": ["mergedFindings"],
+      "dependsOn": [
+        "merge-tool-findings"
+      ],
+      "provides": [
+        "validatedFindings",
+        "falsePositives"
+      ],
+      "requires": [
+        "mergedFindings"
+      ],
       "config": {
         "prompt": "validate-findings",
         "maxTokens": 4096,
@@ -731,8 +984,12 @@
       "category": "synthesis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 10,
-      "dependsOn": ["merge-tool-findings"],
-      "provides": ["deduplicatedFindings"],
+      "dependsOn": [
+        "merge-tool-findings"
+      ],
+      "provides": [
+        "deduplicatedFindings"
+      ],
       "requires": [],
       "config": {
         "function": "deduplicateFindings"
@@ -748,9 +1005,15 @@
       "category": "synthesis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["deduplicate"],
-      "provides": ["severityRankedFindings"],
-      "requires": ["deduplicatedFindings"],
+      "dependsOn": [
+        "deduplicate"
+      ],
+      "provides": [
+        "severityRankedFindings"
+      ],
+      "requires": [
+        "deduplicatedFindings"
+      ],
       "config": {
         "function": "calculateSeverity"
       },
@@ -765,9 +1028,16 @@
       "category": "synthesis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 5,
-      "dependsOn": ["calculate-severity"],
-      "provides": ["auditScore", "scoreBreakdown"],
-      "requires": ["severityRankedFindings"],
+      "dependsOn": [
+        "calculate-severity"
+      ],
+      "provides": [
+        "auditScore",
+        "scoreBreakdown"
+      ],
+      "requires": [
+        "severityRankedFindings"
+      ],
       "config": {
         "function": "calculateScore"
       },
@@ -782,9 +1052,17 @@
       "category": "reporting",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 45,
-      "dependsOn": ["calculate-score"],
-      "provides": ["recommendations", "remediationPlan"],
-      "requires": ["severityRankedFindings", "auditScore"],
+      "dependsOn": [
+        "calculate-score"
+      ],
+      "provides": [
+        "recommendations",
+        "remediationPlan"
+      ],
+      "requires": [
+        "severityRankedFindings",
+        "auditScore"
+      ],
       "config": {
         "prompt": "generate-recommendations",
         "maxTokens": 4096,
@@ -801,9 +1079,19 @@
       "category": "reporting",
       "executor": "deterministic",
       "estimatedDurationSeconds": 30,
-      "dependsOn": ["ai-recommendations"],
-      "provides": ["finalReport", "reportPath"],
-      "requires": ["severityRankedFindings", "auditScore", "recommendations"],
+      "dependsOn": [
+        "calculate-score",
+        "ai-custom-recommendations"
+      ],
+      "provides": [
+        "finalReport",
+        "reportPath"
+      ],
+      "requires": [
+        "severityRankedFindings",
+        "auditScore",
+        "recommendations"
+      ],
       "config": {
         "function": "generateReport"
       },
@@ -818,9 +1106,18 @@
       "category": "analysis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 15,
-      "dependsOn": ["enumerate-contracts"],
-      "provides": ["contractClassification", "contractCategory", "detectedInterfaces", "detectedPatterns"],
-      "requires": ["contractFiles"],
+      "dependsOn": [
+        "enumerate-contracts"
+      ],
+      "provides": [
+        "contractClassification",
+        "contractCategory",
+        "detectedInterfaces",
+        "detectedPatterns"
+      ],
+      "requires": [
+        "contractFiles"
+      ],
       "config": {
         "function": "classifyContractType"
       },
@@ -835,9 +1132,15 @@
       "category": "analysis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 10,
-      "dependsOn": ["enumerate-contracts"],
-      "provides": ["detectedInterfacesSimple"],
-      "requires": ["contractFiles"],
+      "dependsOn": [
+        "enumerate-contracts"
+      ],
+      "provides": [
+        "detectedInterfacesSimple"
+      ],
+      "requires": [
+        "contractFiles"
+      ],
       "config": {
         "function": "detectInterfacesSimple"
       },
@@ -852,9 +1155,15 @@
       "category": "analysis",
       "executor": "deterministic",
       "estimatedDurationSeconds": 10,
-      "dependsOn": ["enumerate-contracts"],
-      "provides": ["functionSignaturesRegex"],
-      "requires": ["contractFiles"],
+      "dependsOn": [
+        "enumerate-contracts"
+      ],
+      "provides": [
+        "functionSignaturesRegex"
+      ],
+      "requires": [
+        "contractFiles"
+      ],
       "config": {
         "function": "extractFunctionSignaturesRegex"
       },
@@ -869,12 +1178,24 @@
       "category": "tool-analysis",
       "executor": "tool",
       "estimatedDurationSeconds": 20,
-      "dependsOn": ["enumerate-contracts"],
-      "provides": ["semgrepOutputLocal", "semgrepFindingsLocal"],
-      "requires": ["contractFiles"],
+      "dependsOn": [
+        "enumerate-contracts"
+      ],
+      "provides": [
+        "semgrepOutputLocal",
+        "semgrepFindingsLocal"
+      ],
+      "requires": [
+        "contractFiles"
+      ],
       "config": {
         "tool": "semgrep",
-        "args": ["--config", "p/solidity", "--json", "--no-git-ignore"],
+        "args": [
+          "--config",
+          "p/solidity",
+          "--json",
+          "--no-git-ignore"
+        ],
         "timeout": 60000,
         "optional": true
       },
@@ -889,9 +1210,15 @@
       "category": "interactive",
       "executor": "interactive",
       "estimatedDurationSeconds": 300,
-      "dependsOn": ["classify-contract-type"],
-      "provides": ["questionnaireShown"],
-      "requires": ["contractCategory"],
+      "dependsOn": [
+        "classify-contract-type"
+      ],
+      "provides": [
+        "questionnaireShown"
+      ],
+      "requires": [
+        "contractCategory"
+      ],
       "config": {
         "function": "showPreAuditQuestionnaire",
         "blocking": true
@@ -907,18 +1234,26 @@
       "category": "interactive",
       "executor": "interactive",
       "estimatedDurationSeconds": 600,
-      "dependsOn": ["show-preaudit-questionnaire"],
-      "provides": ["preAuditAnswers", "userContext"],
-      "requires": ["questionnaireShown"],
+      "dependsOn": [
+        "show-preaudit-questionnaire"
+      ],
+      "provides": [
+        "preAuditAnswers",
+        "userContext"
+      ],
+      "requires": [
+        "questionnaireShown"
+      ],
       "config": {
         "function": "waitForQuestionnaireAnswers",
         "blocking": true,
-        "timeout": 3600000
+        "timeout": 604800000
       },
       "progressWeight": 2,
       "required": true,
       "continueOnFailure": false,
-      "retryCount": 0
+      "retryCount": 0,
+      "timeoutSeconds": 604800
     },
     {
       "id": "request-clarifications",
@@ -926,9 +1261,15 @@
       "category": "interactive",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 60,
-      "dependsOn": ["merge-tool-findings"],
-      "provides": ["clarificationRequests"],
-      "requires": ["mergedFindings"],
+      "dependsOn": [
+        "merge-tool-findings"
+      ],
+      "provides": [
+        "clarificationRequests"
+      ],
+      "requires": [
+        "mergedFindings"
+      ],
       "config": {
         "prompt": "generate-clarification-questions",
         "maxTokens": 4096,
@@ -945,9 +1286,15 @@
       "category": "interactive",
       "executor": "interactive",
       "estimatedDurationSeconds": 600,
-      "dependsOn": ["request-clarifications"],
-      "provides": ["clarificationAnswers"],
-      "requires": ["clarificationRequests"],
+      "dependsOn": [
+        "request-clarifications"
+      ],
+      "provides": [
+        "clarificationAnswers"
+      ],
+      "requires": [
+        "clarificationRequests"
+      ],
       "config": {
         "function": "waitForClarificationAnswers",
         "blocking": true,
@@ -964,9 +1311,19 @@
       "category": "ai-analysis",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 90,
-      "dependsOn": ["wait-for-clarifications", "extract-signatures"],
-      "provides": ["businessLogicFindingsDeep", "logicFlawsDeep"],
-      "requires": ["functionSignatures", "clarificationAnswers", "preAuditAnswers"],
+      "dependsOn": [
+        "wait-for-clarifications",
+        "extract-signatures"
+      ],
+      "provides": [
+        "businessLogicFindingsDeep",
+        "logicFlawsDeep"
+      ],
+      "requires": [
+        "functionSignatures",
+        "clarificationAnswers",
+        "preAuditAnswers"
+      ],
       "config": {
         "prompt": "analyze-business-logic-deep",
         "maxTokens": 8192,
@@ -983,9 +1340,18 @@
       "category": "ai-analysis",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 60,
-      "dependsOn": ["ai-business-logic-deep", "detect-interfaces"],
-      "provides": ["economicFindings", "tokenomicsAnalysis"],
-      "requires": ["preAuditAnswers", "implementedInterfaces"],
+      "dependsOn": [
+        "ai-business-logic-deep",
+        "detect-interfaces"
+      ],
+      "provides": [
+        "economicFindings",
+        "tokenomicsAnalysis"
+      ],
+      "requires": [
+        "preAuditAnswers",
+        "implementedInterfaces"
+      ],
       "config": {
         "prompt": "analyze-token-economics",
         "maxTokens": 6144,
@@ -1002,9 +1368,16 @@
       "category": "interactive",
       "executor": "interactive",
       "estimatedDurationSeconds": 600,
-      "dependsOn": ["deduplicate"],
-      "provides": ["validatedByUser", "severityAdjustments"],
-      "requires": ["deduplicatedFindings"],
+      "dependsOn": [
+        "deduplicate"
+      ],
+      "provides": [
+        "validatedByUser",
+        "severityAdjustments"
+      ],
+      "requires": [
+        "deduplicatedFindings"
+      ],
       "config": {
         "function": "userFindingValidation",
         "blocking": false,
@@ -1021,21 +1394,29 @@
       "category": "reporting",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 60,
-      "dependsOn": ["calculate-score", "user-finding-validation"],
-      "provides": ["customRecommendations", "contextualAdvice"],
-      "requires": ["severityRankedFindings", "auditScore", "preAuditAnswers", "clarificationAnswers"],
+      "dependsOn": [
+        "calculate-score"
+      ],
+      "provides": [
+        "recommendations",
+        "customRecommendations",
+        "contextualAdvice"
+      ],
+      "requires": [
+        "severityRankedFindings",
+        "auditScore"
+      ],
       "config": {
         "prompt": "generate-custom-recommendations",
         "maxTokens": 6144,
         "temperature": 0.4
       },
       "progressWeight": 6,
-      "required": false,
-      "continueOnFailure": true,
+      "required": true,
+      "continueOnFailure": false,
       "retryCount": 1
     }
   ],
-
   "requiredTools": [
     {
       "name": "hardhat",
@@ -1049,7 +1430,6 @@
       "installHint": "pip install slither-analyzer"
     }
   ],
-
   "optionalTools": [
     {
       "name": "mythril",

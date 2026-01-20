@@ -74,11 +74,75 @@ function classifyFindingScope(
  * - EXTERNAL: discounted (e.g. 0.2x) because responsibility is shared/shifted.
  * - UNDECLARED: zero weight (tracked but doesn't affect score)
  */
+/**
+ * Adjust finding severity if admin privilege was disclosed in pre-audit questionnaire.
+ * Disclosed admin controls get severity reduced by one level (high → medium, etc.)
+ * because transparency shows good faith.
+ */
+export function adjustSeverityForDisclosure(
+  finding: FindingLike,
+  disclosedAdminPrivileges: string[] = []
+): FindingLike {
+  if (!finding.severity || disclosedAdminPrivileges.length === 0) {
+    return finding;
+  }
+
+  const findingText = `${finding.title} ${finding.description}`.toLowerCase();
+
+  // Check if this finding relates to disclosed admin controls
+  const isAboutPause = disclosedAdminPrivileges.includes('Pause/unpause functionality') &&
+                       (findingText.includes('pause') || findingText.includes('pausable'));
+
+  const isAboutUpgrade = disclosedAdminPrivileges.includes('Upgrade contract (proxy)') &&
+                        (findingText.includes('upgrade') || findingText.includes('proxy'));
+
+  const isAboutFees = disclosedAdminPrivileges.includes('Change fees/parameters') &&
+                     (findingText.includes('fee') || findingText.includes('parameter'));
+
+  const isAboutMint = disclosedAdminPrivileges.includes('Mint tokens') &&
+                     (findingText.includes('mint') || findingText.includes('supply'));
+
+  const isAboutBlacklist = disclosedAdminPrivileges.includes('Blacklist addresses') &&
+                          (findingText.includes('blacklist') || findingText.includes('whitelist'));
+
+  const isAboutWithdraw = disclosedAdminPrivileges.includes('Emergency withdraw') &&
+                         (findingText.includes('withdraw') || findingText.includes('drain'));
+
+  // If admin control was disclosed, reduce severity by one level
+  if (isAboutPause || isAboutUpgrade || isAboutFees || isAboutMint || isAboutBlacklist || isAboutWithdraw) {
+    const severityMap: Record<string, string> = {
+      'critical': 'high',      // Critical → High
+      'high': 'medium',        // High → Medium
+      'medium': 'low',         // Medium → Low
+      'low': 'info'            // Low → Info
+    };
+
+    const currentSeverity = finding.severity.toLowerCase();
+    const newSeverity = severityMap[currentSeverity] || currentSeverity;
+
+    // Add note to description about disclosure
+    const disclosureNote = '\n\n[Note: Severity reduced because this admin control was disclosed in pre-audit questionnaire, showing transparency.]';
+
+    return {
+      ...finding,
+      severity: newSeverity,
+      description: (finding.description || '') + disclosureNote
+    };
+  }
+
+  return finding;
+}
+
 export function calculateWeightedScore(
   findings: FindingLike[],
   liabilityMap: LiabilityMap | null,
-  externalWeightFactor = 0.2
+  externalWeightFactor = 0.2,
+  disclosedAdminPrivileges: string[] = []
 ): WeightedScoreResult {
+  // Adjust findings based on disclosure before scoring
+  const adjustedFindings = findings.map(f =>
+    adjustSeverityForDisclosure(f, disclosedAdminPrivileges)
+  );
   const breakdown: ScoreBreakdown = {
     critical_count_internal: 0,
     high_count_internal: 0,
@@ -95,7 +159,7 @@ export function calculateWeightedScore(
   let localDeductions = 0;
   let externalDeductions = 0;
 
-  for (const f of findings || []) {
+  for (const f of adjustedFindings || []) {
     const s = (f.severity || "").toLowerCase();
     const w = severityWeight(f.severity);
 

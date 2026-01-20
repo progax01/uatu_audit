@@ -97,6 +97,23 @@ async function getScanWorkspace(network: string, address: string): Promise<strin
 }
 
 /**
+ * Find a file recursively in a directory
+ */
+async function findFileRecursive(dir: string, filename: string): Promise<string | null> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const found = await findFileRecursive(fullPath, filename);
+      if (found) return found;
+    } else if (entry.name === filename) {
+      return fullPath;
+    }
+  }
+  return null;
+}
+
+/**
  * Scan route handlers
  */
 export async function handleScanRoutes(
@@ -393,6 +410,20 @@ export async function handleScanRoutes(
               hasExistingAudit: !!existingAuditInfo,
             });
 
+            // Read first 20 lines of main contract for preview
+            let sourceCodePreview = '';
+            const mainContractFile = solFiles.find(f => f.includes(metadata.contractName) || f.endsWith('.sol')) || solFiles[0];
+            try {
+              const mainFilePath = await findFileRecursive(contractsPath, mainContractFile);
+              if (mainFilePath) {
+                const fullSource = await fs.readFile(mainFilePath, 'utf-8');
+                const lines = fullSource.split('\n').slice(0, 20);
+                sourceCodePreview = lines.join('\n');
+              }
+            } catch (err) {
+              log.warn('Failed to read source preview', { file: mainContractFile, error: err });
+            }
+
             const response: any = {
               isContract: true,
               isVerified: true,
@@ -409,6 +440,7 @@ export async function handleScanRoutes(
               creationTxHash: metadata.creationTxHash,
               files: solFiles,
               fileCount: solFiles.length,
+              sourceCodePreview,
               cached: true,
               explorerUrl: metadata.explorerUrl || getExplorerUrl(address, network),
             };

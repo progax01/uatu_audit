@@ -289,6 +289,11 @@ export function parseSemgrepOutput(output: any, projectPath: string): StepFindin
   const results = output.results as SemgrepResult[];
 
   for (const result of results) {
+    // Filter out noisy findings based on rule and location
+    if (!shouldIncludeRule(result.check_id, result.extra.severity, result.path)) {
+      continue;
+    }
+
     const metadata = result.extra.metadata || {};
 
     const finding: StepFinding = {
@@ -467,23 +472,99 @@ export function getSemgrepCategory(checkId: string): string {
 }
 
 /**
- * Filter out noisy or irrelevant rules
+ * Filter out noisy or irrelevant rules based on rule type and file location
  */
-export function shouldIncludeRule(checkId: string, severity: string): boolean {
+export function shouldIncludeRule(checkId: string, severity: string, filePath: string = ''): boolean {
+  // Always exclude node_modules
+  if (filePath.includes('node_modules/')) {
+    return false;
+  }
+
+  // Normalize path for consistent matching
+  const normalizedPath = filePath.replace(/\\/g, '/').toLowerCase();
+
+  // Exclude frontend/UI directories for smart contract scans
+  const frontendPaths = [
+    'frontend/',
+    'ui/',
+    'app/',
+    'pages/',
+    'components/',
+    'public/',
+    'examples/',
+    'docs/',
+    '.next/',
+    '.nuxt/',
+    'dist/',
+    'build/',
+  ];
+
+  if (frontendPaths.some(dir => normalizedPath.includes(dir))) {
+    return false;
+  }
+
+  // Exclude frontend file extensions for smart contract scans
+  const frontendExtensions = [
+    '.tsx',
+    '.jsx',
+    '.vue',
+    '.svelte',
+    '.html',
+    '.css',
+    '.scss',
+    '.sass',
+    '.less',
+  ];
+
+  if (frontendExtensions.some(ext => normalizedPath.endsWith(ext))) {
+    return false;
+  }
+
+  // Exclude third-party libraries with low/info severity
+  if (
+    (filePath.includes('@openzeppelin/') ||
+     filePath.includes('lib/') ||
+     filePath.includes('forge-std/') ||
+     filePath.includes('solady/')) &&
+    (severity === 'INFO' || severity === 'WARNING')
+  ) {
+    return false;
+  }
+
   // Exclude certain rules that are too noisy
   const excludedRules = new Set([
     'generic.secrets.gitleaks',
     'generic.ci.security.audit',
+    // Code quality (not security)
+    'solidity.style',
+    'solidity.naming',
+    'generic.best-practice.naming',
+    // Gas optimization (not security)
+    'solidity.gas-optimization',
+    'solidity.performance',
   ]);
 
   if (excludedRules.has(checkId)) {
     return false;
   }
 
+  // Also check partial matches for excluded patterns
+  const excludedPatterns = [
+    'naming-convention',
+    'best-practice.code-style',
+    'best-practice.todo',
+    'best-practice.comment',
+  ];
+
+  const lowerCheckId = checkId.toLowerCase();
+  if (excludedPatterns.some(pattern => lowerCheckId.includes(pattern))) {
+    return false;
+  }
+
   // For INFO level, only include security-relevant rules
   if (severity === 'INFO') {
-    const securityKeywords = ['security', 'vuln', 'attack', 'inject', 'exploit'];
-    return securityKeywords.some((kw) => checkId.toLowerCase().includes(kw));
+    const securityKeywords = ['security', 'vuln', 'attack', 'inject', 'exploit', 'unsafe', 'dangerous'];
+    return securityKeywords.some((kw) => lowerCheckId.includes(kw));
   }
 
   return true;

@@ -21,6 +21,12 @@ interface PublicAudit {
     contractName: string | null
     isProxy: boolean
     repo: string
+    branch: string
+    commitSha: string | null
+    projectName: string
+    projectDescription: string | null
+    projectLogoUrl: string | null
+    projectGithubUrl: string | null
     createdAt: string
     completedAt: string | null
     score: number | null
@@ -158,12 +164,16 @@ export default function PublicAudits() {
     }
 
     const getDisplayName = (audit: PublicAudit) => {
+        // Use projectName from backend (already cleaned up)
+        if (audit.projectName) return audit.projectName
         if (audit.contractName) return audit.contractName
         if (audit.repo.startsWith('scan://')) {
             const parts = audit.repo.split('/')
             return parts[parts.length - 1].slice(0, 10) + '...'
         }
-        return audit.repo
+        // Fallback to extracting from GitHub URL
+        const match = audit.repo.match(/github\.com\/([^\/]+\/[^\/\.]+)/)
+        return match ? match[1] : audit.repo
     }
 
     const getAddressDisplay = (audit: PublicAudit) => {
@@ -393,14 +403,34 @@ export default function PublicAudits() {
                                                                     <div className="text-sm font-black text-slate-900 dark:text-white tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                                                         {getDisplayName(audit)}
                                                                     </div>
-                                                                    <div className="flex items-center gap-2 mt-1.5">
+                                                                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                                                         <div className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest leading-none">
                                                                             {audit.auditType === 'quick' ? 'QUICK' : 'FULL'}
                                                                         </div>
-                                                                        <div className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
-                                                                        <div className="text-[9px] font-mono text-slate-400 truncate max-w-[140px] leading-none tracking-tight">
-                                                                            {getAddressDisplay(audit)}
-                                                                        </div>
+                                                                        {audit.auditType === 'full' && audit.branch && (
+                                                                            <>
+                                                                                <div className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                                                                                <div className="text-[9px] font-mono text-indigo-600 dark:text-indigo-400 leading-none tracking-tight">
+                                                                                    {audit.branch}
+                                                                                </div>
+                                                                            </>
+                                                                        )}
+                                                                        {audit.auditType === 'full' && audit.commitSha && (
+                                                                            <>
+                                                                                <div className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                                                                                <div className="text-[9px] font-mono text-slate-400 leading-none tracking-tight">
+                                                                                    {audit.commitSha.substring(0, 7)}
+                                                                                </div>
+                                                                            </>
+                                                                        )}
+                                                                        {audit.auditType === 'quick' && (
+                                                                            <>
+                                                                                <div className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                                                                                <div className="text-[9px] font-mono text-slate-400 truncate max-w-[140px] leading-none tracking-tight">
+                                                                                    {getAddressDisplay(audit)}
+                                                                                </div>
+                                                                            </>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -508,13 +538,34 @@ export default function PublicAudits() {
                                                         <div className="text-sm font-black text-slate-900 dark:text-white tracking-tight truncate">
                                                             {getDisplayName(audit)}
                                                         </div>
-                                                        <div className="flex items-center gap-2 mt-1">
+                                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                                                             <span className="text-[8px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">
                                                                 {audit.auditType === 'quick' ? 'QUICK' : 'FULL'}
                                                             </span>
-                                                            <span className="text-[8px] font-mono text-slate-400 truncate">
-                                                                {getAddressDisplay(audit)}
-                                                            </span>
+                                                            {audit.auditType === 'full' && audit.branch && (
+                                                                <>
+                                                                    <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                                                                    <span className="text-[8px] font-mono text-indigo-600 dark:text-indigo-400">
+                                                                        {audit.branch}
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                            {audit.auditType === 'full' && audit.commitSha && (
+                                                                <>
+                                                                    <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                                                                    <span className="text-[8px] font-mono text-slate-400">
+                                                                        {audit.commitSha.substring(0, 7)}
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                            {audit.auditType === 'quick' && (
+                                                                <>
+                                                                    <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                                                                    <span className="text-[8px] font-mono text-slate-400 truncate">
+                                                                        {getAddressDisplay(audit)}
+                                                                    </span>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     {audit.network && (

@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "fs-extra";
 import fg from "fast-glob";
+import { filterFilesByFramework } from "./frameworkFileFilter.js";
 
 export interface ContextWriterOptions {
   projectPath: string;
@@ -22,8 +23,35 @@ export async function writeFilesStructure(options: ContextWriterOptions): Promis
   const tree = await buildDirectoryTree(projectPath);
 
   // Find and read contract files
-  const solidityFiles = await fg(["**/*.sol", "!**/node_modules/**", "!**/.git/**", "!**/.uatu/**", "!**/runs/**"], { cwd: projectPath });
-  const rustFiles = await fg(["**/*.rs", "!**/target/**", "!**/.git/**", "!**/node_modules/**", "!**/runs/**"], { cwd: projectPath });
+  const allSolidityFiles = await fg(["**/*.sol", "!**/node_modules/**", "!**/.git/**", "!**/.uatu/**", "!**/runs/**"], { cwd: projectPath });
+  const allRustFiles = await fg(["**/*.rs", "!**/target/**", "!**/.git/**", "!**/node_modules/**", "!**/runs/**"], { cwd: projectPath });
+
+  // Read package.json for dependencies (needed for framework detection)
+  const packageJsonPath = path.join(projectPath, "package.json");
+  let dependencies: Record<string, string> = {};
+  let devDependencies: Record<string, string> = {};
+
+  if (await fs.pathExists(packageJsonPath)) {
+    const pkg = await fs.readJson(packageJsonPath);
+    dependencies = pkg.dependencies || {};
+    devDependencies = pkg.devDependencies || {};
+  }
+
+  // Detect framework FIRST (before filtering)
+  const framework = detectFramework(dependencies, devDependencies, allSolidityFiles, allRustFiles);
+
+  // Apply framework-based file filtering
+  const solidityFiltered = filterFilesByFramework(allSolidityFiles, framework.primary);
+  const rustFiltered = filterFilesByFramework(allRustFiles, framework.primary);
+
+  const solidityFiles = solidityFiltered.included;
+  const rustFiles = rustFiltered.included;
+
+  console.log('[ContextWriter] Framework-based file filtering applied:', {
+    framework: framework.primary,
+    solidity: { before: allSolidityFiles.length, after: solidityFiles.length, excluded: solidityFiltered.stats.excluded },
+    rust: { before: allRustFiles.length, after: rustFiles.length, excluded: rustFiltered.stats.excluded }
+  });
 
   // Read contract sources
   const contractSources: { path: string; content: string }[] = [];
@@ -41,8 +69,8 @@ export async function writeFilesStructure(options: ContextWriterOptions): Promis
     }
   }
 
-  // Find existing tests
-  const testFiles = await fg([
+  // Find existing tests (also apply framework filter)
+  const allTestFiles = await fg([
     "**/*.test.{js,ts,tsx}",
     "**/*.spec.{js,ts,tsx}",
     "**/*.t.sol",
@@ -52,19 +80,8 @@ export async function writeFilesStructure(options: ContextWriterOptions): Promis
     "!**/.git/**"
   ], { cwd: projectPath });
 
-  // Read package.json for dependencies
-  const packageJsonPath = path.join(projectPath, "package.json");
-  let dependencies: Record<string, string> = {};
-  let devDependencies: Record<string, string> = {};
-
-  if (await fs.pathExists(packageJsonPath)) {
-    const pkg = await fs.readJson(packageJsonPath);
-    dependencies = pkg.dependencies || {};
-    devDependencies = pkg.devDependencies || {};
-  }
-
-  // Detect framework
-  const framework = detectFramework(dependencies, devDependencies, solidityFiles, rustFiles);
+  const testFiltered = filterFilesByFramework(allTestFiles, framework.primary);
+  const testFiles = testFiltered.included;
 
   // Build markdown content
   const md = `# Project Structure

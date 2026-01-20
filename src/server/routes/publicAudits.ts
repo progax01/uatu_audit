@@ -67,6 +67,26 @@ export async function handlePublicAuditRoutes(
         const normalizedProgressPct = audit.completedAt ? 100 : audit.progressPct;
         const normalizedProgressMessage = audit.completedAt ? 'Scan complete' : audit.progressMessage;
 
+        // Determine display name - prioritize project name, then contract name, then extract from source
+        let displayName = audit.projectName || audit.contractName || 'Unknown Project';
+
+        // If no project name or contract name, extract from source
+        if (!audit.projectName && !audit.contractName) {
+          if (audit.repo.startsWith('scan://')) {
+            // For contract scans: scan://base/0xABC... -> 0xABC...4DEF
+            const addressMatch = audit.repo.match(/scan:\/\/[^\/]+\/(0x[a-fA-F0-9]+)/);
+            if (addressMatch && audit.contractAddress) {
+              displayName = `${audit.contractAddress.slice(0, 6)}...${audit.contractAddress.slice(-4)}`;
+            } else if (addressMatch) {
+              displayName = `${addressMatch[1].slice(0, 6)}...${addressMatch[1].slice(-4)}`;
+            }
+          } else if (audit.repo.includes('github.com')) {
+            // For GitHub repos: extract owner/repo
+            const match = audit.repo.match(/github\.com\/([^\/]+\/[^\/\.]+)/);
+            displayName = match ? match[1] : audit.repo;
+          }
+        }
+
         return {
           id: audit.id,
           legacyId: audit.legacyId,
@@ -76,6 +96,12 @@ export async function handlePublicAuditRoutes(
           contractName: audit.contractName,
           isProxy: audit.isProxy,
           repo: audit.repo,
+          branch: audit.branch,
+          commitSha: audit.commitSha,
+          projectName: displayName,
+          projectDescription: audit.projectDescription,
+          projectLogoUrl: audit.projectLogoUrl,
+          projectGithubUrl: audit.projectGithubUrl || audit.repo,
           createdAt: audit.createdAt,
           completedAt: audit.completedAt,
           score: audit.scoreValue,

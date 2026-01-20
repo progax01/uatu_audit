@@ -589,13 +589,37 @@ function parseHardhatOutput(stdout: string, stderr: string): StepFinding[] {
 
   let match;
   while ((match = warningPattern.exec(combined)) !== null) {
+    const description = match[1].trim();
+
+    // Filter out broken/malformed warnings
+    // Skip if description is empty, single character, or not meaningful
+    if (!description || description.length < 3 || /^[^a-zA-Z]*$/.test(description)) {
+      continue;
+    }
+
+    // Filter out noise warnings (same as compiler warning filter)
+    const lowerDesc = description.toLowerCase();
+    const noisePatterns = [
+      'spdx license',
+      'unused local variable',
+      'unused function parameter',
+      'unused return value',
+      'contract code size',
+      'shadowed declaration',
+      'function state mutability can be restricted',
+    ];
+
+    if (noisePatterns.some(pattern => lowerDesc.includes(pattern))) {
+      continue;
+    }
+
     findings.push({
       stepId: 'hardhat-compile',
       tool: 'hardhat',
       findingId: `hardhat-warn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       severity: 'low',
       title: 'Compiler Warning',
-      description: match[1].trim(),
+      description,
       location: match[2] ? {
         file: match[2],
         line: parseInt(match[3] || '0', 10),
@@ -605,13 +629,20 @@ function parseHardhatOutput(stdout: string, stderr: string): StepFinding[] {
   }
 
   while ((match = errorPattern.exec(combined)) !== null) {
+    const description = match[1].trim();
+
+    // Filter out broken/malformed errors
+    if (!description || description.length < 3 || /^[^a-zA-Z]*$/.test(description)) {
+      continue;
+    }
+
     findings.push({
       stepId: 'hardhat-compile',
       tool: 'hardhat',
       findingId: `hardhat-err-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       severity: 'high',
       title: 'Compiler Error',
-      description: match[1].trim(),
+      description,
       location: match[2] ? {
         file: match[2],
         line: parseInt(match[3] || '0', 10),

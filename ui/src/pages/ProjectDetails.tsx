@@ -1,12 +1,13 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import {
-    Shield, ChevronRight, ArrowLeft, Loader2, Play, Trash2, AlertTriangle, FileCode, Award, Package
+    Shield, ChevronRight, ArrowLeft, Loader2, Play, Trash2, AlertTriangle, FileCode, Award, Package, Settings
 } from 'lucide-react'
 import { authFetch } from '../services/authService'
 import SourcesTab from '../components/project/SourcesTab'
 import AuditsTab from '../components/project/AuditsTab'
 import BadgeTab from '../components/project/BadgeTab'
+import SettingsTab from '../components/project/SettingsTab'
 import { fetchGitHubBranches } from '../services/githubService'
 
 interface Project {
@@ -24,9 +25,18 @@ interface Project {
     }[]
     lastAuditAt?: string
     lastAuditJobId?: string
+    logoUrl?: string
+    websiteUrl?: string
+    primaryColor?: string
+    contractAddress?: string
+    chainId?: string
+    docsUrl?: string
+    githubUrl?: string
+    twitterUrl?: string
+    discordUrl?: string
 }
 
-type TabType = 'sources' | 'audits' | 'badge'
+type TabType = 'sources' | 'audits' | 'badge' | 'settings'
 
 export default function ProjectDetails() {
     const { slug } = useParams()
@@ -160,9 +170,8 @@ export default function ProjectDetails() {
             const result = await response.json()
 
             if (result.success && result.jobId) {
-                // Save running job ID and switch to audits tab
-                setRunningJobId(result.jobId)
-                setActiveTab('audits')
+                // Navigate to audit progress page
+                navigate(`/audit/${result.jobId}`)
             } else {
                 throw new Error(result.error || 'Failed to start audit')
             }
@@ -618,6 +627,20 @@ export default function ProjectDetails() {
                             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
                         )}
                     </button>
+                    <button
+                        onClick={() => setActiveTab('settings')}
+                        className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-all relative ${
+                            activeTab === 'settings'
+                                ? 'text-indigo-600'
+                                : 'text-slate-400 hover:text-slate-900'
+                        }`}
+                    >
+                        <Settings size={16} />
+                        Settings
+                        {activeTab === 'settings' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
+                        )}
+                    </button>
                 </div>
 
                 {/* Tab Content */}
@@ -641,6 +664,22 @@ export default function ProjectDetails() {
                             projectId={project.id}
                             projectSlug={project.slug}
                             projectName={project.name}
+                        />
+                    )}
+                    {activeTab === 'settings' && (
+                        <SettingsTab
+                            projectId={project.id}
+                            initialSettings={{
+                                logoUrl: project.logoUrl,
+                                websiteUrl: project.websiteUrl,
+                                primaryColor: project.primaryColor,
+                                contractAddress: project.contractAddress,
+                                chainId: project.chainId,
+                                docsUrl: project.docsUrl,
+                                githubUrl: project.githubUrl,
+                                twitterUrl: project.twitterUrl,
+                                discordUrl: project.discordUrl
+                            }}
                         />
                     )}
                 </div>

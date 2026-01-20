@@ -638,6 +638,7 @@ const parseCompilation: DeterministicExecutor = async (step, config, context) =>
       findings: [],
       data: {
         compilationSuccess: false,
+        testSkipReason: 'Compilation output not available.',
       },
     };
   }
@@ -701,12 +702,19 @@ const parseCompilation: DeterministicExecutor = async (step, config, context) =>
 
   await context.onProgress?.(100, 'Compilation analyzed');
 
+  // Add test skip reason if compilation failed
+  let testSkipReason: string | undefined;
+  if (!buildResult.success) {
+    testSkipReason = 'Compilation failed. Fix compilation errors to run tests.';
+  }
+
   return {
     success: true,
     findings,
     data: {
       compilationSuccess: buildResult.success,
       compilationWarnings: buildResult.warnings || [],
+      testSkipReason, // NEW: Track why tests can't run if compilation failed
     },
   };
 };
@@ -1091,6 +1099,12 @@ const checkTestsExist: DeterministicExecutor = async (step, config, context) => 
 
   await context.onProgress?.(100, testsExist ? 'Tests found' : 'No tests');
 
+  // Generate skip reason if tests don't exist
+  let testSkipReason: string | undefined;
+  if (!testsExist) {
+    testSkipReason = 'No test files found. Add tests in test/ or tests/ directory.';
+  }
+
   return {
     success: true,
     findings: testsExist ? [] : [{
@@ -1105,6 +1119,7 @@ const checkTestsExist: DeterministicExecutor = async (step, config, context) => 
     data: {
       testsExist,
       testFileCount: testFiles.length + testContracts.length,
+      testSkipReason, // NEW: Track why tests can't run
     },
   };
 };
