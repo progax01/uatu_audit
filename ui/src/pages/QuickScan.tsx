@@ -625,21 +625,92 @@ export default function QuickScan() {
                                         </div>
                                     </div>
 
-                                    {/* Code with Scanner Line */}
-                                    <div className="relative h-[400px] overflow-hidden">
-                                        <pre className="p-4 text-[11px] font-mono leading-relaxed overflow-hidden">
-                                            {(contractInfo?.sourceCodePreview || MOCK_CONTRACT_CODE).split('\n').map((line, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className="flex text-slate-500"
-                                                >
-                                                    <span className="w-8 text-right mr-4 text-slate-600 select-none">
-                                                        {idx + 1}
-                                                    </span>
-                                                    <span>{line || ' '}</span>
+                                    {/* Large ASCII Logo Display with Progress */}
+                                    <div className="relative h-[450px] overflow-hidden flex flex-col items-center justify-center">
+                                        {/* Large ASCII Art Logo - Centered */}
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ duration: 0.5 }}
+                                            className="mb-8"
+                                        >
+                                            <pre className="text-[28px] leading-[1.1] font-mono font-black select-none whitespace-pre">
+                                                <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent">
+{`██╗   ██╗ █████╗ ████████╗██╗   ██╗
+██║   ██║██╔══██╗╚══██╔══╝██║   ██║
+██║   ██║███████║   ██║   ██║   ██║
+██║   ██║██╔══██║   ██║   ██║   ██║
+╚██████╔╝██║  ██║   ██║   ╚██████╔╝
+ ╚═════╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝`}
+                                                </span>
+                                            </pre>
+                                            {/* Glow effect behind logo */}
+                                            <div className="absolute inset-0 -z-10">
+                                                <motion.div
+                                                    className="w-full h-full bg-gradient-to-r from-indigo-500/20 via-violet-500/20 to-purple-500/20 blur-3xl"
+                                                    animate={{
+                                                        scale: [1, 1.1, 1],
+                                                        opacity: [0.3, 0.5, 0.3]
+                                                    }}
+                                                    transition={{
+                                                        duration: 2,
+                                                        repeat: Infinity,
+                                                        ease: 'easeInOut'
+                                                    }}
+                                                />
+                                            </div>
+                                        </motion.div>
+
+                                        {/* Progress Messages Below Logo */}
+                                        <div className="space-y-3 w-full max-w-md px-6">
+                                            {/* Current Phase */}
+                                            <motion.div
+                                                key={scanProgress?.message}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="flex items-center gap-3"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                                    <span className="text-xs font-mono text-emerald-400 font-bold">uatu@scanner</span>
                                                 </div>
-                                            ))}
-                                        </pre>
+                                                <span className="text-slate-600">~</span>
+                                                <span className="text-xs font-mono text-slate-300">
+                                                    {scanProgress?.message || 'Initializing security scan...'}
+                                                </span>
+                                                <motion.div
+                                                    className="w-1.5 h-3.5 bg-emerald-400 ml-1"
+                                                    animate={{ opacity: [1, 0, 1] }}
+                                                    transition={{ duration: 0.8, repeat: Infinity }}
+                                                />
+                                            </motion.div>
+
+                                            {/* Progress Bar */}
+                                            <div className="relative h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                                <motion.div
+                                                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500 rounded-full"
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${scanProgress?.pct || 0}%` }}
+                                                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                                                />
+                                                {/* Shimmer effect */}
+                                                <motion.div
+                                                    className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                                                    animate={{ left: ['-20%', '120%'] }}
+                                                    transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+                                                />
+                                            </div>
+
+                                            {/* Secondary Status */}
+                                            <div className="flex items-center justify-between text-[10px] font-mono">
+                                                <span className="text-slate-500">
+                                                    Analyzing: {contractInfo?.contractName || 'Contract'}.sol
+                                                </span>
+                                                <span className="text-indigo-400 font-bold">
+                                                    {scanProgress?.pct || 0}%
+                                                </span>
+                                            </div>
+                                        </div>
 
                                         {/* Continuous Looping Laser Scanner Line */}
                                         <motion.div
@@ -669,40 +740,6 @@ export default function QuickScan() {
                                             className="absolute top-0 left-0 right-0 bg-gradient-to-b from-emerald-500/10 via-emerald-500/5 to-transparent pointer-events-none"
                                             animate={{ height: `${(scanProgress?.pct || 0)}%` }}
                                             transition={{ duration: 0.8, ease: 'easeOut' }}
-                                        />
-                                    </div>
-
-                                    {/* Terminal-like bottom section with Uatu logo */}
-                                    <div className="border-t border-slate-700/50 bg-slate-800/50 px-5 py-3 flex items-center gap-4">
-                                        {/* ASCII Art Logo */}
-                                        <div className="flex-shrink-0">
-                                            <pre className="text-[8px] leading-[0.9] text-indigo-400 font-mono font-bold select-none whitespace-pre">
-{`██╗   ██╗ █████╗ ████████╗██╗   ██╗
-██║   ██║██╔══██╗╚══██╔══╝██║   ██║
-██║   ██║███████║   ██║   ██║   ██║
-██║   ██║██╔══██║   ██║   ██║   ██║
-╚██████╔╝██║  ██║   ██║   ╚██████╔╝
- ╚═════╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝`}
-                                            </pre>
-                                        </div>
-
-                                        {/* Terminal text */}
-                                        <div className="flex-1 flex items-center gap-3">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                                <span className="text-[10px] font-mono text-emerald-400 font-bold">uatu@scanner</span>
-                                            </div>
-                                            <span className="text-slate-500">~</span>
-                                            <span className="text-[10px] font-mono text-slate-400">
-                                                {scanProgress?.message || 'Analyzing contract security...'}
-                                            </span>
-                                        </div>
-
-                                        {/* Blinking cursor */}
-                                        <motion.div
-                                            className="w-2 h-4 bg-emerald-400"
-                                            animate={{ opacity: [1, 0, 1] }}
-                                            transition={{ duration: 1, repeat: Infinity }}
                                         />
                                     </div>
                                 </div>
