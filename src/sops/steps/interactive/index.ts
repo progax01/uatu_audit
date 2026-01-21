@@ -92,104 +92,58 @@ const showPreAuditQuestionnaire: InteractiveExecutor = async (step, config, cont
 // ============================================================================
 
 const waitForQuestionnaireAnswers: InteractiveExecutor = async (step, config, context) => {
-  await context.onProgress?.(10, 'Waiting for questionnaire answers...');
+  await context.onProgress?.(10, 'Checking for questionnaire answers...');
 
   const jobId = context.job.id;
 
-  log.info('Waiting for questionnaire answers', { jobId });
+  log.info('Checking for questionnaire answers - NON-BLOCKING mode', { jobId });
 
-  // Poll the database for questionnaire answers
-  // This is a blocking operation until the user submits answers
+  // Check once if answers have been submitted (non-blocking)
   const { getAuditClarificationAnswers } = await import('../../../repositories/auditJobRepository.js');
-  const fs = await import('fs-extra');
-  const path = await import('path');
+  const answers = await getAuditClarificationAnswers(jobId, 'pre_audit');
 
-  const pollInterval = 5000; // 5 seconds
-  const timeout = config.timeout || 604800000; // 7 days (matches workspace lifetime) - effectively infinite
-  const startTime = Date.now();
-  let lastStepDataUpdate = Date.now();
+  if (answers && answers.length > 0) {
+    await context.onProgress?.(100, 'Answers received');
 
-  while (Date.now() - startTime < timeout) {
-    // Check if answers have been submitted
-    const answers = await getAuditClarificationAnswers(jobId, 'pre_audit');
+    log.info('Questionnaire answers received', {
+      jobId,
+      answerCount: answers.length,
+    });
 
-    if (answers && answers.length > 0) {
-      await context.onProgress?.(100, 'Answers received');
-
-      log.info('Questionnaire answers received', {
-        jobId,
-        answerCount: answers.length,
-      });
-
-      // Convert answers to a usable format
-      const answerMap: Record<string, any> = {};
-      for (const answer of answers) {
-        try {
-          const parsed = typeof answer.answerValue === 'string'
-            ? JSON.parse(answer.answerValue)
-            : answer.answerValue;
-          answerMap[parsed.questionKey || answer.questionText] = parsed.value;
-        } catch {
-          answerMap[answer.questionText] = answer.answerValue;
-        }
-      }
-
-      return {
-        success: true,
-        findings: [],
-        data: {
-          preAuditAnswers: answerMap,
-          userContext: answerMap,
-        },
-      };
-    }
-
-    // Every 5 minutes, touch the stepData.json file to prevent stuck job detection
-    const now = Date.now();
-    if (now - lastStepDataUpdate >= 5 * 60 * 1000) {
+    // Convert answers to a usable format
+    const answerMap: Record<string, any> = {};
+    for (const answer of answers) {
       try {
-        const stepDataPath = path.join(context.projectPath, '.uatu', 'stepData.json');
-        if (await fs.pathExists(stepDataPath)) {
-          // Update file modification time by touching it
-          const stepData = await fs.readJson(stepDataPath);
-          stepData.lastActivity = new Date().toISOString();
-          stepData.waitingForUserInput = true;
-          stepData.currentStep = 'wait-for-questionnaire-answers';
-          await fs.writeJson(stepDataPath, stepData, { spaces: 2 });
-          lastStepDataUpdate = now;
-          log.debug('Updated stepData.json during questionnaire wait', { jobId });
-        }
-      } catch (err: any) {
-        log.warn('Failed to update stepData during questionnaire wait', {
-          jobId,
-          error: err.message
-        });
+        const parsed = typeof answer.answerValue === 'string'
+          ? JSON.parse(answer.answerValue)
+          : answer.answerValue;
+        answerMap[parsed.questionKey || answer.questionText] = parsed.value;
+      } catch {
+        answerMap[answer.questionText] = answer.answerValue;
       }
     }
 
-    // Wait before polling again
-    await new Promise((resolve) => setTimeout(resolve, pollInterval));
-
-    const elapsed = Math.round((Date.now() - startTime) / 1000);
-    const hours = Math.floor(elapsed / 3600);
-    const minutes = Math.floor((elapsed % 3600) / 60);
-    const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-    await context.onProgress?.(
-      50, // Fixed at 50% since we're paused waiting for input
-      `Waiting for questionnaire answers (${timeStr})...`
-    );
+    return {
+      success: true,
+      findings: [],
+      data: {
+        preAuditAnswers: answerMap,
+        userContext: answerMap,
+      },
+    };
   }
 
-  // Timeout reached
-  log.warn('Questionnaire answer timeout', { jobId, timeout });
+  // No answers yet - continue with best effort (non-blocking)
+  log.info('No questionnaire answers yet - continuing with best effort analysis', { jobId });
+  await context.onProgress?.(100, 'Continuing with best effort analysis...');
 
   return {
-    success: false,
+    success: true,
     findings: [],
-    error: 'Timeout waiting for questionnaire answers',
     data: {
       preAuditAnswers: {},
       userContext: {},
+      skippedQuestionnaire: true,
     },
   };
 };
@@ -199,7 +153,7 @@ const waitForQuestionnaireAnswers: InteractiveExecutor = async (step, config, co
 // ============================================================================
 
 const waitForClarificationAnswers: InteractiveExecutor = async (step, config, context) => {
-  await context.onProgress?.(10, 'Waiting for clarification answers...');
+  await context.onProgress?.(10, 'Checking for clarification answers...');
 
   const jobId = context.job.id;
   const clarificationRequests = context.data.clarificationRequests || [];
@@ -215,95 +169,24 @@ const waitForClarificationAnswers: InteractiveExecutor = async (step, config, co
     };
   }
 
-  log.info('Waiting for clarification answers', {
+  log.info('Checking for clarification answers - NON-BLOCKING mode', {
     jobId,
     requestCount: clarificationRequests.length,
   });
 
-  // Poll the database for clarification answers
+  // Check once if answers have been submitted (non-blocking)
   const { getAuditClarificationAnswers } = await import('../../../repositories/auditJobRepository.js');
-  const fs = await import('fs-extra');
-  const path = await import('path');
-
-  const pollInterval = 5000; // 5 seconds
-  const timeout = config.timeout || 1800000; // 30 minutes default
-  const startTime = Date.now();
-  let lastStepDataUpdate = Date.now();
-
-  while (Date.now() - startTime < timeout) {
-    // Check if answers have been submitted
-    const answers = await getAuditClarificationAnswers(jobId, 'post_audit');
-
-    if (answers && answers.length >= clarificationRequests.length) {
-      await context.onProgress?.(100, 'Answers received');
-
-      log.info('Clarification answers received', {
-        jobId,
-        answerCount: answers.length,
-      });
-
-      // Convert answers to a usable format
-      const answerMap: Record<string, any> = {};
-      for (const answer of answers) {
-        try {
-          const parsed = typeof answer.answerValue === 'string'
-            ? JSON.parse(answer.answerValue)
-            : answer.answerValue;
-          answerMap[parsed.questionKey || answer.questionText] = parsed.value;
-        } catch {
-          answerMap[answer.questionText] = answer.answerValue;
-        }
-      }
-
-      return {
-        success: true,
-        findings: [],
-        data: {
-          clarificationAnswers: answerMap,
-        },
-      };
-    }
-
-    // Every 5 minutes, touch the stepData.json file to prevent stuck job detection
-    const now = Date.now();
-    if (now - lastStepDataUpdate >= 5 * 60 * 1000) {
-      try {
-        const stepDataPath = path.join(context.projectPath, '.uatu', 'stepData.json');
-        if (await fs.pathExists(stepDataPath)) {
-          // Update file modification time by touching it
-          const stepData = await fs.readJson(stepDataPath);
-          stepData.lastActivity = new Date().toISOString();
-          stepData.waitingForUserInput = true;
-          stepData.currentStep = 'wait-for-clarification-answers';
-          await fs.writeJson(stepDataPath, stepData, { spaces: 2 });
-          lastStepDataUpdate = now;
-          log.debug('Updated stepData.json during clarification wait', { jobId });
-        }
-      } catch (err: any) {
-        log.warn('Failed to update stepData during clarification wait', {
-          jobId,
-          error: err.message
-        });
-      }
-    }
-
-    // Wait before polling again
-    await new Promise((resolve) => setTimeout(resolve, pollInterval));
-
-    const elapsed = Math.round((Date.now() - startTime) / 1000);
-    await context.onProgress?.(
-      Math.min(90, (elapsed / (timeout / 1000)) * 90),
-      `Waiting for answers (${elapsed}s)...`
-    );
-  }
-
-  // Timeout reached - continue with partial answers
-  log.warn('Clarification answer timeout, continuing with partial answers', { jobId, timeout });
-
   const answers = await getAuditClarificationAnswers(jobId, 'post_audit');
+
   const answerMap: Record<string, any> = {};
 
-  if (answers) {
+  if (answers && answers.length > 0) {
+    log.info('Clarification answers received', {
+      jobId,
+      answerCount: answers.length,
+    });
+
+    // Convert answers to a usable format
     for (const answer of answers) {
       try {
         const parsed = typeof answer.answerValue === 'string'
@@ -314,13 +197,18 @@ const waitForClarificationAnswers: InteractiveExecutor = async (step, config, co
         answerMap[answer.questionText] = answer.answerValue;
       }
     }
+  } else {
+    log.info('No clarification answers yet - continuing with best effort analysis', { jobId });
   }
 
+  await context.onProgress?.(100, 'Continuing with available context...');
+
   return {
-    success: true, // Don't fail the audit if user doesn't answer all clarifications
+    success: true, // Don't fail the audit if user doesn't answer clarifications
     findings: [],
     data: {
       clarificationAnswers: answerMap,
+      skippedClarifications: answers?.length === 0,
     },
   };
 };

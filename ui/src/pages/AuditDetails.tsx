@@ -961,7 +961,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   // Show running/progress page for audits in progress
   if (!auditData && jobInfo && (jobInfo.status === 'running' || jobInfo.status === 'pending' || jobInfo.status === 'queued')) {
     return (
-      <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
+      <div className="min-h-screen flex flex-col bg-slate-50">
         {/* Header */}
         <header className="h-16 flex items-center justify-between px-8 bg-white border-b border-slate-200 flex-shrink-0">
           <div onClick={() => navigate('/dashboard')} className="cursor-pointer flex items-center gap-3 group">
@@ -976,104 +976,75 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
           </button>
         </header>
 
-        {/* Two Column Layout */}
-        <div className="flex-1 grid grid-cols-2 gap-0 overflow-hidden">
-          {/* Left Column - Progress Info */}
-          <div className="flex flex-col justify-center items-center px-12 bg-white border-r border-slate-200">
-            <div className="w-full max-w-md">
-              {/* Status Icon */}
-              <div className="mb-8 flex justify-center">
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-xl">
-                  <Timer size={48} className="text-white animate-pulse" />
-                </div>
-              </div>
-
-              {/* Message */}
-              <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-4 text-center">
-                Audit In Progress
-              </h1>
-              <p className="text-slate-500 text-base leading-relaxed mb-10 text-center">
-                Your audit is currently running. This page will automatically update when complete.
-              </p>
-
-              {/* Progress Info */}
-              {progress && (
-                <div className="space-y-6">
+        {/* Full Width Layout */}
+        <div className="flex-1 p-8">
+          {/* Progress Summary Card */}
+          <div className="max-w-6xl mx-auto mb-6">
+            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+                    <Timer size={24} className="text-white animate-pulse" />
+                  </div>
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-black text-slate-700 uppercase tracking-wider">Status</span>
-                      <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
-                        {progress.status}
-                      </span>
+                    <h2 className="text-lg font-black text-slate-900">Audit In Progress</h2>
+                    <p className="text-sm text-slate-500">
+                      {progress?.currentStep || 'Initializing audit pipeline...'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6">
+                  {jobInfo && (
+                    <div className="text-right">
+                      <div className="text-xs text-slate-500 uppercase tracking-wide font-bold mb-1">Project</div>
+                      <div className="text-sm font-mono text-slate-900">{jobInfo.project}</div>
+                    </div>
+                  )}
+                  {typeof progress?.pct === 'number' && (
+                    <div className="text-right">
+                      <div className="text-xs text-slate-500 uppercase tracking-wide font-bold mb-1">Progress</div>
+                      <div className="text-2xl font-black text-indigo-600">{progress.pct}%</div>
+                    </div>
+                  )}
+                  <div className="px-4 py-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                      <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Scanning</span>
                     </div>
                   </div>
-
-                  {progress.currentStep && (
-                    <div>
-                      <div className="text-sm font-black text-slate-700 uppercase tracking-wider mb-3">Current Step</div>
-                      <div className="text-base text-slate-900 font-medium bg-slate-50 px-4 py-3 rounded-xl border border-slate-200">
-                        {progress.currentStep}
-                      </div>
-                    </div>
-                  )}
-
-                  {typeof progress.pct === 'number' && (
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-black text-slate-700 uppercase tracking-wider">Progress</span>
-                        <span className="text-2xl font-black text-indigo-600">{progress.pct}%</span>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500 rounded-full"
-                          style={{ width: `${progress.pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
+                </div>
+              </div>
+              {typeof progress?.pct === 'number' && (
+                <div className="mt-4 w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
+                    style={{ width: `${progress.pct}%` }}
+                  />
                 </div>
               )}
-
-              {/* Project Info */}
-              {jobInfo && (
-                <div className="mt-10 pt-6 border-t border-slate-200 text-sm text-slate-500">
-                  <div className="font-mono mb-2"><span className="font-bold text-slate-700">Project:</span> {jobInfo.project}</div>
-                  {jobInfo.detectedFramework && (
-                    <div className="font-mono"><span className="font-bold text-slate-700">Framework:</span> {jobInfo.detectedFramework}</div>
-                  )}
-                </div>
-              )}
-
-            {/* ID Reference */}
-            <p className="text-[10px] text-slate-400 font-mono text-center mt-10">
-              Job ID: {jobId}
-            </p>
+            </div>
           </div>
-        </div>
 
-        {/* Right Column - Terminal Output */}
-        <div className="flex flex-col justify-center items-center px-12 bg-slate-900">
+          {/* Full Width Terminal */}
+          <div className="max-w-6xl mx-auto">
           {progress && (
-            <div className="w-full max-w-3xl">
-              <div className="bg-slate-800 rounded-2xl overflow-hidden shadow-2xl border border-slate-700">
+            <div className="w-full">
+              <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200">
                 {/* Terminal Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
                   <div className="flex items-center gap-3">
                     <div className="flex gap-2">
                       <div className="w-3 h-3 rounded-full bg-red-500"></div>
                       <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                       <div className="w-3 h-3 rounded-full bg-green-500"></div>
                     </div>
-                    <span className="text-slate-400 ml-2 text-xs font-semibold">uatu-audit — {jobId?.toString().slice(0, 8)}</span>
+                    <span className="text-slate-600 ml-2 text-xs font-semibold">uatu-audit — {jobId?.toString().slice(0, 8)}</span>
                   </div>
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-900/30 rounded-lg border border-emerald-700/50">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                    <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-wide">Scanning</span>
-                  </div>
+                  <span className="text-xs font-mono text-slate-500">Job ID: {jobId}</span>
                 </div>
 
-                {/* Terminal Content */}
-                <div className="relative p-8 font-mono text-sm min-h-[500px]">
+                {/* Terminal Content - Scrollable with max height */}
+                <div className="relative p-8 font-mono text-sm max-h-[600px] overflow-y-auto bg-slate-50/50">
                   <div className="space-y-3">
                     {/* Header */}
                     <motion.div
@@ -1081,16 +1052,16 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <div className="text-slate-600 text-xs mb-4">
+                      <div className="text-slate-300 text-xs mb-4">
                         ┌─────────────────────────────────────────────────────────────┐
                       </div>
-                      <div className="text-indigo-400 font-bold text-sm mb-1">
+                      <div className="text-indigo-600 font-bold text-sm mb-1">
                         UATU {jobInfo?.depth?.toUpperCase() || 'STANDARD'} AUDIT PIPELINE
                       </div>
                       <div className="text-slate-500 text-xs mb-4">
                         Comprehensive Security Analysis System
                       </div>
-                      <div className="text-slate-600 text-xs mb-6">
+                      <div className="text-slate-300 text-xs mb-6">
                         └─────────────────────────────────────────────────────────────┘
                       </div>
                     </motion.div>
@@ -1100,9 +1071,9 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.1 }}
-                      className="text-xs text-slate-400 mb-6"
+                      className="text-xs text-slate-600 mb-6"
                     >
-                      <span className="text-slate-600">$</span> <span className="text-indigo-400">uatu audit start</span> <span className="text-slate-500">--depth</span> {jobInfo?.depth || 'standard'} <span className="text-slate-500">--project</span> "{jobInfo?.project || 'project'}"
+                      <span className="text-slate-400">$</span> <span className="text-indigo-600 font-semibold">uatu audit start</span> <span className="text-slate-500">--depth</span> {jobInfo?.depth || 'standard'} <span className="text-slate-500">--project</span> "{jobInfo?.project || 'project'}"
                     </motion.div>
 
                     {/* Framework Detection */}
@@ -1110,10 +1081,10 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.2 }}
-                      className="text-emerald-400 flex items-center gap-2 mb-6"
+                      className="text-emerald-600 flex items-center gap-2 mb-6"
                     >
                       <CheckCircle2 size={14} />
-                      <span className="text-xs">Framework detected: {jobInfo?.detectedFramework || 'analyzing...'}</span>
+                      <span className="text-xs font-semibold">Framework detected: {jobInfo?.detectedFramework || 'analyzing...'}</span>
                     </motion.div>
 
                     {/* Overall Progress */}
@@ -1124,14 +1095,14 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       className="mb-6"
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-slate-500 font-semibold">Overall Progress</span>
-                        <span className="text-sm font-bold text-indigo-400">{progress.pct || 0}%</span>
+                        <span className="text-xs text-slate-600 font-semibold">Overall Progress</span>
+                        <span className="text-sm font-bold text-indigo-600">{progress.pct || 0}%</span>
                       </div>
-                      <div className="text-xs font-mono text-slate-400">
-                        <span className="text-slate-600">[</span>
-                        <span className="text-indigo-400">{'/'.repeat(Math.floor((progress.pct || 0) / 2))}</span>
-                        <span className="text-slate-700">{'.'.repeat(50 - Math.floor((progress.pct || 0) / 2))}</span>
-                        <span className="text-slate-600">]</span>
+                      <div className="text-xs font-mono text-slate-500">
+                        <span className="text-slate-400">[</span>
+                        <span className="text-indigo-500">{'/'.repeat(Math.floor((progress.pct || 0) / 2))}</span>
+                        <span className="text-slate-300">{'.'.repeat(50 - Math.floor((progress.pct || 0) / 2))}</span>
+                        <span className="text-slate-400">]</span>
                       </div>
                     </motion.div>
 
@@ -1143,14 +1114,14 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         animate={{ opacity: 1, x: 0 }}
                         className="mb-6"
                       >
-                        <div className="flex items-center gap-3 text-yellow-400 font-bold">
+                        <div className="flex items-center gap-3 text-amber-600 font-bold">
                           <Zap size={14} className="animate-pulse" />
                           <span className="text-sm">Running: {progress.currentStep}</span>
                         </div>
                         {typeof progress.pct === 'number' && (
                           <div className="ml-6 mt-2 text-[10px]">
-                            <span className="text-yellow-500">{'/'.repeat(Math.floor(progress.pct / 5))}</span>
-                            <span className="text-slate-700">{'.'.repeat(20 - Math.floor(progress.pct / 5))}</span>
+                            <span className="text-amber-500">{'/'.repeat(Math.floor(progress.pct / 5))}</span>
+                            <span className="text-slate-300">{'.'.repeat(20 - Math.floor(progress.pct / 5))}</span>
                           </div>
                         )}
                       </motion.div>
@@ -1162,14 +1133,14 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.4 }}
-                        className="text-xs text-slate-500 mb-6"
+                        className="text-xs text-slate-600 mb-6"
                       >
                         → Step {progress.stepsCompleted} of {progress.stepsTotal} completed
                       </motion.div>
                     )}
 
                     {/* Divider */}
-                    <div className="text-slate-700 my-4">
+                    <div className="text-slate-200 my-4">
                       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                     </div>
 
@@ -1180,9 +1151,9 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       animate={{ opacity: 1 }}
                       className="flex items-start gap-2 text-xs"
                     >
-                      <span className="text-indigo-400 mt-0.5">→</span>
+                      <span className="text-indigo-500 mt-0.5">→</span>
                       <div className="flex-1">
-                        <div className="text-slate-400">
+                        <div className="text-slate-700 font-medium">
                           {progress.currentStep || 'Processing audit pipeline...'}
                         </div>
                       </div>
@@ -1190,21 +1161,21 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
 
                     {/* Terminal Cursor */}
                     <motion.div
-                      className="flex items-center gap-2 mt-6 pt-4 border-t border-slate-700"
+                      className="flex items-center gap-2 mt-6 pt-4 border-t border-slate-200"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.6 }}
                     >
-                      <span className="text-emerald-500 text-xs font-bold">$</span>
+                      <span className="text-emerald-600 text-xs font-bold">$</span>
                       <motion.div
-                        className="w-2 h-3.5 bg-slate-400"
+                        className="w-2 h-3.5 bg-indigo-500"
                         animate={{ opacity: [1, 0, 1] }}
                         transition={{ duration: 0.8, repeat: Infinity }}
                       />
                     </motion.div>
 
                     {/* Status Note */}
-                    <div className="text-slate-600 italic text-xs mt-4">
+                    <div className="text-slate-400 italic text-xs mt-4">
                       Page auto-updates when complete. No refresh needed.
                     </div>
                   </div>
