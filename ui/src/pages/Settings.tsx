@@ -280,7 +280,7 @@ export default function Settings() {
                         {user?.avatarUrl ? (
                             <img
                                 src={user.avatarUrl}
-                                alt={displayName}
+                                alt={primaryName}
                                 className="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-lg"
                             />
                         ) : (

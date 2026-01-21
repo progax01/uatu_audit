@@ -497,13 +497,24 @@ export async function handleAuthRoutes(
           hadExistingGithubAccount: !!existingGithubUser
         });
 
-        // CRITICAL: Store GitHub token in session so getGitHubToken() can find it
+        // CRITICAL: Store GitHub token in DATABASE session so getGitHubToken() can find it
         // Even though user has JWT tokens, we need the GitHub token for repo access
-        const sessionId = uuidv4();
-        await saveToken(sessionId, t.access_token, linkToUserId);
-        logger.info("Saved GitHub token to session for account linking", {
+        const { createSession } = await import("../../repositories/sessionRepository.js");
+        const crypto = await import("crypto");
+
+        await createSession({
           userId: linkToUserId,
-          sessionId
+          refreshTokenHash: crypto.randomBytes(32).toString('hex'), // Dummy hash for GitHub-only session
+          refreshTokenFamily: uuidv4(),
+          githubToken: t.access_token,
+          authMethod: 'github',
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+          userAgent: req.headers['user-agent'],
+          ipAddress: req.socket.remoteAddress
+        });
+
+        logger.info("Saved GitHub token to database session for account linking", {
+          userId: linkToUserId
         });
 
         // Don't set cookie - user has JWT tokens
@@ -542,8 +553,21 @@ export async function handleAuthRoutes(
 
       // ONLY create session if NOT account linking (unreachable now due to return above)
       // This path should never be hit due to policy blocking standalone GitHub login
+      const { createSession } = await import("../../repositories/sessionRepository.js");
+      const crypto = await import("crypto");
+
+      await createSession({
+        userId: dbUser.id,
+        refreshTokenHash: crypto.randomBytes(32).toString('hex'),
+        refreshTokenFamily: uuidv4(),
+        githubToken: t.access_token,
+        authMethod: 'github',
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        userAgent: req.headers['user-agent'],
+        ipAddress: req.socket.remoteAddress
+      });
+
       const sessionId = uuidv4();
-      await saveToken(sessionId, t.access_token, dbUser.id);
       setSessionCookie(res, sessionId, req);
 
       logger.debug("Session created successfully", { sessionId, userId: dbUser.id });
@@ -828,13 +852,24 @@ export async function handleAuthRoutes(
           hadExistingGithubAccount: !!existingGithubUser
         });
 
-        // CRITICAL: Store GitHub token in session so getGitHubToken() can find it
+        // CRITICAL: Store GitHub token in DATABASE session so getGitHubToken() can find it
         // Even though user has JWT tokens, we need the GitHub token for repo access
-        const sessionId = uuidv4();
-        await saveToken(sessionId, t.access_token, linkToUserId);
-        logger.info("Saved GitHub token to session for account linking", {
+        const { createSession } = await import("../../repositories/sessionRepository.js");
+        const crypto = await import("crypto");
+
+        await createSession({
           userId: linkToUserId,
-          sessionId
+          refreshTokenHash: crypto.randomBytes(32).toString('hex'), // Dummy hash for GitHub-only session
+          refreshTokenFamily: uuidv4(),
+          githubToken: t.access_token,
+          authMethod: 'github',
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+          userAgent: req.headers['user-agent'],
+          ipAddress: req.socket.remoteAddress
+        });
+
+        logger.info("Saved GitHub token to database session for account linking", {
+          userId: linkToUserId
         });
 
         // Don't set cookie - user has JWT tokens
@@ -873,8 +908,21 @@ export async function handleAuthRoutes(
 
       // ONLY create session if NOT account linking (unreachable now due to return above)
       // This path should never be hit due to policy blocking standalone GitHub login
+      const { createSession: createSessionAlias } = await import("../../repositories/sessionRepository.js");
+      const cryptoAlias = await import("crypto");
+
+      await createSessionAlias({
+        userId: dbUser.id,
+        refreshTokenHash: cryptoAlias.randomBytes(32).toString('hex'),
+        refreshTokenFamily: uuidv4(),
+        githubToken: t.access_token,
+        authMethod: 'github',
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        userAgent: req.headers['user-agent'],
+        ipAddress: req.socket.remoteAddress
+      });
+
       const sessionId = uuidv4();
-      await saveToken(sessionId, t.access_token, dbUser.id); // Store database UUID
       setSessionCookie(res, sessionId, req);
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");
