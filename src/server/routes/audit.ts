@@ -89,6 +89,22 @@ export async function handleAuditRoutes(
         return true;
       }
 
+      // If source is GitHub repo and no accessToken provided, try to get it from user's GitHub session
+      if (source.type === 'github-repo' && !source.accessToken && userId) {
+        const { getGitHubToken } = await import('./github.js');
+        try {
+          const githubToken = await getGitHubToken(req);
+          if (githubToken) {
+            source.accessToken = githubToken;
+            log.info('Using GitHub OAuth token from database for audit', { userId });
+          } else {
+            log.warn('No GitHub token available for user - audit may fail for private repos', { userId });
+          }
+        } catch (err: any) {
+          log.warn('Failed to retrieve GitHub token for audit', { userId, error: err.message });
+        }
+      }
+
       // Build audit request
       const auditRequest: UnifiedAuditRequest = {
         source: source as GitHubRepoInput | DeployedContractInput | ManualUploadInput,

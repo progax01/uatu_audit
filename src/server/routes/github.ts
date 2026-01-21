@@ -8,7 +8,7 @@ import { getDecryptedGithubToken } from "../../repositories/sessionRepository.js
 /**
  * Get GitHub token from request - checks PAT header, session cookie, then JWT auth
  */
-async function getGitHubToken(req: any): Promise<string | null> {
+export async function getGitHubToken(req: any): Promise<string | null> {
   // First check for PAT in header (from Settings page)
   const patHeader = req.headers['x-github-token'];
   if (patHeader && typeof patHeader === 'string' && patHeader.trim()) {
