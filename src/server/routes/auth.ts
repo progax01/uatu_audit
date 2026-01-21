@@ -436,17 +436,18 @@ export async function handleAuthRoutes(
           isNew: result.isNew
         });
 
-        // If this is a linking request and a new user was created, merge accounts
-        if (linkToUserId && result.isNew && linkToUserId !== dbUser.id) {
+        // If this is a linking request, ALWAYS merge accounts (regardless of isNew)
+        if (linkToUserId && linkToUserId !== dbUser.id) {
           logger.info("Account linking detected - merging accounts", {
             primaryUserId: linkToUserId,
-            githubUserId: dbUser.id
+            githubUserId: dbUser.id,
+            githubIsNew: result.isNew
           });
 
           const { mergeAccounts } = await import("../../services/accountMergeService.js");
           const mergeResult = await mergeAccounts({
             primaryUserId: linkToUserId,      // Original wallet/user account
-            secondaryUserId: dbUser.id        // Newly created GitHub account
+            secondaryUserId: dbUser.id        // GitHub account (new or existing)
           });
 
           if (mergeResult.success) {
@@ -460,10 +461,9 @@ export async function handleAuthRoutes(
           } else {
             logger.error("Account merge failed", { error: mergeResult.error });
           }
-        } else if (linkToUserId && !result.isNew) {
-          logger.info("GitHub account already exists, no merge needed", {
-            userId: dbUser.id,
-            requestedLinkTo: linkToUserId
+        } else if (linkToUserId && linkToUserId === dbUser.id) {
+          logger.info("GitHub credentials already linked to this user", {
+            userId: linkToUserId
           });
         }
 
@@ -728,17 +728,18 @@ export async function handleAuthRoutes(
           isNew: result.isNew
         });
 
-        // If this is a linking request and a new user was created, merge accounts
-        if (linkToUserId && result.isNew && linkToUserId !== dbUser.id) {
+        // If this is a linking request, ALWAYS merge accounts (regardless of isNew)
+        if (linkToUserId && linkToUserId !== dbUser.id) {
           logger.info("Account linking detected (alias) - merging accounts", {
             primaryUserId: linkToUserId,
-            githubUserId: dbUser.id
+            githubUserId: dbUser.id,
+            githubIsNew: result.isNew
           });
 
           const { mergeAccounts } = await import("../../services/accountMergeService.js");
           const mergeResult = await mergeAccounts({
             primaryUserId: linkToUserId,      // Original wallet/user account
-            secondaryUserId: dbUser.id        // Newly created GitHub account
+            secondaryUserId: dbUser.id        // GitHub account (new or existing)
           });
 
           if (mergeResult.success) {
@@ -752,10 +753,9 @@ export async function handleAuthRoutes(
           } else {
             logger.error("Account merge failed (alias)", { error: mergeResult.error });
           }
-        } else if (linkToUserId && !result.isNew) {
-          logger.info("GitHub account already exists (alias), no merge needed", {
-            userId: dbUser.id,
-            requestedLinkTo: linkToUserId
+        } else if (linkToUserId && linkToUserId === dbUser.id) {
+          logger.info("GitHub credentials already linked to this user (alias)", {
+            userId: linkToUserId
           });
         }
 
