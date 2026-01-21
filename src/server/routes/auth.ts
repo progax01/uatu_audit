@@ -94,13 +94,40 @@ export async function loadToken(sessionId: string): Promise<string | null> {
 export async function loadUserId(sessionId: string): Promise<string | null> {
   // Check in-memory first
   const session = sessions.get(sessionId);
-  if (session?.userId) return session.userId;
+  if (session?.userId) {
+    // This might be a GitHub ID (old format), need to convert to UUID
+    const githubId = session.userId;
+
+    // Try to find user by GitHub ID and return their UUID
+    const { findUserByGithubId } = await import('../../repositories/userRepository.js');
+    const user = await findUserByGithubId(githubId);
+    if (user) {
+      return user.id; // Return database UUID
+    }
+
+    // Fallback to original value if not found
+    return session.userId;
+  }
 
   // Fallback to disk
   const p = await tokenPath(sessionId);
   try {
     const j = await fs.readJson(p);
-    return j?.userId || null;
+    const storedUserId = j?.userId;
+
+    if (storedUserId) {
+      // This is likely a GitHub ID (old format), convert to UUID
+      const { findUserByGithubId } = await import('../../repositories/userRepository.js');
+      const user = await findUserByGithubId(storedUserId);
+      if (user) {
+        return user.id; // Return database UUID
+      }
+
+      // Fallback to original value
+      return storedUserId;
+    }
+
+    return null;
   } catch {
     return null;
   }
