@@ -497,10 +497,19 @@ export async function handleAuthRoutes(
           hadExistingGithubAccount: !!existingGithubUser
         });
 
-        // CRITICAL: If this is account linking, don't create a new session
-        // The user already has JWT tokens from wallet login
+        // CRITICAL: Store GitHub token in session so getGitHubToken() can find it
+        // Even though user has JWT tokens, we need the GitHub token for repo access
+        const sessionId = uuidv4();
+        await saveToken(sessionId, t.access_token, linkToUserId);
+        logger.info("Saved GitHub token to session for account linking", {
+          userId: linkToUserId,
+          sessionId
+        });
+
+        // Don't set cookie - user has JWT tokens
+        // The session is just for storing the GitHub token
         if (linkToUserId) {
-          logger.info("Account linking complete - not creating cookie session (user has JWT)", {
+          logger.info("Account linking complete - GitHub token saved", {
             userId: linkToUserId,
             githubLinked: true
           });
@@ -819,10 +828,19 @@ export async function handleAuthRoutes(
           hadExistingGithubAccount: !!existingGithubUser
         });
 
-        // CRITICAL: If this is account linking, don't create a new session
-        // The user already has JWT tokens from wallet login
+        // CRITICAL: Store GitHub token in session so getGitHubToken() can find it
+        // Even though user has JWT tokens, we need the GitHub token for repo access
+        const sessionId = uuidv4();
+        await saveToken(sessionId, t.access_token, linkToUserId);
+        logger.info("Saved GitHub token to session for account linking", {
+          userId: linkToUserId,
+          sessionId
+        });
+
+        // Don't set cookie - user has JWT tokens
+        // The session is just for storing the GitHub token
         if (linkToUserId) {
-          logger.info("Account linking complete (alias) - not creating cookie session (user has JWT)", {
+          logger.info("Account linking complete (alias) - GitHub token saved", {
             userId: linkToUserId,
             githubLinked: true
           });

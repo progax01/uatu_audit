@@ -119,6 +119,9 @@ export const users = pgTable(
     githubLogin: varchar('github_login', { length: 255 }),
     githubEmail: varchar('github_email', { length: 255 }),
     githubAvatarUrl: text('github_avatar_url'),
+    // GitHub PAT (encrypted) - for users who provide their own token
+    githubPatEncrypted: text('github_pat_encrypted'),
+    githubPatIv: varchar('github_pat_iv', { length: 64 }),
     // Wallet auth fields
     walletAddress: varchar('wallet_address', { length: 128 }).unique(),
     walletType: walletTypeEnum('wallet_type'),

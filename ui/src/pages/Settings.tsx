@@ -258,8 +258,13 @@ export default function Settings() {
 
     const tierConfig = TIER_CONFIG[user?.tier || 'free']
     const TierIcon = tierConfig.icon
-    const displayName = user?.displayName || user?.username || user?.githubLogin || 'Anonymous'
-    const initials = displayName.slice(0, 2).toUpperCase()
+    // Display name priority: displayName (real name) > username (Uatu username) > githubLogin > Anonymous
+    const primaryName = user?.displayName || user?.username || user?.githubLogin || 'Anonymous'
+    const initials = primaryName.slice(0, 2).toUpperCase()
+
+    // Show secondary identifiers if available
+    const showGithubHandle = user?.githubLogin && user?.githubLogin !== primaryName
+    const showUatuUsername = user?.username && user?.username !== primaryName && user?.username !== user?.githubLogin
 
     return (
         <div className="space-y-8 animate-reveal">
@@ -290,12 +295,22 @@ export default function Settings() {
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-1">
-                            <h2 className="text-2xl font-black text-slate-900 truncate">{displayName}</h2>
+                            <h2 className="text-2xl font-black text-slate-900 truncate">
+                                {primaryName}
+                                {showGithubHandle && (
+                                    <span className="text-slate-400 font-medium ml-2">(@{user.githubLogin})</span>
+                                )}
+                            </h2>
                             <span className={`px-2.5 py-1 ${tierConfig.bg} ${tierConfig.border} ${tierConfig.color} text-[9px] font-black rounded-full uppercase tracking-wider flex items-center gap-1 border`}>
                                 <TierIcon size={10} />
                                 {tierConfig.label}
                             </span>
                         </div>
+                        {showUatuUsername && (
+                            <p className="text-sm text-slate-500">
+                                Username: <span className="font-semibold text-slate-700">{user.username}</span>
+                            </p>
+                        )}
 
                         {user?.email && (
                             <p className="text-slate-400 text-sm mb-3">{user.email}</p>
