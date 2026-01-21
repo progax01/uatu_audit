@@ -78,17 +78,22 @@ export default function SourcesTab({ projectId, components, onComponentAdded }: 
       return
     }
 
-    try {
-      const res = await fetch('/auth/github/me', {
-        credentials: 'include'
-      })
-      const data = await res.json()
-      if (data.authed) {
-        setIsGithubAuthed(true)
+    // Check if user has GitHub linked (via JWT auth)
+    const storedUser = localStorage.getItem('user')
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser)
+        if (userData.githubLogin) {
+          setIsGithubAuthed(true)
+          return
+        }
+      } catch (e) {
+        console.error('Failed to parse stored user:', e)
       }
-    } catch {
-      setIsGithubAuthed(false)
     }
+
+    // No GitHub authentication found
+    setIsGithubAuthed(false)
   }
 
   const fetchRepositories = async () => {

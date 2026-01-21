@@ -50,6 +50,30 @@ export default function Settings() {
     const explorerUrl = CHAIN_EXPLORERS[chainId] || 'https://etherscan.io'
     const [walletCopied, setWalletCopied] = useState(false)
 
+    // Fetch fresh user data from server
+    const fetchUpdatedUserData = async () => {
+        try {
+            const token = localStorage.getItem('accessToken')
+            if (!token) return
+
+            const response = await fetch('/auth/me', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                if (data.user) {
+                    setUser(data.user)
+                    localStorage.setItem('user', JSON.stringify(data.user))
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch updated user data:', error)
+        }
+    }
+
     useEffect(() => {
         const storedUser = getStoredUser()
         setUser(storedUser)
@@ -83,9 +107,8 @@ export default function Settings() {
             setTimeout(() => setTokenSaved(false), 5000)
             // Clean URL
             window.history.replaceState({}, '', '/settings')
-            // Reload user data to get updated GitHub info
-            const refreshedUser = getStoredUser()
-            if (refreshedUser) setUser(refreshedUser)
+            // Fetch fresh user data from server to get updated GitHub info
+            fetchUpdatedUserData()
         } else if (status === 'error') {
             setTokenError(message || 'Failed to connect GitHub account')
             // Clean URL

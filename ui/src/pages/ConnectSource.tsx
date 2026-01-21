@@ -53,20 +53,24 @@ export default function ConnectSource({ onNext, projectData, setProjectData }: C
       return
     }
 
-    // Fall back to OAuth check
-    try {
-      const res = await fetch('/auth/github/me', {
-        credentials: 'include'
-      })
-      const data = await res.json()
-      if (data.authed) {
-        setIsAuthenticated(true)
-        setUser(data.user)
-        fetchRepositories()
+    // Check if user has GitHub linked (via JWT auth)
+    const storedUser = localStorage.getItem('user')
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser)
+        if (userData.githubLogin) {
+          setIsAuthenticated(true)
+          setUser(userData)
+          fetchRepositories()
+          return
+        }
+      } catch (e) {
+        console.error('Failed to parse stored user:', e)
       }
-    } catch (error) {
-      console.error('Auth check failed:', error)
     }
+
+    // No GitHub authentication found
+    setIsAuthenticated(false)
   }
 
   const handleLogin = () => {
