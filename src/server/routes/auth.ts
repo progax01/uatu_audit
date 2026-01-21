@@ -421,51 +421,81 @@ export async function handleAuthRoutes(
         return true;
       }
 
+      // ACCOUNT LINKING MODE: Update existing user, never create new users
       try {
-        const result = await findOrCreateUser({
-          githubId: githubUserId,
-          githubLogin: githubLogin,
-          githubEmail: githubEmail,
-          githubAvatarUrl: githubAvatarUrl,
-          displayName: displayName,
-        });
-        dbUser = result.user;
-        logger.info(result.isNew ? "Created new user from GitHub" : "Found existing user for GitHub", {
-          userId: dbUser.id,
-          githubLogin,
-          isNew: result.isNew
-        });
+        const { findUserById, findUserByGithubId, updateUser } = await import("../../repositories/userRepository.js");
 
-        // If this is a linking request, ALWAYS merge accounts (regardless of isNew)
-        if (linkToUserId && linkToUserId !== dbUser.id) {
-          logger.info("Account linking detected - merging accounts", {
+        // 1. Verify the primary user exists
+        const primaryUser = await findUserById(linkToUserId);
+        if (!primaryUser) {
+          logger.error("Account linking failed - primary user not found", { linkToUserId });
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.end(
+            `<script>
+              var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+              localStorage.removeItem('oauth_return_url');
+              window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent('User session expired. Please log in again.')}';
+            </script><p>Session expired. Redirecting...</p>`
+          );
+          return true;
+        }
+
+        // 2. Check if this GitHub ID is already linked to a DIFFERENT user
+        const existingGithubUser = await findUserByGithubId(githubUserId);
+
+        if (existingGithubUser && existingGithubUser.id !== linkToUserId) {
+          // GitHub is linked to a different account - merge them
+          logger.info("GitHub account linked to different user - merging", {
             primaryUserId: linkToUserId,
-            githubUserId: dbUser.id,
-            githubIsNew: result.isNew
+            secondaryUserId: existingGithubUser.id,
+            githubLogin
           });
 
           const { mergeAccounts } = await import("../../services/accountMergeService.js");
           const mergeResult = await mergeAccounts({
-            primaryUserId: linkToUserId,      // Original wallet/user account
-            secondaryUserId: dbUser.id        // GitHub account (new or existing)
+            primaryUserId: linkToUserId,
+            secondaryUserId: existingGithubUser.id
           });
 
-          if (mergeResult.success) {
-            logger.info("Accounts merged successfully", {
-              primaryUserId: linkToUserId,
-              projectsTransferred: mergeResult.projectsTransferred,
-              auditsTransferred: mergeResult.auditsTransferred
-            });
-            // Use the primary user for the session
-            dbUser = { ...dbUser, id: linkToUserId };
-          } else {
+          if (!mergeResult.success) {
             logger.error("Account merge failed", { error: mergeResult.error });
+            res.setHeader("Content-Type", "text/html; charset=utf-8");
+            res.end(
+              `<script>
+                var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+                localStorage.removeItem('oauth_return_url');
+                window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent('Failed to merge accounts: ' + (mergeResult.error || 'Unknown error'))}';
+              </script><p>Merge failed. Redirecting...</p>`
+            );
+            return true;
           }
-        } else if (linkToUserId && linkToUserId === dbUser.id) {
-          logger.info("GitHub credentials already linked to this user", {
-            userId: linkToUserId
+
+          logger.info("Accounts merged successfully", {
+            primaryUserId: linkToUserId,
+            projectsTransferred: mergeResult.projectsTransferred,
+            auditsTransferred: mergeResult.auditsTransferred
           });
         }
+
+        // 3. Update the primary user with GitHub credentials (NO NEW USER CREATED!)
+        dbUser = await updateUser(linkToUserId, {
+          githubId: githubUserId,
+          githubLogin: githubLogin,
+          githubEmail: githubEmail || undefined,
+          githubAvatarUrl: githubAvatarUrl || undefined,
+          displayName: primaryUser.displayName || displayName || undefined,
+          lastLoginAt: new Date()
+        });
+
+        if (!dbUser) {
+          throw new Error('Failed to update user with GitHub credentials');
+        }
+
+        logger.info("GitHub credentials linked to user", {
+          userId: linkToUserId,
+          githubLogin,
+          hadExistingGithubAccount: !!existingGithubUser
+        });
 
         // CRITICAL: If this is account linking, don't create a new session
         // The user already has JWT tokens from wallet login
@@ -713,51 +743,81 @@ export async function handleAuthRoutes(
         return true;
       }
 
+      // ACCOUNT LINKING MODE: Update existing user, never create new users
       try {
-        const result = await findOrCreateUser({
-          githubId: githubUserId,
-          githubLogin: githubLogin,
-          githubEmail: githubEmail,
-          githubAvatarUrl: githubAvatarUrl,
-          displayName: displayName,
-        });
-        dbUser = result.user;
-        logger.info(result.isNew ? "Created new user from GitHub (alias)" : "Found existing user for GitHub (alias)", {
-          userId: dbUser.id,
-          githubLogin,
-          isNew: result.isNew
-        });
+        const { findUserById, findUserByGithubId, updateUser } = await import("../../repositories/userRepository.js");
 
-        // If this is a linking request, ALWAYS merge accounts (regardless of isNew)
-        if (linkToUserId && linkToUserId !== dbUser.id) {
-          logger.info("Account linking detected (alias) - merging accounts", {
+        // 1. Verify the primary user exists
+        const primaryUser = await findUserById(linkToUserId);
+        if (!primaryUser) {
+          logger.error("Account linking failed (alias) - primary user not found", { linkToUserId });
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.end(
+            `<script>
+              var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+              localStorage.removeItem('oauth_return_url');
+              window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent('User session expired. Please log in again.')}';
+            </script><p>Session expired. Redirecting...</p>`
+          );
+          return true;
+        }
+
+        // 2. Check if this GitHub ID is already linked to a DIFFERENT user
+        const existingGithubUser = await findUserByGithubId(githubUserId);
+
+        if (existingGithubUser && existingGithubUser.id !== linkToUserId) {
+          // GitHub is linked to a different account - merge them
+          logger.info("GitHub account linked to different user (alias) - merging", {
             primaryUserId: linkToUserId,
-            githubUserId: dbUser.id,
-            githubIsNew: result.isNew
+            secondaryUserId: existingGithubUser.id,
+            githubLogin
           });
 
           const { mergeAccounts } = await import("../../services/accountMergeService.js");
           const mergeResult = await mergeAccounts({
-            primaryUserId: linkToUserId,      // Original wallet/user account
-            secondaryUserId: dbUser.id        // GitHub account (new or existing)
+            primaryUserId: linkToUserId,
+            secondaryUserId: existingGithubUser.id
           });
 
-          if (mergeResult.success) {
-            logger.info("Accounts merged successfully (alias)", {
-              primaryUserId: linkToUserId,
-              projectsTransferred: mergeResult.projectsTransferred,
-              auditsTransferred: mergeResult.auditsTransferred
-            });
-            // Use the primary user for the session
-            dbUser = { ...dbUser, id: linkToUserId };
-          } else {
+          if (!mergeResult.success) {
             logger.error("Account merge failed (alias)", { error: mergeResult.error });
+            res.setHeader("Content-Type", "text/html; charset=utf-8");
+            res.end(
+              `<script>
+                var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+                localStorage.removeItem('oauth_return_url');
+                window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent('Failed to merge accounts: ' + (mergeResult.error || 'Unknown error'))}';
+              </script><p>Merge failed. Redirecting...</p>`
+            );
+            return true;
           }
-        } else if (linkToUserId && linkToUserId === dbUser.id) {
-          logger.info("GitHub credentials already linked to this user (alias)", {
-            userId: linkToUserId
+
+          logger.info("Accounts merged successfully (alias)", {
+            primaryUserId: linkToUserId,
+            projectsTransferred: mergeResult.projectsTransferred,
+            auditsTransferred: mergeResult.auditsTransferred
           });
         }
+
+        // 3. Update the primary user with GitHub credentials (NO NEW USER CREATED!)
+        dbUser = await updateUser(linkToUserId, {
+          githubId: githubUserId,
+          githubLogin: githubLogin,
+          githubEmail: githubEmail || undefined,
+          githubAvatarUrl: githubAvatarUrl || undefined,
+          displayName: primaryUser.displayName || displayName || undefined,
+          lastLoginAt: new Date()
+        });
+
+        if (!dbUser) {
+          throw new Error('Failed to update user with GitHub credentials');
+        }
+
+        logger.info("GitHub credentials linked to user (alias)", {
+          userId: linkToUserId,
+          githubLogin,
+          hadExistingGithubAccount: !!existingGithubUser
+        });
 
         // CRITICAL: If this is account linking, don't create a new session
         // The user already has JWT tokens from wallet login
