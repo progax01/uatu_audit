@@ -131,8 +131,23 @@ export async function handleAuditRoutes(
         return true;
       }
 
+      // Check if waiting for questionnaire
+      const isWaitingForQuestionnaire =
+        progress.currentStep?.id === 'wait-for-questionnaire-answers' ||
+        progress.currentStep?.name?.includes('Wait for Questionnaire');
+
+      const responseData = {
+        success: true,
+        ...progress,
+        ...(isWaitingForQuestionnaire && {
+          questionnaireReady: true,
+          questionnaireUrl: `/audits/${jobId}/questionnaire`,
+          message: 'Questionnaire ready - please answer to continue audit'
+        })
+      };
+
       res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ success: true, ...progress }));
+      res.end(JSON.stringify(responseData));
       return true;
     } catch (error: any) {
       log.error('Failed to get progress', { jobId, error: error.message });

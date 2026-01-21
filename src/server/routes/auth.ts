@@ -48,7 +48,7 @@ export function setSessionCookie(res: any, sessionId: string, req?: any) {
     "Set-Cookie",
     `session_id=${sessionId}; HttpOnly${secureFlag}; SameSite=Lax; Path=/; Max-Age=2592000`
   ); // 30 days
-  logger.info("Session cookie set", { sessionId: sessionId.substring(0, 8) + '...', isSecure });
+  logger.debug("Session cookie set", { sessionId: sessionId.substring(0, 8) + '...', isSecure });
 }
 
 // Clear session cookie
@@ -181,7 +181,7 @@ export async function handleAuthRoutes(
     (isProduction ? `https://${hostHeader}` : `http://localhost:${PORT}`);
   const GH_CALLBACK = process.env.GITHUB_OAUTH_CALLBACK || `${PUBLIC_URL}/auth/github/callback`;
 
-  logger.info("OAuth URL configuration", { hostHeader, isProduction, PUBLIC_URL, GH_CALLBACK });
+  logger.debug("OAuth URL configuration", { hostHeader, isProduction, PUBLIC_URL, GH_CALLBACK });
 
   const { v4: uuidv4 } = await import("uuid");
 
@@ -208,7 +208,7 @@ export async function handleAuthRoutes(
 
   // GET /auth/github/login
   if (req.method === "GET" && parsed.pathname === "/auth/github/login") {
-    logger.info("GitHub OAuth login initiated");
+    logger.debug("GitHub OAuth login initiated");
     if (!GH_CLIENT_ID) {
       logger.error("GitHub OAuth login failed: GITHUB_CLIENT_ID not set");
       res.statusCode = 500;
@@ -217,7 +217,7 @@ export async function handleAuthRoutes(
     }
     const scope = encodeURIComponent("repo read:org admin:repo_hook");
     const redirect = `https://github.com/login/oauth/authorize?client_id=${GH_CLIENT_ID}&redirect_uri=${encodeURIComponent(GH_CALLBACK)}&scope=${scope}`;
-    logger.info("Redirecting to GitHub OAuth", { redirect });
+    logger.debug("Redirecting to GitHub OAuth", { redirect });
     res.statusCode = 302;
     res.setHeader("Location", redirect);
     res.end();
@@ -226,7 +226,7 @@ export async function handleAuthRoutes(
 
   // GET /auth/github/callback
   if (req.method === "GET" && parsed.pathname === "/auth/github/callback") {
-    logger.info("GitHub OAuth callback received", { query: parsed.query });
+    logger.debug("GitHub OAuth callback received", { query: parsed.query });
     try {
       const code = parsed.query.code;
       if (!code) {
@@ -235,7 +235,7 @@ export async function handleAuthRoutes(
         res.end("missing code");
         return true;
       }
-      logger.info("Exchanging OAuth code for access token");
+      logger.debug("Exchanging OAuth code for access token");
       const r = await fetch("https://github.com/login/oauth/access_token", {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -254,18 +254,18 @@ export async function handleAuthRoutes(
         return true;
       }
 
-      logger.info("GitHub OAuth token received successfully");
+      logger.debug("GitHub OAuth token received successfully");
 
       // Fetch GitHub user to get userId
       let userId: string | undefined;
       try {
-        logger.info("Fetching GitHub user information");
+        logger.debug("Fetching GitHub user information");
         const userResp = await fetch("https://api.github.com/user", {
           headers: { Authorization: `Bearer ${t.access_token}`, "User-Agent": "UatuAudit" },
         });
         const userData: any = await userResp.json();
         userId = userData.id ? String(userData.id) : undefined;
-        logger.info("GitHub user fetched successfully", { userId, login: userData.login });
+        logger.debug("GitHub user fetched successfully", { userId, login: userData.login });
       } catch (e) {
         logger.error("Failed to fetch GitHub user", {
           error: e instanceof Error ? e.message : String(e),
@@ -278,7 +278,7 @@ export async function handleAuthRoutes(
       await saveToken(sessionId, t.access_token, userId);
       setSessionCookie(res, sessionId, req);
 
-      logger.info("Session created successfully", { sessionId, userId });
+      logger.debug("Session created successfully", { sessionId, userId });
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.end(
@@ -332,7 +332,7 @@ export async function handleAuthRoutes(
         });
         const userData: any = await userResp.json();
         userId = userData.id ? String(userData.id) : undefined;
-        logger.info("GitHub user fetched (alias callback)", { userId, login: userData.login });
+        logger.debug("GitHub user fetched (alias callback)", { userId, login: userData.login });
       } catch (e) {
         logger.error("Failed to fetch GitHub user (alias callback)", {
           error: e instanceof Error ? e.message : String(e),
@@ -484,7 +484,7 @@ export async function handleAuthRoutes(
         ipAddress: req.socket?.remoteAddress,
       });
 
-      logger.info("JWT session created", {
+      logger.debug("JWT session created", {
         userId: user.id,
         isNew,
         sessionId: tokens.sessionId,
@@ -568,7 +568,7 @@ export async function handleAuthRoutes(
         tokens.refreshExpiresAt
       );
 
-      logger.info("Token refreshed", { userId: user.id, sessionId: session.id });
+      logger.debug("Token refreshed", { userId: user.id, sessionId: session.id });
 
       sendJson(res, {
         accessToken: tokens.accessToken,
@@ -599,7 +599,7 @@ export async function handleAuthRoutes(
 
       if (session) {
         await revokeSession(session.id);
-        logger.info("Session revoked", { sessionId: session.id });
+        logger.debug("Session revoked", { sessionId: session.id });
       }
 
       sendJson(res, { ok: true });
@@ -790,7 +790,7 @@ export async function handleAuthRoutes(
         ipAddress: req.socket?.remoteAddress,
       });
 
-      logger.info("Wallet auth session created", {
+      logger.debug("Wallet auth session created", {
         userId: user.id,
         walletAddress: address.slice(0, 10) + '...',
         isNew,
@@ -898,7 +898,7 @@ export async function handleAuthRoutes(
         return true;
       }
 
-      logger.info("Profile updated", { userId: user.id, updates: Object.keys(updates) });
+      logger.debug("Profile updated", { userId: user.id, updates: Object.keys(updates) });
 
       sendJson(res, {
         success: true,

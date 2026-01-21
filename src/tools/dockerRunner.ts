@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import path from 'path';
+import * as fs from 'fs-extra';
 import { logger } from '../utils/logger.js';
 
 const log = logger.child({ module: 'docker-runner' });
@@ -28,6 +29,9 @@ export interface DockerRunResult {
  */
 export async function runToolInDocker(config: DockerRunConfig): Promise<DockerRunResult> {
   const startTime = Date.now();
+
+  // Ensure output directory exists
+  await fs.ensureDir(config.outputPath);
 
   // Map ecosystem to Docker image
   const imageMap = {

@@ -185,7 +185,7 @@ export class SOPOrchestrator extends EventEmitter {
   }> {
     this.startTime = Date.now();
 
-    log.info('Starting SOP execution', {
+    log.debug('Starting SOP execution', {
       sopId: this.config.sop.id,
       jobId: this.config.jobId,
       depth: this.config.auditDepth,
@@ -207,7 +207,7 @@ export class SOPOrchestrator extends EventEmitter {
         await this.interactiveOrchestrator.completeSession(true);
       }
 
-      log.info('SOP execution complete', {
+      log.debug('SOP execution complete', {
         jobId: this.config.jobId,
         findingsCount: this.allFindings.length,
         score,
@@ -251,7 +251,7 @@ export class SOPOrchestrator extends EventEmitter {
     // Initialize interactive session if enabled
     if (this.interactiveOrchestrator) {
       const sessionId = await this.interactiveOrchestrator.initializeSession();
-      log.info('Interactive session initialized', { sessionId });
+      log.debug('Interactive session initialized', { sessionId });
     }
 
     // Get enabled steps for this depth
@@ -272,7 +272,7 @@ export class SOPOrchestrator extends EventEmitter {
         ];
         return !compilationSteps.includes(step.id);
       });
-      log.info('Skipping compilation steps per depth configuration');
+      log.debug('Skipping compilation steps per depth configuration');
     }
 
     // Skip dependency installation if configured
@@ -286,7 +286,7 @@ export class SOPOrchestrator extends EventEmitter {
         ];
         return !dependencySteps.includes(step.id);
       });
-      log.info('Skipping dependency installation per depth configuration');
+      log.debug('Skipping dependency installation per depth configuration');
     }
 
     // ========================================================================
@@ -312,7 +312,7 @@ export class SOPOrchestrator extends EventEmitter {
         const applicableModules = moduleRegistry.getApplicableModules(moduleContext);
 
         if (applicableModules.length > 0) {
-          log.info('Modules will be activated after pattern detection', {
+          log.debug('Modules will be activated after pattern detection', {
             potentialModules: applicableModules.length,
           });
 
@@ -374,7 +374,7 @@ export class SOPOrchestrator extends EventEmitter {
     // Load persisted stepData if available (for resume)
     await this.loadStepData();
 
-    log.info('Orchestrator initialized', {
+    log.debug('Orchestrator initialized', {
       totalSteps: this.enabledSteps.length,
       layers: this.executionLayers.length,
       availableTools: this.availableTools,
@@ -436,7 +436,7 @@ export class SOPOrchestrator extends EventEmitter {
         const skipReason = `Missing required data: ${missingData.join(', ')}`;
         this.stepData.set('testSkipReason', skipReason);
 
-        log.info('Test step skipped', {
+        log.debug('Test step skipped', {
           stepId: step.id,
           reason: skipReason,
           missingData,
@@ -707,7 +707,7 @@ export class SOPOrchestrator extends EventEmitter {
    */
   private async activateSpecializedModules(contractPatterns: any): Promise<void> {
     try {
-      log.info('Activating specialized modules', {
+      log.debug('Activating specialized modules', {
         patterns: Object.keys(contractPatterns).filter(k => contractPatterns[k]),
       });
 
@@ -724,11 +724,11 @@ export class SOPOrchestrator extends EventEmitter {
       const applicableModules = moduleRegistry.getApplicableModules(moduleContext);
 
       if (applicableModules.length === 0) {
-        log.info('No specialized modules applicable for this project');
+        log.debug('No specialized modules applicable for this project');
         return;
       }
 
-      log.info('Activating modules', {
+      log.debug('Activating modules', {
         count: applicableModules.length,
         modules: applicableModules.map(m => m.id),
       });
@@ -767,7 +767,7 @@ export class SOPOrchestrator extends EventEmitter {
         }
       }
 
-      log.info('Modules activated successfully', {
+      log.debug('Modules activated successfully', {
         newStepsAdded: enabledSteps.length,
         totalSteps: this.enabledSteps.length,
         totalLayers: this.executionLayers.length,
@@ -934,7 +934,7 @@ export class SOPOrchestrator extends EventEmitter {
   cancel(): void {
     // This would need to be implemented with AbortController
     // for proper cancellation support
-    log.info('Cancellation requested', { jobId: this.config.jobId });
+    log.debug('Cancellation requested', { jobId: this.config.jobId });
   }
 
   // ==========================================================================
@@ -1083,7 +1083,7 @@ export class SOPOrchestrator extends EventEmitter {
           this.stepData.set(key, value);
         }
 
-        log.info('Step data loaded from previous run', {
+        log.debug('Step data loaded from previous run', {
           jobId: this.config.jobId,
           previousJobId: saved.jobId,
           savedAt: saved.savedAt,
@@ -1112,7 +1112,7 @@ export class SOPOrchestrator extends EventEmitter {
       savedAt: new Date().toISOString(),
     }, { spaces: 2 });
 
-    log.info('Claude session ID saved', { sessionId, jobId: this.config.jobId });
+    log.debug('Claude session ID saved', { sessionId, jobId: this.config.jobId });
   }
 
   /**
@@ -1127,7 +1127,7 @@ export class SOPOrchestrator extends EventEmitter {
 
     try {
       const saved = await fs.readJson(sessionPath);
-      log.info('Claude session ID loaded', {
+      log.debug('Claude session ID loaded', {
         sessionId: saved.sessionId,
         previousJobId: saved.jobId,
         savedAt: saved.savedAt,

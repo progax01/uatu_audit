@@ -273,7 +273,7 @@ export async function checkToolAvailable(toolName: string): Promise<ToolAvailabi
         toolName === 'anchor' || toolName === 'anchor-test' || toolName === 'cargo-audit' ||
         toolName === 'soteria' || toolName === 'aptos' || toolName === 'sui') {
 
-      // Check if Docker is available and our images exist
+      // Check if Docker is available
       try {
         await execAsync('docker --version', { timeout: 5000 });
 
@@ -281,18 +281,14 @@ export async function checkToolAvailable(toolName: string): Promise<ToolAvailabi
         const dockerImage = getDockerImageForTool(toolName);
 
         if (dockerImage) {
-          // Check if image exists
-          try {
-            await execAsync(`docker image inspect ${dockerImage}`, { timeout: 5000 });
-            return {
-              name: toolName,
-              available: true,
-              version: `docker:${dockerImage}`,
-              checkTimeMs: Date.now() - startTime,
-            };
-          } catch {
-            // Docker image doesn't exist
-          }
+          // Docker is available - mark tool as available even if image doesn't exist yet
+          // The image will be pulled/used when the tool actually runs
+          return {
+            name: toolName,
+            available: true,
+            version: `docker:${dockerImage}`,
+            checkTimeMs: Date.now() - startTime,
+          };
         }
       } catch {
         // Docker not available

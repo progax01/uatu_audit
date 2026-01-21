@@ -55,8 +55,10 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
     let activeJobId = runningJobId
 
     if (!activeJobId) {
+      // Check for any active audit status
+      const activeStatuses = ['pending', 'queued', 'running', 'cloning', 'analyzing', 'awaiting_clarification', 'auditing', 'generating']
       const runningAudit = audits.find(audit =>
-        audit.status === 'running' || audit.status === 'pending'
+        activeStatuses.includes(audit.status)
       )
       activeJobId = runningAudit?.jobId || null
     }
@@ -83,9 +85,15 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
 
         // Check if questionnaire is ready
         if (data.questionnaireReady && data.questionnaireUrl) {
-          console.log('📋 Questionnaire ready!', data.questionnaireUrl)
-          // Navigate to questionnaire immediately
-          window.location.href = data.questionnaireUrl
+          console.log('📋 Questionnaire ready! Redirecting to:', data.questionnaireUrl)
+          // Close SSE before navigating
+          if (eventSource) {
+            eventSource.close()
+          }
+          // Navigate to questionnaire
+          setTimeout(() => {
+            window.location.href = data.questionnaireUrl
+          }, 100)
           return
         }
 
@@ -121,6 +129,17 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
             const response = await fetch(`/api/audit/${activeJobId}/progress`)
             if (response.ok) {
               const data = await response.json()
+
+              // Check if questionnaire is ready (polling fallback)
+              if (data.questionnaireReady && data.questionnaireUrl) {
+                console.log('📋 Questionnaire ready (polling)! Redirecting to:', data.questionnaireUrl)
+                if (pollInterval) clearInterval(pollInterval)
+                setTimeout(() => {
+                  window.location.href = data.questionnaireUrl
+                }, 100)
+                return
+              }
+
               setRunningProgress({
                 status: data.status,
                 pct: data.overallPct || 0,

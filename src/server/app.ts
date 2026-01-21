@@ -45,7 +45,7 @@ async function handleRequest(req: any, res: any) {
   const parsed = { pathname: url.pathname, query: Object.fromEntries(url.searchParams) };
 
   // Log all incoming requests
-  logger.info('HTTP Request', {
+  logger.debug('HTTP Request', {
     method: req.method,
     path: parsed.pathname,
     query: parsed.query,
@@ -220,17 +220,17 @@ export async function startDaemon() {
 
   // Recover new database queue jobs
   const dbRecovery = await recoverPendingDatabaseJobs();
-  logger.info("Database queue recovery complete", dbRecovery);
+  logger.debug("Database queue recovery complete", dbRecovery);
 
   logger.info(`Starting Uatu daemon`, { port: PORT, concurrency: CONCURRENCY });
 
   // Start worker pools (both old JSON queue and new database queue)
   for (let i = 0; i < CONCURRENCY; i++) {
     startWorker(i); // Old JSON queue worker
-    logger.info(`Started legacy queue worker ${i}`, { workerId: i });
+    logger.debug(`Started legacy queue worker ${i}`, { workerId: i });
 
     startDatabaseWorker(i); // New database queue worker
-    logger.info(`Started database queue worker ${i}`, { workerId: i });
+    logger.debug(`Started database queue worker ${i}`, { workerId: i });
   }
 
   // Start GitHub Webhook Server
@@ -256,7 +256,7 @@ export async function startDaemon() {
     try {
       const result = await detectAndRecoverStuckJobs();
       if (result.detected > 0) {
-        logger.info(`Stuck job detection complete`, {
+        logger.debug(`Stuck job detection complete`, {
           detected: result.detected,
           recovered: result.recovered,
           resetToPending: result.resetToPending,
@@ -269,7 +269,7 @@ export async function startDaemon() {
     }
   }, CLEANUP_INTERVAL_MS);
 
-  logger.info('Started periodic stuck job detection and auto-recovery', {
+  logger.debug('Started periodic stuck job detection and auto-recovery', {
     intervalMs: CLEANUP_INTERVAL_MS,
     inactivityThreshold: '10 minutes',
     behavior: 'Stuck jobs with step data will be auto-resumed from last step'

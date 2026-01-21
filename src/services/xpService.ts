@@ -140,7 +140,7 @@ export async function earnXp(
     referenceId,
   });
 
-  logger.info('XP earned', {
+  logger.debug('XP earned', {
     userId,
     ruleKey,
     amount: rule.xpAmount,
@@ -196,7 +196,7 @@ export async function spendXp(
     referenceId,
   });
 
-  logger.info('XP spent', {
+  logger.debug('XP spent', {
     userId,
     amount,
     description,
@@ -244,7 +244,7 @@ export async function refundXp(
     referenceId,
   });
 
-  logger.info('XP refunded', {
+  logger.debug('XP refunded', {
     userId,
     amount,
     description,
