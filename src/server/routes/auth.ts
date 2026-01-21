@@ -362,6 +362,31 @@ export async function handleAuthRoutes(
 
       // CRITICAL FIX: Create or link database user
       let dbUser;
+      let linkToUserId: string | undefined;
+
+      // Parse state parameter to check if this is an account linking request
+      try {
+        if (state) {
+          const stateData = JSON.parse(Buffer.from(decodeURIComponent(state), 'base64').toString());
+          linkToUserId = stateData.linkToUserId;
+          logger.debug("Parsed OAuth state", { linkToUserId: linkToUserId ? 'present' : 'none' });
+        }
+      } catch (parseError) {
+        logger.warn("Failed to parse OAuth state", { state, error: parseError });
+      }
+
+      // POLICY: GitHub can only be used for account linking, not standalone login
+      if (!linkToUserId) {
+        logger.warn("Standalone GitHub login attempt blocked - GitHub must be linked to wallet account");
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            window.location = '/?error=github_standalone_blocked&message=${encodeURIComponent('GitHub login is not available. Please login with your wallet first, then connect GitHub in Settings.')}';
+          </script><p>Redirecting...</p>`
+        );
+        return true;
+      }
+
       try {
         const result = await findOrCreateUser({
           githubId: githubUserId,
@@ -376,6 +401,37 @@ export async function handleAuthRoutes(
           githubLogin,
           isNew: result.isNew
         });
+
+        // If this is a linking request and a new user was created, merge accounts
+        if (linkToUserId && result.isNew && linkToUserId !== dbUser.id) {
+          logger.info("Account linking detected - merging accounts", {
+            primaryUserId: linkToUserId,
+            githubUserId: dbUser.id
+          });
+
+          const { mergeAccounts } = await import("../../services/accountMergeService.js");
+          const mergeResult = await mergeAccounts({
+            primaryUserId: linkToUserId,      // Original wallet/user account
+            secondaryUserId: dbUser.id        // Newly created GitHub account
+          });
+
+          if (mergeResult.success) {
+            logger.info("Accounts merged successfully", {
+              primaryUserId: linkToUserId,
+              projectsTransferred: mergeResult.projectsTransferred,
+              auditsTransferred: mergeResult.auditsTransferred
+            });
+            // Use the primary user for the session
+            dbUser = { ...dbUser, id: linkToUserId };
+          } else {
+            logger.error("Account merge failed", { error: mergeResult.error });
+          }
+        } else if (linkToUserId && !result.isNew) {
+          logger.info("GitHub account already exists, no merge needed", {
+            userId: dbUser.id,
+            requestedLinkTo: linkToUserId
+          });
+        }
       } catch (e) {
         logger.error("Failed to create/find database user", {
           error: e instanceof Error ? e.message : String(e),
@@ -428,6 +484,7 @@ export async function handleAuthRoutes(
   if (req.method === "GET" && parsed.pathname === "/auth/callback") {
     try {
       const code = parsed.query.code;
+      const state = parsed.query.state;
       const error = parsed.query.error;
       const errorDescription = parsed.query.error_description;
 
@@ -555,6 +612,31 @@ export async function handleAuthRoutes(
 
       // CRITICAL FIX: Create or link database user
       let dbUser;
+      let linkToUserId: string | undefined;
+
+      // Parse state parameter to check if this is an account linking request
+      try {
+        if (state) {
+          const stateData = JSON.parse(Buffer.from(decodeURIComponent(state), 'base64').toString());
+          linkToUserId = stateData.linkToUserId;
+          logger.debug("Parsed OAuth state (alias)", { linkToUserId: linkToUserId ? 'present' : 'none' });
+        }
+      } catch (parseError) {
+        logger.warn("Failed to parse OAuth state (alias)", { state, error: parseError });
+      }
+
+      // POLICY: GitHub can only be used for account linking, not standalone login
+      if (!linkToUserId) {
+        logger.warn("Standalone GitHub login attempt blocked (alias) - GitHub must be linked to wallet account");
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            window.location = '/?error=github_standalone_blocked&message=${encodeURIComponent('GitHub login is not available. Please login with your wallet first, then connect GitHub in Settings.')}';
+          </script><p>Redirecting...</p>`
+        );
+        return true;
+      }
+
       try {
         const result = await findOrCreateUser({
           githubId: githubUserId,
@@ -569,6 +651,37 @@ export async function handleAuthRoutes(
           githubLogin,
           isNew: result.isNew
         });
+
+        // If this is a linking request and a new user was created, merge accounts
+        if (linkToUserId && result.isNew && linkToUserId !== dbUser.id) {
+          logger.info("Account linking detected (alias) - merging accounts", {
+            primaryUserId: linkToUserId,
+            githubUserId: dbUser.id
+          });
+
+          const { mergeAccounts } = await import("../../services/accountMergeService.js");
+          const mergeResult = await mergeAccounts({
+            primaryUserId: linkToUserId,      // Original wallet/user account
+            secondaryUserId: dbUser.id        // Newly created GitHub account
+          });
+
+          if (mergeResult.success) {
+            logger.info("Accounts merged successfully (alias)", {
+              primaryUserId: linkToUserId,
+              projectsTransferred: mergeResult.projectsTransferred,
+              auditsTransferred: mergeResult.auditsTransferred
+            });
+            // Use the primary user for the session
+            dbUser = { ...dbUser, id: linkToUserId };
+          } else {
+            logger.error("Account merge failed (alias)", { error: mergeResult.error });
+          }
+        } else if (linkToUserId && !result.isNew) {
+          logger.info("GitHub account already exists (alias), no merge needed", {
+            userId: dbUser.id,
+            requestedLinkTo: linkToUserId
+          });
+        }
       } catch (e) {
         logger.error("Failed to create/find database user (alias)", {
           error: e instanceof Error ? e.message : String(e),

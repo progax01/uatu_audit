@@ -342,32 +342,7 @@ export default function AuthModal({
                 )}
 
                 <div className="space-y-3">
-                    {/* GitHub - Only show for regular login */}
-                    {!isClaimFlow && (
-                        <>
-                            <button
-                                onClick={onGitHubLogin}
-                                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-900 dark:bg-slate-800 text-white hover:bg-slate-800 dark:hover:bg-slate-700 transition-all group"
-                            >
-                                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                                    <Github size={22} />
-                                </div>
-                                <div className="text-left flex-1">
-                                    <div className="text-sm font-black">Continue with GitHub</div>
-                                    <div className="text-xs text-white/50 mt-0.5">Recommended for developers</div>
-                                </div>
-                                <ChevronRight size={18} className="text-white/30 group-hover:translate-x-1 transition-transform" />
-                            </button>
-
-                            <div className="py-4 flex items-center gap-4">
-                                <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1" />
-                                <span className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">or</span>
-                                <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1" />
-                            </div>
-                        </>
-                    )}
-
-                    {/* Wallet Methods */}
+                    {/* Wallet Methods - GitHub can only be connected via Settings */}
                     <button
                         onClick={() => handleWalletConnect('metamask')}
                         disabled={isConnecting}

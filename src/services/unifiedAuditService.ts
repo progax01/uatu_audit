@@ -530,18 +530,24 @@ export class UnifiedAuditService extends EventEmitter {
     const repoName = repo.replace('.git', '');
     const branch = input.branch || 'main';
 
+    // Use access token if provided (required for private repos)
+    const accessToken = input.accessToken;
+    if (!accessToken) {
+      log.info('No access token provided - public repo or user needs to connect GitHub for private repos');
+    }
+
     // Get or create shared workspace (reuses existing clones)
     const { getOrCreateSharedWorkspace, getAuditWorkspace } = await import('./workspaceManager.js');
     const { getFullCommitHash } = await import('./gitService.js');
 
     try {
       // Get shared workspace - this will reuse existing clone if available
-      log.info('Getting shared workspace', { owner, repo: repoName, branch });
+      log.info('Getting shared workspace', { owner, repo: repoName, branch, hasToken: !!accessToken });
       const workspace = await getOrCreateSharedWorkspace(
         owner,
         repoName,
         branch,
-        input.accessToken
+        accessToken
       );
 
       log.info('Shared workspace ready', {

@@ -115,14 +115,14 @@ export async function mergeAccounts(request: MergeAccountsRequest): Promise<Merg
       const auditsTransferred = auditResult.length;
       log.info('Transferred audit jobs', { count: auditsTransferred, from: secondaryUserId, to: primaryUserId });
 
-      // 4. Transfer all projects
+      // 4. Transfer all projects (DATABASE ONLY)
       const projectResult = await tx.update(projects)
         .set({ userId: primaryUserId })
         .where(eq(projects.userId, secondaryUserId))
         .returning({ id: projects.id });
 
       const projectsTransferred = projectResult.length;
-      log.info('Transferred projects', { count: projectsTransferred, from: secondaryUserId, to: primaryUserId });
+      log.info('Transferred database projects', { count: projectsTransferred, from: secondaryUserId, to: primaryUserId });
 
       // 5. Create link record for audit trail
       await tx.insert(userAccountLinks).values({

@@ -75,7 +75,20 @@ export async function getOrCreateSharedWorkspace(
   } else {
     // First clone
     console.log(`Creating new shared workspace: ${workspace.sourcePath}`);
-    await cloneOrRefresh(cloneUrl, workspace.sourcePath, branch, accessToken);
+    try {
+      await cloneOrRefresh(cloneUrl, workspace.sourcePath, branch, accessToken);
+    } catch (error: any) {
+      // Check if it's an authentication error
+      if (error.message?.includes('could not read Username') ||
+          error.message?.includes('Authentication failed') ||
+          error.message?.includes('authentication required')) {
+        throw new Error(
+          `Git clone failed: This repository may be private and requires authentication. ` +
+          `Please connect your GitHub account in Settings or provide an access token with read permissions.`
+        );
+      }
+      throw error;
+    }
   }
 
   // Update metadata

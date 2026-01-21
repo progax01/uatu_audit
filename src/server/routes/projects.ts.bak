@@ -132,13 +132,15 @@ const createProjectHandler: RouteHandler = async (req, res, ctx) => {
       return sendError(res, 400, `Invalid type. Must be one of: ${validTypes.join(', ')}`);
     }
 
-    const project = await createProject({
+    const input: CreateProjectInput = {
       name: body.name,
       description: body.description,
-      userId: ctx.userId,
       type: body.type,
       settings: body.settings as any,
-    });
+      tags: body.tags,
+    };
+
+    const project = await createProject(ctx.userId, input);
     log.info(`Created project: ${project.id} for user ${ctx.userId}`);
     sendJson(res, 201, project);
   } catch (error: any) {
@@ -298,7 +300,7 @@ const updateProjectHandler: RouteHandler = async (req, res, ctx, params) => {
 
   try {
     // Check ownership
-    const existing = await getProjectById(projectId);
+    const existing = await getProject(projectId);
     if (!existing) {
       return sendError(res, 404, 'Project not found');
     }
@@ -340,7 +342,7 @@ const deleteProjectHandler: RouteHandler = async (req, res, ctx, params) => {
 
   try {
     // Check ownership
-    const existing = await getProjectById(projectId);
+    const existing = await getProject(projectId);
     if (!existing) {
       return sendError(res, 404, 'Project not found');
     }
@@ -375,7 +377,7 @@ const addComponentHandler: RouteHandler = async (req, res, ctx, params) => {
 
   try {
     // Check ownership
-    const project = await getProjectById(projectId);
+    const project = await getProject(projectId);
     if (!project) {
       return sendError(res, 404, 'Project not found');
     }
@@ -398,12 +400,13 @@ const addComponentHandler: RouteHandler = async (req, res, ctx, params) => {
       return sendError(res, 400, `Invalid type. Must be one of: ${validTypes.join(', ')}`);
     }
 
-    const component = await addComponent({
-      projectId,
+    const input: AddComponentInput = {
       type: body.type as any,
-      displayName: body.displayName || `Component ${Date.now()}`,
+      displayName: body.displayName,
       config: body.config as any,
-    });
+    };
+
+    const component = await addComponent(projectId, input);
     if (!component) {
       return sendError(res, 500, 'Failed to add component');
     }
@@ -430,7 +433,7 @@ const listComponentsHandler: RouteHandler = async (req, res, ctx, params) => {
   }
 
   try {
-    const project = await getProjectById(projectId);
+    const project = await getProject(projectId);
     if (!project) {
       return sendError(res, 404, 'Project not found');
     }
@@ -438,8 +441,7 @@ const listComponentsHandler: RouteHandler = async (req, res, ctx, params) => {
       return sendError(res, 403, 'Access denied');
     }
 
-    const components = await listComponentsByProject(projectId);
-    sendJson(res, 200, { components });
+    sendJson(res, 200, { components: project.components });
   } catch (error: any) {
     log.error('Failed to list components:', error);
     sendError(res, 500, error.message || 'Failed to list components');
@@ -461,7 +463,7 @@ const listProjectAuditsHandler: RouteHandler = async (req, res, ctx, params) => 
 
   try {
     // Verify project ownership
-    const project = await getProjectById(projectId);
+    const project = await getProject(projectId);
     if (!project) {
       return sendError(res, 404, 'Project not found');
     }
@@ -551,7 +553,7 @@ const updateComponentHandler: RouteHandler = async (req, res, ctx, params) => {
 
   try {
     // Check ownership
-    const project = await getProjectById(projectId);
+    const project = await getProject(projectId);
     if (!project) {
       return sendError(res, 404, 'Project not found');
     }
@@ -566,7 +568,7 @@ const updateComponentHandler: RouteHandler = async (req, res, ctx, params) => {
     delete body.projectId;
     delete body.createdAt;
 
-    const updated = await updateComponent(componentId, body);
+    const updated = await updateComponent(projectId, componentId, body);
     if (!updated) {
       return sendError(res, 404, 'Component not found');
     }
@@ -594,7 +596,7 @@ const removeComponentHandler: RouteHandler = async (req, res, ctx, params) => {
 
   try {
     // Check ownership
-    const project = await getProjectById(projectId);
+    const project = await getProject(projectId);
     if (!project) {
       return sendError(res, 404, 'Project not found');
     }
@@ -602,7 +604,7 @@ const removeComponentHandler: RouteHandler = async (req, res, ctx, params) => {
       return sendError(res, 403, 'Access denied');
     }
 
-    const success = await removeComponent(componentId);
+    const success = await removeComponent(projectId, componentId);
     if (!success) {
       return sendError(res, 404, 'Component not found');
     }
@@ -633,12 +635,14 @@ const createManualProjectHandler: RouteHandler = async (req, res, ctx) => {
       return sendError(res, 400, 'name is required');
     }
 
-    const project = await createProject({
+    const input: CreateProjectInput = {
       name: body.name,
       description: body.description,
-      userId,
       type: body.type || 'contract-only',
-    });
+      tags: body.tags,
+    };
+
+    const project = await createProject(userId, input);
     log.info(`Created manual project: ${project.id}`);
     sendJson(res, 201, project);
   } catch (error: any) {
@@ -662,7 +666,7 @@ const updateProjectSettingsHandler: RouteHandler = async (req, res, ctx, params)
 
   try {
     // Check ownership
-    const existing = await getProjectById(projectId);
+    const existing = await getProject(projectId);
     if (!existing) {
       return sendError(res, 404, 'Project not found');
     }
@@ -739,7 +743,7 @@ const getBadgeSettingsHandler: RouteHandler = async (req, res, ctx, params) => {
 
   try {
     // Verify project ownership
-    const project = await getProjectById(projectId);
+    const project = await getProject(projectId);
     if (!project) {
       return sendError(res, 404, 'Project not found');
     }
@@ -791,7 +795,7 @@ const updateBadgeSettingsHandler: RouteHandler = async (req, res, ctx, params) =
 
   try {
     // Verify project ownership
-    const project = await getProjectById(projectId);
+    const project = await getProject(projectId);
     if (!project) {
       return sendError(res, 404, 'Project not found');
     }

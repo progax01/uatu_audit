@@ -80,7 +80,19 @@ export default function Settings() {
     const handleGitHubConnect = () => {
         // Store return URL so we come back to settings after OAuth
         localStorage.setItem('oauth_return_url', '/settings')
-        window.location.href = '/auth/github/login'
+
+        // Pass current user ID in state to trigger account linking instead of creating new user
+        const currentUser = getStoredUser()
+        if (currentUser?.id) {
+            const stateData = {
+                returnUrl: '/settings',
+                linkToUserId: currentUser.id  // Signal this is an account linking request
+            }
+            const encodedState = btoa(JSON.stringify(stateData))
+            window.location.href = `/auth/github/login?state=${encodeURIComponent(encodedState)}`
+        } else {
+            window.location.href = '/auth/github/login'
+        }
     }
 
     const handleSaveToken = async () => {
