@@ -22,14 +22,20 @@ export async function fetchGitHubBranches(
     repo: string
 ): Promise<string[]> {
     try {
-        // Get GitHub PAT from localStorage (same as add source flow)
+        // Get GitHub credentials - PAT first, then JWT token for OAuth users
         const headers: HeadersInit = {}
+
         const pat = localStorage.getItem('github_pat')
         if (pat) {
             headers['X-GitHub-Token'] = pat
+        } else {
+            // For OAuth users, send JWT token so backend can get GitHub credentials from DB
+            const jwtToken = localStorage.getItem('uatu_access_token')
+            if (jwtToken) {
+                headers['Authorization'] = `Bearer ${jwtToken}`
+            }
         }
 
-        // Use plain fetch with GitHub PAT header (not authFetch which only sends JWT)
         const response = await fetch(
             `/github/branches?repo=${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
             { headers }
