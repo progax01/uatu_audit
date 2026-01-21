@@ -250,7 +250,10 @@ const getProjectHandler: RouteHandler = async (req, res, ctx, params) => {
       return sendError(res, 403, 'Access denied');
     }
 
-    sendJson(res, 200, project);
+    // Fetch components for this project
+    const components = await listComponentsByProject(projectId);
+
+    sendJson(res, 200, { ...project, components });
   } catch (error: any) {
     log.error('Failed to get project:', error);
     sendError(res, 500, error.message || 'Failed to get project');
@@ -276,7 +279,10 @@ const getProjectBySlugHandler: RouteHandler = async (req, res, ctx, params) => {
       return sendError(res, 404, 'Project not found');
     }
 
-    sendJson(res, 200, { project });
+    // Fetch components for this project
+    const components = await listComponentsByProject(project.id);
+
+    sendJson(res, 200, { project: { ...project, components } });
   } catch (error: any) {
     log.error('Failed to get project by slug:', error);
     sendError(res, 500, error.message || 'Failed to get project');
