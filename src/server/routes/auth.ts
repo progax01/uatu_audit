@@ -312,11 +312,33 @@ export async function handleAuthRoutes(
             const emailsResp = await fetch("https://api.github.com/user/emails", {
               headers: { Authorization: `Bearer ${t.access_token}`, "User-Agent": "UatuAudit" },
             });
-            const emails = await emailsResp.json() as any[];
-            // Find primary verified email
-            const primaryEmail = emails.find((e) => e.primary && e.verified);
-            if (primaryEmail) {
-              githubEmail = primaryEmail.email;
+
+            if (!emailsResp.ok) {
+              throw new Error(`GitHub emails API returned ${emailsResp.status}: ${emailsResp.statusText}`);
+            }
+
+            const emails = await emailsResp.json();
+
+            // Validate response is an array
+            if (!Array.isArray(emails)) {
+              logger.warn("GitHub emails API did not return an array", {
+                responseType: typeof emails,
+                response: emails
+              });
+            } else {
+              // Find primary verified email
+              const primaryEmail = emails.find((e) => e.primary && e.verified);
+              if (primaryEmail) {
+                githubEmail = primaryEmail.email;
+                logger.debug("Found GitHub email from emails API", { email: githubEmail });
+              } else {
+                // Fallback to any verified email
+                const anyVerified = emails.find((e) => e.verified);
+                if (anyVerified) {
+                  githubEmail = anyVerified.email;
+                  logger.debug("Using non-primary verified GitHub email", { email: githubEmail });
+                }
+              }
             }
           } catch (emailError) {
             logger.warn("Failed to fetch GitHub emails", {
@@ -432,6 +454,25 @@ export async function handleAuthRoutes(
             requestedLinkTo: linkToUserId
           });
         }
+
+        // CRITICAL: If this is account linking, don't create a new session
+        // The user already has JWT tokens from wallet login
+        if (linkToUserId) {
+          logger.info("Account linking complete - not creating cookie session (user has JWT)", {
+            userId: linkToUserId,
+            githubLinked: true
+          });
+
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.end(
+            `<script>
+              var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+              localStorage.removeItem('oauth_return_url');
+              window.location = returnUrl + '?github_connect=success';
+            </script><p>GitHub linked successfully. Redirecting...</p>`
+          );
+          return true;
+        }
       } catch (e) {
         logger.error("Failed to create/find database user", {
           error: e instanceof Error ? e.message : String(e),
@@ -448,9 +489,10 @@ export async function handleAuthRoutes(
         return true;
       }
 
-      // Create new session for this user (use database UUID, not GitHub ID)
+      // ONLY create session if NOT account linking (unreachable now due to return above)
+      // This path should never be hit due to policy blocking standalone GitHub login
       const sessionId = uuidv4();
-      await saveToken(sessionId, t.access_token, dbUser.id); // Store database UUID
+      await saveToken(sessionId, t.access_token, dbUser.id);
       setSessionCookie(res, sessionId, req);
 
       logger.debug("Session created successfully", { sessionId, userId: dbUser.id });
@@ -562,11 +604,33 @@ export async function handleAuthRoutes(
             const emailsResp = await fetch("https://api.github.com/user/emails", {
               headers: { Authorization: `Bearer ${t.access_token}`, "User-Agent": "UatuAudit" },
             });
-            const emails = await emailsResp.json() as any[];
-            // Find primary verified email
-            const primaryEmail = emails.find((e) => e.primary && e.verified);
-            if (primaryEmail) {
-              githubEmail = primaryEmail.email;
+
+            if (!emailsResp.ok) {
+              throw new Error(`GitHub emails API returned ${emailsResp.status}: ${emailsResp.statusText}`);
+            }
+
+            const emails = await emailsResp.json();
+
+            // Validate response is an array
+            if (!Array.isArray(emails)) {
+              logger.warn("GitHub emails API did not return an array (alias)", {
+                responseType: typeof emails,
+                response: emails
+              });
+            } else {
+              // Find primary verified email
+              const primaryEmail = emails.find((e) => e.primary && e.verified);
+              if (primaryEmail) {
+                githubEmail = primaryEmail.email;
+                logger.debug("Found GitHub email from emails API (alias)", { email: githubEmail });
+              } else {
+                // Fallback to any verified email
+                const anyVerified = emails.find((e) => e.verified);
+                if (anyVerified) {
+                  githubEmail = anyVerified.email;
+                  logger.debug("Using non-primary verified GitHub email (alias)", { email: githubEmail });
+                }
+              }
             }
           } catch (emailError) {
             logger.warn("Failed to fetch GitHub emails (alias)", {
@@ -682,6 +746,25 @@ export async function handleAuthRoutes(
             requestedLinkTo: linkToUserId
           });
         }
+
+        // CRITICAL: If this is account linking, don't create a new session
+        // The user already has JWT tokens from wallet login
+        if (linkToUserId) {
+          logger.info("Account linking complete (alias) - not creating cookie session (user has JWT)", {
+            userId: linkToUserId,
+            githubLinked: true
+          });
+
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.end(
+            `<script>
+              var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+              localStorage.removeItem('oauth_return_url');
+              window.location = returnUrl + '?github_connect=success';
+            </script><p>GitHub linked successfully. Redirecting...</p>`
+          );
+          return true;
+        }
       } catch (e) {
         logger.error("Failed to create/find database user (alias)", {
           error: e instanceof Error ? e.message : String(e),
@@ -698,6 +781,8 @@ export async function handleAuthRoutes(
         return true;
       }
 
+      // ONLY create session if NOT account linking (unreachable now due to return above)
+      // This path should never be hit due to policy blocking standalone GitHub login
       const sessionId = uuidv4();
       await saveToken(sessionId, t.access_token, dbUser.id); // Store database UUID
       setSessionCookie(res, sessionId, req);

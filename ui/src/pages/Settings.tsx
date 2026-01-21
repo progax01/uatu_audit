@@ -31,6 +31,19 @@ export default function Settings() {
     const [tokenSaved, setTokenSaved] = useState(false)
     const [tokenError, setTokenError] = useState('')
 
+    // Profile editing state
+    const [isEditingProfile, setIsEditingProfile] = useState(false)
+    const [profileForm, setProfileForm] = useState({
+        displayName: '',
+        email: '',
+        bio: '',
+        company: '',
+        website: '',
+        twitterHandle: ''
+    })
+    const [profileSaving, setProfileSaving] = useState(false)
+    const [profileError, setProfileError] = useState('')
+
     const { address, isConnected } = useAccount()
     const { disconnect } = useDisconnect()
     const chainId = useChainId()
@@ -40,6 +53,18 @@ export default function Settings() {
     useEffect(() => {
         const storedUser = getStoredUser()
         setUser(storedUser)
+
+        // Initialize profile form with user data
+        if (storedUser) {
+            setProfileForm({
+                displayName: storedUser.displayName || '',
+                email: storedUser.email || '',
+                bio: storedUser.bio || '',
+                company: storedUser.company || '',
+                website: storedUser.website || '',
+                twitterHandle: storedUser.twitterHandle || ''
+            })
+        }
 
         // Check if user has a stored PAT
         const storedToken = localStorage.getItem('github_pat')
@@ -58,6 +83,9 @@ export default function Settings() {
             setTimeout(() => setTokenSaved(false), 5000)
             // Clean URL
             window.history.replaceState({}, '', '/settings')
+            // Reload user data to get updated GitHub info
+            const refreshedUser = getStoredUser()
+            if (refreshedUser) setUser(refreshedUser)
         } else if (status === 'error') {
             setTokenError(message || 'Failed to connect GitHub account')
             // Clean URL
@@ -145,6 +173,64 @@ export default function Settings() {
         setTokenSaved(false)
     }
 
+    const handleSaveProfile = async () => {
+        setProfileSaving(true)
+        setProfileError('')
+
+        try {
+            const token = localStorage.getItem('accessToken')
+            if (!token) {
+                setProfileError('Not authenticated. Please log in again.')
+                return
+            }
+
+            const response = await fetch('/auth/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(profileForm)
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                throw new Error(error.error || 'Failed to update profile')
+            }
+
+            const data = await response.json()
+
+            // Update local user data
+            const updatedUser = { ...user, ...data.user }
+            setUser(updatedUser as AuthUser)
+            localStorage.setItem('user', JSON.stringify(updatedUser))
+
+            setIsEditingProfile(false)
+            setTokenSaved(true) // Reuse success indicator
+            setTimeout(() => setTokenSaved(false), 3000)
+        } catch (err: any) {
+            setProfileError(err.message || 'Failed to update profile')
+        } finally {
+            setProfileSaving(false)
+        }
+    }
+
+    const handleCancelEdit = () => {
+        // Reset form to current user data
+        if (user) {
+            setProfileForm({
+                displayName: user.displayName || '',
+                email: user.email || '',
+                bio: user.bio || '',
+                company: user.company || '',
+                website: user.website || '',
+                twitterHandle: user.twitterHandle || ''
+            })
+        }
+        setIsEditingProfile(false)
+        setProfileError('')
+    }
+
     const tierConfig = TIER_CONFIG[user?.tier || 'free']
     const TierIcon = tierConfig.icon
     const displayName = user?.displayName || user?.username || user?.githubLogin || 'Anonymous'
@@ -212,6 +298,160 @@ export default function Settings() {
                         </div>
                     </div>
                 </div>
+            </motion.div>
+
+            {/* Profile Settings Section */}
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className="card-premium"
+            >
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Profile Settings</h2>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Update your personal information</p>
+                    </div>
+                    {!isEditingProfile && (
+                        <button
+                            onClick={() => setIsEditingProfile(true)}
+                            className="px-4 h-9 bg-slate-900 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-indigo-600 transition-all"
+                        >
+                            Edit Profile
+                        </button>
+                    )}
+                </div>
+
+                {!isEditingProfile ? (
+                    /* Display Mode */
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Email</label>
+                                <p className="text-sm text-slate-900">{user?.email || 'Not set'}</p>
+                                {user?.githubEmail && user?.githubEmail !== user?.email && (
+                                    <p className="text-[11px] text-slate-400 mt-1">GitHub: {user.githubEmail}</p>
+                                )}
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Company</label>
+                                <p className="text-sm text-slate-900">{user?.company || 'Not set'}</p>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Bio</label>
+                            <p className="text-sm text-slate-900">{user?.bio || 'Not set'}</p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Website</label>
+                                <p className="text-sm text-slate-900">{user?.website || 'Not set'}</p>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Twitter</label>
+                                <p className="text-sm text-slate-900">{user?.twitterHandle ? `@${user.twitterHandle}` : 'Not set'}</p>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    /* Edit Mode */
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Display Name</label>
+                                <input
+                                    type="text"
+                                    value={profileForm.displayName}
+                                    onChange={(e) => setProfileForm({ ...profileForm, displayName: e.target.value })}
+                                    placeholder="Your name"
+                                    className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Email</label>
+                                <input
+                                    type="email"
+                                    value={profileForm.email}
+                                    onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                                    placeholder="your@email.com"
+                                    className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Bio</label>
+                            <textarea
+                                value={profileForm.bio}
+                                onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
+                                placeholder="Tell us about yourself..."
+                                rows={3}
+                                className="w-full px-4 py-3 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all resize-none"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Company</label>
+                                <input
+                                    type="text"
+                                    value={profileForm.company}
+                                    onChange={(e) => setProfileForm({ ...profileForm, company: e.target.value })}
+                                    placeholder="Your company"
+                                    className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Website</label>
+                                <input
+                                    type="url"
+                                    value={profileForm.website}
+                                    onChange={(e) => setProfileForm({ ...profileForm, website: e.target.value })}
+                                    placeholder="https://yourwebsite.com"
+                                    className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Twitter Handle</label>
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">@</span>
+                                <input
+                                    type="text"
+                                    value={profileForm.twitterHandle}
+                                    onChange={(e) => setProfileForm({ ...profileForm, twitterHandle: e.target.value.replace('@', '') })}
+                                    placeholder="username"
+                                    className="w-full h-11 pl-8 pr-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        {profileError && (
+                            <div className="flex items-center gap-2 text-rose-600 text-xs p-3 bg-rose-50 rounded-lg border border-rose-100">
+                                <AlertCircle size={14} />
+                                {profileError}
+                            </div>
+                        )}
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                onClick={handleCancelEdit}
+                                disabled={profileSaving}
+                                className="flex-1 h-11 bg-white border border-black/[0.05] rounded-xl text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveProfile}
+                                disabled={profileSaving}
+                                className="flex-1 h-11 bg-slate-900 text-white rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-600 transition-all disabled:opacity-50"
+                            >
+                                {profileSaving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </div>
+                )}
             </motion.div>
 
             {/* Connected Services Header */}
