@@ -60,10 +60,20 @@ export default function SourcesTab({ projectId, components, onComponentAdded }: 
 
   const getGitHubHeaders = (): HeadersInit => {
     const headers: HeadersInit = {}
+
+    // Try PAT first (direct GitHub token)
     const pat = localStorage.getItem('github_pat')
     if (pat) {
       headers['X-GitHub-Token'] = pat
+      return headers
     }
+
+    // For OAuth users, send JWT token so backend can get GitHub credentials from DB
+    const jwtToken = localStorage.getItem('uatu_access_token')
+    if (jwtToken) {
+      headers['Authorization'] = `Bearer ${jwtToken}`
+    }
+
     return headers
   }
 
