@@ -95,18 +95,30 @@ export async function loadUserId(sessionId: string): Promise<string | null> {
   // Check in-memory first
   const session = sessions.get(sessionId);
   if (session?.userId) {
-    // This might be a GitHub ID (old format), need to convert to UUID
-    const githubId = session.userId;
+    const storedId = session.userId;
 
-    // Try to find user by GitHub ID and return their UUID
+    // Check if it looks like a UUID (has dashes) vs GitHub ID (just numbers)
+    const isUUID = storedId.includes('-');
+
+    if (isUUID) {
+      // Already a UUID, return it
+      return storedId;
+    }
+
+    // It's a GitHub ID (old format), need to convert to UUID
     const { findUserByGithubId } = await import('../../repositories/userRepository.js');
-    const user = await findUserByGithubId(githubId);
+    const user = await findUserByGithubId(storedId);
+
     if (user) {
       return user.id; // Return database UUID
     }
 
-    // Fallback to original value if not found
-    return session.userId;
+    // User doesn't exist - invalid session
+    logger.warn('Session has GitHub ID but user not found in database', {
+      sessionId,
+      githubId: storedId
+    });
+    return null;
   }
 
   // Fallback to disk
@@ -115,18 +127,31 @@ export async function loadUserId(sessionId: string): Promise<string | null> {
     const j = await fs.readJson(p);
     const storedUserId = j?.userId;
 
-    if (storedUserId) {
-      // This is likely a GitHub ID (old format), convert to UUID
-      const { findUserByGithubId } = await import('../../repositories/userRepository.js');
-      const user = await findUserByGithubId(storedUserId);
-      if (user) {
-        return user.id; // Return database UUID
-      }
+    if (!storedUserId) {
+      return null;
+    }
 
-      // Fallback to original value
+    // Check if it looks like a UUID vs GitHub ID
+    const isUUID = storedUserId.includes('-');
+
+    if (isUUID) {
+      // Already a UUID, return it
       return storedUserId;
     }
 
+    // It's a GitHub ID (old format), convert to UUID
+    const { findUserByGithubId } = await import('../../repositories/userRepository.js');
+    const user = await findUserByGithubId(storedUserId);
+
+    if (user) {
+      return user.id; // Return database UUID
+    }
+
+    // User doesn't exist - invalid session
+    logger.warn('Session file has GitHub ID but user not found in database', {
+      sessionId,
+      githubId: storedUserId
+    });
     return null;
   } catch {
     return null;
