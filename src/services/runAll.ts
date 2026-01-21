@@ -280,18 +280,14 @@ export async function runAll(params: {
   const hasClarifications = jobId ? await clarificationService.hasPendingClarifications(String(jobId), "pre_audit") : false;
 
   if (hasClarifications) {
-    log.info("Pending clarifications already exist, pausing for user input");
+    log.info("Pending clarifications exist - continuing with best effort analysis");
     if (jobId) {
       await updateJobClarificationStatus(jobId, 'pending');
-      await updateJobNote(jobId, 'Awaiting technical clarifications');
-      await onProgress({ phase: "clarification", step: "awaiting-user-input", pct: 50 });
+      await updateJobNote(jobId, 'Questions available for clarification - continuing with best effort');
+      await onProgress({ phase: "clarification", step: "questions-available", pct: 50 });
     }
-    return {
-      status: 'awaiting_clarification',
-      message: 'Audit paused: technical clarifications required',
-      timestamp,
-      runPath: path.join(runsPath, timestamp),
-    };
+    // Don't pause - continue with audit using best effort
+    log.info("Audit will proceed without waiting for user input - questions can be answered later");
   }
 
   // Load project structure analysis results
@@ -344,20 +340,15 @@ export async function runAll(params: {
 
     // 3. Save generated questions
     if (questions.length > 0) {
-      log.info(`Generating ${questions.length} clarifications for job ${jobId}`);
+      log.info(`Generated ${questions.length} clarifications for job ${jobId} - saving for later review`);
       await clarificationService.addBulkPreAuditQuestions(String(jobId), questions);
 
       await updateJobClarificationStatus(jobId, 'pending');
-      await updateJobNote(jobId, 'Awaiting technical clarifications');
-      await onProgress({ phase: "clarification", step: "awaiting-user-input", pct: 50 });
+      await updateJobNote(jobId, `${questions.length} questions available - continuing with best effort analysis`);
+      await onProgress({ phase: "clarification", step: "questions-generated", pct: 75 });
 
-      return {
-        status: 'awaiting_clarification',
-        message: 'Pre-audit clarifications generated, awaiting user responses',
-        questionCount: questions.length,
-        timestamp,
-        runPath: path.join(runsPath, timestamp),
-      };
+      // Don't pause - continue with audit using best effort
+      log.info(`Audit will proceed without waiting for ${questions.length} question(s) - users can answer them later to improve results`);
     }
   }
 

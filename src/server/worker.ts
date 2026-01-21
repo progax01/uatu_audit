@@ -34,10 +34,11 @@ export async function startWorker(workerId: number) {
           accessToken: job.accessToken,
         });
 
-        // If job returned a pause status, don't mark as complete
+        // Legacy check for pause status (no longer used - jobs run to completion)
+        // Note: Audits no longer pause for clarifications - they continue with best effort
         if (result && (result.status === 'awaiting_clarification' || result.status === 'awaiting-preaudit')) {
-          jobLog.info(`Job paused: ${result.status}`, { workerId });
-          continue;
+          jobLog.info(`Legacy pause status detected (should not happen): ${result.status}`, { workerId });
+          // Continue anyway - jobs should always complete
         }
 
         const { htmlPath, score, grade } = result;

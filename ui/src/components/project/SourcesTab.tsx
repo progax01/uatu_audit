@@ -79,7 +79,7 @@ export default function SourcesTab({ projectId, components, onComponentAdded }: 
     }
 
     // Check if user has GitHub linked (via JWT auth)
-    const storedUser = localStorage.getItem('user')
+    const storedUser = localStorage.getItem('uatu_user')
     if (storedUser) {
       try {
         const userData = JSON.parse(storedUser)

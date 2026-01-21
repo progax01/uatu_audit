@@ -53,7 +53,7 @@ export default function Settings() {
     // Fetch fresh user data from server
     const fetchUpdatedUserData = async () => {
         try {
-            const token = localStorage.getItem('accessToken')
+            const token = localStorage.getItem('uatu_access_token')
             if (!token) return
 
             const response = await fetch('/auth/me', {
@@ -66,7 +66,7 @@ export default function Settings() {
                 const data = await response.json()
                 if (data.user) {
                     setUser(data.user)
-                    localStorage.setItem('user', JSON.stringify(data.user))
+                    localStorage.setItem('uatu_user', JSON.stringify(data.user))
                 }
             }
         } catch (error) {
@@ -104,11 +104,13 @@ export default function Settings() {
         if (status === 'success') {
             setTokenSaved(true)
             setTokenError('')
-            setTimeout(() => setTokenSaved(false), 5000)
             // Clean URL
             window.history.replaceState({}, '', '/settings')
             // Fetch fresh user data from server to get updated GitHub info
-            fetchUpdatedUserData()
+            fetchUpdatedUserData().then(() => {
+                // Success message will auto-hide after 5 seconds
+                setTimeout(() => setTokenSaved(false), 5000)
+            })
         } else if (status === 'error') {
             setTokenError(message || 'Failed to connect GitHub account')
             // Clean URL
@@ -201,7 +203,7 @@ export default function Settings() {
         setProfileError('')
 
         try {
-            const token = localStorage.getItem('accessToken')
+            const token = localStorage.getItem('uatu_access_token')
             if (!token) {
                 setProfileError('Not authenticated. Please log in again.')
                 return
@@ -226,7 +228,7 @@ export default function Settings() {
             // Update local user data
             const updatedUser = { ...user, ...data.user }
             setUser(updatedUser as AuthUser)
-            localStorage.setItem('user', JSON.stringify(updatedUser))
+            localStorage.setItem('uatu_user', JSON.stringify(updatedUser))
 
             setIsEditingProfile(false)
             setTokenSaved(true) // Reuse success indicator

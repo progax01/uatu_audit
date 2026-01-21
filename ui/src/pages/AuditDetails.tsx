@@ -1053,51 +1053,168 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
 
         {/* Right Column - Terminal Output */}
         <div className="flex flex-col justify-center items-center px-12 bg-slate-900">
-          {progress && progress.currentStep && (
+          {progress && (
             <div className="w-full max-w-3xl">
-              <div className="bg-slate-800 rounded-2xl p-8 font-mono text-sm shadow-2xl border border-slate-700">
-                <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-700">
+              <div className="bg-slate-800 rounded-2xl overflow-hidden shadow-2xl border border-slate-700">
+                {/* Terminal Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
                   <div className="flex items-center gap-3">
                     <div className="flex gap-2">
                       <div className="w-3 h-3 rounded-full bg-red-500"></div>
                       <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                       <div className="w-3 h-3 rounded-full bg-green-500"></div>
                     </div>
-                    <span className="text-slate-400 ml-2">uatu-audit — {jobId?.toString().slice(0, 8)}</span>
+                    <span className="text-slate-400 ml-2 text-xs font-semibold">uatu-audit — {jobId?.toString().slice(0, 8)}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                    <span className="text-emerald-400 text-[10px] font-bold">LIVE</span>
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-900/30 rounded-lg border border-emerald-700/50">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-wide">Scanning</span>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <div className="text-slate-500">
-                    <span className="text-indigo-400">$</span> uatu audit start --depth {jobInfo?.depth || 'standard'} --project "{jobInfo?.project || 'project'}"
-                  </div>
-                  <div className="text-emerald-400 flex items-center gap-2">
-                    <CheckCircle2 size={14} />
-                    Framework detected: {jobInfo?.detectedFramework || 'analyzing...'}
-                  </div>
-                  <div className="text-slate-400">
-                    → Loading audit pipeline...
-                  </div>
-                  <div className="text-yellow-400 flex items-center gap-2 font-bold">
-                    <Zap size={14} className="animate-pulse" />
-                    Running: {progress.currentStep}
-                  </div>
-                  <div className="flex items-center gap-2 text-indigo-400 mt-4">
-                    <div className="flex gap-1">
-                      <div className="w-1 h-4 bg-indigo-500 animate-pulse rounded"></div>
-                      <div className="w-1 h-4 bg-indigo-500 animate-pulse rounded" style={{ animationDelay: '100ms' }}></div>
-                      <div className="w-1 h-4 bg-indigo-500 animate-pulse rounded" style={{ animationDelay: '200ms' }}></div>
+
+                {/* Terminal Content */}
+                <div className="relative p-8 font-mono text-sm min-h-[500px]">
+                  <div className="space-y-3">
+                    {/* Header */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="text-slate-600 text-xs mb-4">
+                        ┌─────────────────────────────────────────────────────────────┐
+                      </div>
+                      <div className="text-indigo-400 font-bold text-sm mb-1">
+                        UATU {jobInfo?.depth?.toUpperCase() || 'STANDARD'} AUDIT PIPELINE
+                      </div>
+                      <div className="text-slate-500 text-xs mb-4">
+                        Comprehensive Security Analysis System
+                      </div>
+                      <div className="text-slate-600 text-xs mb-6">
+                        └─────────────────────────────────────────────────────────────┘
+                      </div>
+                    </motion.div>
+
+                    {/* Command */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.1 }}
+                      className="text-xs text-slate-400 mb-6"
+                    >
+                      <span className="text-slate-600">$</span> <span className="text-indigo-400">uatu audit start</span> <span className="text-slate-500">--depth</span> {jobInfo?.depth || 'standard'} <span className="text-slate-500">--project</span> "{jobInfo?.project || 'project'}"
+                    </motion.div>
+
+                    {/* Framework Detection */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                      className="text-emerald-400 flex items-center gap-2 mb-6"
+                    >
+                      <CheckCircle2 size={14} />
+                      <span className="text-xs">Framework detected: {jobInfo?.detectedFramework || 'analyzing...'}</span>
+                    </motion.div>
+
+                    {/* Overall Progress */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.3 }}
+                      className="mb-6"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-slate-500 font-semibold">Overall Progress</span>
+                        <span className="text-sm font-bold text-indigo-400">{progress.pct || 0}%</span>
+                      </div>
+                      <div className="text-xs font-mono text-slate-400">
+                        <span className="text-slate-600">[</span>
+                        <span className="text-indigo-400">{'/'.repeat(Math.floor((progress.pct || 0) / 2))}</span>
+                        <span className="text-slate-700">{'.'.repeat(50 - Math.floor((progress.pct || 0) / 2))}</span>
+                        <span className="text-slate-600">]</span>
+                      </div>
+                    </motion.div>
+
+                    {/* Current Step Status */}
+                    {progress.currentStep && (
+                      <motion.div
+                        key={progress.currentStep}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="mb-6"
+                      >
+                        <div className="flex items-center gap-3 text-yellow-400 font-bold">
+                          <Zap size={14} className="animate-pulse" />
+                          <span className="text-sm">Running: {progress.currentStep}</span>
+                        </div>
+                        {typeof progress.pct === 'number' && (
+                          <div className="ml-6 mt-2 text-[10px]">
+                            <span className="text-yellow-500">{'/'.repeat(Math.floor(progress.pct / 5))}</span>
+                            <span className="text-slate-700">{'.'.repeat(20 - Math.floor(progress.pct / 5))}</span>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+
+                    {/* Step Progress */}
+                    {progress.stepsCompleted !== undefined && progress.stepsTotal !== undefined && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="text-xs text-slate-500 mb-6"
+                      >
+                        → Step {progress.stepsCompleted} of {progress.stepsTotal} completed
+                      </motion.div>
+                    )}
+
+                    {/* Divider */}
+                    <div className="text-slate-700 my-4">
+                      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                     </div>
-                    <span>Processing... {progress.pct}%</span>
+
+                    {/* Current Activity */}
+                    <motion.div
+                      key={progress.currentStep}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex items-start gap-2 text-xs"
+                    >
+                      <span className="text-indigo-400 mt-0.5">→</span>
+                      <div className="flex-1">
+                        <div className="text-slate-400">
+                          {progress.currentStep || 'Processing audit pipeline...'}
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {/* Terminal Cursor */}
+                    <motion.div
+                      className="flex items-center gap-2 mt-6 pt-4 border-t border-slate-700"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.6 }}
+                    >
+                      <span className="text-emerald-500 text-xs font-bold">$</span>
+                      <motion.div
+                        className="w-2 h-3.5 bg-slate-400"
+                        animate={{ opacity: [1, 0, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity }}
+                      />
+                    </motion.div>
+
+                    {/* Status Note */}
+                    <div className="text-slate-600 italic text-xs mt-4">
+                      Page auto-updates when complete. No refresh needed.
+                    </div>
                   </div>
-                  <div className="text-slate-700 my-3">
-                    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                  </div>
-                  <div className="text-slate-500 italic text-xs">
-                    Page auto-updates when complete. No refresh needed.
+
+                  {/* Subtle Background Pattern */}
+                  <div className="absolute inset-0 opacity-[0.02] pointer-events-none">
+                    <div className="absolute inset-0" style={{
+                      backgroundImage: `linear-gradient(#6366f1 1px, transparent 1px), linear-gradient(90deg, #6366f1 1px, transparent 1px)`,
+                      backgroundSize: '24px 24px'
+                    }} />
                   </div>
                 </div>
               </div>
@@ -1834,10 +1951,13 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                           </div>
                                           <p className="text-[13px] text-slate-900 leading-relaxed font-black">{v.recommendation}</p>
                                         </div>
-                                        <div className="flex items-center gap-3 mt-8 pt-6 border-t border-slate-200">
-                                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Awaiting Fix Verification</span>
-                                        </div>
+                                        {/* Only show fix verification status for critical/high findings in Standard/Deep scans */}
+                                        {!isQuickScan && (v.severity === 'critical' || v.severity === 'high') && (
+                                          <div className="flex items-center gap-3 mt-8 pt-6 border-t border-slate-200">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Awaiting Fix Verification</span>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   </motion.div>

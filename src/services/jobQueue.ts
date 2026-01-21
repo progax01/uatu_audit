@@ -41,7 +41,8 @@ export interface AuditJob {
 }
 
 /**
- * Update job's clarification status
+ * Update job's clarification status (non-blocking)
+ * Note: Jobs no longer pause for clarifications - they continue with best effort
  */
 export async function updateJobClarificationStatus(
   jobId: number,
@@ -52,12 +53,14 @@ export async function updateJobClarificationStatus(
     const j = q.jobs.find(x => x.id === jobId);
     if (!j) return;
 
-    // Update job status based on clarification status
-    if (status === 'pending' && j.status === 'running') {
-      j.status = 'awaiting_clarification';
-    } else if ((status === 'answered' || status === 'skipped' || status === 'resolved') && j.status === 'awaiting_clarification') {
-      j.status = 'pending'; // Set back to pending so claimNext picks it up
-      j.note = 'Clarifications answered, resuming...';
+    // Don't change job status - just track that clarifications are available
+    // Jobs continue running even with pending questions
+    if (status === 'pending') {
+      // Questions are available but job continues
+      // Users can view and answer questions in the triage UI
+    } else if (status === 'answered' || status === 'skipped' || status === 'resolved') {
+      // Questions answered - can trigger re-analysis if needed
+      // For now, just log it without pausing/resuming jobs
     }
 
     await save(q);
