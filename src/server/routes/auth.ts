@@ -288,15 +288,49 @@ export async function handleAuthRoutes(
       logger.debug("GitHub OAuth token received successfully");
 
       // Fetch GitHub user to get userId
-      let userId: string | undefined;
+      let githubUserId: string | undefined;
+      let githubLogin: string | undefined;
+      let githubEmail: string | null | undefined;
+      let githubAvatarUrl: string | null | undefined;
+      let displayName: string | null | undefined;
+
       try {
         logger.debug("Fetching GitHub user information");
         const userResp = await fetch("https://api.github.com/user", {
           headers: { Authorization: `Bearer ${t.access_token}`, "User-Agent": "UatuAudit" },
         });
         const userData: any = await userResp.json();
-        userId = userData.id ? String(userData.id) : undefined;
-        logger.debug("GitHub user fetched successfully", { userId, login: userData.login });
+        githubUserId = userData.id ? String(userData.id) : undefined;
+        githubLogin = userData.login;
+        githubEmail = userData.email;
+        githubAvatarUrl = userData.avatar_url;
+        displayName = userData.name;
+
+        // If email is not public, fetch from emails API
+        if (!githubEmail) {
+          try {
+            const emailsResp = await fetch("https://api.github.com/user/emails", {
+              headers: { Authorization: `Bearer ${t.access_token}`, "User-Agent": "UatuAudit" },
+            });
+            const emails = await emailsResp.json() as any[];
+            // Find primary verified email
+            const primaryEmail = emails.find((e) => e.primary && e.verified);
+            if (primaryEmail) {
+              githubEmail = primaryEmail.email;
+            }
+          } catch (emailError) {
+            logger.warn("Failed to fetch GitHub emails", {
+              error: emailError instanceof Error ? emailError.message : String(emailError)
+            });
+          }
+        }
+
+        logger.debug("GitHub user fetched successfully", {
+          githubUserId,
+          githubLogin,
+          email: githubEmail,
+          emailFetched: !!githubEmail
+        });
       } catch (e) {
         logger.error("Failed to fetch GitHub user", {
           error: e instanceof Error ? e.message : String(e),
@@ -313,12 +347,57 @@ export async function handleAuthRoutes(
         return true;
       }
 
-      // Create new session for this user
+      if (!githubUserId || !githubLogin) {
+        logger.error("GitHub user data incomplete", { githubUserId, githubLogin });
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+            localStorage.removeItem('oauth_return_url');
+            window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent('GitHub user data incomplete')}';
+          </script><p>User data incomplete. Redirecting...</p>`
+        );
+        return true;
+      }
+
+      // CRITICAL FIX: Create or link database user
+      let dbUser;
+      try {
+        const result = await findOrCreateUser({
+          githubId: githubUserId,
+          githubLogin: githubLogin,
+          githubEmail: githubEmail,
+          githubAvatarUrl: githubAvatarUrl,
+          displayName: displayName,
+        });
+        dbUser = result.user;
+        logger.info(result.isNew ? "Created new user from GitHub" : "Found existing user for GitHub", {
+          userId: dbUser.id,
+          githubLogin,
+          isNew: result.isNew
+        });
+      } catch (e) {
+        logger.error("Failed to create/find database user", {
+          error: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined
+        });
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+            localStorage.removeItem('oauth_return_url');
+            window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent('Failed to create user account')}';
+          </script><p>User creation failed. Redirecting...</p>`
+        );
+        return true;
+      }
+
+      // Create new session for this user (use database UUID, not GitHub ID)
       const sessionId = uuidv4();
-      await saveToken(sessionId, t.access_token, userId);
+      await saveToken(sessionId, t.access_token, dbUser.id); // Store database UUID
       setSessionCookie(res, sessionId, req);
 
-      logger.debug("Session created successfully", { sessionId, userId });
+      logger.debug("Session created successfully", { sessionId, userId: dbUser.id });
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.end(
@@ -403,14 +482,48 @@ export async function handleAuthRoutes(
         return true;
       }
 
-      let userId: string | undefined;
+      let githubUserId: string | undefined;
+      let githubLogin: string | undefined;
+      let githubEmail: string | null | undefined;
+      let githubAvatarUrl: string | null | undefined;
+      let displayName: string | null | undefined;
+
       try {
         const userResp = await fetch("https://api.github.com/user", {
           headers: { Authorization: `Bearer ${t.access_token}`, "User-Agent": "UatuAudit" },
         });
         const userData: any = await userResp.json();
-        userId = userData.id ? String(userData.id) : undefined;
-        logger.debug("GitHub user fetched (alias callback)", { userId, login: userData.login });
+        githubUserId = userData.id ? String(userData.id) : undefined;
+        githubLogin = userData.login;
+        githubEmail = userData.email;
+        githubAvatarUrl = userData.avatar_url;
+        displayName = userData.name;
+
+        // If email is not public, fetch from emails API
+        if (!githubEmail) {
+          try {
+            const emailsResp = await fetch("https://api.github.com/user/emails", {
+              headers: { Authorization: `Bearer ${t.access_token}`, "User-Agent": "UatuAudit" },
+            });
+            const emails = await emailsResp.json() as any[];
+            // Find primary verified email
+            const primaryEmail = emails.find((e) => e.primary && e.verified);
+            if (primaryEmail) {
+              githubEmail = primaryEmail.email;
+            }
+          } catch (emailError) {
+            logger.warn("Failed to fetch GitHub emails (alias)", {
+              error: emailError instanceof Error ? emailError.message : String(emailError)
+            });
+          }
+        }
+
+        logger.debug("GitHub user fetched (alias callback)", {
+          githubUserId,
+          githubLogin,
+          email: githubEmail,
+          emailFetched: !!githubEmail
+        });
       } catch (e) {
         logger.error("Failed to fetch GitHub user (alias callback)", {
           error: e instanceof Error ? e.message : String(e),
@@ -427,8 +540,53 @@ export async function handleAuthRoutes(
         return true;
       }
 
+      if (!githubUserId || !githubLogin) {
+        logger.error("GitHub user data incomplete (alias)", { githubUserId, githubLogin });
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+            localStorage.removeItem('oauth_return_url');
+            window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent('GitHub user data incomplete')}';
+          </script><p>User data incomplete. Redirecting...</p>`
+        );
+        return true;
+      }
+
+      // CRITICAL FIX: Create or link database user
+      let dbUser;
+      try {
+        const result = await findOrCreateUser({
+          githubId: githubUserId,
+          githubLogin: githubLogin,
+          githubEmail: githubEmail,
+          githubAvatarUrl: githubAvatarUrl,
+          displayName: displayName,
+        });
+        dbUser = result.user;
+        logger.info(result.isNew ? "Created new user from GitHub (alias)" : "Found existing user for GitHub (alias)", {
+          userId: dbUser.id,
+          githubLogin,
+          isNew: result.isNew
+        });
+      } catch (e) {
+        logger.error("Failed to create/find database user (alias)", {
+          error: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined
+        });
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+            localStorage.removeItem('oauth_return_url');
+            window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent('Failed to create user account')}';
+          </script><p>User creation failed. Redirecting...</p>`
+        );
+        return true;
+      }
+
       const sessionId = uuidv4();
-      await saveToken(sessionId, t.access_token, userId);
+      await saveToken(sessionId, t.access_token, dbUser.id); // Store database UUID
       setSessionCookie(res, sessionId, req);
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");

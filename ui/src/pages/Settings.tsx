@@ -78,7 +78,9 @@ export default function Settings() {
     }
 
     const handleGitHubConnect = () => {
-        window.location.href = '/auth/github'
+        // Store return URL so we come back to settings after OAuth
+        localStorage.setItem('oauth_return_url', '/settings')
+        window.location.href = '/auth/github/login'
     }
 
     const handleSaveToken = async () => {

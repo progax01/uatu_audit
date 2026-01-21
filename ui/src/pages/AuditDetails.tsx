@@ -2102,7 +2102,24 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         exit={{ opacity: 0 }}
                         className="space-y-6"
                       >
-                        <TestExecutionReport report={auditData?.testReport} />
+                        {isQuickScan ? (
+                          /* Quick Scan - Test Execution Not Available */
+                          <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 border-2 border-slate-200 rounded-3xl p-12 text-center">
+                            <div className="w-20 h-20 rounded-2xl bg-slate-200/50 flex items-center justify-center mx-auto mb-6">
+                              <Timer size={32} className="text-slate-400" />
+                            </div>
+                            <h3 className="text-xl font-black text-slate-900 tracking-tight mb-3">Test Execution Not Available</h3>
+                            <p className="text-sm text-slate-500 font-medium max-w-md mx-auto mb-8 leading-relaxed">
+                              Quick Scans are designed for rapid vulnerability detection and do not include formal test execution, fuzzing, or verification.
+                            </p>
+                            <div className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                              <AlertCircle size={16} className="text-indigo-600" />
+                              <span className="text-xs font-bold text-indigo-700">Upgrade to Deep Scan for comprehensive testing</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <TestExecutionReport report={auditData?.testReport} />
 
                         {auditData?.testReport?.executed && auditData.testReport.stats && (
                           <div className="mt-8">
@@ -2129,6 +2146,8 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                               </div>
                             </div>
                           </div>
+                        )}
+                          </>
                         )}
                       </motion.div>
                     ) : activeTab === 'testcases' ? (
@@ -2238,7 +2257,22 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         exit={{ opacity: 0 }}
                         className="space-y-8"
                       >
-                        {faqLoading ? (
+                        {isQuickScan ? (
+                          /* Quick Scan - FAQ/Questionnaire Not Available */
+                          <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 border-2 border-slate-200 rounded-3xl p-12 text-center">
+                            <div className="w-20 h-20 rounded-2xl bg-slate-200/50 flex items-center justify-center mx-auto mb-6">
+                              <Package size={32} className="text-slate-400" />
+                            </div>
+                            <h3 className="text-xl font-black text-slate-900 tracking-tight mb-3">Pre-Audit Questionnaire Not Available</h3>
+                            <p className="text-sm text-slate-500 font-medium max-w-md mx-auto mb-8 leading-relaxed">
+                              Quick Scans provide immediate automated analysis without pre-audit questionnaires or liability triage. These features are only available in Deep Scans.
+                            </p>
+                            <div className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                              <AlertCircle size={16} className="text-indigo-600" />
+                              <span className="text-xs font-bold text-indigo-700">Upgrade to Deep Scan for contextual analysis</span>
+                            </div>
+                          </div>
+                        ) : faqLoading ? (
                           <div className="flex items-center justify-center py-12">
                             <RefreshCw className="animate-spin text-indigo-600" size={32} />
                           </div>
@@ -2540,6 +2574,27 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       </p>
                     </div>
                   </div>
+
+                  {/* Quick Scan Disclaimer Badge */}
+                  {isQuickScan && (
+                    <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+                          <AlertTriangle size={18} className="text-amber-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-amber-900 uppercase tracking-wider mb-2">Quick Scan Disclaimer</h4>
+                          <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                            Quick Scans provide <strong>immediate automated results</strong> for rapid vulnerability detection.
+                            They are <strong>not comprehensive audits</strong> and should not be used as complete security references.
+                          </p>
+                          <p className="text-[10px] text-amber-700 font-bold mt-3 pt-3 border-t border-amber-200">
+                            For production deployments, run a Deep Scan with formal verification and manual review.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </section>

@@ -393,11 +393,11 @@ export default function QuickScan() {
                 keywords={pageSEO.quickScan.keywords}
                 url="https://uatu.xyz/quick-scan"
             />
-            <div className="min-h-screen bg-white selection:bg-indigo-500/10 flex flex-col font-sans overflow-hidden">
+            <div className="h-screen bg-white selection:bg-indigo-500/10 flex flex-col font-sans overflow-hidden">
             <MouseTooltip />
 
             {/* Sticky Professional Header */}
-            <header className="sticky top-0 h-20 bg-white/80 backdrop-blur-xl border-b border-black/[0.03] flex items-center justify-between px-10 shrink-0 z-[100]">
+            <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-black/[0.03] flex items-center justify-between px-10 shrink-0 z-[100]">
                 <div className="flex items-center gap-6">
                     <Link to="/" className="flex items-center">
                         <img src={logo} alt="Uatu" className="h-8" />
@@ -411,9 +411,9 @@ export default function QuickScan() {
                 </div>
             </header>
 
-            <main className="flex-1 flex overflow-hidden">
+            <main className="flex-1 flex min-h-0">
                 {/* Left: Configuration Console */}
-                <div className="w-[500px] bg-white border-r border-black/[0.03] flex flex-col p-10 overflow-y-auto">
+                <div className="w-[500px] bg-white border-r border-black/[0.03] flex flex-col p-10 overflow-y-auto shrink-0">
                     <div className="mb-10">
                         <div className="flex items-center gap-2 mb-6">
                             <Activity size={14} className="text-indigo-600" />
@@ -506,7 +506,7 @@ export default function QuickScan() {
                 </div>
 
                 {/* Right: Analysis Visualization */}
-                <div className="flex-1 bg-slate-50/50 p-12 relative flex items-center justify-center overflow-y-auto">
+                <div className="flex-1 bg-slate-50/50 p-12 relative flex items-center justify-center overflow-y-auto min-w-0">
                     <div className="absolute inset-0 bg-dot-pattern opacity-[0.03] pointer-events-none" />
 
                     {/* Scan Result View */}
@@ -600,248 +600,169 @@ export default function QuickScan() {
                             </div>
                         </motion.div>
                     ) : isStarting ? (
-                        /* Active Scanning View - Priority over contractInfo */
+                        /* Active Scanning View - Full Screen Terminal */
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
+                            initial={{ opacity: 0, scale: 0.98 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="w-full max-w-4xl"
+                            className="w-full max-w-5xl"
                         >
-                            <div className="flex gap-6">
-                                {/* Left: Code Scanner Panel */}
-                                <div className="flex-1 bg-slate-900 rounded-3xl overflow-hidden shadow-2xl relative">
-                                    {/* Header */}
-                                    <div className="flex items-center gap-2 px-5 py-3 bg-slate-800/50 border-b border-slate-700/50">
-                                        <div className="flex gap-1.5">
-                                            <div className="w-3 h-3 rounded-full bg-rose-500/80" />
-                                            <div className="w-3 h-3 rounded-full bg-amber-500/80" />
-                                            <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
-                                        </div>
-                                        <span className="text-[10px] font-mono font-bold text-slate-400 ml-3">
-                                            {contractInfo?.contractName || 'Contract'}.sol
-                                        </span>
-                                        <div className="ml-auto flex items-center gap-2">
-                                            <Zap size={12} className="text-indigo-400 animate-pulse" />
-                                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Scanning</span>
-                                        </div>
+                            {/* Full Screen Light Terminal */}
+                            <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-black/[0.08]">
+                                {/* Terminal Header */}
+                                <div className="flex items-center gap-3 px-6 py-4 bg-slate-50 border-b border-black/[0.06]">
+                                    <div className="flex gap-2">
+                                        <div className="w-3 h-3 rounded-full bg-rose-400" />
+                                        <div className="w-3 h-3 rounded-full bg-amber-400" />
+                                        <div className="w-3 h-3 rounded-full bg-emerald-400" />
                                     </div>
-
-                                    {/* Large ASCII Logo Display with Progress */}
-                                    <div className="relative h-[450px] overflow-hidden flex flex-col items-center justify-center">
-                                        {/* Large ASCII Art Logo - Centered */}
-                                        <motion.div
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            transition={{ duration: 0.5 }}
-                                            className="mb-8"
-                                        >
-                                            <pre className="text-[28px] leading-[1.1] font-mono font-black select-none whitespace-pre">
-                                                <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent">
-{`██╗   ██╗ █████╗ ████████╗██╗   ██╗
-██║   ██║██╔══██╗╚══██╔══╝██║   ██║
-██║   ██║███████║   ██║   ██║   ██║
-██║   ██║██╔══██║   ██║   ██║   ██║
-╚██████╔╝██║  ██║   ██║   ╚██████╔╝
- ╚═════╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝`}
-                                                </span>
-                                            </pre>
-                                            {/* Glow effect behind logo */}
-                                            <div className="absolute inset-0 -z-10">
-                                                <motion.div
-                                                    className="w-full h-full bg-gradient-to-r from-indigo-500/20 via-violet-500/20 to-purple-500/20 blur-3xl"
-                                                    animate={{
-                                                        scale: [1, 1.1, 1],
-                                                        opacity: [0.3, 0.5, 0.3]
-                                                    }}
-                                                    transition={{
-                                                        duration: 2,
-                                                        repeat: Infinity,
-                                                        ease: 'easeInOut'
-                                                    }}
-                                                />
-                                            </div>
-                                        </motion.div>
-
-                                        {/* Progress Messages Below Logo */}
-                                        <div className="space-y-3 w-full max-w-md px-6">
-                                            {/* Current Phase */}
-                                            <motion.div
-                                                key={scanProgress?.message}
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className="flex items-center gap-3"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                                                    <span className="text-xs font-mono text-emerald-400 font-bold">uatu@scanner</span>
-                                                </div>
-                                                <span className="text-slate-600">~</span>
-                                                <span className="text-xs font-mono text-slate-300">
-                                                    {scanProgress?.message || 'Initializing security scan...'}
-                                                </span>
-                                                <motion.div
-                                                    className="w-1.5 h-3.5 bg-emerald-400 ml-1"
-                                                    animate={{ opacity: [1, 0, 1] }}
-                                                    transition={{ duration: 0.8, repeat: Infinity }}
-                                                />
-                                            </motion.div>
-
-                                            {/* Progress Bar */}
-                                            <div className="relative h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                                <motion.div
-                                                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500 rounded-full"
-                                                    initial={{ width: 0 }}
-                                                    animate={{ width: `${scanProgress?.pct || 0}%` }}
-                                                    transition={{ duration: 0.5, ease: 'easeOut' }}
-                                                />
-                                                {/* Shimmer effect */}
-                                                <motion.div
-                                                    className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                                                    animate={{ left: ['-20%', '120%'] }}
-                                                    transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
-                                                />
-                                            </div>
-
-                                            {/* Secondary Status */}
-                                            <div className="flex items-center justify-between text-[10px] font-mono">
-                                                <span className="text-slate-500">
-                                                    Analyzing: {contractInfo?.contractName || 'Contract'}.sol
-                                                </span>
-                                                <span className="text-indigo-400 font-bold">
-                                                    {scanProgress?.pct || 0}%
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Continuous Looping Laser Scanner Line */}
-                                        <motion.div
-                                            className="absolute left-0 right-0 h-10 pointer-events-none"
-                                            initial={{ top: '-5%' }}
-                                            animate={{ top: '105%' }}
-                                            transition={{
-                                                duration: 3,
-                                                repeat: Infinity,
-                                                ease: 'linear',
-                                            }}
-                                        >
-                                            {/* Glow effect */}
-                                            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-500/20 to-transparent" />
-                                            {/* Main line */}
-                                            <div className="absolute left-0 right-0 top-1/2 h-[2px] bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.8)]" />
-                                            {/* Pulse effect */}
-                                            <motion.div
-                                                className="absolute left-0 right-0 top-1/2 h-[2px] bg-white/60"
-                                                animate={{ opacity: [0.4, 1, 0.4] }}
-                                                transition={{ duration: 0.3, repeat: Infinity }}
-                                            />
-                                        </motion.div>
-
-                                        {/* Progress-based scanned overlay (green tint from top) */}
-                                        <motion.div
-                                            className="absolute top-0 left-0 right-0 bg-gradient-to-b from-emerald-500/10 via-emerald-500/5 to-transparent pointer-events-none"
-                                            animate={{ height: `${(scanProgress?.pct || 0)}%` }}
-                                            transition={{ duration: 0.8, ease: 'easeOut' }}
-                                        />
+                                    <span className="text-xs font-mono font-semibold text-slate-600 ml-2">
+                                        uatu@security-scanner ~ {contractInfo?.contractName || 'contract'}.sol
+                                    </span>
+                                    <div className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg border border-indigo-200">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                                        <span className="text-[10px] font-mono font-bold text-indigo-700 uppercase tracking-wide">Scanning</span>
                                     </div>
                                 </div>
 
-                                {/* Right: Phase Progress Panel */}
-                                <div className="w-80 bg-white rounded-3xl border border-black/[0.03] p-6 shadow-xl">
-                                    <div className="flex items-center gap-2 mb-6">
-                                        <Shield size={16} className="text-indigo-600" />
-                                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Security Analysis</span>
-                                    </div>
-
-                                    {/* Overall Progress */}
-                                    <div className="mb-8">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs font-bold text-slate-700">Overall Progress</span>
-                                            <span className="text-lg font-black text-indigo-600">{scanProgress?.pct || 0}%</span>
-                                        </div>
-                                        <div className="relative h-3 bg-slate-100 rounded-full overflow-hidden">
-                                            <motion.div
-                                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${scanProgress?.pct || 0}%` }}
-                                                transition={{ duration: 0.5, ease: 'easeOut' }}
-                                            />
-                                            {/* Shimmer effect */}
-                                            <motion.div
-                                                className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                                                animate={{ left: ['-20%', '120%'] }}
-                                                transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Phase List */}
+                                {/* Terminal Content */}
+                                <div className="relative p-8 font-mono text-sm min-h-[550px] bg-gradient-to-b from-white to-slate-50/30">
                                     <div className="space-y-3">
-                                        {scanPhases.map((phase, idx) => {
-                                            const PhaseIcon = PHASE_ICONS[phase.name] || Activity
-                                            const isActive = phase.status === 'active'
-                                            const isComplete = phase.status === 'complete'
+                                        {/* Header */}
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ duration: 0.3 }}
+                                        >
+                                            <div className="text-slate-400 text-xs mb-4">
+                                                ┌─────────────────────────────────────────────────────────────┐
+                                            </div>
+                                            <div className="text-indigo-600 font-bold text-sm mb-1">
+                                                UATU Security Analysis Terminal v2.4.0
+                                            </div>
+                                            <div className="text-slate-500 text-xs mb-4">
+                                                Smart Contract Vulnerability Scanner
+                                            </div>
+                                            <div className="text-slate-400 text-xs mb-6">
+                                                └─────────────────────────────────────────────────────────────┘
+                                            </div>
+                                        </motion.div>
 
-                                            return (
-                                                <motion.div
-                                                    key={phase.name}
-                                                    initial={{ opacity: 0, x: -10 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ delay: idx * 0.05 }}
-                                                    className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
-                                                        isActive ? 'bg-indigo-50 border border-indigo-100' :
-                                                        isComplete ? 'bg-emerald-50/50 border border-emerald-100/50' :
-                                                        'bg-slate-50 border border-transparent'
-                                                    }`}
-                                                >
-                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                                                        isActive ? 'bg-indigo-100' :
-                                                        isComplete ? 'bg-emerald-100' :
-                                                        'bg-slate-100'
-                                                    }`}>
-                                                        {isComplete ? (
-                                                            <CheckCircle size={16} className="text-emerald-500" />
-                                                        ) : isActive ? (
-                                                            <Loader2 size={16} className="text-indigo-600 animate-spin" />
-                                                        ) : (
-                                                            <PhaseIcon size={16} className="text-slate-400" />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between">
-                                                            <span className={`text-[10px] font-black uppercase tracking-widest truncate ${
-                                                                isActive ? 'text-indigo-700' :
-                                                                isComplete ? 'text-emerald-700' :
+                                        {/* Target Info */}
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.1 }}
+                                            className="text-xs text-slate-700 mb-6"
+                                        >
+                                            <span className="text-slate-400">$</span> <span className="text-indigo-600">uatu scan</span> <span className="text-slate-600">--target</span> {contractInfo?.contractName || 'Contract'}.sol
+                                        </motion.div>
+
+                                        {/* Overall Progress */}
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.2 }}
+                                            className="mb-6"
+                                        >
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-xs text-slate-500 font-semibold">Overall Progress</span>
+                                                <span className="text-sm font-bold text-indigo-600">{scanProgress?.pct || 0}%</span>
+                                            </div>
+                                            <div className="text-xs font-mono text-slate-700">
+                                                <span className="text-slate-400">[</span>
+                                                <span className="text-indigo-600">{'/'.repeat(Math.floor((scanProgress?.pct || 0) / 2))}</span>
+                                                <span className="text-slate-300">{'.'.repeat(50 - Math.floor((scanProgress?.pct || 0) / 2))}</span>
+                                                <span className="text-slate-400">]</span>
+                                            </div>
+                                        </motion.div>
+
+                                        {/* Phases */}
+                                        <div className="space-y-2 mb-6">
+                                            {scanPhases.map((phase, idx) => {
+                                                const isActive = phase.status === 'active'
+                                                const isComplete = phase.status === 'complete'
+                                                const isPending = phase.status === 'pending'
+
+                                                return (
+                                                    <motion.div
+                                                        key={phase.name}
+                                                        initial={{ opacity: 0, x: -10 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 0.3 + idx * 0.05 }}
+                                                        className="text-xs font-mono"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <span className={`${
+                                                                isComplete ? 'text-emerald-600' :
+                                                                isActive ? 'text-indigo-600' :
+                                                                'text-slate-300'
+                                                            }`}>
+                                                                {isComplete ? '[✓]' : isActive ? '[→]' : '[ ]'}
+                                                            </span>
+                                                            <span className={`flex-1 ${
+                                                                isComplete ? 'text-slate-400 line-through' :
+                                                                isActive ? 'text-slate-700 font-semibold' :
                                                                 'text-slate-400'
                                                             }`}>
                                                                 {phase.label}
                                                             </span>
                                                             {isActive && (
-                                                                <span className="text-[9px] font-bold text-indigo-500">{phase.pct}%</span>
+                                                                <span className="text-indigo-600 font-bold">{phase.pct}%</span>
                                                             )}
                                                             {isComplete && (
-                                                                <span className="text-[9px] font-bold text-emerald-500">Done</span>
+                                                                <span className="text-emerald-600">Done</span>
                                                             )}
                                                         </div>
                                                         {isActive && (
-                                                            <div className="mt-1.5 h-1 bg-indigo-100 rounded-full overflow-hidden">
-                                                                <motion.div
-                                                                    className="h-full bg-indigo-500 rounded-full"
-                                                                    initial={{ width: 0 }}
-                                                                    animate={{ width: `${phase.pct}%` }}
-                                                                    transition={{ duration: 0.3 }}
-                                                                />
+                                                            <div className="ml-8 mt-1 text-[10px]">
+                                                                <span className="text-indigo-500">{'/'.repeat(Math.floor(phase.pct / 5))}</span>
+                                                                <span className="text-slate-200">{'.'.repeat(20 - Math.floor(phase.pct / 5))}</span>
                                                             </div>
                                                         )}
+                                                    </motion.div>
+                                                )
+                                            })}
+                                        </div>
+
+                                        {/* Current Status */}
+                                        <motion.div
+                                            key={scanProgress?.message}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            className="pt-4 border-t border-slate-200"
+                                        >
+                                            <div className="flex items-start gap-2 text-xs">
+                                                <span className="text-indigo-500 mt-0.5">→</span>
+                                                <div className="flex-1">
+                                                    <div className="text-slate-700 font-medium">
+                                                        {scanProgress?.message || 'Initializing security scan...'}
                                                     </div>
-                                                </motion.div>
-                                            )
-                                        })}
+                                                </div>
+                                            </div>
+                                        </motion.div>
+
+                                        {/* Terminal Cursor */}
+                                        <motion.div
+                                            className="flex items-center gap-2 mt-6 pt-4 border-t border-slate-100"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.8 }}
+                                        >
+                                            <span className="text-emerald-500 text-xs font-bold">$</span>
+                                            <motion.div
+                                                className="w-2 h-3.5 bg-slate-800"
+                                                animate={{ opacity: [1, 0, 1] }}
+                                                transition={{ duration: 0.8, repeat: Infinity }}
+                                            />
+                                        </motion.div>
                                     </div>
 
-                                    {/* Current Status Message */}
-                                    <div className="mt-6 pt-4 border-t border-slate-100">
-                                        <p className="text-[10px] text-slate-500 font-medium text-center">
-                                            {scanProgress?.message || 'Initializing security analysis...'}
-                                        </p>
+                                    {/* Subtle Background Pattern */}
+                                    <div className="absolute inset-0 opacity-[0.015] pointer-events-none">
+                                        <div className="absolute inset-0" style={{
+                                            backgroundImage: `linear-gradient(#6366f1 1px, transparent 1px), linear-gradient(90deg, #6366f1 1px, transparent 1px)`,
+                                            backgroundSize: '24px 24px'
+                                        }} />
                                     </div>
                                 </div>
                             </div>
@@ -859,9 +780,17 @@ export default function QuickScan() {
                                     <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
                                         <CheckCircle size={24} className="text-emerald-500" />
                                     </div>
-                                    <div>
+                                    <div className="flex-1 min-w-0">
                                         <div className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Contract Verified</div>
-                                        <h3 className="text-xl font-black text-slate-900 tracking-tight">{contractInfo.contractName}</h3>
+                                        <a
+                                            href={contractInfo.explorerUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xl font-black text-slate-900 hover:text-indigo-600 tracking-tight inline-flex items-center gap-2 group transition-colors"
+                                        >
+                                            {contractInfo.contractName}
+                                            <ExternalLink size={16} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                                        </a>
                                     </div>
                                 </div>
 
@@ -887,9 +816,10 @@ export default function QuickScan() {
                                                 href={`${contractInfo.explorerUrl.replace(/\/address\/.*$/, '')}/address/${contractInfo.deployerAddress}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-xs font-mono font-bold text-indigo-600 hover:text-indigo-800 hover:underline transition-colors"
+                                                className="text-xs font-mono font-bold text-indigo-600 hover:text-indigo-800 transition-colors inline-flex items-center gap-1 group"
                                             >
                                                 {contractInfo.deployerAddress.slice(0, 6)}...{contractInfo.deployerAddress.slice(-4)}
+                                                <ExternalLink size={10} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
                                             </a>
                                         </div>
                                     )}
@@ -897,7 +827,7 @@ export default function QuickScan() {
 
                                 {/* File List */}
                                 {contractInfo.files.length > 0 && (
-                                    <div className="mb-8">
+                                    <div>
                                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Source Files</div>
                                         <div className="space-y-2">
                                             {contractInfo.files.slice(0, 5).map((file, i) => (
@@ -914,21 +844,6 @@ export default function QuickScan() {
                                         </div>
                                     </div>
                                 )}
-
-                                <a
-                                    href={contractInfo.explorerUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 transition-all"
-                                >
-                                    <ExternalLink size={12} /> View on Explorer
-                                </a>
-                            </div>
-
-                            <div className="mt-6 text-center">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                    Ready for security analysis
-                                </p>
                             </div>
                         </motion.div>
                     ) : (

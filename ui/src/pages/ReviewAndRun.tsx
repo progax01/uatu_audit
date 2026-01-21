@@ -497,7 +497,10 @@ export default function ReviewAndRun({ onBack, projectData, initialJobId }: Revi
                   <p className="text-red-600 font-semibold">Authentication Required</p>
                   <p className="text-red-500/80 text-sm mt-1">{authError}</p>
                   <button
-                    onClick={() => window.location.href = '/auth/github'}
+                    onClick={() => {
+                      localStorage.setItem('oauth_return_url', window.location.pathname)
+                      window.location.href = '/auth/github/login'
+                    }}
                     className="mt-3 px-4 py-2 bg-red-100 border border-red-300 rounded-lg text-red-600 hover:bg-red-200 transition-colors text-sm"
                   >
                     Login with GitHub
