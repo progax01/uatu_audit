@@ -95,8 +95,6 @@
         "count-sloc",
         "check-solc-version",
         "classify-contract-type",
-        "show-preaudit-questionnaire",
-        "wait-for-questionnaire-answers",
         "run-forge-build",
         "parse-compilation",
         "generate-ast",
@@ -115,8 +113,6 @@
         "run-forge-test",
         "parse-test-results",
         "merge-tool-findings",
-        "request-clarifications",
-        "wait-for-clarifications",
         "ai-admin-functions",
         "ai-access-control",
         "ai-reentrancy",
@@ -1419,126 +1415,9 @@
       "continueOnFailure": true
     },
     {
-      "id": "show-preaudit-questionnaire",
-      "name": "Show Pre-Audit Questionnaire",
-      "description": "Display contract-type specific pre-audit questionnaire to user",
-      "executor": "interactive",
-      "executorConfig": {
-        "type": "interactive",
-        "function": "showPreAuditQuestionnaire",
-        "blocking": true
-      },
-      "estimatedDurationSeconds": 300,
-      "timeoutSeconds": 3600,
-      "dependsOn": [
-        "classify-contract-type"
-      ],
-      "provides": [
-        "questionnaireShown"
-      ],
-      "requires": [
-        "contractCategory"
-      ],
-      "category": "interactive",
-      "aiAssisted": false,
-      "progressWeight": 2,
-      "required": true,
-      "retryCount": 0,
-      "continueOnFailure": false
-    },
-    {
-      "id": "wait-for-questionnaire-answers",
-      "name": "Wait for Questionnaire Answers",
-      "description": "Wait for user to submit questionnaire answers",
-      "executor": "interactive",
-      "executorConfig": {
-        "type": "interactive",
-        "function": "waitForQuestionnaireAnswers",
-        "blocking": true,
-        "timeout": 604800000
-      },
-      "estimatedDurationSeconds": 600,
-      "timeoutSeconds": 604800,
-      "dependsOn": [
-        "show-preaudit-questionnaire"
-      ],
-      "provides": [
-        "preAuditAnswers",
-        "userContext"
-      ],
-      "requires": [
-        "questionnaireShown"
-      ],
-      "category": "interactive",
-      "aiAssisted": false,
-      "progressWeight": 2,
-      "required": true,
-      "retryCount": 0,
-      "continueOnFailure": false
-    },
-    {
-      "id": "request-clarifications",
-      "name": "Request Clarifications from User",
-      "description": "AI generates clarification questions based on findings",
-      "executor": "ai-prompt",
-      "executorConfig": {
-        "type": "ai-prompt",
-        "prompt": "generate-clarification-questions",
-        "model": "claude-opus-4-5-20251101",
-        "maxTokens": 4096,
-        "temperature": 0.3
-      },
-      "estimatedDurationSeconds": 60,
-      "timeoutSeconds": 180,
-      "dependsOn": [
-        "merge-tool-findings"
-      ],
-      "provides": [
-        "clarificationRequests"
-      ],
-      "requires": [
-        "toolFindings"
-      ],
-      "category": "ai-analysis",
-      "aiAssisted": true,
-      "progressWeight": 3,
-      "required": false,
-      "retryCount": 0,
-      "continueOnFailure": true
-    },
-    {
-      "id": "wait-for-clarifications",
-      "name": "Wait for Clarification Answers",
-      "description": "Wait for user to answer clarification questions",
-      "executor": "interactive",
-      "executorConfig": {
-        "type": "interactive",
-        "function": "waitForClarificationAnswers",
-        "blocking": true,
-        "timeout": 1800000
-      },
-      "estimatedDurationSeconds": 600,
-      "timeoutSeconds": 1800,
-      "dependsOn": [
-        "request-clarifications"
-      ],
-      "provides": [
-        "clarificationAnswers"
-      ],
-      "requires": [
-        "clarificationRequests"
-      ],
-      "category": "interactive",
-      "aiAssisted": false,
-      "progressWeight": 2,
-      "required": false,
-      "retryCount": 0,
-      "continueOnFailure": true
-    },
-    {
       "id": "ai-business-logic-deep",
       "name": "AI Business Logic Deep Analysis",
-      "description": "Deep business logic analysis with user context from questionnaire",
+      "description": "Deep business logic analysis",
       "executor": "ai-prompt",
       "executorConfig": {
         "type": "ai-prompt",
@@ -1550,7 +1429,6 @@
       "estimatedDurationSeconds": 90,
       "timeoutSeconds": 300,
       "dependsOn": [
-        "wait-for-clarifications",
         "extract-signatures"
       ],
       "provides": [
@@ -1558,9 +1436,7 @@
         "logicFlawsDeep"
       ],
       "requires": [
-        "functionSignatures",
-        "clarificationAnswers",
-        "preAuditAnswers"
+        "functionSignatures"
       ],
       "category": "ai-analysis",
       "aiAssisted": true,
@@ -1572,7 +1448,7 @@
     {
       "id": "ai-economic-analysis",
       "name": "AI Economic Model Analysis",
-      "description": "Analyze token economics and financial model based on user context",
+      "description": "Analyze token economics and financial model",
       "executor": "ai-prompt",
       "executorConfig": {
         "type": "ai-prompt",
@@ -1592,7 +1468,6 @@
         "tokenomicsAnalysis"
       ],
       "requires": [
-        "preAuditAnswers",
         "interfaces"
       ],
       "category": "ai-analysis",

@@ -296,8 +296,11 @@ export async function handleAuditRoutes(
     const jobId = retryMatch[1];
 
     try {
+      // Use JWT auth (supports both cookie and Bearer token)
+      const jwtAuth = await verifyAuth(req);
       const sessionId = getSessionId(req);
-      const userId = sessionId ? await loadUserId(sessionId) : undefined;
+      const cookieUserId = sessionId ? await loadUserId(sessionId) : undefined;
+      const userId = jwtAuth?.user?.id || cookieUserId;
 
       const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
 

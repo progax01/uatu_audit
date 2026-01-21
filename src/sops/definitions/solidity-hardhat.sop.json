@@ -85,8 +85,6 @@
         "count-sloc",
         "check-solc-version",
         "classify-contract-type",
-        "show-preaudit-questionnaire",
-        "wait-for-questionnaire-answers",
         "run-hardhat-compile",
         "parse-compilation",
         "generate-ast",
@@ -1205,114 +1203,12 @@
       "retryCount": 0
     },
     {
-      "id": "show-preaudit-questionnaire",
-      "name": "Show Pre-Audit Questionnaire",
-      "category": "interactive",
-      "executor": "interactive",
-      "estimatedDurationSeconds": 300,
-      "dependsOn": [
-        "classify-contract-type"
-      ],
-      "provides": [
-        "questionnaireShown"
-      ],
-      "requires": [
-        "contractCategory"
-      ],
-      "config": {
-        "function": "showPreAuditQuestionnaire",
-        "blocking": true
-      },
-      "progressWeight": 2,
-      "required": true,
-      "continueOnFailure": false,
-      "retryCount": 0
-    },
-    {
-      "id": "wait-for-questionnaire-answers",
-      "name": "Wait for Questionnaire Answers",
-      "category": "interactive",
-      "executor": "interactive",
-      "estimatedDurationSeconds": 600,
-      "dependsOn": [
-        "show-preaudit-questionnaire"
-      ],
-      "provides": [
-        "preAuditAnswers",
-        "userContext"
-      ],
-      "requires": [
-        "questionnaireShown"
-      ],
-      "config": {
-        "function": "waitForQuestionnaireAnswers",
-        "blocking": true,
-        "timeout": 604800000
-      },
-      "progressWeight": 2,
-      "required": true,
-      "continueOnFailure": false,
-      "retryCount": 0,
-      "timeoutSeconds": 604800
-    },
-    {
-      "id": "request-clarifications",
-      "name": "Request Clarifications from User",
-      "category": "interactive",
-      "executor": "ai-prompt",
-      "estimatedDurationSeconds": 60,
-      "dependsOn": [
-        "merge-tool-findings"
-      ],
-      "provides": [
-        "clarificationRequests"
-      ],
-      "requires": [
-        "mergedFindings"
-      ],
-      "config": {
-        "prompt": "generate-clarification-questions",
-        "maxTokens": 4096,
-        "temperature": 0.3
-      },
-      "progressWeight": 3,
-      "required": false,
-      "continueOnFailure": true,
-      "retryCount": 0
-    },
-    {
-      "id": "wait-for-clarifications",
-      "name": "Wait for Clarification Answers",
-      "category": "interactive",
-      "executor": "interactive",
-      "estimatedDurationSeconds": 600,
-      "dependsOn": [
-        "request-clarifications"
-      ],
-      "provides": [
-        "clarificationAnswers"
-      ],
-      "requires": [
-        "clarificationRequests"
-      ],
-      "config": {
-        "function": "waitForClarificationAnswers",
-        "blocking": true,
-        "timeout": 1800000
-      },
-      "progressWeight": 2,
-      "required": false,
-      "continueOnFailure": true,
-      "retryCount": 0
-    },
-    {
       "id": "ai-business-logic-deep",
       "name": "AI Business Logic Deep Analysis",
       "category": "ai-analysis",
       "executor": "ai-prompt",
       "estimatedDurationSeconds": 90,
       "dependsOn": [
-        "wait-for-clarifications",
         "extract-signatures"
       ],
       "provides": [
@@ -1320,9 +1216,7 @@
         "logicFlawsDeep"
       ],
       "requires": [
-        "functionSignatures",
-        "clarificationAnswers",
-        "preAuditAnswers"
+        "functionSignatures"
       ],
       "config": {
         "prompt": "analyze-business-logic-deep",
@@ -1349,7 +1243,6 @@
         "tokenomicsAnalysis"
       ],
       "requires": [
-        "preAuditAnswers",
         "implementedInterfaces"
       ],
       "config": {
