@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -68,6 +68,16 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   const [questionnaireAnswers, setQuestionnaireAnswers] = useState<any[]>([])
   const [triageAnswers, setTriageAnswers] = useState<any[]>([])
   const [faqLoading, setFaqLoading] = useState(false)
+
+  // Terminal auto-scroll ref
+  const terminalRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll terminal to bottom when progress updates
+  useEffect(() => {
+    if (terminalRef.current && (jobInfo?.status === 'auditing' || jobInfo?.status === 'pending')) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight
+    }
+  }, [progress, jobInfo?.status])
 
   const toggleVuln = (id: string) => {
     setExpandedVulns(prev => {
@@ -1043,27 +1053,34 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                   <span className="text-xs font-mono text-slate-500">Job ID: {jobId}</span>
                 </div>
 
-                {/* Terminal Content - Scrollable with max height */}
-                <div className="relative p-8 font-mono text-sm max-h-[600px] overflow-y-auto bg-slate-50/50">
-                  <div className="space-y-3">
-                    {/* Header */}
+                {/* Terminal Content - Full height with scroll */}
+                <div
+                  ref={terminalRef}
+                  className="relative p-6 font-mono text-sm flex-1 overflow-y-auto bg-white border-t border-slate-200 scrollbar-terminal"
+                  style={{ scrollBehavior: 'smooth' }}
+                >
+                  <div className="space-y-3 max-w-full">
+                    {/* Header with Project Info */}
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3 }}
+                      className="border-b border-slate-200 pb-4 mb-4"
                     >
-                      <div className="text-slate-300 text-xs mb-4">
-                        ┌─────────────────────────────────────────────────────────────┐
+                      <div className="text-indigo-600 font-bold text-lg mb-2">
+                        UATU {jobInfo?.depth?.toUpperCase() || 'STANDARD'} AUDIT
                       </div>
-                      <div className="text-indigo-600 font-bold text-sm mb-1">
-                        UATU {jobInfo?.depth?.toUpperCase() || 'STANDARD'} AUDIT PIPELINE
-                      </div>
-                      <div className="text-slate-500 text-xs mb-4">
-                        Comprehensive Security Analysis System
-                      </div>
-                      <div className="text-slate-300 text-xs mb-6">
-                        └─────────────────────────────────────────────────────────────┘
-                      </div>
+                      {jobInfo?.repoOwner && jobInfo?.repoName && (
+                        <div className="text-slate-700 text-sm mb-1">
+                          <span className="text-slate-500">Repository:</span> {jobInfo.repoOwner}/{jobInfo.repoName}
+                          {jobInfo.branch && <span className="text-slate-500 ml-3">Branch:</span>} {jobInfo.branch}
+                        </div>
+                      )}
+                      {jobInfo?.commitSha && (
+                        <div className="text-slate-700 text-sm">
+                          <span className="text-slate-500">Commit:</span> <span className="font-mono">{jobInfo.commitSha.substring(0, 7)}</span>
+                        </div>
+                      )}
                     </motion.div>
 
                     {/* Command */}
@@ -1071,9 +1088,9 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.1 }}
-                      className="text-xs text-slate-600 mb-6"
+                      className="text-sm text-slate-700 mb-4"
                     >
-                      <span className="text-slate-400">$</span> <span className="text-indigo-600 font-semibold">uatu audit start</span> <span className="text-slate-500">--depth</span> {jobInfo?.depth || 'standard'} <span className="text-slate-500">--project</span> "{jobInfo?.project || 'project'}"
+                      <span className="text-emerald-600">$</span> <span className="text-indigo-600 font-semibold">uatu audit start</span> <span className="text-slate-600">--depth</span> {jobInfo?.depth || 'standard'}
                     </motion.div>
 
                     {/* Framework Detection */}
@@ -1083,8 +1100,8 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       transition={{ delay: 0.2 }}
                       className="text-emerald-600 flex items-center gap-2 mb-6"
                     >
-                      <CheckCircle2 size={14} />
-                      <span className="text-xs font-semibold">Framework detected: {jobInfo?.detectedFramework || 'analyzing...'}</span>
+                      <CheckCircle2 size={16} />
+                      <span className="text-sm font-semibold">Framework detected: {jobInfo?.detectedFramework || 'analyzing...'}</span>
                     </motion.div>
 
                     {/* Overall Progress */}
@@ -1094,15 +1111,19 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       transition={{ delay: 0.3 }}
                       className="mb-6"
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-slate-600 font-semibold">Overall Progress</span>
-                        <span className="text-sm font-bold text-indigo-600">{progress.pct || 0}%</span>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm text-slate-700 font-semibold">Overall Progress</span>
+                        <span className="text-lg font-bold text-indigo-600">{progress.pct || 0}%</span>
                       </div>
-                      <div className="text-xs font-mono text-slate-500">
-                        <span className="text-slate-400">[</span>
-                        <span className="text-indigo-500">{'/'.repeat(Math.floor((progress.pct || 0) / 2))}</span>
-                        <span className="text-slate-300">{'.'.repeat(50 - Math.floor((progress.pct || 0) / 2))}</span>
-                        <span className="text-slate-400">]</span>
+                      <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-full transition-all duration-500 rounded-full flex items-center justify-end pr-2"
+                          style={{ width: `${progress.pct || 0}%` }}
+                        >
+                          {(progress.pct || 0) > 10 && (
+                            <span className="text-xs text-white font-bold">{progress.pct}%</span>
+                          )}
+                        </div>
                       </div>
                     </motion.div>
 
@@ -1115,15 +1136,9 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         className="mb-6"
                       >
                         <div className="flex items-center gap-3 text-amber-600 font-bold">
-                          <Zap size={14} className="animate-pulse" />
-                          <span className="text-sm">Running: {progress.currentStep}</span>
+                          <Zap size={16} className="animate-pulse" />
+                          <span className="text-base">Running: {progress.currentStep}</span>
                         </div>
-                        {typeof progress.pct === 'number' && (
-                          <div className="ml-6 mt-2 text-[10px]">
-                            <span className="text-amber-500">{'/'.repeat(Math.floor(progress.pct / 5))}</span>
-                            <span className="text-slate-300">{'.'.repeat(20 - Math.floor(progress.pct / 5))}</span>
-                          </div>
-                        )}
                       </motion.div>
                     )}
 
@@ -1133,14 +1148,14 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.4 }}
-                        className="text-xs text-slate-600 mb-6"
+                        className="text-sm text-slate-700 mb-6"
                       >
                         → Step {progress.stepsCompleted} of {progress.stepsTotal} completed
                       </motion.div>
                     )}
 
                     {/* Divider */}
-                    <div className="text-slate-200 my-4">
+                    <div className="text-slate-300 my-6">
                       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                     </div>
 
@@ -1149,11 +1164,11 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       key={progress.currentStep}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="flex items-start gap-2 text-xs"
+                      className="flex items-start gap-2 text-sm"
                     >
-                      <span className="text-indigo-500 mt-0.5">→</span>
+                      <span className="text-indigo-600 mt-0.5 font-bold">→</span>
                       <div className="flex-1">
-                        <div className="text-slate-700 font-medium">
+                        <div className="text-slate-800 font-medium">
                           {progress.currentStep || 'Processing audit pipeline...'}
                         </div>
                       </div>
@@ -1161,7 +1176,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
 
                     {/* Terminal Cursor */}
                     <motion.div
-                      className="flex items-center gap-2 mt-6 pt-4 border-t border-slate-200"
+                      className="flex items-center gap-2 mt-8 pt-6 border-t border-slate-300"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.6 }}
@@ -1175,7 +1190,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                     </motion.div>
 
                     {/* Status Note */}
-                    <div className="text-slate-400 italic text-xs mt-4">
+                    <div className="text-slate-600 italic text-sm mt-6">
                       Page auto-updates when complete. No refresh needed.
                     </div>
                   </div>

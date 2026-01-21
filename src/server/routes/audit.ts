@@ -302,20 +302,44 @@ export async function handleAuditRoutes(
       const cookieUserId = sessionId ? await loadUserId(sessionId) : undefined;
       const userId = jwtAuth?.user?.id || cookieUserId;
 
+      log.info('[Retry] Auth check', {
+        jobId,
+        hasJwtAuth: !!jwtAuth,
+        hasSessionId: !!sessionId,
+        userId: userId || 'NONE',
+      });
+
       const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
 
       if (!job) {
+        log.warn('[Retry] Audit not found', { jobId });
         res.statusCode = 404;
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ success: false, error: 'Audit not found' }));
         return true;
       }
 
+      log.info('[Retry] Job found', {
+        jobId,
+        jobUserId: job.userId,
+        requestUserId: userId,
+        visibility: job.visibility,
+        status: job.status,
+        hasProjectPath: !!job.projectPath,
+        hasSopId: !!job.sopId,
+      });
+
       // Authorization check
       if (job.visibility === 'private' && job.userId !== userId) {
+        log.warn('[Retry] Authorization failed', {
+          jobId,
+          jobUserId: job.userId,
+          requestUserId: userId,
+          visibility: job.visibility,
+        });
         res.statusCode = 403;
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+        res.end(JSON.stringify({ success: false, error: 'Unauthorized - you do not own this audit' }));
         return true;
       }
 

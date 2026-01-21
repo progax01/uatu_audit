@@ -394,7 +394,9 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
           const statusConfig = getStatusConfig(audit.status)
           const isCompleted = audit.status === 'completed'
           const isFailed = audit.status === 'failed'
-          const canNavigate = isCompleted || isFailed
+          const isRunning = audit.status === 'pending' || audit.status === 'auditing'
+          const canViewReport = isCompleted
+          const canViewStatus = isRunning
 
           return (
             <div
@@ -544,7 +546,8 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
 
                 {/* Action buttons */}
                 <div className="flex flex-col gap-2 flex-shrink-0 self-start">
-                  {canNavigate && (
+                  {/* View Report button - only for completed audits */}
+                  {canViewReport && (
                     <button
                       onClick={() => navigate(`/audit/${audit.jobId}`)}
                       className="btn-primary px-4 py-2 text-xs"
@@ -554,7 +557,20 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
                     </button>
                   )}
 
-                  {audit.status === 'failed' && (
+                  {/* View Status button - only for running audits */}
+                  {canViewStatus && (
+                    <button
+                      onClick={() => navigate(`/audit/${audit.jobId}`)}
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-blue-50 text-blue-700 border-2 border-blue-200 rounded-xl hover:bg-blue-100 hover:border-blue-300 transition-all"
+                      title="View audit status"
+                    >
+                      <Eye size={14} />
+                      View Status
+                    </button>
+                  )}
+
+                  {/* Retry button - only for failed audits */}
+                  {isFailed && (
                     <button
                       onClick={() => retryAudit(audit.jobId)}
                       className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-amber-50 text-amber-700 border-2 border-amber-200 rounded-xl hover:bg-amber-100 hover:border-amber-300 transition-all"

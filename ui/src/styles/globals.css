@@ -124,4 +124,30 @@
       background-position: 100% 0;
     }
   }
+
+  /* Custom Scrollbar Styles */
+  .scrollbar-terminal::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-terminal::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+  }
+
+  .scrollbar-terminal::-webkit-scrollbar-thumb {
+    background: #818cf8;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  .scrollbar-terminal::-webkit-scrollbar-thumb:hover {
+    background: #6366f1;
+  }
+
+  /* Firefox scrollbar */
+  .scrollbar-terminal {
+    scrollbar-width: thin;
+    scrollbar-color: #818cf8 #f1f5f9;
+  }
 }
