@@ -32,7 +32,6 @@ import {
   publicAuditShowcase,
   notifications,
   projects,
-  projectComponents,
   organizations,
   organizationMembers,
   xpRules,
@@ -75,7 +74,6 @@ async function resetAll() {
       { name: 'notifications', table: notifications },
 
       // Projects & Organizations
-      { name: 'project_components', table: projectComponents },
       { name: 'projects', table: projects },
       { name: 'organization_members', table: organizationMembers },
       { name: 'organizations', table: organizations },
