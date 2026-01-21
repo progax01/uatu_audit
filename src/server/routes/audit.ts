@@ -141,7 +141,7 @@ export async function handleAuditRoutes(
         ...progress,
         ...(isWaitingForQuestionnaire && {
           questionnaireReady: true,
-          questionnaireUrl: `/audits/${jobId}/questionnaire`,
+          questionnaireUrl: `/audit/${jobId}/questionnaire`,
           message: 'Questionnaire ready - please answer to continue audit'
         })
       };
@@ -189,7 +189,7 @@ export async function handleAuditRoutes(
             res.write(`data: ${JSON.stringify({
               ...progress,
               questionnaireReady: true,
-              questionnaireUrl: `/audits/${jobId}/questionnaire`,
+              questionnaireUrl: `/audit/${jobId}/questionnaire`,
               message: 'Questionnaire ready - please answer to continue audit'
             })}\n\n`);
           } else {
@@ -923,9 +923,9 @@ export async function handleAuditRoutes(
   }
 
   // ============================================================================
-  // POST /api/audits/:jobId/triage - Submit triage answers
+  // POST /api/audit/:jobId/triage - Submit triage answers
   // ============================================================================
-  if (req.method === 'POST' && parsed.pathname.match(/^\/api\/audits\/([^/]+)\/triage$/)) {
+  if (req.method === 'POST' && parsed.pathname.match(/^\/api\/audit\/([^/]+)\/triage$/)) {
     const jobId = parsed.pathname.split('/')[3];
 
     try {
@@ -979,9 +979,9 @@ export async function handleAuditRoutes(
   }
 
   // ============================================================================
-  // GET /api/audits/:jobId/questionnaire - Get pre-audit questionnaire answers
+  // GET /api/audit/:jobId/questionnaire - Get pre-audit questionnaire answers
   // ============================================================================
-  if (req.method === 'GET' && parsed.pathname.match(/^\/api\/audits\/([^/]+)\/questionnaire$/)) {
+  if (req.method === 'GET' && parsed.pathname.match(/^\/api\/audit\/([^/]+)\/questionnaire$/)) {
     const jobId = parsed.pathname.split('/')[3];
 
     try {
@@ -1043,9 +1043,9 @@ export async function handleAuditRoutes(
   }
 
   // ============================================================================
-  // GET /api/audits/:jobId/clarifications - Get all clarifications with answers
+  // GET /api/audit/:jobId/clarifications - Get all clarifications with answers
   // ============================================================================
-  if (req.method === 'GET' && parsed.pathname.match(/^\/api\/audits\/([^/]+)\/clarifications$/)) {
+  if (req.method === 'GET' && parsed.pathname.match(/^\/api\/audit\/([^/]+)\/clarifications$/)) {
     const jobId = parsed.pathname.split('/')[3];
 
     try {
@@ -1065,9 +1065,9 @@ export async function handleAuditRoutes(
   }
 
   // ============================================================================
-  // GET /api/audits/:jobId/triage - Get triage questions with answers
+  // GET /api/audit/:jobId/triage - Get triage questions with answers
   // ============================================================================
-  if (req.method === 'GET' && parsed.pathname.match(/^\/api\/audits\/([^/]+)\/triage$/)) {
+  if (req.method === 'GET' && parsed.pathname.match(/^\/api\/audit\/([^/]+)\/triage$/)) {
     const jobId = parsed.pathname.split('/')[3];
 
     try {
@@ -1111,9 +1111,9 @@ export async function handleAuditRoutes(
   }
 
   // ============================================================================
-  // POST /api/audits/:jobId/generate-triage - Generate triage questions from findings
+  // POST /api/audit/:jobId/generate-triage - Generate triage questions from findings
   // ============================================================================
-  if (req.method === 'POST' && parsed.pathname.match(/^\/api\/audits\/([^/]+)\/generate-triage$/)) {
+  if (req.method === 'POST' && parsed.pathname.match(/^\/api\/audit\/([^/]+)\/generate-triage$/)) {
     const jobId = parsed.pathname.split('/')[3];
 
     try {

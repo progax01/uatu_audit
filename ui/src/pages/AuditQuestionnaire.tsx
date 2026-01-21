@@ -6,7 +6,8 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Loader2, Shield } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Loader2, Shield, AlertCircle } from 'lucide-react';
+import { ChainMultiselect } from '../components/questionnaire/ChainMultiselect';
 
 // ============================================================================
 // Types
@@ -15,11 +16,17 @@ import { ArrowLeft, ArrowRight, Check, Loader2, Shield } from 'lucide-react';
 type QuestionType = 'text' | 'textarea' | 'select' | 'multiselect' | 'confirm';
 type QuestionPriority = 'HIGH' | 'MEDIUM' | 'LOW';
 
+interface QuestionOption {
+  value: string;
+  label: string;
+  icon?: string;
+}
+
 interface PreAuditQuestion {
   key: string;
   text: string;
   type: QuestionType;
-  options?: string[];
+  options?: string[] | QuestionOption[];
   priority: QuestionPriority;
   category: string;
   helpText?: string;
@@ -55,6 +62,8 @@ export default function AuditQuestionnaire() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [error, setError] = useState<string | null>(null);
+  const [charCounts, setCharCounts] = useState<Record<string, number>>({});
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Fetch questions on mount
   useEffect(() => {
@@ -99,6 +108,32 @@ export default function AuditQuestionnaire() {
   };
 
   const handleNext = () => {
+    const currentQ = questions[currentQuestionIndex];
+    const answer = answers[currentQ.key];
+
+    // Validate required
+    if (currentQ.validation?.required && !answer) {
+      setValidationError('This question is required');
+      return;
+    }
+
+    // Validate text length
+    if (currentQ.type === 'text' || currentQ.type === 'textarea') {
+      const textAnswer = answer as string;
+
+      if (textAnswer && currentQ.validation?.minLength && textAnswer.length < currentQ.validation.minLength) {
+        setValidationError(`Minimum ${currentQ.validation.minLength} characters required`);
+        return;
+      }
+
+      if (textAnswer && currentQ.validation?.maxLength && textAnswer.length > currentQ.validation.maxLength) {
+        setValidationError(`Maximum ${currentQ.validation.maxLength} characters allowed`);
+        return;
+      }
+    }
+
+    setValidationError(null);
+
     if (isLastQuestion) {
       handleSubmit();
     } else {
@@ -135,7 +170,26 @@ export default function AuditQuestionnaire() {
   };
 
   const updateAnswer = (value: any) => {
+    const currentQ = questions[currentQuestionIndex];
+
+    // Update character count for text inputs
+    if ((currentQ.type === 'text' || currentQ.type === 'textarea') && typeof value === 'string') {
+      setCharCounts(prev => ({
+        ...prev,
+        [currentQ.key]: value.length
+      }));
+    }
+
     setAnswers({ ...answers, [currentQuestion.key]: value });
+    setValidationError(null); // Clear validation error when user types
+  };
+
+  // Helper function for character counter color
+  const getCharCountColor = (count: number, max: number) => {
+    const percentage = (count / max) * 100;
+    if (percentage >= 100) return 'text-rose-600'; // At limit
+    if (percentage >= 90) return 'text-amber-600'; // Near limit
+    return 'text-slate-400'; // Normal
   };
 
   // Loading state
@@ -258,14 +312,50 @@ export default function AuditQuestionnaire() {
 
             {/* Textarea */}
             {currentQuestion.type === 'textarea' && (
-              <textarea
-                value={currentAnswer || ''}
-                onChange={(e) => updateAnswer(e.target.value)}
-                rows={6}
-                className="w-full px-6 py-4 text-slate-900 bg-slate-50 border-2 border-slate-200 rounded-2xl text-lg focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all resize-none"
-                placeholder="Type your answer here..."
-                autoFocus
-              />
+              <div className="space-y-2">
+                <textarea
+                  value={currentAnswer || ''}
+                  onChange={(e) => updateAnswer(e.target.value)}
+                  maxLength={currentQuestion.validation?.maxLength}
+                  rows={6}
+                  className="w-full px-6 py-4 text-slate-900 bg-slate-50 border-2 border-slate-200 rounded-2xl text-lg focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all resize-none"
+                  placeholder="Type your answer here..."
+                  autoFocus
+                />
+
+                {/* Character Counter */}
+                {currentQuestion.validation?.maxLength && (
+                  <div className="flex items-center justify-between text-xs px-2">
+                    <span className="text-slate-400">
+                      {currentQuestion.validation.minLength &&
+                        `Minimum ${currentQuestion.validation.minLength} characters`
+                      }
+                    </span>
+                    <span className={`font-mono font-bold ${
+                      getCharCountColor(
+                        charCounts[currentQuestion.key] || 0,
+                        currentQuestion.validation.maxLength
+                      )
+                    }`}>
+                      {charCounts[currentQuestion.key] || 0} / {currentQuestion.validation.maxLength}
+                    </span>
+                  </div>
+                )}
+
+                {/* Warning when approaching limit */}
+                {currentQuestion.validation?.maxLength &&
+                 charCounts[currentQuestion.key] >= currentQuestion.validation.maxLength * 0.9 && (
+                  <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <AlertCircle size={14} />
+                    <span>
+                      {charCounts[currentQuestion.key] >= currentQuestion.validation.maxLength
+                        ? 'Character limit reached'
+                        : 'Approaching character limit'
+                      }
+                    </span>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Select Dropdown */}
@@ -287,36 +377,54 @@ export default function AuditQuestionnaire() {
 
             {/* Multi-select Checkboxes */}
             {currentQuestion.type === 'multiselect' && currentQuestion.options && (
-              <div className="space-y-3">
-                {currentQuestion.options.map((option) => {
-                  const isChecked = (currentAnswer || []).includes(option);
-                  return (
-                    <label
-                      key={option}
-                      className={`flex items-center gap-4 px-6 py-4 border-2 rounded-2xl cursor-pointer transition-all ${
-                        isChecked
-                          ? 'bg-indigo-50 border-indigo-500'
-                          : 'bg-slate-50 border-slate-200 hover:border-indigo-300'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={(e) => {
-                          const currentValue = currentAnswer || [];
-                          if (e.target.checked) {
-                            updateAnswer([...currentValue, option]);
-                          } else {
-                            updateAnswer(currentValue.filter((v: string) => v !== option));
-                          }
-                        }}
-                        className="w-6 h-6 text-indigo-600 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                      />
-                      <span className="text-lg font-medium text-slate-900">{option}</span>
-                    </label>
-                  );
-                })}
-              </div>
+              <>
+                {/* Use ChainMultiselect for deployment_networks question */}
+                {currentQuestion.key === 'deployment_networks' ? (
+                  <ChainMultiselect
+                    options={currentQuestion.options.map(opt =>
+                      typeof opt === 'string'
+                        ? { value: opt, label: opt }
+                        : opt
+                    )}
+                    value={(currentAnswer as string[]) || []}
+                    onChange={(value) => updateAnswer(value)}
+                  />
+                ) : (
+                  /* Standard multiselect for other questions */
+                  <div className="space-y-3">
+                    {currentQuestion.options.map((option) => {
+                      const optionValue = typeof option === 'string' ? option : option.value;
+                      const optionLabel = typeof option === 'string' ? option : option.label;
+                      const isChecked = (currentAnswer || []).includes(optionValue);
+                      return (
+                        <label
+                          key={optionValue}
+                          className={`flex items-center gap-4 px-6 py-4 border-2 rounded-2xl cursor-pointer transition-all ${
+                            isChecked
+                              ? 'bg-indigo-50 border-indigo-500'
+                              : 'bg-slate-50 border-slate-200 hover:border-indigo-300'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const currentValue = currentAnswer || [];
+                              if (e.target.checked) {
+                                updateAnswer([...currentValue, optionValue]);
+                              } else {
+                                updateAnswer(currentValue.filter((v: string) => v !== optionValue));
+                              }
+                            }}
+                            className="w-6 h-6 text-indigo-600 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                          />
+                          <span className="text-lg font-medium text-slate-900">{optionLabel}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
 
             {/* Confirm Checkbox */}
@@ -339,6 +447,14 @@ export default function AuditQuestionnaire() {
             )}
           </div>
         </div>
+
+        {/* Validation Error */}
+        {validationError && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <AlertCircle size={16} />
+            <span className="font-medium">{validationError}</span>
+          </div>
+        )}
 
         {/* Navigation Buttons */}
         <div className="flex gap-4">

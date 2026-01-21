@@ -15,6 +15,13 @@
       "when": 1768374767057,
       "tag": "0001_dapper_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1768994166104,
+      "tag": "0002_amused_crusher_hogan",
+      "breakpoints": true
     }
   ]
 }

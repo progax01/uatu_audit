@@ -1,6 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import { getDb } from '../db';
 import { users, type User, type NewUser, type WalletType } from '../db/schema';
+import { logger } from '../utils/logger.js';
 
 /**
  * Find a user by their UUID
@@ -43,6 +44,48 @@ export async function findUserByUsername(username: string): Promise<User | null>
 }
 
 /**
+ * Find user by ANY identifier (GitHub, wallet, email)
+ * This prevents creating duplicate accounts when users switch auth methods.
+ *
+ * @param githubId - GitHub user ID
+ * @param walletAddress - Wallet address (will be normalized to lowercase)
+ * @param email - Email address
+ * @returns User if found, null otherwise
+ */
+export async function findUserByAnyIdentifier(
+  githubId?: string,
+  walletAddress?: string,
+  email?: string
+): Promise<User | null> {
+  const db = getDb();
+
+  // Build conditions for all possible identifiers
+  const conditions = [];
+  if (githubId) {
+    conditions.push(eq(users.githubId, githubId));
+  }
+  if (walletAddress) {
+    conditions.push(eq(users.walletAddress, walletAddress.toLowerCase()));
+  }
+  if (email) {
+    conditions.push(eq(users.email, email));
+  }
+
+  if (conditions.length === 0) {
+    return null;
+  }
+
+  // Find any matching user
+  const result = await db
+    .select()
+    .from(users)
+    .where(or(...conditions))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+/**
  * Create a new user
  */
 export async function createUser(userData: NewUser): Promise<User> {
@@ -69,6 +112,7 @@ export async function updateUser(
 
 /**
  * Find or create a user by GitHub ID (upsert)
+ * Now checks for existing users with matching wallet or email to prevent duplicates.
  */
 export async function findOrCreateUser(userData: {
   githubId: string;
@@ -77,34 +121,56 @@ export async function findOrCreateUser(userData: {
   githubAvatarUrl?: string | null;
   displayName?: string | null;
 }): Promise<{ user: User; isNew: boolean }> {
-  // Try to find existing user
-  let user = await findUserByGithubId(userData.githubId);
+  // FIRST: Check if user exists with ANY identifier (prevents duplicate accounts)
+  let user = await findUserByAnyIdentifier(
+    userData.githubId,
+    undefined, // no wallet in GitHub auth
+    userData.githubEmail || undefined
+  );
 
   if (user) {
-    // Update user info if needed
+    // User found - update GitHub info if missing
     const updates: Partial<User> = {
       githubLogin: userData.githubLogin,
       lastLoginAt: new Date(),
     };
 
+    // Link GitHub account if not already linked
+    if (!user.githubId) {
+      updates.githubId = userData.githubId;
+      logger.info('Linked GitHub account to existing user', {
+        userId: user.id,
+        githubId: userData.githubId,
+        hadWallet: !!user.walletAddress,
+      });
+    }
+
     if (userData.githubEmail) {
       updates.githubEmail = userData.githubEmail;
+      // Also update main email if not set
+      if (!user.email) {
+        updates.email = userData.githubEmail;
+      }
     }
     if (userData.githubAvatarUrl) {
       updates.githubAvatarUrl = userData.githubAvatarUrl;
+    }
+    if (userData.displayName && !user.displayName) {
+      updates.displayName = userData.displayName;
     }
 
     user = await updateUser(user.id, updates);
     return { user: user!, isNew: false };
   }
 
-  // Create new user
+  // User doesn't exist - create new
   user = await createUser({
     githubId: userData.githubId,
     githubLogin: userData.githubLogin,
     githubEmail: userData.githubEmail || undefined,
     githubAvatarUrl: userData.githubAvatarUrl || undefined,
     displayName: userData.displayName || userData.githubLogin,
+    email: userData.githubEmail || undefined,
     tier: 'free',
     xpBalance: 0,
     xpLifetime: 0,
@@ -112,6 +178,8 @@ export async function findOrCreateUser(userData: {
     settings: {},
     lastLoginAt: new Date(),
   });
+
+  logger.info('Created new GitHub user', { userId: user.id, githubId: userData.githubId });
 
   return { user, isNew: true };
 }
@@ -259,26 +327,47 @@ export async function getOrCreateWalletNonce(walletAddress: string): Promise<str
 
 /**
  * Find or create a user by wallet address (after signature verification)
+ * Now checks for existing users with matching GitHub account to prevent duplicates.
  */
 export async function findOrCreateWalletUser(data: {
   walletAddress: string;
   walletType: WalletType;
 }): Promise<{ user: User; isNew: boolean }> {
   const normalizedAddress = data.walletAddress.toLowerCase();
-  let user = await findUserByWalletAddress(normalizedAddress);
-  let isNew = false;
+
+  // FIRST: Check if user exists with ANY identifier (prevents duplicate accounts)
+  let user = await findUserByAnyIdentifier(
+    undefined, // no GitHub in wallet auth
+    normalizedAddress,
+    undefined // no email from wallet
+  );
 
   if (user) {
-    // Update wallet type and login time
-    user = await updateUser(user.id, {
-      walletType: data.walletType,
+    // User found - update wallet info if missing
+    const updates: Partial<User> = {
       walletNonce: generateWalletNonce(), // Rotate nonce after successful auth
       lastLoginAt: new Date(),
-    });
+    };
+
+    // Link wallet if not already linked
+    if (!user.walletAddress) {
+      updates.walletAddress = normalizedAddress;
+      updates.walletType = data.walletType;
+      logger.info('Linked wallet to existing user', {
+        userId: user.id,
+        walletAddress: `${normalizedAddress.slice(0, 10)}...`,
+        hadGithub: !!user.githubId,
+      });
+    } else {
+      // Just update wallet type if address matches
+      updates.walletType = data.walletType;
+    }
+
+    user = await updateUser(user.id, updates);
     return { user: user!, isNew: false };
   }
 
-  // Create new wallet user
+  // User doesn't exist - create new
   const db = getDb();
   const result = await db.insert(users).values({
     walletAddress: normalizedAddress,
@@ -292,6 +381,11 @@ export async function findOrCreateWalletUser(data: {
     settings: {},
     lastLoginAt: new Date(),
   }).returning();
+
+  logger.info('Created new wallet user', {
+    userId: result[0].id,
+    walletAddress: `${normalizedAddress.slice(0, 10)}...`,
+  });
 
   return { user: result[0], isNew: true };
 }

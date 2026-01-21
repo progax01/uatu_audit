@@ -423,7 +423,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
     if (!jobId) return;
     setFaqLoading(true);
     try {
-      const response = await authFetch(`/api/audits/${jobId}/questionnaire`);
+      const response = await authFetch(`/api/audit/${jobId}/questionnaire`);
       if (response.ok) {
         const data = await response.json();
         console.log('Fetched questionnaire answers:', data.answers);
@@ -440,7 +440,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   const fetchTriageAnswers = async () => {
     if (!jobId) return;
     try {
-      const response = await authFetch(`/api/audits/${jobId}/clarifications`);
+      const response = await authFetch(`/api/audit/${jobId}/clarifications`);
       if (response.ok) {
         const data = await response.json();
         const answeredTriage = data.clarifications?.filter((c: any) => c.phase === 'post_audit' && c.status === 'answered') || [];
@@ -465,7 +465,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
     if (!jobId) return;
 
     try {
-      const response = await authFetch(`/api/audits/${jobId}/triage`, {
+      const response = await authFetch(`/api/audit/${jobId}/triage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers }),

@@ -64,6 +64,7 @@ export async function handleAuditQuestionnaireRoutes(
         contractCategory,
         auditDepth: auditDepth as 'quick' | 'standard' | 'deep',
         includeOptional,
+        classification: classification, // Pass classification for dynamic questions
       });
 
       log.info('Questions selected for audit', {
@@ -147,6 +148,7 @@ export async function handleAuditQuestionnaireRoutes(
         contractCategory,
         auditDepth: auditDepth as 'quick' | 'standard' | 'deep',
         includeOptional,
+        classification: classification, // Pass classification for validation
       });
 
       // Validate answers
@@ -174,13 +176,21 @@ export async function handleAuditQuestionnaireRoutes(
         const question = selectedQuestions.questions.find(q => q.key === questionKey);
         if (!question) continue;
 
+        // Resolve dynamic text/options if they are functions
+        const questionText = typeof question.text === 'function' ? question.text({} as any) : question.text;
+        const options = question.options
+          ? (typeof question.options === 'function'
+              ? JSON.parse(JSON.stringify(question.options({} as any)))
+              : JSON.parse(JSON.stringify(question.options)))
+          : null;
+
         answersToStore.push({
           jobId,
           phase: 'pre_audit' as const,
           questionKey: questionKey,
-          questionText: question.text,
+          questionText,
           questionType: question.type as any,
-          options: question.options ? JSON.parse(JSON.stringify(question.options)) : null,
+          options,
           context: null,
           status: 'answered' as const,
           answerValue: { value: answer, questionKey },
@@ -192,10 +202,43 @@ export async function handleAuditQuestionnaireRoutes(
         await db.insert(auditClarifications).values(answersToStore);
       }
 
+      // Trigger re-analysis based on user answers
+      let reAnalysisResult;
+      try {
+        const { triggerReAnalysis } = await import('../../services/reAnalysisService.js');
+        reAnalysisResult = await triggerReAnalysis(jobId, answers);
+
+        log.info('Re-analysis triggered successfully', {
+          jobId,
+          invalidatedSteps: reAnalysisResult.invalidatedSteps.length,
+          adjustedFindings: reAnalysisResult.adjustedFindings,
+          categories: reAnalysisResult.affectedCategories,
+        });
+
+        // Resume the audit job to execute invalidated steps
+        if (reAnalysisResult.reExecutionTriggered) {
+          const { UnifiedAuditService } = await import('../../services/unifiedAuditService.js');
+          const auditService = new UnifiedAuditService();
+
+          // Resume audit asynchronously (don't await - let it run in background)
+          auditService.resumeAudit(jobId).catch(error => {
+            log.error('Failed to resume audit after re-analysis', { jobId, error });
+          });
+        }
+      } catch (reAnalysisError: any) {
+        log.error('Re-analysis failed but answers were saved', {
+          jobId,
+          error: reAnalysisError.message,
+        });
+        // Don't fail the request - answers are already saved
+        reAnalysisResult = null;
+      }
+
       log.info('Questionnaire answers submitted', {
         jobId,
         answersCount: answersToStore.length,
         contractCategory,
+        reAnalysisTriggered: !!reAnalysisResult?.reExecutionTriggered,
       });
 
       res.setHeader('Content-Type', 'application/json');
@@ -205,6 +248,12 @@ export async function handleAuditQuestionnaireRoutes(
         answersReceived: answersToStore.length,
         totalQuestions: selectedQuestions.metadata.totalQuestions,
         message: 'Answers saved successfully',
+        reAnalysis: reAnalysisResult ? {
+          triggered: reAnalysisResult.reExecutionTriggered,
+          stepsInvalidated: reAnalysisResult.invalidatedSteps.length,
+          findingsAdjusted: reAnalysisResult.adjustedFindings,
+          affectedCategories: reAnalysisResult.affectedCategories,
+        } : null,
       }));
       return true;
     } catch (error: any) {
@@ -278,6 +327,121 @@ export async function handleAuditQuestionnaireRoutes(
       return true;
     } catch (error: any) {
       log.error('Failed to get statistics', { error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ success: false, error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // POST /api/audit/:jobId/re-analyze - Manually trigger re-analysis
+  // ============================================================================
+  const reAnalyzeMatch = parsed.pathname?.match(/^\/api\/audit\/([a-f0-9-]+)\/re-analyze$/);
+  if (req.method === 'POST' && reAnalyzeMatch) {
+    const jobId = reAnalyzeMatch[1];
+
+    try {
+      // Get all answered clarifications to build answer map
+      const { getAnsweredClarifications, triggerReAnalysis } = await import('../../services/reAnalysisService.js');
+
+      const answers = await getAnsweredClarifications(jobId);
+
+      if (Object.keys(answers).length === 0) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({
+          success: false,
+          error: 'No answers found',
+          message: 'Submit questionnaire answers before triggering re-analysis',
+        }));
+        return true;
+      }
+
+      // Trigger re-analysis
+      const result = await triggerReAnalysis(jobId, answers);
+
+      log.info('Manual re-analysis triggered', {
+        jobId,
+        stepsInvalidated: result.invalidatedSteps.length,
+        findingsAdjusted: result.adjustedFindings,
+      });
+
+      // Resume audit if re-execution was triggered
+      if (result.reExecutionTriggered) {
+        const { UnifiedAuditService } = await import('../../services/unifiedAuditService.js');
+        const auditService = new UnifiedAuditService();
+
+        // Resume asynchronously
+        auditService.resumeAudit(jobId).catch(error => {
+          log.error('Failed to resume audit after manual re-analysis', { jobId, error });
+        });
+      }
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        success: true,
+        jobId,
+        reAnalysis: {
+          triggered: result.reExecutionTriggered,
+          stepsInvalidated: result.invalidatedSteps.length,
+          invalidatedSteps: result.invalidatedSteps,
+          findingsAdjusted: result.adjustedFindings,
+          affectedCategories: result.affectedCategories,
+        },
+        message: 'Re-analysis triggered successfully',
+      }));
+      return true;
+    } catch (error: any) {
+      log.error('Failed to trigger re-analysis', { jobId, error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ success: false, error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // GET /api/audit/:jobId/milestones - Get milestone history
+  // ============================================================================
+  const milestonesMatch = parsed.pathname?.match(/^\/api\/audit\/([a-f0-9-]+)\/milestones$/);
+  if (req.method === 'GET' && milestonesMatch) {
+    const jobId = milestonesMatch[1];
+
+    try {
+      const {
+        getMilestoneHistory,
+        getCurrentMilestone,
+        getLastStableCheckpoint,
+        getMilestoneDescription,
+      } = await import('../../services/milestoneTracker.js');
+
+      const history = await getMilestoneHistory(jobId);
+      const current = await getCurrentMilestone(jobId);
+      const lastStable = await getLastStableCheckpoint(jobId);
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        success: true,
+        jobId,
+        milestones: {
+          history: history.map(m => ({
+            ...m,
+            description: getMilestoneDescription(m.milestone),
+          })),
+          current: current ? {
+            milestone: current,
+            description: getMilestoneDescription(current),
+          } : null,
+          lastStableCheckpoint: lastStable ? {
+            milestone: lastStable,
+            description: getMilestoneDescription(lastStable),
+          } : null,
+        },
+      }));
+      return true;
+    } catch (error: any) {
+      log.error('Failed to get milestones', { jobId, error: error.message });
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ success: false, error: error.message }));

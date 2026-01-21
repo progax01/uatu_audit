@@ -46,6 +46,23 @@ export default function Settings() {
         if (storedToken) {
             setGithubToken(storedToken)
         }
+
+        // Check URL params for GitHub connection result
+        const params = new URLSearchParams(window.location.search)
+        const status = params.get('github_connect')
+        const message = params.get('message')
+
+        if (status === 'success') {
+            setTokenSaved(true)
+            setTokenError('')
+            setTimeout(() => setTokenSaved(false), 5000)
+            // Clean URL
+            window.history.replaceState({}, '', '/settings')
+        } else if (status === 'error') {
+            setTokenError(message || 'Failed to connect GitHub account')
+            // Clean URL
+            window.history.replaceState({}, '', '/settings')
+        }
     }, [])
 
     const copyWalletAddress = () => {

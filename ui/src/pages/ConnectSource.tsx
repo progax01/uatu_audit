@@ -55,7 +55,9 @@ export default function ConnectSource({ onNext, projectData, setProjectData }: C
 
     // Fall back to OAuth check
     try {
-      const res = await fetch('/auth/github/me')
+      const res = await fetch('/auth/github/me', {
+        credentials: 'include'
+      })
       const data = await res.json()
       if (data.authed) {
         setIsAuthenticated(true)

@@ -110,6 +110,9 @@ export default function ProjectDetails() {
         setAuditError(null)
 
         try {
+            // Get stored GitHub token for private repo access
+            const githubToken = localStorage.getItem('github_pat')
+
             // Get the selected component or first component
             const componentId = selectedComponentId || project.components[0].id
             const component = project.components.find(c => c.id === componentId) || project.components[0]
@@ -127,7 +130,8 @@ export default function ProjectDetails() {
                     branch: branchToUse,
                     repoUrl: config.cloneUrl,
                     includePaths: config.includePaths,
-                    excludePaths: config.excludePaths
+                    excludePaths: config.excludePaths,
+                    accessToken: githubToken || undefined
                 }
             } else if (component.type === 'deployed-contract') {
                 const config = component.config as any

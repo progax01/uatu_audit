@@ -79,7 +79,9 @@ export default function SourcesTab({ projectId, components, onComponentAdded }: 
     }
 
     try {
-      const res = await fetch('/auth/github/me')
+      const res = await fetch('/auth/github/me', {
+        credentials: 'include'
+      })
       const data = await res.json()
       if (data.authed) {
         setIsGithubAuthed(true)

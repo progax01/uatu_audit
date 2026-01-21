@@ -67,7 +67,7 @@ const showPreAuditQuestionnaire: InteractiveExecutor = async (step, config, cont
 
   // The questionnaire is shown via the frontend UI
   // This step just signals that the questionnaire should be displayed
-  // The actual questionnaire URL: /audits/:jobId/questionnaire
+  // The actual questionnaire URL: /audit/:jobId/questionnaire
 
   await context.onProgress?.(50, 'Waiting for user to access questionnaire...');
 
@@ -81,7 +81,7 @@ const showPreAuditQuestionnaire: InteractiveExecutor = async (step, config, cont
     findings: [],
     data: {
       questionnaireShown: true,
-      questionnaireUrl: `/audits/${jobId}/questionnaire`,
+      questionnaireUrl: `/audit/${jobId}/questionnaire`,
       contractCategory,
     },
   };

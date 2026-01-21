@@ -10,7 +10,8 @@
  */
 
 import type { ContractCategory } from '../db/schema';
-import { getQuestionsForCategory, getRequiredQuestions, getQuestionsGroupedByCategory, type PreAuditQuestion, type QuestionPriority } from './questionTemplates';
+import { getQuestionsForCategory, getRequiredQuestions, getQuestionsGroupedByCategory, getConditionalQuestions, type PreAuditQuestion, type QuestionPriority, type QuestionType } from './questionTemplates';
+import { extractCodeContext, type CodeAnalysisContext } from './codeAnalysisContext';
 import { logger } from '../utils/logger';
 
 const log = logger.child({ module: 'question-selection' });
@@ -23,6 +24,7 @@ export interface QuestionSelectionCriteria {
   contractCategory?: ContractCategory;
   auditDepth: 'quick' | 'standard' | 'deep';
   includeOptional?: boolean; // Include MEDIUM/LOW priority questions
+  classification?: any; // Contract classification for dynamic questions
   customFilters?: {
     excludeCategories?: string[];
     onlyCategories?: string[];
@@ -56,10 +58,42 @@ export function selectQuestions(criteria: QuestionSelectionCriteria): SelectedQu
     contractCategory,
     auditDepth: criteria.auditDepth,
     includeOptional: criteria.includeOptional,
+    hasClassification: !!criteria.classification,
   });
+
+  // Extract code analysis context
+  const codeContext = criteria.classification
+    ? extractCodeContext(criteria.classification)
+    : extractCodeContext(null);
 
   // Get base questions for this contract type
   let questions = getQuestionsForCategory(contractCategory);
+
+  // Add conditional questions based on code analysis
+  const conditionalQuestions = getConditionalQuestions();
+  const applicableConditionalQuestions = conditionalQuestions.filter((q) => {
+    // Check if condition is met
+    return q.condition ? q.condition(codeContext) : true;
+  });
+
+  questions = [...questions, ...applicableConditionalQuestions];
+
+  // Apply code context to generate dynamic text and options
+  questions = questions.map((q) => {
+    const processedQuestion = { ...q };
+
+    // Generate dynamic text if function
+    if (typeof q.text === 'function') {
+      processedQuestion.text = q.text(codeContext);
+    }
+
+    // Generate dynamic options if function
+    if (typeof q.options === 'function') {
+      processedQuestion.options = q.options(codeContext);
+    }
+
+    return processedQuestion;
+  });
 
   // Apply depth-based filtering
   questions = filterByDepth(questions, criteria.auditDepth);
@@ -115,6 +149,7 @@ export function selectQuestions(criteria: QuestionSelectionCriteria): SelectedQu
     total: result.metadata.totalQuestions,
     required: result.metadata.requiredQuestions,
     optional: result.metadata.optionalQuestions,
+    conditionalQuestionsAdded: applicableConditionalQuestions.length,
     categories: result.metadata.categoriesIncluded,
   });
 
@@ -292,19 +327,26 @@ export function validateAnswers(
 
     // Select validation
     if (question.type === 'select' && question.options) {
-      if (!question.options.includes(answer)) {
-        errors.push(`Question "${question.text}" has invalid selection`);
+      const resolvedOptions = typeof question.options === 'function' ? question.options({} as any) : question.options;
+      const optionValues = resolvedOptions.map((opt: any) => typeof opt === 'string' ? opt : opt.value);
+      if (!optionValues.includes(answer)) {
+        const questionText = typeof question.text === 'function' ? question.text({} as any) : question.text;
+        errors.push(`Question "${questionText}" has invalid selection`);
       }
     }
 
     // Multiselect validation
     if (question.type === 'multiselect' && question.options) {
       if (!Array.isArray(answer)) {
-        errors.push(`Question "${question.text}" must be an array of selections`);
+        const questionText = typeof question.text === 'function' ? question.text({} as any) : question.text;
+        errors.push(`Question "${questionText}" must be an array of selections`);
       } else {
+        const resolvedOptions = typeof question.options === 'function' ? question.options({} as any) : question.options;
+        const optionValues = resolvedOptions.map((opt: any) => typeof opt === 'string' ? opt : opt.value);
         for (const selection of answer) {
-          if (!question.options.includes(selection)) {
-            errors.push(`Question "${question.text}" has invalid selection: ${selection}`);
+          if (!optionValues.includes(selection)) {
+            const questionText = typeof question.text === 'function' ? question.text({} as any) : question.text;
+            errors.push(`Question "${questionText}" has invalid selection: ${selection}`);
           }
         }
       }
@@ -382,4 +424,285 @@ export function getQuestionStatistics(): Record<
   }
 
   return stats;
+}
+
+// ============================================================================
+// Flow-Based Question Selection
+// ============================================================================
+
+/**
+ * Map flow-based answer type to PreAuditQuestion type
+ */
+function mapAnswerTypeToQuestionType(answerType: 'text' | 'choice' | 'boolean'): QuestionType {
+  switch (answerType) {
+    case 'text':
+      return 'textarea';
+    case 'choice':
+      return 'select';
+    case 'boolean':
+      return 'confirm';
+    default:
+      return 'text';
+  }
+}
+
+/**
+ * Select questions from user flow analysis
+ * This integrates with the new flow-based questionnaire system
+ */
+export async function selectQuestionsFromFlows(
+  auditJobId: string,
+  depth: 'quick' | 'standard' | 'deep'
+): Promise<PreAuditQuestion[]> {
+  try {
+    // Import flow-based question generator
+    const { generateFlowBasedQuestions, prioritizeQuestions } = await import('./flowBasedQuestionGenerator.js');
+
+    // Get user flow analysis from audit results metadata
+    const { getDb } = await import('../db/index.js');
+    const { auditResults, auditJobs } = await import('../db/schema.js');
+    const { eq } = await import('drizzle-orm');
+
+    const db = getDb();
+
+    // Get audit results which contains metadata
+    const [result] = await db.select().from(auditResults).where(eq(auditResults.jobId, auditJobId));
+
+    if (!result) {
+      log.warn('Audit results not found', { auditJobId });
+      // Fallback to legacy question selection
+      return [];
+    }
+
+    const metadata = result.metadata as any;
+    const flowAnalysis = metadata?.userFlowAnalysis;
+
+    if (!flowAnalysis) {
+      log.warn('User flow analysis not found in results metadata', { auditJobId });
+      // Fallback to legacy question selection
+      return [];
+    }
+
+    // Generate flow-based questions
+    const contractTypes = metadata?.contractTypes || [];
+    const flowQuestions = await generateFlowBasedQuestions(flowAnalysis.flows, contractTypes);
+
+    // Filter by priority based on depth
+    let filteredQuestions = flowQuestions;
+    if (depth === 'quick') {
+      filteredQuestions = flowQuestions.filter((q) => q.priority === 'high');
+    } else if (depth === 'standard') {
+      filteredQuestions = flowQuestions.filter((q) => q.priority !== 'low');
+    }
+
+    // Prioritize questions
+    const prioritized = prioritizeQuestions(filteredQuestions, depth === 'quick' ? 5 : undefined);
+
+    // Convert to PreAuditQuestion format
+    const preAuditQuestions: PreAuditQuestion[] = prioritized.map((fq) => ({
+      key: fq.id,
+      category: fq.category,
+      text: fq.question,
+      type: mapAnswerTypeToQuestionType(fq.answerType),
+      options: fq.choices,
+      priority: fq.priority.toUpperCase() as QuestionPriority,
+      helpText: `Flow: ${fq.context.flowName}. Affected functions: ${fq.context.affectedFunctions.join(', ')}`,
+      validation: undefined,
+    }));
+
+    log.info('Flow-based questions selected', {
+      auditJobId,
+      depth,
+      totalFlows: flowAnalysis.flows.length,
+      questionsGenerated: flowQuestions.length,
+      questionsSelected: preAuditQuestions.length,
+    });
+
+    return preAuditQuestions;
+  } catch (error: any) {
+    log.error('Failed to select flow-based questions', {
+      auditJobId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Merge flow-based questions with traditional questions
+ * This provides a unified questionnaire that includes both
+ */
+export async function selectMergedQuestions(
+  auditJobId: string,
+  criteria: QuestionSelectionCriteria
+): Promise<SelectedQuestions> {
+  // Get traditional questions
+  const traditionalResult = selectQuestions(criteria);
+
+  try {
+    // Get flow-based questions
+    const flowQuestions = await selectQuestionsFromFlows(auditJobId, criteria.auditDepth);
+
+    // Merge questions (flow questions come first as they're more specific)
+    const mergedQuestions = [...flowQuestions, ...traditionalResult.questions];
+
+    // Re-group by category
+    const groupedByCategory = groupQuestions(mergedQuestions);
+
+    // Update metadata
+    const requiredCount = mergedQuestions.filter((q) => q.priority === 'HIGH').length;
+    const optionalCount = mergedQuestions.length - requiredCount;
+
+    log.info('Questions merged', {
+      flowQuestions: flowQuestions.length,
+      traditionalQuestions: traditionalResult.questions.length,
+      merged: mergedQuestions.length,
+    });
+
+    return {
+      questions: mergedQuestions,
+      groupedByCategory,
+      metadata: {
+        totalQuestions: mergedQuestions.length,
+        requiredQuestions: requiredCount,
+        optionalQuestions: optionalCount,
+        contractCategory: criteria.contractCategory || 'generic',
+        categoriesIncluded: Object.keys(groupedByCategory),
+      },
+    };
+  } catch (error: any) {
+    log.warn('Failed to merge flow-based questions, using traditional only', {
+      error: error.message,
+    });
+    // Fallback to traditional questions if flow-based fails
+    return traditionalResult;
+  }
+}
+
+// ============================================================================
+// Claude Session Tracking
+// ============================================================================
+
+/**
+ * Build resumption prompt for answering a question later via Claude CLI
+ */
+export function buildResumptionPrompt(question: PreAuditQuestion, context?: any): string {
+  let prompt = `I previously asked you about the audit and need your response:\n\n`;
+  const questionText = typeof question.text === 'function' ? question.text({} as any) : question.text;
+  prompt += `**Question:** ${questionText}\n\n`;
+
+  if (question.category) {
+    prompt += `**Category:** ${question.category}\n\n`;
+  }
+
+  if (context) {
+    prompt += `**Context:**\n`;
+    if (context.flowName) {
+      prompt += `- Flow: ${context.flowName}\n`;
+    }
+    if (context.affectedFunctions?.length > 0) {
+      prompt += `- Affected Functions: ${context.affectedFunctions.join(', ')}\n`;
+    }
+    if (context.contracts?.length > 0) {
+      prompt += `- Contracts: ${context.contracts.join(', ')}\n`;
+    }
+    prompt += `\n`;
+  }
+
+  if (question.options) {
+    const resolvedOptions = typeof question.options === 'function' ? question.options({} as any) : question.options;
+    if (resolvedOptions && resolvedOptions.length > 0) {
+      prompt += `**Options:**\n`;
+      for (const option of resolvedOptions) {
+        if (typeof option === 'string') {
+          prompt += `- ${option}\n`;
+        } else {
+          prompt += `- ${option.value}: ${option.label}\n`;
+        }
+      }
+      prompt += `\n`;
+    }
+  }
+
+  prompt += `Please provide your answer now.`;
+
+  return prompt;
+}
+
+/**
+ * Save questions with Claude session tracking
+ */
+export async function saveQuestionsWithSession(
+  jobId: string,
+  questions: PreAuditQuestion[],
+  claudeSessionId?: string,
+  claudeConversationId?: string
+): Promise<void> {
+  const { getDb } = await import('../db/index.js');
+  const { auditClarifications } = await import('../db/schema.js');
+
+  const db = getDb();
+
+  const clarifications = questions.map((q) => {
+    const questionText = typeof q.text === 'function' ? q.text({} as any) : q.text;
+    const resolvedOptions = q.options
+      ? (typeof q.options === 'function' ? q.options({} as any) : q.options)
+      : null;
+
+    return {
+      jobId,
+      phase: 'pre_audit' as const,
+      questionKey: q.key,
+      questionText,
+      questionType: q.type,
+      options: resolvedOptions ? JSON.stringify(resolvedOptions) : null,
+      context: null,
+      status: 'pending' as const,
+      claudeSessionId: claudeSessionId || null,
+      claudeConversationId: claudeConversationId || null,
+      resumptionPrompt: buildResumptionPrompt(q),
+    };
+  });
+
+  await db.insert(auditClarifications).values(clarifications);
+
+  log.info('Saved questions with Claude session tracking', {
+    jobId,
+    questionCount: questions.length,
+    hasClaudeSession: !!claudeSessionId,
+  });
+}
+
+/**
+ * Resume audit with user answers from Claude CLI session
+ */
+export async function resumeAuditWithAnswers(
+  jobId: string
+): Promise<{ hasAnswers: boolean; pendingCount: number }> {
+  const { getDb } = await import('../db/index.js');
+  const { auditClarifications } = await import('../db/schema.js');
+  const { eq } = await import('drizzle-orm');
+
+  const db = getDb();
+
+  // Get all clarifications for this job
+  const clarifications = await db
+    .select()
+    .from(auditClarifications)
+    .where(eq(auditClarifications.jobId, jobId));
+
+  const pendingQuestions = clarifications.filter((c) => c.status === 'pending');
+  const answeredQuestions = clarifications.filter((c) => c.status === 'answered');
+
+  log.info('Audit question status', {
+    jobId,
+    total: clarifications.length,
+    pending: pendingQuestions.length,
+    answered: answeredQuestions.length,
+  });
+
+  return {
+    hasAnswers: answeredQuestions.length > 0,
+    pendingCount: pendingQuestions.length,
+  };
 }

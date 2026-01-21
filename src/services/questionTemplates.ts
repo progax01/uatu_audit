@@ -4,9 +4,12 @@
  * Provides contract-type specific pre-audit questionnaire templates.
  * Questions are categorized by contract type (ERC20, NFT, DeFi, etc.)
  * and priority (HIGH = required, MEDIUM/LOW = optional).
+ *
+ * Supports dynamic questions based on code analysis context.
  */
 
-import type { ContractCategory } from '../db/schema';
+import type { ContractCategory } from '../db/schema.js';
+import type { CodeAnalysisContext } from './codeAnalysisContext.js';
 
 // ============================================================================
 // Types
@@ -16,11 +19,17 @@ export type QuestionPriority = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export type QuestionType = 'text' | 'textarea' | 'select' | 'multiselect' | 'confirm';
 
+export interface QuestionOption {
+  value: string;
+  label: string;
+  icon?: string;
+}
+
 export interface PreAuditQuestion {
   key: string;
-  text: string;
+  text: string | ((context: CodeAnalysisContext) => string); // Support dynamic text
   type: QuestionType;
-  options?: string[];
+  options?: string[] | QuestionOption[] | ((context: CodeAnalysisContext) => (string[] | QuestionOption[]));
   priority: QuestionPriority;
   category: string;
   helpText?: string;
@@ -31,6 +40,8 @@ export interface PreAuditQuestion {
     maxLength?: number;
     pattern?: string;
   };
+  // Conditional rendering based on code analysis
+  condition?: (context: CodeAnalysisContext) => boolean;
 }
 
 export interface QuestionTemplate {
@@ -60,7 +71,18 @@ const GENERIC_QUESTIONS: PreAuditQuestion[] = [
     key: 'deployment_networks',
     text: 'Which blockchain networks will this contract be deployed on?',
     type: 'multiselect',
-    options: ['Ethereum Mainnet', 'Polygon', 'Arbitrum', 'Optimism', 'Base', 'BSC', 'Avalanche', 'Other'],
+    options: [
+      { value: 'ethereum-mainnet', label: 'Ethereum Mainnet', icon: 'ethereum' },
+      { value: 'polygon', label: 'Polygon', icon: 'polygon' },
+      { value: 'arbitrum', label: 'Arbitrum', icon: 'arbitrum' },
+      { value: 'optimism', label: 'Optimism', icon: 'optimism' },
+      { value: 'base', label: 'Base', icon: 'base' },
+      { value: 'bsc', label: 'BSC', icon: 'binance' },
+      { value: 'avalanche', label: 'Avalanche', icon: 'avalanche' },
+      { value: 'solana', label: 'Solana', icon: 'solana' },
+      { value: 'stellar', label: 'Stellar', icon: 'stellar' },
+      { value: 'other', label: 'Other' }
+    ],
     priority: 'HIGH',
     category: 'general',
     helpText: 'Select all networks where you plan to deploy. Different chains have different security considerations (block times, gas costs, cross-chain risks).',
@@ -408,45 +430,39 @@ const GOVERNANCE_QUESTIONS: PreAuditQuestion[] = [
 ];
 
 // ============================================================================
-// Proxy/Upgradeable Questions
+// Proxy/Upgradeable Questions (Dynamic)
 // ============================================================================
 
 const PROXY_QUESTIONS: PreAuditQuestion[] = [
   {
-    key: 'proxy_pattern',
-    text: 'Which proxy pattern is used?',
+    key: 'proxy_upgrade_mechanism',
+    text: (ctx) => `We detected a ${ctx.proxyType || 'proxy'} pattern. How is upgradeability managed?`,
     type: 'select',
-    options: [
-      'Transparent Proxy',
-      'UUPS (Universal Upgradeable Proxy Standard)',
-      'Beacon Proxy',
-      'Diamond (EIP-2535)',
-      'Other'
-    ],
     priority: 'HIGH',
-    category: 'proxy',
-  },
-  {
-    key: 'proxy_upgrade_authority',
-    text: 'Who can upgrade the contract?',
-    type: 'select',
+    category: 'upgradeable',
+    condition: (ctx) => ctx.hasProxy || ctx.hasUpgradeable,
     options: [
-      'Single owner',
-      'Multisig wallet',
-      'Governance (DAO)',
+      'Multi-signature wallet',
       'Timelock controller',
+      'DAO governance',
+      'Single admin (not recommended)',
       'Not upgradeable'
     ],
-    priority: 'HIGH',
-    category: 'proxy',
+    helpText: 'Who has the authority to upgrade the contract implementation?'
   },
   {
-    key: 'proxy_upgrade_timelock',
-    text: 'Is there a timelock delay before upgrades can be executed?',
-    type: 'select',
-    options: ['Yes (specify duration)', 'No'],
+    key: 'access_control_roles',
+    text: (ctx) => `We found ${ctx.rolesCount} access control role${ctx.rolesCount !== 1 ? 's' : ''}. How are these roles managed?`,
+    type: 'textarea',
     priority: 'HIGH',
-    category: 'proxy',
+    category: 'access-control',
+    condition: (ctx) => ctx.hasAccessControl && ctx.rolesCount > 0,
+    validation: {
+      required: true,
+      minLength: 50,
+      maxLength: 500
+    },
+    helpText: 'Explain the governance structure for role management and any time delays or multisig requirements'
   },
   {
     key: 'proxy_storage_collision_check',
@@ -454,8 +470,156 @@ const PROXY_QUESTIONS: PreAuditQuestion[] = [
     type: 'confirm',
     priority: 'HIGH',
     category: 'proxy',
+    condition: (ctx) => ctx.hasProxy || ctx.hasUpgradeable,
     helpText: 'Storage collisions can cause serious bugs in upgradeable contracts',
   },
+];
+
+// ============================================================================
+// Oracle/Chainlink Questions (Dynamic)
+// ============================================================================
+
+const ORACLE_QUESTIONS: PreAuditQuestion[] = [
+  {
+    key: 'chainlink_circuit_breakers',
+    text: 'We detected Chainlink oracle integration. Are circuit breakers implemented for stale/invalid price data?',
+    type: 'select',
+    priority: 'HIGH',
+    category: 'oracle',
+    condition: (ctx) => ctx.usesChainlink,
+    options: [
+      'Yes, circuit breakers are implemented',
+      'No, but we acknowledge the risk',
+      'Not applicable to our use case'
+    ],
+    helpText: 'Circuit breakers protect against stale or manipulated oracle data'
+  },
+  {
+    key: 'chainlink_feed_validation',
+    text: 'How do you validate Chainlink price feed data?',
+    type: 'multiselect',
+    priority: 'HIGH',
+    category: 'oracle',
+    condition: (ctx) => ctx.usesChainlink,
+    options: [
+      'Check for stale data (updatedAt timestamp)',
+      'Compare against min/max bounds',
+      'Use multiple oracle sources',
+      'Implement fallback oracle',
+      'None'
+    ],
+    helpText: 'Multiple validation methods provide better security'
+  },
+];
+
+// ============================================================================
+// DEX/Uniswap Questions (Dynamic)
+// ============================================================================
+
+const DEX_QUESTIONS: PreAuditQuestion[] = [
+  {
+    key: 'uniswap_integration_version',
+    text: (ctx) => `We detected Uniswap integration. Which version are you using?`,
+    type: 'select',
+    priority: 'MEDIUM',
+    category: 'defi-security',
+    condition: (ctx) => ctx.usesUniswap,
+    options: [
+      'Uniswap V2',
+      'Uniswap V3',
+      'Both V2 and V3',
+      'Other DEX (not Uniswap)'
+    ]
+  },
+  {
+    key: 'dex_slippage_protection',
+    text: 'How is slippage protection implemented in your DEX integration?',
+    type: 'select',
+    priority: 'HIGH',
+    category: 'defi-security',
+    condition: (ctx) => ctx.usesUniswap,
+    options: [
+      'User-defined slippage tolerance',
+      'Protocol-enforced maximum slippage',
+      'Both user-defined and protocol maximum',
+      'No slippage protection'
+    ],
+    helpText: 'Slippage protection prevents sandwich attacks and price manipulation'
+  },
+];
+
+// ============================================================================
+// Admin Controls Questions (Dynamic)
+// ============================================================================
+
+const ADMIN_CONTROL_QUESTIONS: PreAuditQuestion[] = [
+  {
+    key: 'pause_mechanism_details',
+    text: 'We detected a pause mechanism. How is it governed?',
+    type: 'select',
+    priority: 'HIGH',
+    category: 'admin-controls',
+    condition: (ctx) => ctx.hasPause,
+    options: [
+      'Single owner (immediate pause)',
+      'Multisig (requires multiple signatures)',
+      'Timelock (with delay)',
+      'Emergency multisig (no delay)',
+      'Governance vote required'
+    ],
+    helpText: 'Emergency pause should be quick but resuming should have governance'
+  },
+  {
+    key: 'mint_burn_controls',
+    text: (ctx) => {
+      const features = [];
+      if (ctx.hasMint) features.push('minting');
+      if (ctx.hasBurn) features.push('burning');
+      return `We detected ${features.join(' and ')} functionality. Who controls this?`;
+    },
+    type: 'select',
+    priority: 'HIGH',
+    category: 'token-economics',
+    condition: (ctx) => ctx.hasMint || ctx.hasBurn,
+    options: [
+      'Only owner/admin',
+      'Specific role (e.g., MINTER_ROLE)',
+      'Any token holder can burn their own',
+      'Automated/algorithmic',
+      'Governance-controlled'
+    ]
+  },
+  {
+    key: 'owner_privileges_scope',
+    text: 'We detected Ownable pattern. What privileges does the owner have?',
+    type: 'multiselect',
+    priority: 'HIGH',
+    category: 'admin-controls',
+    condition: (ctx) => ctx.hasOwner,
+    options: [
+      'Pause/unpause contract',
+      'Change fees/parameters',
+      'Upgrade contract',
+      'Mint/burn tokens',
+      'Withdraw funds',
+      'Blacklist/whitelist addresses',
+      'Transfer ownership',
+      'Renounce ownership (permanently)',
+      'Other'
+    ],
+    helpText: 'Transparency about owner privileges helps users assess risk'
+  },
+];
+
+// ============================================================================
+// Conditional Questions Pool (Added to Relevant Categories)
+// ============================================================================
+
+const CONDITIONAL_QUESTIONS_POOL = [
+  ...PROXY_QUESTIONS,
+  ...ORACLE_QUESTIONS,
+  ...DEX_QUESTIONS,
+  ...ADMIN_CONTROL_QUESTIONS,
 ];
 
 // ============================================================================
@@ -510,4 +674,11 @@ export function getQuestionsGroupedByCategory(contractCategory: ContractCategory
   }
 
   return grouped;
+}
+
+/**
+ * Get conditional questions that should be added based on code analysis
+ */
+export function getConditionalQuestions(): PreAuditQuestion[] {
+  return CONDITIONAL_QUESTIONS_POOL;
 }

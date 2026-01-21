@@ -25,7 +25,7 @@
     "run:sample": "node dist/bin/uatu.js run --repo https://github.com/Uniswap/v2-core.git --project uniswap-v2 --branch master --test-styles behavioral,stride",
     "report:lint": "scripts/check-regressions.sh",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --loader ts-node/esm src/db/migrate.ts",
+    "db:migrate": "npx tsx src/db/migrate.ts",
     "db:push": "drizzle-kit push",
     "db:seed": "node --loader ts-node/esm src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
@@ -60,9 +60,10 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@octokit/rest": "^22.0.1",
-    "@tanstack/react-query": "^5.90.16",
     "@anthropic-ai/claude-code": "^2.1.6",
+    "@octokit/rest": "^22.0.1",
+    "@solidity-parser/parser": "^0.20.2",
+    "@tanstack/react-query": "^5.90.16",
     "@types/lodash.debounce": "^4.0.9",
     "@types/node-fetch": "^2.6.13",
     "bcrypt": "^6.0.0",

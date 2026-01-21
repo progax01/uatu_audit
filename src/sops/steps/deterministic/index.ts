@@ -1594,6 +1594,83 @@ const extractFunctionSignaturesRegex: DeterministicExecutor = async (step, confi
 };
 
 // ============================================================================
+// User Flow Analysis
+// ============================================================================
+
+const analyzeUserFlows: DeterministicExecutor = async (step, config, context) => {
+  const projectPath = context.projectPath;
+  const findings: StepFinding[] = [];
+
+  await context.onProgress?.(10, 'Analyzing user interaction flows...');
+
+  try {
+    // Import the user flow analyzer
+    const { analyzeUserFlows: analyzeFlows, summarizeFlowAnalysis } = await import('../../../services/userFlowAnalyzer.js');
+
+    await context.onProgress?.(30, 'Parsing Solidity contracts...');
+
+    // Analyze user flows
+    const analysis = await analyzeFlows(projectPath);
+
+    await context.onProgress?.(70, 'Tracing execution paths...');
+
+    // Generate summary
+    const summary = summarizeFlowAnalysis(analysis);
+
+    await context.onProgress?.(90, 'Identifying risks...');
+
+    // Create findings for high-risk flows
+    for (const flow of analysis.flows) {
+      if (flow.risks.length > 0) {
+        findings.push({
+          stepId: step.id,
+          findingId: `flow-${flow.id}-risk`,
+          title: `High-risk user flow: ${flow.name}`,
+          description: `${flow.description}\n\nRisks:\n${flow.risks.map(r => `- ${r}`).join('\n')}`,
+          severity: 'medium',
+          location: {
+            file: 'contract',
+            line: undefined,
+            column: undefined,
+          },
+          recommendation: 'Review this user interaction flow for potential security issues.',
+        });
+      }
+    }
+
+    await context.onProgress?.(100, 'User flow analysis complete');
+
+    log.info('User flow analysis complete', {
+      flows: analysis.flows.length,
+      entryPoints: analysis.entryPoints.length,
+      privilegedPaths: analysis.privilegedPaths.size,
+      findings: findings.length,
+    });
+
+    return {
+      success: true,
+      findings,
+      data: {
+        flowCount: analysis.flows.length,
+        entryPointCount: analysis.entryPoints.length,
+        privilegedPathCount: analysis.privilegedPaths.size,
+        flows: analysis.flows,
+        entryPoints: analysis.entryPoints,
+        privilegedPaths: Object.fromEntries(analysis.privilegedPaths),
+        summary,
+      },
+    };
+  } catch (error: any) {
+    log.error('User flow analysis failed', { error: error.message });
+    return {
+      success: false,
+      error: `User flow analysis failed: ${error.message}`,
+      findings: [],
+    };
+  }
+};
+
+// ============================================================================
 // Executor Registry
 // ============================================================================
 
@@ -1627,6 +1704,17 @@ const DETERMINISTIC_EXECUTORS: Record<string, DeterministicExecutor> = {
   'classifyContractType': classifyContractType,
   'detectInterfacesSimple': detectInterfacesSimple,
   'extractFunctionSignaturesRegex': extractFunctionSignaturesRegex,
+  // User flow analysis
+  'analyzeUserFlows': analyzeUserFlows,
+  // Testing - import from testing module
+  'generate-tests': async (step, config, context) => {
+    const { executeTestingStep } = await import('../testing/index.js');
+    return executeTestingStep(step, config, context);
+  },
+  'publish-to-github': async (step, config, context) => {
+    const { executeTestingStep } = await import('../testing/index.js');
+    return executeTestingStep(step, config, context);
+  },
 };
 
 // ============================================================================

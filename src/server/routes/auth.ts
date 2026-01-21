@@ -229,12 +229,37 @@ export async function handleAuthRoutes(
     logger.debug("GitHub OAuth callback received", { query: parsed.query });
     try {
       const code = parsed.query.code;
-      if (!code) {
-        logger.error("GitHub OAuth callback failed: missing code");
-        res.statusCode = 400;
-        res.end("missing code");
+      const state = parsed.query.state;
+      const error = parsed.query.error;
+      const errorDescription = parsed.query.error_description;
+
+      // Check if user cancelled or error occurred
+      if (error) {
+        logger.warn("GitHub OAuth error", { error, errorDescription });
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+            localStorage.removeItem('oauth_return_url');
+            window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent(errorDescription || 'GitHub authorization was cancelled')}';
+          </script><p>Authorization cancelled. Redirecting...</p>`
+        );
         return true;
       }
+
+      if (!code) {
+        logger.error("GitHub OAuth callback failed: missing code");
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+            localStorage.removeItem('oauth_return_url');
+            window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent('GitHub authorization failed - no code received')}';
+          </script><p>Authorization failed. Redirecting...</p>`
+        );
+        return true;
+      }
+
       logger.debug("Exchanging OAuth code for access token");
       const r = await fetch("https://github.com/login/oauth/access_token", {
         method: "POST",
@@ -249,8 +274,14 @@ export async function handleAuthRoutes(
       const t: any = await r.json();
       if (!t.access_token) {
         logger.error("GitHub OAuth token exchange failed", { response: t });
-        res.statusCode = 400;
-        res.end(JSON.stringify(t));
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+            localStorage.removeItem('oauth_return_url');
+            window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent(t.error_description || 'Failed to exchange authorization code')}';
+          </script><p>Token exchange failed. Redirecting...</p>`
+        );
         return true;
       }
 
@@ -271,6 +302,15 @@ export async function handleAuthRoutes(
           error: e instanceof Error ? e.message : String(e),
           stack: e instanceof Error ? e.stack : undefined
         });
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+            localStorage.removeItem('oauth_return_url');
+            window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent('Failed to fetch GitHub user information')}';
+          </script><p>User fetch failed. Redirecting...</p>`
+        );
+        return true;
       }
 
       // Create new session for this user
@@ -285,7 +325,7 @@ export async function handleAuthRoutes(
         `<script>
           var returnUrl = localStorage.getItem('oauth_return_url') || '/';
           localStorage.removeItem('oauth_return_url');
-          window.location = returnUrl;
+          window.location = returnUrl + '?github_connect=success';
         </script><p>GitHub auth ok. Redirecting...</p>`
       );
     } catch (e: any) {
@@ -293,8 +333,14 @@ export async function handleAuthRoutes(
         error: e?.message || String(e),
         stack: e?.stack
       });
-      res.statusCode = 500;
-      res.end(String(e?.message || e));
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.end(
+        `<script>
+          var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+          localStorage.removeItem('oauth_return_url');
+          window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent(e?.message || 'Authentication failed')}';
+        </script><p>Error occurred. Redirecting...</p>`
+      );
     }
     return true;
   }
@@ -303,11 +349,36 @@ export async function handleAuthRoutes(
   if (req.method === "GET" && parsed.pathname === "/auth/callback") {
     try {
       const code = parsed.query.code;
-      if (!code) {
-        res.statusCode = 400;
-        res.end("missing code");
+      const error = parsed.query.error;
+      const errorDescription = parsed.query.error_description;
+
+      // Check if user cancelled or error occurred
+      if (error) {
+        logger.warn("GitHub OAuth error (alias)", { error, errorDescription });
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+            localStorage.removeItem('oauth_return_url');
+            window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent(errorDescription || 'GitHub authorization was cancelled')}';
+          </script><p>Authorization cancelled. Redirecting...</p>`
+        );
         return true;
       }
+
+      if (!code) {
+        logger.error("GitHub OAuth callback failed (alias): missing code");
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+            localStorage.removeItem('oauth_return_url');
+            window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent('GitHub authorization failed - no code received')}';
+          </script><p>Authorization failed. Redirecting...</p>`
+        );
+        return true;
+      }
+
       const r = await fetch("https://github.com/login/oauth/access_token", {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -320,8 +391,15 @@ export async function handleAuthRoutes(
       });
       const t: any = await r.json();
       if (!t.access_token) {
-        res.statusCode = 400;
-        res.end(JSON.stringify(t));
+        logger.error("GitHub OAuth token exchange failed (alias)", { response: t });
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+            localStorage.removeItem('oauth_return_url');
+            window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent(t.error_description || 'Failed to exchange authorization code')}';
+          </script><p>Token exchange failed. Redirecting...</p>`
+        );
         return true;
       }
 
@@ -338,6 +416,15 @@ export async function handleAuthRoutes(
           error: e instanceof Error ? e.message : String(e),
           stack: e instanceof Error ? e.stack : undefined
         });
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(
+          `<script>
+            var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+            localStorage.removeItem('oauth_return_url');
+            window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent('Failed to fetch GitHub user information')}';
+          </script><p>User fetch failed. Redirecting...</p>`
+        );
+        return true;
       }
 
       const sessionId = uuidv4();
@@ -349,12 +436,22 @@ export async function handleAuthRoutes(
         `<script>
           var returnUrl = localStorage.getItem('oauth_return_url') || '/';
           localStorage.removeItem('oauth_return_url');
-          window.location = returnUrl;
+          window.location = returnUrl + '?github_connect=success';
         </script><p>GitHub auth ok. Redirecting...</p>`
       );
     } catch (e: any) {
-      res.statusCode = 500;
-      res.end(String(e?.message || e));
+      logger.error("GitHub OAuth callback error (alias)", {
+        error: e?.message || String(e),
+        stack: e?.stack
+      });
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.end(
+        `<script>
+          var returnUrl = localStorage.getItem('oauth_return_url') || '/';
+          localStorage.removeItem('oauth_return_url');
+          window.location = returnUrl + '?github_connect=error&message=${encodeURIComponent(e?.message || 'Authentication failed')}';
+        </script><p>Error occurred. Redirecting...</p>`
+      );
     }
     return true;
   }
@@ -948,6 +1045,141 @@ export async function handleAuthRoutes(
     } catch (e: any) {
       logger.error("Username check error", { error: e.message });
       sendError(res, "Check failed", 500);
+    }
+    return true;
+  }
+
+  // ============================================================================
+  // ACCOUNT MANAGEMENT ROUTES
+  // ============================================================================
+
+  // POST /auth/merge-accounts - Merge duplicate accounts
+  if (req.method === "POST" && parsed.pathname === "/auth/merge-accounts") {
+    const token = extractBearerToken(req);
+    if (!token) {
+      sendError(res, "Unauthorized", 401);
+      return true;
+    }
+
+    const decoded = verifyAccessToken(token);
+    if (!decoded) {
+      sendError(res, "Invalid or expired token", 401);
+      return true;
+    }
+
+    try {
+      const body = await parseJsonBody<{ secondaryUserId: string }>(req);
+      const { secondaryUserId } = body;
+
+      if (!secondaryUserId) {
+        sendError(res, "secondaryUserId is required", 400);
+        return true;
+      }
+
+      const primaryUserId = decoded.sub;
+
+      // Cannot merge account into itself
+      if (secondaryUserId === primaryUserId) {
+        sendError(res, "Cannot merge account into itself", 400);
+        return true;
+      }
+
+      // Validate merge is possible
+      const { validateMerge } = await import("../../services/accountMergeService.js");
+      const validationErrors = await validateMerge(primaryUserId, secondaryUserId);
+
+      if (validationErrors.length > 0) {
+        sendError(res, validationErrors.join('; '), 400);
+        return true;
+      }
+
+      // Perform the merge
+      const { mergeAccounts } = await import("../../services/accountMergeService.js");
+      const result = await mergeAccounts({
+        primaryUserId,
+        secondaryUserId,
+      });
+
+      if (!result.success) {
+        sendError(res, result.error || "Merge failed", 500);
+        return true;
+      }
+
+      logger.info("Accounts merged successfully", {
+        primaryUserId,
+        secondaryUserId,
+        auditsTransferred: result.auditsTransferred,
+        projectsTransferred: result.projectsTransferred,
+      });
+
+      sendJson(res, {
+        success: true,
+        message: "Accounts merged successfully",
+        auditsTransferred: result.auditsTransferred,
+        projectsTransferred: result.projectsTransferred,
+      });
+    } catch (e: any) {
+      logger.error("Account merge failed", { error: e.message, stack: e.stack });
+      sendError(res, e.message || "Merge failed", 500);
+    }
+    return true;
+  }
+
+  // GET /auth/check-duplicates - Check if current user has duplicate accounts
+  if (req.method === "GET" && parsed.pathname === "/auth/check-duplicates") {
+    const token = extractBearerToken(req);
+    if (!token) {
+      sendError(res, "Unauthorized", 401);
+      return true;
+    }
+
+    const decoded = verifyAccessToken(token);
+    if (!decoded) {
+      sendError(res, "Invalid or expired token", 401);
+      return true;
+    }
+
+    try {
+      const user = await findUserById(decoded.sub);
+      if (!user) {
+        sendError(res, "User not found", 404);
+        return true;
+      }
+
+      // Find potential duplicates by email
+      const potentialDuplicates = [];
+
+      if (user.email) {
+        const { getDb } = await import("../../db/index.js");
+        const db = getDb();
+        const { users } = await import("../../db/schema.js");
+        const { eq, ne, and } = await import("drizzle-orm");
+
+        const emailMatches = await db.select()
+          .from(users)
+          .where(and(
+            eq(users.email, user.email),
+            ne(users.id, user.id)
+          ));
+
+        // Filter out already merged accounts
+        const validMatches = emailMatches.filter((u: any) => !u.email?.startsWith('merged_'));
+        potentialDuplicates.push(...validMatches);
+      }
+
+      sendJson(res, {
+        hasDuplicates: potentialDuplicates.length > 0,
+        duplicates: potentialDuplicates.map(u => ({
+          id: u.id,
+          githubLogin: u.githubLogin,
+          walletAddress: u.walletAddress,
+          displayName: u.displayName,
+          createdAt: u.createdAt,
+        })),
+      });
+    } catch (e: any) {
+      logger.error("Duplicate check failed", { error: e.message, stack: e.stack });
+      sendError(res, "Duplicate check failed", 500);
     }
     return true;
   }

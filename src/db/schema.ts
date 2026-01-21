@@ -12,6 +12,7 @@ import {
   serial,
   uniqueIndex,
   index,
+  unique,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -187,6 +188,30 @@ export const sessions = pgTable(
     userIdIdx: index('sessions_user_id_idx').on(table.userId),
     familyIdx: index('sessions_family_idx').on(table.refreshTokenFamily),
     expiresAtIdx: index('sessions_expires_at_idx').on(table.expiresAt),
+  })
+);
+
+// ============================================================================
+// USER ACCOUNT LINKS TABLE (For merged/linked accounts)
+// ============================================================================
+
+export const userAccountLinks = pgTable(
+  'user_account_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    primaryUserId: uuid('primary_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    linkedUserId: uuid('linked_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    linkType: varchar('link_type', { length: 20 }).notNull(), // 'merged', 'linked'
+    linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    primaryUserIdx: index('user_account_links_primary_idx').on(table.primaryUserId),
+    linkedUserIdx: index('user_account_links_linked_idx').on(table.linkedUserId),
+    uniqueLink: unique('unique_account_link').on(table.primaryUserId, table.linkedUserId),
   })
 );
 
@@ -385,6 +410,7 @@ export const auditJobs = pgTable(
     currentStepName: varchar('current_step_name', { length: 255 }),
     stepsCompleted: smallint('steps_completed'),
     stepsTotal: smallint('steps_total'),
+    metadata: jsonb('metadata').default({}),
   },
   (table) => ({
     userIdIdx: index('audit_jobs_user_id_idx').on(table.userId),
@@ -548,6 +574,10 @@ export const auditClarifications = pgTable(
     answerValue: jsonb('answer_value'),
     // Score impact tracking (for post-audit disputes)
     scoreImpact: jsonb('score_impact'), // { before, after, section }
+    // Claude CLI session tracking (for async question answering)
+    claudeSessionId: varchar('claude_session_id', { length: 255 }),
+    claudeConversationId: varchar('claude_conversation_id', { length: 255 }),
+    resumptionPrompt: text('resumption_prompt'), // Prompt to resume Claude session
     answeredAt: timestamp('answered_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -926,6 +956,9 @@ export type NewUser = typeof users.$inferInsert;
 
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
+
+export type UserAccountLink = typeof userAccountLinks.$inferSelect;
+export type NewUserAccountLink = typeof userAccountLinks.$inferInsert;
 
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;

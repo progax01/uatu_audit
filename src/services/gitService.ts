@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import path from "node:path";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import simpleGit from "simple-git";
 import { getUatuHome, getUserId } from "../constants/paths.js";
 import { recordGitReclone } from "./metrics.js";
 
@@ -225,4 +226,113 @@ export async function cloneOrRefresh(repo: string, targetPath: string, branch: s
           }
         }
   }
+}
+
+/**
+ * Configure git credential helper for authentication
+ * Uses git credential helper to avoid token in URL
+ */
+async function configureGitAuth(
+  repoPath: string,
+  accessToken: string
+): Promise<void> {
+  const git = simpleGit(repoPath);
+
+  // Set credential helper to use token
+  await git.addConfig('credential.helper', `!f() { echo "username=x-access-token"; echo "password=${accessToken}"; }; f`);
+}
+
+/**
+ * Pull latest changes from remote branch
+ */
+export async function pullLatest(
+  repoPath: string,
+  accessToken?: string
+): Promise<{ success: boolean; commitHash: string }> {
+  const git = simpleGit(repoPath);
+
+  // Configure credential helper if token provided
+  if (accessToken) {
+    await configureGitAuth(repoPath, accessToken);
+  }
+
+  try {
+    await git.pull();
+    const log = await git.log({ maxCount: 1 });
+    return {
+      success: true,
+      commitHash: log.latest?.hash || '',
+    };
+  } catch (error: any) {
+    throw new Error(`Git pull failed: ${error.message}`);
+  }
+}
+
+/**
+ * Push changes to remote branch
+ */
+export async function pushChanges(
+  repoPath: string,
+  branch: string,
+  accessToken: string
+): Promise<void> {
+  const git = simpleGit(repoPath);
+
+  await configureGitAuth(repoPath, accessToken);
+  await git.push('origin', branch);
+}
+
+/**
+ * Commit changes with message
+ */
+export async function commitChanges(
+  repoPath: string,
+  message: string,
+  files: string[] = ['.']
+): Promise<string> {
+  const git = simpleGit(repoPath);
+
+  await git.add(files);
+  const result = await git.commit(message);
+  return result.commit;
+}
+
+/**
+ * Create a new branch
+ */
+export async function createBranch(
+  repoPath: string,
+  branchName: string
+): Promise<void> {
+  const git = simpleGit(repoPath);
+  await git.checkoutLocalBranch(branchName);
+}
+
+/**
+ * Switch to existing branch
+ */
+export async function checkoutBranch(
+  repoPath: string,
+  branchName: string
+): Promise<void> {
+  const git = simpleGit(repoPath);
+  await git.checkout(branchName);
+}
+
+/**
+ * Get current branch name
+ */
+export async function getCurrentBranch(repoPath: string): Promise<string> {
+  const git = simpleGit(repoPath);
+  const status = await git.status();
+  return status.current || 'unknown';
+}
+
+/**
+ * Check if repository has uncommitted changes
+ */
+export async function hasUncommittedChanges(repoPath: string): Promise<boolean> {
+  const git = simpleGit(repoPath);
+  const status = await git.status();
+  return !status.isClean();
 }

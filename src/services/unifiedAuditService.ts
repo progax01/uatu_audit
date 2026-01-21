@@ -356,6 +356,18 @@ export class UnifiedAuditService extends EventEmitter {
       throw new Error(`Job ${jobId} has no SOP assigned - cannot resume`);
     }
 
+    // Validate checkpoint and detect code changes
+    try {
+      await this.validateCheckpoint(jobId, job.projectPath);
+    } catch (checkpointError: any) {
+      log.warn('Checkpoint validation failed - continuing anyway', {
+        jobId,
+        error: checkpointError.message,
+      });
+      // Don't fail resume on checkpoint validation errors
+      // Just log and continue
+    }
+
     // Load SOP
     const { loadSOP } = await import('../sops/definitions/index.js');
     const sop = await loadSOP(job.sopId);
@@ -388,6 +400,104 @@ export class UnifiedAuditService extends EventEmitter {
   }
 
   /**
+   * Validates checkpoint before resuming - checks if code has changed since last checkpoint
+   */
+  private async validateCheckpoint(jobId: string, projectPath: string): Promise<void> {
+    const { MilestoneStateManager } = await import('./milestoneStateManager.js');
+    const stateManager = new MilestoneStateManager(jobId, projectPath);
+
+    // Load latest checkpoint
+    const snapshot = await stateManager.loadLatestSnapshot();
+
+    if (!snapshot || !snapshot.checkpoints || snapshot.checkpoints.length === 0) {
+      log.debug('No checkpoint found - this is a fresh start or checkpoint not created');
+      return;
+    }
+
+    // Get latest checkpoint with context hash
+    const latestCheckpoint = snapshot.checkpoints
+      .filter(cp => cp.contextHash)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+
+    if (!latestCheckpoint || !latestCheckpoint.contextHash) {
+      log.debug('No checkpoint with context hash found');
+      return;
+    }
+
+    // Generate current context hash
+    const currentHash = await this.generateContextHash(projectPath);
+
+    // Compare hashes
+    if (currentHash !== latestCheckpoint.contextHash) {
+      log.warn('CODE CHANGED since last checkpoint', {
+        jobId,
+        checkpointId: latestCheckpoint.id,
+        checkpointTime: latestCheckpoint.timestamp,
+        previousHash: latestCheckpoint.contextHash.substring(0, 8),
+        currentHash: currentHash.substring(0, 8),
+        recommendation: 'Consider starting a new audit if significant changes were made',
+      });
+
+      // Update job metadata to record this warning
+      const [currentJob] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
+      await db.update(auditJobs)
+        .set({
+          metadata: {
+            ...(currentJob?.metadata as any || {}),
+            checkpointValidation: {
+              codeChanged: true,
+              lastCheckpoint: latestCheckpoint.id,
+              detectedAt: new Date().toISOString(),
+            },
+          },
+        })
+        .where(eq(auditJobs.id, jobId));
+    } else {
+      log.info('Checkpoint validated - code unchanged since last checkpoint', {
+        jobId,
+        checkpointId: latestCheckpoint.id,
+      });
+    }
+  }
+
+  /**
+   * Generates a hash of the current code context to detect changes
+   */
+  private async generateContextHash(projectPath: string): Promise<string> {
+    const crypto = await import('crypto');
+    const fg = await import('fast-glob');
+    const fs = await import('fs/promises');
+    const path = await import('path');
+
+    // Find all Solidity files
+    const solidityFiles = await fg.default('**/*.sol', {
+      cwd: projectPath,
+      ignore: ['node_modules/**', 'test/**', 'script/**', 'lib/**'],
+      absolute: false,
+    });
+
+    // Read and concatenate all file contents
+    const contents: string[] = [];
+    for (const file of solidityFiles.sort()) {
+      try {
+        const content = await fs.readFile(path.join(projectPath, file), 'utf-8');
+        contents.push(`${file}:${content}`);
+      } catch (error) {
+        // File might have been deleted - skip it
+        log.debug(`Could not read file for hash: ${file}`);
+      }
+    }
+
+    // Generate hash
+    const hash = crypto
+      .createHash('sha256')
+      .update(contents.join('\n'))
+      .digest('hex');
+
+    return hash;
+  }
+
+  /**
    * Acquire source code from various inputs
    */
   private async acquireSource(source: AuditSourceInput, jobId: string): Promise<string> {
@@ -407,13 +517,10 @@ export class UnifiedAuditService extends EventEmitter {
   }
 
   /**
-   * Clone a GitHub repository
+   * Clone a GitHub repository using shared workspace manager
    */
   private async cloneGitHubRepo(input: GitHubRepoInput, jobId: string): Promise<string> {
-    const workDir = path.join(process.env.WORK_DIR || '/tmp/audits', jobId);
-    await fs.ensureDir(workDir);
-
-    // Parse repo URL
+    // Parse repo URL to get clean repository identifier
     const repoMatch = input.repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
     if (!repoMatch) {
       throw new Error('Invalid GitHub URL');
@@ -421,85 +528,96 @@ export class UnifiedAuditService extends EventEmitter {
 
     const [, owner, repo] = repoMatch;
     const repoName = repo.replace('.git', '');
+    const branch = input.branch || 'main';
 
-    // Build clone URL with optional token
-    let cloneUrl = `https://github.com/${owner}/${repoName}.git`;
-    if (input.accessToken) {
-      cloneUrl = `https://${input.accessToken}@github.com/${owner}/${repoName}.git`;
-    }
+    // Get or create shared workspace (reuses existing clones)
+    const { getOrCreateSharedWorkspace, getAuditWorkspace } = await import('./workspaceManager.js');
+    const { getFullCommitHash } = await import('./gitService.js');
 
-    // Clone repository
-    const { spawn } = await import('child_process');
+    try {
+      // Get shared workspace - this will reuse existing clone if available
+      log.info('Getting shared workspace', { owner, repo: repoName, branch });
+      const workspace = await getOrCreateSharedWorkspace(
+        owner,
+        repoName,
+        branch,
+        input.accessToken
+      );
 
-    return new Promise((resolve, reject) => {
-      const args = ['clone', '--depth', '1'];
+      log.info('Shared workspace ready', {
+        sourcePath: workspace.sourcePath,
+        auditsPath: workspace.auditsPath,
+        testsPath: workspace.testsPath,
+      });
 
-      if (input.branch) {
-        args.push('--branch', input.branch);
+      // Create job-specific audit directory
+      const auditDir = getAuditWorkspace(workspace, jobId);
+      await fs.ensureDir(auditDir);
+      log.info('Created job-specific audit directory', { auditDir });
+
+      // Capture commit SHA immediately after clone/pull
+      const commitSha = await getFullCommitHash(workspace.sourcePath);
+
+      if (commitSha) {
+        log.info('Captured commit SHA', { commitSha: commitSha.substring(0, 7), full: commitSha });
+
+        // Update audit job with commit SHA and workspace metadata
+        const { db } = await import('../db/index.js');
+        const { auditJobs } = await import('../db/schema.js');
+        const { eq } = await import('drizzle-orm');
+
+        await db
+          .update(auditJobs)
+          .set({
+            commitSha,
+            branch,
+            metadata: {
+              workspace: {
+                repoPath: workspace.repoPath,
+                sourcePath: workspace.sourcePath,
+                auditsPath: workspace.auditsPath,
+                testsPath: workspace.testsPath,
+                auditDir,
+                shared: true,
+                owner,
+                repo: repoName,
+                branch,
+              },
+            },
+          })
+          .where(eq(auditJobs.id, jobId));
+
+        log.info('Updated audit job with commit SHA and workspace info', {
+          jobId,
+          commitSha: commitSha.substring(0, 7),
+          shared: true,
+        });
+      } else {
+        log.warn('Failed to capture commit SHA', { sourcePath: workspace.sourcePath });
       }
 
-      args.push(cloneUrl, 'source');
+      // Install dependencies after cloning
+      try {
+        await this.installDependencies(workspace.sourcePath);
+      } catch (installError: any) {
+        log.warn('Failed to install dependencies, continuing anyway', {
+          error: installError.message,
+        });
+      }
 
-      const proc = spawn('git', args, {
-        cwd: workDir,
-        timeout: 120000, // 2 minutes
+      // Create ignore files to exclude node_modules and other directories from analysis
+      await this.createIgnoreFiles(workspace.sourcePath);
+
+      return workspace.sourcePath;
+    } catch (error: any) {
+      log.error('Failed to clone GitHub repository', {
+        error: error.message,
+        owner,
+        repo: repoName,
+        branch,
       });
-
-      let stderr = '';
-      proc.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      proc.on('close', async (code) => {
-        if (code === 0) {
-          const sourcePath = path.join(workDir, 'source');
-
-          try {
-            // Capture commit SHA immediately after clone
-            const { getFullCommitHash } = await import('./gitService.js');
-            const commitSha = await getFullCommitHash(sourcePath);
-
-            if (commitSha) {
-              log.info('Captured commit SHA after clone', { commitSha: commitSha.substring(0, 7), full: commitSha });
-
-              // Update audit job with commit SHA
-              const { db } = await import('../db/index.js');
-              const { auditJobs } = await import('../db/schema.js');
-              const { eq } = await import('drizzle-orm');
-
-              await db
-                .update(auditJobs)
-                .set({ commitSha, branch: input.branch || 'main' })
-                .where(eq(auditJobs.id, jobId));
-
-              log.info('Updated audit job with commit SHA', { jobId, commitSha: commitSha.substring(0, 7) });
-            } else {
-              log.warn('Failed to capture commit SHA', { sourcePath });
-            }
-
-            // Install dependencies after cloning
-            await this.installDependencies(sourcePath);
-
-            // Create ignore files to exclude node_modules and other directories from analysis
-            await this.createIgnoreFiles(sourcePath);
-
-            resolve(sourcePath);
-          } catch (installError: any) {
-            log.warn('Failed to install dependencies, continuing anyway', {
-              error: installError.message,
-            });
-            // Continue even if dependency installation fails
-            resolve(sourcePath);
-          }
-        } else {
-          reject(new Error(`Git clone failed: ${stderr}`));
-        }
-      });
-
-      proc.on('error', (err) => {
-        reject(err);
-      });
-    });
+      throw new Error(`Git clone failed: ${error.message}`);
+    }
   }
 
   /**

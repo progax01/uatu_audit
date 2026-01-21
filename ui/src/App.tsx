@@ -191,7 +191,7 @@ function App() {
                   }}
                 />
               } />
-              <Route path="/audits/:jobId/questionnaire" element={<AuditQuestionnaire />} />
+              <Route path="/audit/:jobId/questionnaire" element={<AuditQuestionnaire />} />
 
               {/* Onboarding - Protected but standalone (no dashboard layout) */}
               <Route path="/onboarding" element={

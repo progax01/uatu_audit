@@ -269,11 +269,18 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
   const getStatusConfig = (status: string) => {
     const configs: Record<string, { label: string; colorClass: string }> = {
       'pending': { label: 'PENDING', colorClass: 'bg-amber-50 text-amber-600 border-amber-100' },
+      'queued': { label: 'QUEUED', colorClass: 'bg-blue-50 text-blue-600 border-blue-100' },
       'running': { label: 'RUNNING', colorClass: 'bg-blue-50 text-blue-600 border-blue-100 animate-pulse' },
+      'cloning': { label: 'CLONING', colorClass: 'bg-indigo-50 text-indigo-600 border-indigo-100 animate-pulse' },
+      'analyzing': { label: 'ANALYZING', colorClass: 'bg-violet-50 text-violet-600 border-violet-100 animate-pulse' },
+      'awaiting_clarification': { label: 'AWAITING INPUT', colorClass: 'bg-amber-50 text-amber-600 border-amber-100 animate-pulse' },
+      'auditing': { label: 'AUDITING', colorClass: 'bg-purple-50 text-purple-600 border-purple-100 animate-pulse' },
+      'generating': { label: 'GENERATING REPORT', colorClass: 'bg-cyan-50 text-cyan-600 border-cyan-100 animate-pulse' },
       'completed': { label: 'COMPLETED', colorClass: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-      'failed': { label: 'FAILED', colorClass: 'bg-rose-50 text-rose-600 border-rose-100' }
+      'failed': { label: 'FAILED', colorClass: 'bg-rose-50 text-rose-600 border-rose-100' },
+      'cancelled': { label: 'CANCELLED', colorClass: 'bg-slate-50 text-slate-500 border-slate-200' }
     }
-    return configs[status] || configs['pending']
+    return configs[status] || { label: status.toUpperCase(), colorClass: 'bg-slate-50 text-slate-500 border-slate-200' }
   }
 
   const getScoreColor = (score: number) => {
@@ -386,7 +393,8 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
         {audits.map((audit) => {
           const statusConfig = getStatusConfig(audit.status)
           const isCompleted = audit.status === 'completed'
-          const canNavigate = isCompleted
+          const isFailed = audit.status === 'failed'
+          const canNavigate = isCompleted || isFailed
 
           return (
             <div
