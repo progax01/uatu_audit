@@ -24,6 +24,7 @@ import {
   handleInteractiveAuditRoutes,
   handleAuditQuestionnaireRoutes,
   handleOGImageRoutes,
+  handleMetaTagInjection,
   getSessionId,
   loadUserId,
 } from "./routes/index.js";
@@ -169,6 +170,10 @@ async function handleRequest(req: any, res: any) {
 
     // Pre-audit questionnaire routes
     if (await handlePreAuditRoutes(req, res, parsed)) return;
+
+    // Dynamic meta tag injection for audit pages (BEFORE SPA fallback)
+    // This injects custom OG images and meta tags for social sharing
+    if (await handleMetaTagInjection(req, res, parsed)) return;
 
     // SPA fallback - serve index.html for all non-API GET requests (catch-all for client-side routing)
     if (req.method === "GET") {

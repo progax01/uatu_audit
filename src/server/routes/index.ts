@@ -12,3 +12,4 @@ export { handleAuditRoutes } from "./audit.js";
 export { handleInteractiveAuditRoutes } from "./interactiveAudit.js";
 export { handleAuditQuestionnaireRoutes } from "./auditQuestionnaire.js";
 export { handleOGImageRoutes } from "./ogImage.js";
+export { handleMetaTagInjection } from "./metaTags.js";
