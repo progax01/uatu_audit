@@ -215,9 +215,21 @@ export async function handleAuthRoutes(
       res.end("GITHUB_CLIENT_ID not set");
       return true;
     }
+
+    // CRITICAL: Pass state parameter through to GitHub
+    const state = parsed.query.state;
     const scope = encodeURIComponent("repo read:org admin:repo_hook");
-    const redirect = `https://github.com/login/oauth/authorize?client_id=${GH_CLIENT_ID}&redirect_uri=${encodeURIComponent(GH_CALLBACK)}&scope=${scope}`;
-    logger.debug("Redirecting to GitHub OAuth", { redirect });
+    let redirect = `https://github.com/login/oauth/authorize?client_id=${GH_CLIENT_ID}&redirect_uri=${encodeURIComponent(GH_CALLBACK)}&scope=${scope}`;
+
+    // GitHub will pass state back to callback
+    if (state) {
+      redirect += `&state=${encodeURIComponent(state)}`;
+      logger.debug("Passing state parameter to GitHub OAuth", { statePresent: true });
+    } else {
+      logger.warn("No state parameter in GitHub login request");
+    }
+
+    logger.debug("Redirecting to GitHub OAuth", { redirect: redirect.substring(0, 100) + '...' });
     res.statusCode = 302;
     res.setHeader("Location", redirect);
     res.end();
