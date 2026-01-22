@@ -268,231 +268,234 @@ export default function Settings() {
 
     return (
         <div className="space-y-8 animate-reveal">
-            {/* Profile Header Card */}
-            <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="card-premium"
-            >
-                <div className="flex items-start gap-6">
-                    {/* Avatar */}
-                    <div className="relative">
-                        {user?.avatarUrl ? (
-                            <img
-                                src={user.avatarUrl}
-                                alt={primaryName}
-                                className="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-lg"
-                            />
-                        ) : (
-                            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-black shadow-lg">
-                                {initials}
-                            </div>
-                        )}
-                        {/* Online indicator */}
-                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-3 border-white" />
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-1">
-                            <h2 className="text-2xl font-black text-slate-900 truncate">
-                                {primaryName}
-                                {showGithubHandle && (
-                                    <span className="text-slate-400 font-medium ml-2">(@{user.githubLogin})</span>
-                                )}
-                            </h2>
-                            <span className={`px-2.5 py-1 ${tierConfig.bg} ${tierConfig.border} ${tierConfig.color} text-[9px] font-black rounded-full uppercase tracking-wider flex items-center gap-1 border`}>
-                                <TierIcon size={10} />
-                                {tierConfig.label}
-                            </span>
+            {/* Profile Cards - Side by Side */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                {/* Profile Header Card */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="card-premium"
+                >
+                    <div className="flex items-start gap-6">
+                        {/* Avatar */}
+                        <div className="relative">
+                            {user?.avatarUrl ? (
+                                <img
+                                    src={user.avatarUrl}
+                                    alt={primaryName}
+                                    className="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-lg"
+                                />
+                            ) : (
+                                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-black shadow-lg">
+                                    {initials}
+                                </div>
+                            )}
+                            {/* Online indicator */}
+                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-3 border-white" />
                         </div>
-                        {showUatuUsername && (
-                            <p className="text-sm text-slate-500">
-                                Username: <span className="font-semibold text-slate-700">{user.username}</span>
-                            </p>
-                        )}
 
-                        {user?.email && (
-                            <p className="text-slate-400 text-sm mb-3">{user.email}</p>
-                        )}
-
-                        {/* Organization / Company */}
-                        {user?.company && (
-                            <div className="flex items-center gap-2 text-slate-600">
-                                <Building2 size={14} className="text-slate-400" />
-                                <span className="text-sm font-medium">{user.company}</span>
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 mb-1">
+                                <h2 className="text-2xl font-black text-slate-900 truncate">
+                                    {primaryName}
+                                    {showGithubHandle && (
+                                        <span className="text-slate-400 font-medium ml-2">(@{user.githubLogin})</span>
+                                    )}
+                                </h2>
+                                <span className={`px-2.5 py-1 ${tierConfig.bg} ${tierConfig.border} ${tierConfig.color} text-[9px] font-black rounded-full uppercase tracking-wider flex items-center gap-1 border`}>
+                                    <TierIcon size={10} />
+                                    {tierConfig.label}
+                                </span>
                             </div>
-                        )}
+                            {showUatuUsername && (
+                                <p className="text-sm text-slate-500">
+                                    Username: <span className="font-semibold text-slate-700">{user.username}</span>
+                                </p>
+                            )}
 
-                        {/* Stats Row */}
-                        <div className="flex items-center gap-6 mt-4 pt-4 border-t border-black/[0.03]">
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">XP Balance</p>
-                                <p className="text-lg font-black text-slate-900">{(user?.xpBalance || 0).toLocaleString()}</p>
-                            </div>
-                            <div className="w-px h-8 bg-slate-200" />
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Audits Used</p>
-                                <p className="text-lg font-black text-slate-900">{user?.monthlyAuditsUsed || 0}</p>
+                            {user?.email && (
+                                <p className="text-slate-400 text-sm mb-3">{user.email}</p>
+                            )}
+
+                            {/* Organization / Company */}
+                            {user?.company && (
+                                <div className="flex items-center gap-2 text-slate-600">
+                                    <Building2 size={14} className="text-slate-400" />
+                                    <span className="text-sm font-medium">{user.company}</span>
+                                </div>
+                            )}
+
+                            {/* Stats Row */}
+                            <div className="flex items-center gap-6 mt-4 pt-4 border-t border-black/[0.03]">
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">XP Balance</p>
+                                    <p className="text-lg font-black text-slate-900">{(user?.xpBalance || 0).toLocaleString()}</p>
+                                </div>
+                                <div className="w-px h-8 bg-slate-200" />
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Audits Used</p>
+                                    <p className="text-lg font-black text-slate-900">{user?.monthlyAuditsUsed || 0}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </motion.div>
+                </motion.div>
 
-            {/* Profile Settings Section */}
-            <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 }}
-                className="card-premium"
-            >
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Profile Settings</h2>
-                        <p className="text-[11px] text-slate-400 mt-0.5">Update your personal information</p>
+                {/* Profile Settings Section */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 }}
+                    className="card-premium"
+                >
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Profile Settings</h2>
+                            <p className="text-[11px] text-slate-400 mt-0.5">Update your personal information</p>
+                        </div>
+                        {!isEditingProfile && (
+                            <button
+                                onClick={() => setIsEditingProfile(true)}
+                                className="px-4 h-9 bg-slate-900 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-indigo-600 transition-all"
+                            >
+                                Edit Profile
+                            </button>
+                        )}
                     </div>
-                    {!isEditingProfile && (
-                        <button
-                            onClick={() => setIsEditingProfile(true)}
-                            className="px-4 h-9 bg-slate-900 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-indigo-600 transition-all"
-                        >
-                            Edit Profile
-                        </button>
+
+                    {!isEditingProfile ? (
+                        /* Display Mode */
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Email</label>
+                                    <p className="text-sm text-slate-900">{user?.email || 'Not set'}</p>
+                                    {user?.githubEmail && user?.githubEmail !== user?.email && (
+                                        <p className="text-[11px] text-slate-400 mt-1">GitHub: {user.githubEmail}</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Company</label>
+                                    <p className="text-sm text-slate-900">{user?.company || 'Not set'}</p>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Bio</label>
+                                <p className="text-sm text-slate-900">{user?.bio || 'Not set'}</p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Website</label>
+                                    <p className="text-sm text-slate-900">{user?.website || 'Not set'}</p>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Twitter</label>
+                                    <p className="text-sm text-slate-900">{user?.twitterHandle ? `@${user.twitterHandle}` : 'Not set'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        /* Edit Mode */
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Display Name</label>
+                                    <input
+                                        type="text"
+                                        value={profileForm.displayName}
+                                        onChange={(e) => setProfileForm({ ...profileForm, displayName: e.target.value })}
+                                        placeholder="Your name"
+                                        className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Email</label>
+                                    <input
+                                        type="email"
+                                        value={profileForm.email}
+                                        onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                                        placeholder="your@email.com"
+                                        className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Bio</label>
+                                <textarea
+                                    value={profileForm.bio}
+                                    onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
+                                    placeholder="Tell us about yourself..."
+                                    rows={3}
+                                    className="w-full px-4 py-3 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all resize-none"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Company</label>
+                                    <input
+                                        type="text"
+                                        value={profileForm.company}
+                                        onChange={(e) => setProfileForm({ ...profileForm, company: e.target.value })}
+                                        placeholder="Your company"
+                                        className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Website</label>
+                                    <input
+                                        type="url"
+                                        value={profileForm.website}
+                                        onChange={(e) => setProfileForm({ ...profileForm, website: e.target.value })}
+                                        placeholder="https://yourwebsite.com"
+                                        className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Twitter Handle</label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">@</span>
+                                    <input
+                                        type="text"
+                                        value={profileForm.twitterHandle}
+                                        onChange={(e) => setProfileForm({ ...profileForm, twitterHandle: e.target.value.replace('@', '') })}
+                                        placeholder="username"
+                                        className="w-full h-11 pl-8 pr-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            {profileError && (
+                                <div className="flex items-center gap-2 text-rose-600 text-xs p-3 bg-rose-50 rounded-lg border border-rose-100">
+                                    <AlertCircle size={14} />
+                                    {profileError}
+                                </div>
+                            )}
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={handleCancelEdit}
+                                    disabled={profileSaving}
+                                    className="flex-1 h-11 bg-white border border-black/[0.05] rounded-xl text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveProfile}
+                                    disabled={profileSaving}
+                                    className="flex-1 h-11 bg-slate-900 text-white rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-600 transition-all disabled:opacity-50"
+                                >
+                                    {profileSaving ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            </div>
+                        </div>
                     )}
-                </div>
-
-                {!isEditingProfile ? (
-                    /* Display Mode */
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Email</label>
-                                <p className="text-sm text-slate-900">{user?.email || 'Not set'}</p>
-                                {user?.githubEmail && user?.githubEmail !== user?.email && (
-                                    <p className="text-[11px] text-slate-400 mt-1">GitHub: {user.githubEmail}</p>
-                                )}
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Company</label>
-                                <p className="text-sm text-slate-900">{user?.company || 'Not set'}</p>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Bio</label>
-                            <p className="text-sm text-slate-900">{user?.bio || 'Not set'}</p>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Website</label>
-                                <p className="text-sm text-slate-900">{user?.website || 'Not set'}</p>
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Twitter</label>
-                                <p className="text-sm text-slate-900">{user?.twitterHandle ? `@${user.twitterHandle}` : 'Not set'}</p>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    /* Edit Mode */
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Display Name</label>
-                                <input
-                                    type="text"
-                                    value={profileForm.displayName}
-                                    onChange={(e) => setProfileForm({ ...profileForm, displayName: e.target.value })}
-                                    placeholder="Your name"
-                                    className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Email</label>
-                                <input
-                                    type="email"
-                                    value={profileForm.email}
-                                    onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                                    placeholder="your@email.com"
-                                    className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Bio</label>
-                            <textarea
-                                value={profileForm.bio}
-                                onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
-                                placeholder="Tell us about yourself..."
-                                rows={3}
-                                className="w-full px-4 py-3 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all resize-none"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Company</label>
-                                <input
-                                    type="text"
-                                    value={profileForm.company}
-                                    onChange={(e) => setProfileForm({ ...profileForm, company: e.target.value })}
-                                    placeholder="Your company"
-                                    className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Website</label>
-                                <input
-                                    type="url"
-                                    value={profileForm.website}
-                                    onChange={(e) => setProfileForm({ ...profileForm, website: e.target.value })}
-                                    placeholder="https://yourwebsite.com"
-                                    className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Twitter Handle</label>
-                            <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">@</span>
-                                <input
-                                    type="text"
-                                    value={profileForm.twitterHandle}
-                                    onChange={(e) => setProfileForm({ ...profileForm, twitterHandle: e.target.value.replace('@', '') })}
-                                    placeholder="username"
-                                    className="w-full h-11 pl-8 pr-4 bg-white border border-black/[0.05] rounded-lg text-sm text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all"
-                                />
-                            </div>
-                        </div>
-
-                        {profileError && (
-                            <div className="flex items-center gap-2 text-rose-600 text-xs p-3 bg-rose-50 rounded-lg border border-rose-100">
-                                <AlertCircle size={14} />
-                                {profileError}
-                            </div>
-                        )}
-
-                        <div className="flex gap-3 pt-2">
-                            <button
-                                onClick={handleCancelEdit}
-                                disabled={profileSaving}
-                                className="flex-1 h-11 bg-white border border-black/[0.05] rounded-xl text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSaveProfile}
-                                disabled={profileSaving}
-                                className="flex-1 h-11 bg-slate-900 text-white rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-600 transition-all disabled:opacity-50"
-                            >
-                                {profileSaving ? 'Saving...' : 'Save Changes'}
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </motion.div>
+                </motion.div>
+            </div>
 
             {/* Connected Services Header */}
             <div className="flex items-center gap-4">

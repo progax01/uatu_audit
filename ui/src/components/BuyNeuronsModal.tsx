@@ -197,23 +197,24 @@ export default function BuyNeuronsModal({ isOpen, onClose, onPurchaseComplete }:
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <>
                 {/* Backdrop: Alabaster Glass */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-slate-50/60 backdrop-blur-md"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
                     onClick={onClose}
                 />
 
-                {/* Modal */}
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.98, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.98, y: 10 }}
-                    className="relative bg-white rounded-[40px] shadow-[0_32px_128px_-16px_rgba(0,0,0,0.1)] w-full max-w-2xl overflow-hidden border border-black/[0.03]"
-                >
+                {/* Modal Container - centered on main content area */}
+                <div className="fixed inset-y-0 left-72 right-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.98, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.98, y: 10 }}
+                        className="relative bg-white rounded-[40px] shadow-[0_32px_128px_-16px_rgba(0,0,0,0.1)] w-full max-w-2xl overflow-hidden border border-black/[0.03] pointer-events-auto"
+                    >
                     {/* Header: Clean & Borderless */}
                     <div className="px-10 pt-10 pb-2">
                         <div className="flex items-center justify-between">
@@ -447,8 +448,9 @@ export default function BuyNeuronsModal({ isOpen, onClose, onPurchaseComplete }:
                             </div>
                         )}
                     </div>
-                </motion.div>
-            </div>
+                    </motion.div>
+                </div>
+            </>
         </AnimatePresence>
     )
 }

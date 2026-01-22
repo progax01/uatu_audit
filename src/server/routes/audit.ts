@@ -5,6 +5,7 @@
  * Provides a single entry point for all audit types with micro-step progress tracking.
  */
 
+import { randomUUID } from 'crypto';
 import { eq, asc } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { auditJobs, auditStepProgress, auditSopExecution, auditResults, projects, auditClarifications } from '../../db/schema.js';
@@ -1014,6 +1015,114 @@ export async function handleAuditRoutes(
       return true;
     } catch (error: any) {
       log.error('Failed to submit triage', { jobId, error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // POST /api/audit/:jobId/clarify-finding - Submit finding-specific clarification
+  // ============================================================================
+  if (req.method === 'POST' && parsed.pathname.match(/^\/api\/audit\/([^/]+)\/clarify-finding$/)) {
+    const jobId = parsed.pathname.split('/')[3];
+
+    try {
+      // Verify authentication
+      const jwtAuth = await verifyAuth(req);
+      const userId = jwtAuth?.user?.id;
+
+      if (!userId) {
+        res.statusCode = 401;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Authentication required' }));
+        return true;
+      }
+
+      // Get audit job
+      const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
+
+      if (!job) {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Audit not found' }));
+        return true;
+      }
+
+      // Authorization check - must be audit owner
+      if (job.userId !== userId) {
+        res.statusCode = 403;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Only audit owner can submit clarifications' }));
+        return true;
+      }
+
+      // Parse request body
+      const chunks: any[] = [];
+      for await (const c of req) chunks.push(c);
+      const body = JSON.parse(Buffer.concat(chunks).toString());
+
+      const { findingId, clarificationType, explanation, evidenceUrl, context } = body;
+
+      // Validate required fields
+      if (!findingId || !clarificationType || !explanation) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Missing required fields: findingId, clarificationType, explanation' }));
+        return true;
+      }
+
+      // Validate clarification type
+      const validTypes = ['false_positive', 'mitigated', 'accepted_risk', 'already_fixed'];
+      if (!validTypes.includes(clarificationType)) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Invalid clarification type' }));
+        return true;
+      }
+
+      // Store clarification
+      const { addClarification } = await import('../../services/clarificationService.js');
+
+      const clarification = await addClarification({
+        jobId,
+        phase: 'post_audit',
+        questionKey: `finding_clarification_${findingId}`,
+        questionText: `Clarification for finding: ${findingId} - Type: ${clarificationType}, Explanation: ${explanation}`,
+        questionType: 'text',
+        context: {
+          findingId,
+        },
+      });
+
+      // Build answer map for re-analysis
+      const answerMap: Record<string, any> = {
+        [`finding_${findingId}_clarification_type`]: clarificationType,
+        [`finding_${findingId}_explanation`]: explanation,
+      };
+
+      // Trigger re-analysis
+      const { triggerReAnalysis } = await import('../../services/reAnalysisService.js');
+      await triggerReAnalysis(jobId, answerMap);
+
+      log.info('Finding clarification submitted, re-analysis triggered', {
+        jobId,
+        findingId,
+        clarificationType,
+      });
+
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        success: true,
+        message: 'Clarification submitted. Audit is being re-analyzed.',
+        clarificationId: clarification?.id,
+      }));
+
+      return true;
+    } catch (error: any) {
+      log.error('Failed to submit finding clarification', { jobId, error: error.message });
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: error.message }));

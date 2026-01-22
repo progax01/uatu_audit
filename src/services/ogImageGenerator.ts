@@ -36,6 +36,11 @@ export interface OGImageOptions {
     medium?: number;
     low?: number;
   };
+  componentScores?: Array<{
+    library: string;
+    grade: string;
+    score: number;
+  }>;
 }
 
 // ============================================================================
@@ -128,7 +133,7 @@ async function loadImageAsBase64(filePath: string, mimeType: string): Promise<st
  * Generate HTML for the badge
  */
 function generateBadgeHTML(options: OGImageOptions, logoBase64: string, mascotBase64: string): string {
-  const { projectName, auditType, grade, score, status, reportId, severityCounts, projectLogoUrl } = options;
+  const { projectName, auditType, grade, score, status, reportId, severityCounts, projectLogoUrl, componentScores } = options;
 
   // Determine status styling
   const statusConfig = {
@@ -172,6 +177,30 @@ function generateBadgeHTML(options: OGImageOptions, logoBase64: string, mascotBa
     if (counts.length > 0) {
       severitySummary = `<div style="text-align: center; margin-top: 20px; font-size: 16px; color: #64748b;">${counts.join(' • ')}</div>`;
     }
+  }
+
+  // Build component scores summary
+  let componentScoresHtml = '';
+  if (componentScores && componentScores.length > 0) {
+    const topComponents = componentScores.slice(0, 3);
+    const componentsHtml = topComponents.map((c: { library: string; grade: string; score: number }) => {
+      const gradeColor = c.score >= 90 ? '#10b981' : c.score >= 70 ? '#3b82f6' : c.score >= 50 ? '#f59e0b' : '#ef4444';
+      return `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: rgba(255, 255, 255, 0.5); border-radius: 12px;">
+          <span style="font-size: 14px; color: #1e293b; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(c.library)}</span>
+          <span style="font-size: 18px; font-weight: 900; color: ${gradeColor}; margin-left: 12px;">${c.grade}</span>
+        </div>
+      `;
+    }).join('');
+
+    componentScoresHtml = `
+      <div style="margin-top: 24px;">
+        <div style="text-align: center; font-size: 14px; color: #94a3b8; font-weight: 700; letter-spacing: 2px; margin-bottom: 12px;">TOP COMPONENTS</div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          ${componentsHtml}
+        </div>
+      </div>
+    `;
   }
 
   return `
@@ -453,6 +482,7 @@ function generateBadgeHTML(options: OGImageOptions, logoBase64: string, mascotBa
     </div>
 
     ${severitySummary}
+    ${componentScoresHtml}
 
     <div class="footer">Report ID: ${reportId}</div>
   </div>

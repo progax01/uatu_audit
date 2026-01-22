@@ -851,6 +851,90 @@ const updateBadgeSettingsHandler: RouteHandler = async (req, res, ctx, params) =
   }
 };
 
+/**
+ * GET /api/projects/:id/public-url - Get public URLs for sharing
+ */
+const getPublicUrlHandler: RouteHandler = async (req, res, ctx, params) => {
+  if (!ctx.userId) {
+    return sendError(res, 401, 'Authentication required');
+  }
+
+  const projectId = params?.id;
+  if (!projectId) {
+    return sendError(res, 400, 'Project ID required');
+  }
+
+  try {
+    // Verify project ownership
+    const project = await getProjectById(projectId);
+    if (!project) {
+      return sendError(res, 404, 'Project not found');
+    }
+    if (project.userId !== ctx.userId) {
+      return sendError(res, 403, 'Access denied');
+    }
+
+    // Get badge settings
+    const { db } = await import('../../db/index.js');
+    const { badgeSettings, auditJobs } = await import('../../db/schema.js');
+    const { eq, and, desc } = await import('drizzle-orm');
+
+    const settings = await db
+      .select()
+      .from(badgeSettings)
+      .where(eq(badgeSettings.projectId, projectId))
+      .limit(1);
+
+    if (settings.length === 0 || !settings[0].isPublic) {
+      return sendJson(res, 200, {
+        isPublic: false,
+        message: 'Badge is not public'
+      });
+    }
+
+    let selectedAuditId = settings[0].selectedAuditId;
+
+    // If no audit selected, get the latest completed audit
+    if (!selectedAuditId) {
+      const latestAudits = await db
+        .select()
+        .from(auditJobs)
+        .where(and(
+          eq(auditJobs.projectId, projectId),
+          eq(auditJobs.status, 'completed')
+        ))
+        .orderBy(desc(auditJobs.createdAt))
+        .limit(1);
+
+      if (latestAudits.length === 0) {
+        return sendJson(res, 200, {
+          isPublic: true,
+          message: 'No completed audits available'
+        });
+      }
+
+      selectedAuditId = latestAudits[0].id;
+    }
+
+    // Build URLs
+    const protocol = req.headers['x-forwarded-proto'] || 'http';
+    const host = req.headers.host || 'localhost:3000';
+    const baseUrl = `${protocol}://${host}`;
+
+    sendJson(res, 200, {
+      isPublic: true,
+      publicUrl: `${baseUrl}/public-audits/${selectedAuditId}`,
+      badgeUrl: `${baseUrl}/badge/${project.slug}`,
+      ogImageUrl: `${baseUrl}/og-images/${selectedAuditId}.png`,
+      selectedAuditId
+    });
+
+  } catch (error: any) {
+    log.error('Failed to get public URL:', error);
+    sendError(res, 500, error.message || 'Failed to get public URL');
+  }
+};
+
 // ============================================================================
 // ROUTE DEFINITIONS
 // ============================================================================
@@ -874,6 +958,7 @@ const routes: Route[] = [
   { method: 'GET', pattern: '/api/projects/:id/audits', handler: listProjectAuditsHandler },
   { method: 'GET', pattern: '/api/projects/:id/badge-settings', handler: getBadgeSettingsHandler },
   { method: 'PUT', pattern: '/api/projects/:id/badge-settings', handler: updateBadgeSettingsHandler },
+  { method: 'GET', pattern: '/api/projects/:id/public-url', handler: getPublicUrlHandler },
   { method: 'PUT', pattern: '/api/projects/:id/components/:cid', handler: updateComponentHandler },
   { method: 'DELETE', pattern: '/api/projects/:id/components/:cid', handler: removeComponentHandler },
   { method: 'POST', pattern: '/api/projects/manual', handler: createManualProjectHandler },

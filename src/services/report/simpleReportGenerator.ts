@@ -15,6 +15,7 @@ import {
   type AttackSurfaceOverview
 } from "../../types.js";
 import { classifyFindings, extractLibraryName } from "../findingClassifier.js";
+import { calculateDependencyScores } from "../dependencyScoreCalculator.js";
 
 // Certificate data format for the new dark-themed template
 interface CertificateData {
@@ -220,6 +221,20 @@ interface UatuData {
     medium: number;
     low: number;
   };
+  dependencyScores?: Array<{
+    library: string;
+    version?: string;
+    score: number;
+    grade: string;
+    findingsCount: {
+      critical: number;
+      high: number;
+      medium: number;
+      low: number;
+      info: number;
+    };
+    riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  }>;
   filterStats?: {
     total: number;
     project: number;
@@ -587,6 +602,14 @@ export async function generateReportFromResults(
     low: countBySeverity(dependencyFindings as any, "low"),
   };
 
+  // Calculate individual dependency scores
+  const dependencyScores = calculateDependencyScores(allRegularFindings as any);
+
+  console.log('[ReportGenerator] Dependency scores:', {
+    totalDependencies: dependencyScores.length,
+    scores: dependencyScores.map(d => ({ library: d.library, score: d.score, grade: d.grade }))
+  });
+
   // Build meta object
   const meta = {
     project: projectName,
@@ -650,6 +673,8 @@ export async function generateReportFromResults(
     })),
     // NEW: Dependency severity counts
     dependencySeverity: dependencySeverityCounts,
+    // NEW: Individual dependency audit scores
+    dependencyScores: dependencyScores,
     // NEW: Filter statistics (for debugging)
     filterStats: classified.stats,
     timeline: [

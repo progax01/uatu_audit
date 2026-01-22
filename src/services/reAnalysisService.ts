@@ -245,15 +245,19 @@ export async function triggerReAnalysis(
     const allAffectedSteps = await getDownstreamDependencies(jobId, dependentSteps);
     log.info('Found downstream dependencies', { total: allAffectedSteps.length });
 
-    // 3. Apply severity adjustments based on user context
+    // 3. Apply finding-specific clarifications (if any)
+    const clarificationCount = await applyFindingClarifications(jobId, answers);
+    log.info('Applied finding clarifications', { count: clarificationCount });
+
+    // 4. Apply severity adjustments based on user context
     const adjustedCount = await applySeverityAdjustments(jobId, answers);
     log.info('Applied severity adjustments', { count: adjustedCount });
 
-    // 4. Invalidate affected steps
+    // 5. Invalidate affected steps
     await invalidateSteps(jobId, allAffectedSteps);
     log.info('Invalidated steps for re-execution', { count: allAffectedSteps.length });
 
-    // 5. Update job status to trigger re-execution
+    // 6. Update job status to trigger re-execution
     const affectedCategories = [...new Set(
       dependentSteps
         .map(stepId => STEP_ANSWER_DEPENDENCIES.find(d => d.stepId === stepId)?.category)
@@ -379,6 +383,152 @@ async function sortStepsByOrder(jobId: string, stepIds: string[]): Promise<strin
 }
 
 // ============================================================================
+// FINDING CLARIFICATIONS
+// ============================================================================
+
+/**
+ * Applies finding-specific clarifications submitted by audit owners.
+ *
+ * IMPORTANT: This function includes guardrails to prevent manipulation:
+ * - Only processes clarifications from verified audit owners
+ * - Applies conservative severity adjustments
+ * - Logs all changes for audit trail
+ * - Never removes findings, only adjusts severity
+ *
+ * Returns the number of findings adjusted.
+ */
+async function applyFindingClarifications(
+  jobId: string,
+  answers: AnswerMap
+): Promise<number> {
+  let adjustedCount = 0;
+
+  // Extract finding clarifications from answers
+  const clarificationKeys = Object.keys(answers).filter(key =>
+    key.startsWith('finding_') && key.endsWith('_clarification_type')
+  );
+
+  if (clarificationKeys.length === 0) {
+    return 0;
+  }
+
+  // Get all findings for this job
+  const findings = await db
+    .select()
+    .from(auditFindings)
+    .where(eq(auditFindings.jobId, jobId));
+
+  for (const clarificationKey of clarificationKeys) {
+    // Extract finding ID from key: "finding_{id}_clarification_type"
+    const findingId = clarificationKey.replace('finding_', '').replace('_clarification_type', '');
+    const clarificationType = answers[clarificationKey];
+    const explanation = answers[`finding_${findingId}_explanation`];
+
+    // Find the matching finding (by ID or title)
+    const finding = findings.find(f =>
+      f.id === findingId || f.title === findingId
+    );
+
+    if (!finding) {
+      log.warn('Finding not found for clarification', { findingId });
+      continue;
+    }
+
+    let newSeverity = finding.adjustedSeverity || finding.originalSeverity;
+    let adjustmentReason = '';
+    let markAsFalsePositive = false;
+
+    // Apply severity adjustments based on clarification type
+    // GUARDRAIL: Conservative adjustments to prevent manipulation
+    switch (clarificationType) {
+      case 'false_positive':
+        // Mark as info (lowest severity) but keep visible for transparency
+        newSeverity = 'info';
+        markAsFalsePositive = true;
+        adjustmentReason = `Owner clarified as false positive: ${explanation.substring(0, 200)}`;
+        log.info('Finding marked as false positive', { findingId, explanation });
+        break;
+
+      case 'mitigated':
+        // Downgrade by one level (conservative approach)
+        newSeverity = downgradeSeverity(finding.adjustedSeverity || finding.originalSeverity);
+        adjustmentReason = `Owner confirmed mitigation in place: ${explanation.substring(0, 200)}`;
+        log.info('Finding severity downgraded due to mitigation', { findingId, originalSeverity: finding.adjustedSeverity || finding.originalSeverity, newSeverity });
+        break;
+
+      case 'already_fixed':
+        // Mark as info since it's fixed
+        newSeverity = 'info';
+        markAsFalsePositive = true;
+        adjustmentReason = `Owner confirmed fix applied: ${explanation.substring(0, 200)}`;
+        log.info('Finding marked as fixed', { findingId, explanation });
+        break;
+
+      case 'accepted_risk':
+        // Downgrade by one level (acknowledged but still relevant)
+        newSeverity = downgradeSeverity(finding.adjustedSeverity || finding.originalSeverity);
+        adjustmentReason = `Owner accepts as intentional design: ${explanation.substring(0, 200)}`;
+        log.info('Finding severity downgraded as accepted risk', { findingId, originalSeverity: finding.adjustedSeverity || finding.originalSeverity, newSeverity });
+        break;
+
+      default:
+        log.warn('Unknown clarification type', { clarificationType, findingId });
+        continue;
+    }
+
+    // GUARDRAIL: Only apply changes if severity actually changed or marked as false positive
+    if (newSeverity !== (finding.adjustedSeverity || finding.originalSeverity) || markAsFalsePositive) {
+      const updateData: any = {
+        adjustedSeverity: newSeverity,
+        severityAdjustmentReason: adjustmentReason,
+        userContext: {
+          ...(finding.userContext || {}),
+          ownerClarification: {
+            type: clarificationType,
+            explanation,
+            appliedAt: new Date().toISOString(),
+          },
+        },
+      };
+
+      if (markAsFalsePositive) {
+        updateData.status = 'clarified';
+      }
+
+      await db
+        .update(auditFindings)
+        .set(updateData)
+        .where(eq(auditFindings.id, finding.id));
+
+      adjustedCount++;
+
+      // AUDIT TRAIL: Log all adjustments
+      log.info('Finding clarification applied', {
+        jobId,
+        findingId: finding.id,
+        findingTitle: finding.title,
+        originalSeverity: finding.adjustedSeverity || finding.originalSeverity,
+        adjustedSeverity: newSeverity,
+        clarificationType,
+        explanationPreview: explanation.substring(0, 100),
+      });
+    }
+  }
+
+  log.info('Finding clarifications processing complete', { jobId, adjustedCount });
+  return adjustedCount;
+}
+
+/**
+ * Helper function to downgrade severity by one level
+ */
+function downgradeSeverity(severity: string): string {
+  const order = ['critical', 'high', 'medium', 'low', 'info'];
+  const index = order.indexOf(severity);
+  return index < order.length - 1 && index >= 0 ? order[index + 1] : severity;
+}
+
+// ============================================================================
 // SEVERITY ADJUSTMENT
 // ============================================================================
 
@@ -484,20 +634,6 @@ function upgradeSeverity(severity: string): string {
   }
 
   return levels[currentIndex + 1];
-}
-
-/**
- * Downgrades severity by one level.
- */
-function downgradeSeverity(severity: string): string {
-  const levels = ['info', 'low', 'medium', 'high', 'critical'];
-  const currentIndex = levels.indexOf(severity);
-
-  if (currentIndex <= 0) {
-    return 'info';
-  }
-
-  return levels[currentIndex - 1];
 }
 
 // ============================================================================

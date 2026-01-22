@@ -23,6 +23,8 @@ interface Project {
   category?: string
   repoUrl?: string
   branch?: string
+  logoUrl?: string
+  primaryColor?: string
   aggregatedScore?: {
     value: number
     grade: string
@@ -78,6 +80,8 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
             componentCount: p.componentCount || 0,
             lastAuditAt: p.lastAuditAt,
             lastAuditJobId: p.lastAuditJobId,
+            logoUrl: p.logoUrl,
+            primaryColor: p.primaryColor,
             aggregatedScore: p.aggregatedScore,
             category: p.category,
           }))
@@ -115,6 +119,8 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
             componentCount: p.componentCount || 0,
             lastAuditAt: p.lastAuditAt,
             lastAuditJobId: p.lastAuditJobId,
+            logoUrl: p.logoUrl,
+            primaryColor: p.primaryColor,
             aggregatedScore: p.aggregatedScore,
             category: p.category,
           }))
@@ -189,15 +195,16 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
       {/* Create Project Modal */}
       {showCreateModal && (
         <div
-          className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
           onClick={() => setShowCreateModal(false)}
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-white rounded-2xl shadow-2xl relative"
-          >
+          <div className="absolute inset-y-0 left-72 right-0 flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-white rounded-2xl shadow-2xl relative overflow-hidden"
+            >
             {/* Close Button */}
             <button
               onClick={() => setShowCreateModal(false)}
@@ -264,7 +271,8 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
                 </p>
               </div>
             </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </div>
       )}
 
@@ -340,24 +348,44 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
               className="card-premium group cursor-pointer"
             >
               <div className="flex items-start justify-between mb-8">
-                <div className={`w-14 h-14 rounded-2xl border border-black/[0.02] flex items-center justify-center transition-all ${
-                  project.componentCount === 0
-                    ? 'bg-amber-50 group-hover:bg-amber-500'
-                    : 'bg-slate-50 group-hover:bg-indigo-600 group-hover:shadow-xl group-hover:shadow-indigo-100'
-                } group-hover:text-white`}>
-                  {project.componentCount === 0 ? (
-                    <AlertTriangle size={24} strokeWidth={2} className="text-amber-500 group-hover:text-white transition-colors" />
-                  ) : project.type && PROJECT_TYPE_CONFIG[project.type] ? (
-                    <div className={PROJECT_TYPE_CONFIG[project.type].colorClass}>
-                      {(() => {
-                        const Icon = PROJECT_TYPE_CONFIG[project.type].icon
-                        return <Icon size={24} strokeWidth={2} className="group-hover:text-white transition-colors" />
-                      })()}
-                    </div>
-                  ) : (
-                    <Shield size={24} strokeWidth={2} className="text-slate-400 group-hover:text-white" />
-                  )}
-                </div>
+                {project.logoUrl ? (
+                  <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all p-2 group-hover:scale-105 shadow-sm group-hover:shadow-lg"
+                    style={{
+                      backgroundColor: project.primaryColor ? `${project.primaryColor}15` : '#f8fafc',
+                      borderColor: project.primaryColor ? `${project.primaryColor}30` : '#e2e8f0',
+                      borderWidth: '2px'
+                    }}
+                  >
+                    <img
+                      src={project.logoUrl}
+                      alt={project.name}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none'
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className={`w-14 h-14 rounded-2xl border border-black/[0.02] flex items-center justify-center transition-all ${
+                    project.componentCount === 0
+                      ? 'bg-amber-50 group-hover:bg-amber-500'
+                      : 'bg-slate-50 group-hover:bg-indigo-600 group-hover:shadow-xl group-hover:shadow-indigo-100'
+                  } group-hover:text-white`}>
+                    {project.componentCount === 0 ? (
+                      <AlertTriangle size={24} strokeWidth={2} className="text-amber-500 group-hover:text-white transition-colors" />
+                    ) : project.type && PROJECT_TYPE_CONFIG[project.type] ? (
+                      <div className={PROJECT_TYPE_CONFIG[project.type].colorClass}>
+                        {(() => {
+                          const Icon = PROJECT_TYPE_CONFIG[project.type].icon
+                          return <Icon size={24} strokeWidth={2} className="group-hover:text-white transition-colors" />
+                        })()}
+                      </div>
+                    ) : (
+                      <Shield size={24} strokeWidth={2} className="text-slate-400 group-hover:text-white" />
+                    )}
+                  </div>
+                )}
                 {project.componentCount === 0 ? (
                   <div className="px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 border-amber-100">
                     INCOMPLETE
@@ -369,7 +397,20 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
                 )}
               </div>
 
-              <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2 group-hover:text-indigo-600 transition-colors">
+              <h3
+                className="text-xl font-black text-slate-900 tracking-tight mb-2 transition-colors"
+                style={{
+                  color: undefined
+                }}
+                onMouseEnter={(e) => {
+                  if (project.primaryColor) {
+                    e.currentTarget.style.color = project.primaryColor
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = ''
+                }}
+              >
                 {project.name}
               </h3>
 

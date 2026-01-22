@@ -8,16 +8,17 @@ import {
   User, Lock, Unlock, ChevronDown, RefreshCw, Package
 } from 'lucide-react'
 import { useAccount } from 'wagmi'
-import LiabilityTriage from '../components/LiabilityTriage'
 import logo from '../assets/logo.svg'
 import mascot from '../assets/letf-mascot.png'
 import MouseTooltip from '../components/MouseTooltip'
 import MilestoneTracker from '../components/MilestoneTracker'
 import { Link } from 'react-router-dom'
 import AuthModal from '../components/AuthModal'
-import { authFetch } from '../services/authService'
+import { authFetch, getStoredUser } from '../services/authService'
 import { TestExecutionReport } from '../components/TestExecutionReport'
 import { GroupedDependencyFindings } from '../components/DependencyFindingCard'
+import { DependencyScoreCard } from '../components/DependencyScoreCard'
+import { FindingClarificationModal, type FindingClarification } from '../components/FindingClarificationModal'
 import { organizeFindings } from '../services/findingSorter'
 import SEO from '../components/SEO'
 
@@ -52,7 +53,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   const { address, isConnected } = useAccount()
   const navigate = useNavigate()
 
-  const [activeTab, setActiveTab] = useState<'report' | 'dependencies' | 'tests' | 'triage' | 'faq' | 'testcases'>('report')
+  const [activeTab, setActiveTab] = useState<'report' | 'dependencies' | 'tests' | 'faq' | 'testcases'>('report')
   const [loading, setLoading] = useState(true)
   const [auditData, setAuditData] = useState<any>(null)
   const [jobInfo, setJobInfo] = useState<any>(null)
@@ -63,11 +64,10 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   const [showClaimModal, setShowClaimModal] = useState(false)
   const [isClaimed, setIsClaimed] = useState(false)
   const [addressMismatchError, setAddressMismatchError] = useState<string | null>(null)
-  const [clarifications, setClarifications] = useState<any[]>([])
-  const [clarificationsLoading, setClarificationsLoading] = useState(false)
   const [questionnaireAnswers, setQuestionnaireAnswers] = useState<any[]>([])
-  const [triageAnswers, setTriageAnswers] = useState<any[]>([])
   const [faqLoading, setFaqLoading] = useState(false)
+  const [showClarificationModal, setShowClarificationModal] = useState(false)
+  const [selectedFinding, setSelectedFinding] = useState<any>(null)
 
   // Terminal auto-scroll ref
   const terminalRef = useRef<HTMLDivElement>(null)
@@ -89,6 +89,50 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       }
       return next
     })
+  }
+
+  // Check if current user owns this audit
+  const isAuditOwner = () => {
+    const currentUser = getStoredUser()
+    return currentUser && jobInfo?.userId === currentUser.id
+  }
+
+  // Open clarification modal for a specific finding
+  const openClarificationModal = (finding: any) => {
+    setSelectedFinding(finding)
+    setShowClarificationModal(true)
+  }
+
+  // Handle clarification submission
+  const handleClarificationSubmit = async (clarification: FindingClarification) => {
+    if (!jobId) {
+      throw new Error('No job ID available')
+    }
+
+    try {
+      const response = await authFetch(`/api/audit/${jobId}/clarify-finding`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clarification),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to submit clarification')
+      }
+
+      const data = await response.json()
+      console.log('Clarification submitted successfully:', data)
+
+      // Show success message
+      alert('✅ Clarification submitted! The audit is being re-analyzed with your context.')
+
+      // Reload the page to show updated results
+      window.location.reload()
+    } catch (err: any) {
+      console.error('Failed to submit clarification:', err)
+      throw err
+    }
   }
 
   // Handle Claim Ownership button click
@@ -411,22 +455,6 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
     }, 500);
   };
 
-  // Fetch post-audit clarification questions
-  const fetchClarifications = async (auditJobId: string) => {
-    setClarificationsLoading(true);
-    try {
-      const response = await authFetch(`/api/audit/${auditJobId}/clarifications`);
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Fetched clarifications:', data.clarifications);
-        setClarifications(data.clarifications || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch clarifications:', err);
-    } finally {
-      setClarificationsLoading(false);
-    }
-  };
 
   // Fetch pre-audit questionnaire answers
   const fetchQuestionnaireAnswers = async () => {
@@ -446,60 +474,13 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
     }
   };
 
-  // Fetch triage answers
-  const fetchTriageAnswers = async () => {
-    if (!jobId) return;
-    try {
-      const response = await authFetch(`/api/audit/${jobId}/clarifications`);
-      if (response.ok) {
-        const data = await response.json();
-        const answeredTriage = data.clarifications?.filter((c: any) => c.phase === 'post_audit' && c.status === 'answered') || [];
-        console.log('Fetched triage answers:', answeredTriage);
-        setTriageAnswers(answeredTriage);
-      }
-    } catch (err) {
-      console.error('Failed to fetch triage answers:', err);
-    }
-  };
-
   // Fetch FAQ data when FAQ tab is active
   useEffect(() => {
     if (activeTab === 'faq' && jobId) {
       fetchQuestionnaireAnswers();
-      fetchTriageAnswers();
     }
   }, [activeTab, jobId]);
 
-  // Handle triage submission
-  const handleTriageSubmit = async (answers: any) => {
-    if (!jobId) return;
-
-    try {
-      const response = await authFetch(`/api/audit/${jobId}/triage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to submit triage answers');
-      }
-
-      const data = await response.json();
-      console.log('Triage submission successful:', data);
-
-      // Reload clarifications to update status
-      await fetchClarifications(jobId);
-
-      // Reload audit data to get re-scored findings
-      window.location.reload();
-
-      alert('✅ Triage answers saved! Report has been re-scored based on your disclosures.');
-    } catch (err) {
-      console.error('Triage submission failed:', err);
-      alert('❌ Failed to save triage answers. Please try again.');
-    }
-  };
 
   useEffect(() => {
     // Fetch from new unified audit API (UUID format)
@@ -561,11 +542,6 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
             // Set quick scan flag based on audit type
             if (data.audit.auditType === 'quick') {
               setIsQuickScan(true);
-            }
-
-            // Fetch post-audit clarifications if audit is completed
-            if (data.audit.status === 'completed') {
-              fetchClarifications(jobId);
             }
 
             // If audit has results, map them to component state
@@ -1639,18 +1615,6 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                 {activeTab === 'tests' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-slate-900" />}
               </button>
               {/* Hide LIABILITY TRIAGE tab for Quick Scans */}
-              {!isQuickScan && (
-                <button
-                  onClick={() => setActiveTab('triage')}
-                  className={`px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'triage' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  Liability Triage
-                  {clarifications?.length > 0 && (
-                    <span className="ml-3 px-2 py-0.5 bg-rose-500 text-white text-[9px] rounded-full">{clarifications.length}</span>
-                  )}
-                  {activeTab === 'triage' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-slate-900" />}
-                </button>
-              )}
               <button
                 onClick={() => setActiveTab('faq')}
                 className={`px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'faq' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
@@ -1937,11 +1901,19 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                           </div>
                                           <p className="text-[13px] text-slate-900 leading-relaxed font-black">{v.recommendation}</p>
                                         </div>
-                                        {/* Only show fix verification status for critical/high findings in Standard/Deep scans */}
-                                        {!isQuickScan && (v.severity === 'critical' || v.severity === 'high') && (
+                                        {/* Show clarification button for critical/high findings if user owns the audit */}
+                                        {!isQuickScan && (v.severity === 'critical' || v.severity === 'high') && isAuditOwner() && (
                                           <div className="flex items-center gap-3 mt-8 pt-6 border-t border-slate-200">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Awaiting Fix Verification</span>
+                                            <button
+                                              onClick={() => openClarificationModal(v)}
+                                              className="flex items-center gap-2 px-6 py-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-all text-sm font-bold text-indigo-700 hover:text-indigo-800"
+                                            >
+                                              <span>💬</span>
+                                              Give Clarification
+                                            </button>
+                                            <p className="text-xs text-slate-400 italic">
+                                              Challenge this finding with context
+                                            </p>
                                           </div>
                                         )}
                                       </div>
@@ -2145,24 +2117,6 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         </div>
                         )}
                       </motion.div>
-                    ) : activeTab === 'triage' ? (
-                      <motion.div
-                        key="triage"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                      >
-                        <LiabilityTriage
-                          questions={clarifications.filter(c => c.status === 'pending').map(c => ({
-                            id: c.id,
-                            component_id: c.context?.findingId || 'unknown',
-                            component_label: c.context?.category || 'Security',
-                            question: c.questionText,
-                            suggested_scope: 'INTERNAL'
-                          }))}
-                          onSubmit={handleTriageSubmit}
-                        />
-                      </motion.div>
                     ) : activeTab === 'dependencies' ? (
                       <motion.div
                         key="dependencies"
@@ -2178,9 +2132,27 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                           </p>
                         </div>
 
+                        {/* Dependency Scores */}
+                        {auditData?.dependencyScores && auditData.dependencyScores.length > 0 && (
+                          <div className="mb-8">
+                            <DependencyScoreCard dependencies={auditData.dependencyScores} />
+                          </div>
+                        )}
+
+                        {/* Detailed Findings */}
                         {auditData?.dependencyFindings && auditData.dependencyFindings.length > 0 ? (
-                          <GroupedDependencyFindings findings={auditData.dependencyFindings} />
-                        ) : (
+                          <>
+                            <div className="border-l-4 border-slate-600 pl-6 mb-6 mt-8">
+                              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
+                                Detailed Findings
+                              </h3>
+                              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                Individual vulnerabilities detected in dependencies
+                              </p>
+                            </div>
+                            <GroupedDependencyFindings findings={auditData.dependencyFindings} />
+                          </>
+                        ) : !auditData?.dependencyScores || auditData.dependencyScores.length === 0 ? (
                           <div className="bg-green-50 border-2 border-green-200 rounded-xl p-12 text-center">
                             <CheckCircle2 className="mx-auto mb-4 text-green-600" size={48} />
                             <h3 className="font-bold text-green-900 text-xl mb-2">No Dependency Issues Found</h3>
@@ -2188,7 +2160,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                               All third-party libraries passed security checks. Your dependencies are clean.
                             </p>
                           </div>
-                        )}
+                        ) : null}
 
                         {auditData?.filterStats && (
                           <div className="mt-8 p-4 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
@@ -2419,50 +2391,6 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                 </div>
                               )}
                             </div>
-
-                            {/* Liability Triage Answers Section */}
-                            {triageAnswers.length > 0 && (
-                              <div className="space-y-4">
-                                <div className="border-l-4 border-amber-600 pl-4 mb-5">
-                                  <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">
-                                    Liability Triage Responses
-                                  </h3>
-                                  <p className="text-[10px] text-slate-400 mt-1 font-bold">
-                                    Clarifications provided after audit
-                                  </p>
-                                </div>
-
-                                {triageAnswers.map((ta: any, i: number) => (
-                                  <div key={i} className="bg-white border border-amber-200 p-6 rounded-2xl shadow-sm hover:border-amber-300 transition-colors">
-                                    <h4 className="text-sm font-black text-slate-900 mb-2 tracking-tight">
-                                      {ta.questionText}
-                                    </h4>
-                                    <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
-                                      {typeof ta.answerValue === 'object' && ta.answerValue?.answer
-                                        ? ta.answerValue.answer
-                                        : typeof ta.answerValue === 'string'
-                                        ? ta.answerValue
-                                        : JSON.stringify(ta.answerValue, null, 2)}
-                                    </p>
-                                    {ta.answerValue?.url && (
-                                      <a
-                                        href={ta.answerValue.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-xs text-indigo-600 hover:underline mt-2 inline-block font-bold"
-                                      >
-                                        View Evidence →
-                                      </a>
-                                    )}
-                                    {ta.answeredAt && (
-                                      <p className="text-[10px] text-slate-400 mt-2">
-                                        Answered: {new Date(ta.answeredAt).toLocaleDateString()}
-                                      </p>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
 
                             {/* Default FAQ Sections */}
                             <div className="space-y-4 mt-8">
@@ -2729,6 +2657,14 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
           setIsClaimed(true);
           setShowClaimModal(false);
         }}
+      />
+
+      {/* Finding Clarification Modal */}
+      <FindingClarificationModal
+        finding={selectedFinding}
+        isOpen={showClarificationModal}
+        onClose={() => setShowClarificationModal(false)}
+        onSubmit={handleClarificationSubmit}
       />
     </div>
     </>

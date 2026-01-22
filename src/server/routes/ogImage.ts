@@ -64,7 +64,7 @@ export async function handleOGImageRoutes(
       for await (const c of req) chunks.push(c);
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 
-      const { jobId, projectName, auditType, grade, score, status, reportId, severityCounts } = body;
+      const { jobId, projectName, auditType, grade, score, status, reportId, severityCounts, componentScores } = body;
 
       if (!jobId || !projectName || !grade || score === undefined || !status || !reportId) {
         res.statusCode = 400;
@@ -81,6 +81,7 @@ export async function handleOGImageRoutes(
         status,
         reportId,
         severityCounts,
+        componentScores,
       };
 
       const imageUrl = await generateOGImage(jobId, options);

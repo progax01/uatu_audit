@@ -22,6 +22,7 @@ import { SOPOrchestrator } from '../sops/orchestrator/sopOrchestrator';
 import { selectSOP } from './sopSelectionService';
 import { MicroStepProgressService, getJobProgress } from './microStepProgressService';
 import { detectContractType } from './contractTypeDetector';
+import { calculateDependencyScores } from './dependencyScoreCalculator';
 import { logger } from '../utils/logger';
 
 const log = logger.child({ module: 'unified-audit' });
@@ -908,6 +909,9 @@ export class UnifiedAuditService extends EventEmitter {
     // Calculate grade
     const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
 
+    // Calculate dependency scores
+    const dependencyScores = calculateDependencyScores(filteredFindings);
+
     // Generate report
     const reportId = crypto.randomUUID();
     const report = this.generateReport(filteredFindings, score, request);
@@ -930,6 +934,7 @@ export class UnifiedAuditService extends EventEmitter {
           info: filteredFindings.filter(f => f.severity === 'info').length,
         },
         depth: request.depth,
+        dependencyScores, // Add dependency scores to metadata
       },
     });
 
@@ -1028,6 +1033,13 @@ export class UnifiedAuditService extends EventEmitter {
         status = 'warning';
       }
 
+      // Get component scores (top 3 for OG image)
+      const componentScoresForImage = dependencyScores.slice(0, 3).map((c) => ({
+        library: c.library,
+        grade: c.grade,
+        score: c.score,
+      }));
+
       await generateOGImage(jobId, {
         projectName,
         auditType: request.depth,
@@ -1042,6 +1054,7 @@ export class UnifiedAuditService extends EventEmitter {
           medium: filteredFindings.filter(f => f.severity === 'medium').length,
           low: filteredFindings.filter(f => f.severity === 'low').length,
         },
+        componentScores: componentScoresForImage, // Include top 3 component scores
       });
 
       log.info('OG image generated', { jobId, projectName, hasProjectLogo: !!projectLogoUrl });

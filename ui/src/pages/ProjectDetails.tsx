@@ -1,12 +1,13 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import {
-    Shield, ChevronRight, ArrowLeft, Loader2, Play, Trash2, AlertTriangle, FileCode, Award, Package, Settings
+    Shield, ChevronRight, ArrowLeft, Loader2, Play, Trash2, AlertTriangle, FileCode, Award, Package, Settings, Layers
 } from 'lucide-react'
 import { authFetch } from '../services/authService'
 import SourcesTab from '../components/project/SourcesTab'
 import AuditsTab from '../components/project/AuditsTab'
 import BadgeTab from '../components/project/BadgeTab'
+import ComponentsTab from '../components/project/ComponentsTab'
 import SettingsTab from '../components/project/SettingsTab'
 import { fetchGitHubBranches } from '../services/githubService'
 
@@ -36,7 +37,7 @@ interface Project {
     discordUrl?: string
 }
 
-type TabType = 'sources' | 'audits' | 'badge' | 'settings'
+type TabType = 'sources' | 'audits' | 'components' | 'badge' | 'settings'
 
 export default function ProjectDetails() {
     const { slug } = useParams()
@@ -618,6 +619,20 @@ export default function ProjectDetails() {
                         )}
                     </button>
                     <button
+                        onClick={() => setActiveTab('components')}
+                        className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-all relative ${
+                            activeTab === 'components'
+                                ? 'text-indigo-600'
+                                : 'text-slate-400 hover:text-slate-900'
+                        }`}
+                    >
+                        <Layers size={16} />
+                        Components
+                        {activeTab === 'components' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
+                        )}
+                    </button>
+                    <button
                         onClick={() => setActiveTab('badge')}
                         className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-all relative ${
                             activeTab === 'badge'
@@ -663,22 +678,27 @@ export default function ProjectDetails() {
                             onAuditComplete={() => setRunningJobId(null)}
                         />
                     )}
+                    {activeTab === 'components' && (
+                        <ComponentsTab projectId={project.id} />
+                    )}
                     {activeTab === 'badge' && (
                         <BadgeTab
                             projectId={project.id}
                             projectSlug={project.slug}
                             projectName={project.name}
+                            primaryColor={project.primaryColor}
+                            logoUrl={project.logoUrl}
                         />
                     )}
                     {activeTab === 'settings' && (
                         <SettingsTab
                             projectId={project.id}
+                            projectSlug={project.slug}
+                            projectName={project.name}
                             initialSettings={{
                                 logoUrl: project.logoUrl,
                                 websiteUrl: project.websiteUrl,
                                 primaryColor: project.primaryColor,
-                                contractAddress: project.contractAddress,
-                                chainId: project.chainId,
                                 docsUrl: project.docsUrl,
                                 githubUrl: project.githubUrl,
                                 twitterUrl: project.twitterUrl,

@@ -4,12 +4,12 @@ import { authFetch } from '../../services/authService'
 
 interface SettingsTabProps {
     projectId: string
+    projectSlug: string
+    projectName: string
     initialSettings?: {
         logoUrl?: string
         websiteUrl?: string
         primaryColor?: string
-        contractAddress?: string
-        chainId?: string
         docsUrl?: string
         githubUrl?: string
         twitterUrl?: string
@@ -17,20 +17,20 @@ interface SettingsTabProps {
     }
 }
 
-export default function SettingsTab({ projectId, initialSettings }: SettingsTabProps) {
+export default function SettingsTab({ projectId, projectSlug, projectName, initialSettings }: SettingsTabProps) {
     const [logoUrl, setLogoUrl] = useState(initialSettings?.logoUrl || '')
     const [logoPreview, setLogoPreview] = useState(initialSettings?.logoUrl || '')
     const [websiteUrl, setWebsiteUrl] = useState(initialSettings?.websiteUrl || '')
     const [primaryColor, setPrimaryColor] = useState(initialSettings?.primaryColor || '#5C61FF')
-    const [contractAddress, setContractAddress] = useState(initialSettings?.contractAddress || '')
-    const [chainId, setChainId] = useState(initialSettings?.chainId || 'ethereum')
     const [docsUrl, setDocsUrl] = useState(initialSettings?.docsUrl || '')
     const [githubUrl, setGithubUrl] = useState(initialSettings?.githubUrl || '')
     const [twitterUrl, setTwitterUrl] = useState(initialSettings?.twitterUrl || '')
     const [discordUrl, setDiscordUrl] = useState(initialSettings?.discordUrl || '')
 
-    const [saving, setSaving] = useState(false)
-    const [saved, setSaved] = useState(false)
+    const [savingBranding, setSavingBranding] = useState(false)
+    const [savedBranding, setSavedBranding] = useState(false)
+    const [savingLinks, setSavingLinks] = useState(false)
+    const [savedLinks, setSavedLinks] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [uploading, setUploading] = useState(false)
 
@@ -74,50 +74,63 @@ export default function SettingsTab({ projectId, initialSettings }: SettingsTabP
         }
     }
 
-    const handleSave = async () => {
-        setSaving(true)
-        setError(null)
-        setSaved(false)
+    // Save all settings at once
+    const handleSaveAll = async () => {
+        setSavingBranding(true)
+        setSavingLinks(true)
 
         try {
-            const response = await authFetch(`/api/projects/${projectId}/settings`, {
+            // Save branding
+            await authFetch(`/api/projects/${projectId}/settings`, {
                 method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    logoUrl,
-                    websiteUrl,
-                    primaryColor,
-                    contractAddress,
-                    chainId,
-                    docsUrl,
-                    githubUrl,
-                    twitterUrl,
-                    discordUrl
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ logoUrl, primaryColor })
             })
 
-            if (!response.ok) {
-                throw new Error('Failed to save settings')
-            }
+            // Save links
+            await authFetch(`/api/projects/${projectId}/settings`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ websiteUrl, docsUrl, githubUrl, twitterUrl, discordUrl })
+            })
 
-            setSaved(true)
-            setTimeout(() => setSaved(false), 3000)
+            setSavedBranding(true)
+            setSavedLinks(true)
+            setTimeout(() => {
+                setSavedBranding(false)
+                setSavedLinks(false)
+            }, 3000)
         } catch (err: any) {
             setError(err.message || 'Failed to save settings')
         } finally {
-            setSaving(false)
+            setSavingBranding(false)
+            setSavingLinks(false)
         }
     }
 
     return (
         <div className="space-y-8">
-            {/* Branding Section */}
-            <div className="bg-white rounded-2xl border-2 border-slate-100 p-8">
+            {/* Combined Branding & Links Section */}
+            <div className="bg-white rounded-2xl border-2 border-slate-100 p-8 relative">
+                {/* Save Button - Top Right */}
+                <button
+                    onClick={handleSaveAll}
+                    disabled={savingBranding || savingLinks}
+                    className="absolute top-6 right-6 p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all disabled:opacity-50"
+                    title="Save all settings"
+                >
+                    {savingBranding || savingLinks ? (
+                        <Loader2 size={20} className="animate-spin" />
+                    ) : savedBranding || savedLinks ? (
+                        <Check size={20} className="text-emerald-600" />
+                    ) : (
+                        <Save size={20} />
+                    )}
+                </button>
+
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-                        <Palette className="text-white" size={20} />
+                    <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+                        <Palette className="text-indigo-600" size={20} />
                     </div>
                     <div>
                         <h3 className="text-lg font-bold text-slate-900">Branding & Visual Identity</h3>
@@ -125,134 +138,93 @@ export default function SettingsTab({ projectId, initialSettings }: SettingsTabP
                     </div>
                 </div>
 
-                {/* Logo Upload */}
-                <div className="mb-6">
-                    <label className="block text-sm font-bold text-slate-700 mb-3">
-                        Project Logo
-                    </label>
-                    <div className="flex items-start gap-6">
-                        {/* Preview */}
-                        <div className="flex-shrink-0">
-                            <div className="w-32 h-32 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden">
-                                {logoPreview ? (
-                                    <img src={logoPreview} alt="Logo preview" className="w-full h-full object-contain" />
-                                ) : (
-                                    <ImageIcon className="text-slate-300" size={32} />
-                                )}
+                {/* Logo and Color - Side by Side */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 pb-6 border-b border-slate-100">
+                    {/* Logo Upload */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-3">
+                            Project Logo
+                        </label>
+                        <div className="flex items-start gap-4">
+                            {/* Preview */}
+                            <div className="flex-shrink-0">
+                                <div className="w-24 h-24 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden">
+                                    {logoPreview ? (
+                                        <img src={logoPreview} alt="Logo preview" className="w-full h-full object-contain" />
+                                    ) : (
+                                        <ImageIcon className="text-slate-300" size={24} />
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Upload Button */}
+                            <div className="flex-1">
+                                <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors cursor-pointer">
+                                    {uploading ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin" />
+                                            Uploading...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Upload size={16} />
+                                            Upload Logo
+                                        </>
+                                    )}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleLogoUpload}
+                                        className="hidden"
+                                        disabled={uploading}
+                                    />
+                                </label>
+                                <p className="text-xs text-slate-500 mt-2">
+                                    PNG, JPG, SVG up to 2MB. Recommended: square format, transparent background
+                                </p>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    This logo will appear on your audit reports, certificates, and public badge
+                                </p>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Upload Button */}
-                        <div className="flex-1">
-                            <label className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors cursor-pointer">
-                                {uploading ? (
-                                    <>
-                                        <Loader2 size={16} className="animate-spin" />
-                                        Uploading...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Upload size={16} />
-                                        Upload Logo
-                                    </>
-                                )}
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleLogoUpload}
-                                    className="hidden"
-                                    disabled={uploading}
-                                />
-                            </label>
-                            <p className="text-xs text-slate-500 mt-2">
-                                PNG, JPG, SVG up to 2MB. Recommended: square format, transparent background
-                            </p>
-                            <p className="text-xs text-slate-400 mt-1">
-                                This logo will appear on your audit reports, certificates, and public badge
-                            </p>
+                    {/* Brand Color */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-3">
+                            Brand Color
+                        </label>
+                        <div className="flex items-center gap-4">
+                            <div
+                                className="w-12 h-12 rounded-xl border-2 border-slate-200 cursor-pointer overflow-hidden flex-shrink-0"
+                                style={{ backgroundColor: primaryColor }}
+                                onClick={() => document.getElementById('color-picker')?.click()}
+                            />
+                            <input
+                                id="color-picker"
+                                type="color"
+                                value={primaryColor}
+                                onChange={(e) => setPrimaryColor(e.target.value)}
+                                className="hidden"
+                            />
+                            <input
+                                type="text"
+                                value={primaryColor}
+                                onChange={(e) => setPrimaryColor(e.target.value)}
+                                placeholder="#5C61FF"
+                                className="flex-1 px-4 py-3 bg-white rounded-xl border-2 border-slate-200 font-mono text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+                            />
                         </div>
+                        <p className="text-xs text-slate-500 mt-2">
+                            Used for accents in audit reports and public badge
+                        </p>
                     </div>
                 </div>
 
-                {/* Primary Color */}
-                <div className="mb-6">
-                    <label className="block text-sm font-bold text-slate-700 mb-3">
-                        Brand Color
-                    </label>
-                    <div className="flex items-center gap-4">
-                        <input
-                            type="color"
-                            value={primaryColor}
-                            onChange={(e) => setPrimaryColor(e.target.value)}
-                            className="w-20 h-12 rounded-xl border-2 border-slate-200 cursor-pointer"
-                        />
-                        <input
-                            type="text"
-                            value={primaryColor}
-                            onChange={(e) => setPrimaryColor(e.target.value)}
-                            placeholder="#5C61FF"
-                            className="flex-1 px-4 py-3 bg-white rounded-xl border-2 border-slate-200 font-mono text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
-                        />
-                    </div>
-                    <p className="text-xs text-slate-500 mt-2">
-                        Used for accents in audit reports and public badge
-                    </p>
-                </div>
-            </div>
-
-            {/* Contract Information */}
-            <div className="bg-white rounded-2xl border-2 border-slate-100 p-8">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                        <FileText className="text-white" size={20} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-900">Contract Details</h3>
-                        <p className="text-sm text-slate-500">Main contract information for reports</p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">
-                            Contract Address
-                        </label>
-                        <input
-                            type="text"
-                            value={contractAddress}
-                            onChange={(e) => setContractAddress(e.target.value)}
-                            placeholder="0x..."
-                            className="w-full px-4 py-3 bg-white rounded-xl border-2 border-slate-200 font-mono text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">
-                            Network
-                        </label>
-                        <select
-                            value={chainId}
-                            onChange={(e) => setChainId(e.target.value)}
-                            className="w-full px-4 py-3 bg-white rounded-xl border-2 border-slate-200 text-sm text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 cursor-pointer"
-                        >
-                            <option value="ethereum">Ethereum Mainnet</option>
-                            <option value="arbitrum">Arbitrum One</option>
-                            <option value="polygon">Polygon</option>
-                            <option value="base">Base</option>
-                            <option value="optimism">Optimism</option>
-                            <option value="bnb">BNB Chain</option>
-                            <option value="avalanche">Avalanche</option>
-                            <option value="fantom">Fantom</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* Links Section */}
-            <div className="bg-white rounded-2xl border-2 border-slate-100 p-8">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
-                        <Globe className="text-white" size={20} />
+                {/* Project Links Section */}
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                        <Globe className="text-blue-600" size={20} />
                     </div>
                     <div>
                         <h3 className="text-lg font-bold text-slate-900">Project Links</h3>
@@ -343,32 +315,6 @@ export default function SettingsTab({ projectId, initialSettings }: SettingsTabP
                     {error}
                 </div>
             )}
-
-            {/* Save Button */}
-            <div className="flex items-center justify-end gap-4 pt-6 border-t-2 border-slate-100">
-                <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/30"
-                >
-                    {saving ? (
-                        <>
-                            <Loader2 size={20} className="animate-spin" />
-                            Saving...
-                        </>
-                    ) : saved ? (
-                        <>
-                            <Check size={20} />
-                            Saved!
-                        </>
-                    ) : (
-                        <>
-                            <Save size={20} />
-                            Save Settings
-                        </>
-                    )}
-                </button>
-            </div>
         </div>
     )
 }

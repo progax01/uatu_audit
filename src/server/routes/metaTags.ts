@@ -81,8 +81,24 @@ async function generateAuditMetaTags(jobId: string, baseUrl: string): Promise<Au
     const grade = results.scoreLabel || 'N/A';
     const score = results.scoreValue || 0;
 
+    // Include component scores in description
+    const componentScores = metadata?.dependencyScores || [];
+    const componentSummary = componentScores
+      .slice(0, 3)
+      .map((c: any) => `${c.library} (${c.grade})`)
+      .join(', ');
+
     const title = `${projectName} - Security Audit Report | ${grade} Grade (${score}%) | Uatu`;
-    const description = `${status} • ${totalFindings} total findings • AI-powered security analysis by Uatu. View detailed vulnerability report and recommendations.`;
+
+    // Build comprehensive description
+    const descriptionParts = [
+      status,
+      `${totalFindings} total findings`,
+      componentSummary && `Top components: ${componentSummary}`,
+      'AI-powered security analysis by Uatu'
+    ].filter(Boolean);
+
+    const description = descriptionParts.join(' • ');
 
     // OG image URL
     const ogImage = `${baseUrl}/og-images/${jobId}.png`;
