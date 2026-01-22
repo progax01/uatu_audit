@@ -63,18 +63,6 @@ export function BrandingPreviewCard({ logoUrl, primaryColor, projectName, score,
           />
         </div>
 
-        {/* Score badge - top right corner */}
-        {grade && (
-          <div className="absolute top-4 right-4 z-10">
-            <div
-              className="px-4 py-2 rounded-xl font-black text-white text-sm shadow-lg"
-              style={{ backgroundColor: ribbonColor }}
-            >
-              {displayScore}
-            </div>
-          </div>
-        )}
-
         {/* Main content - hero centered */}
         <div className="relative h-full flex flex-col items-center justify-center p-8">
           {/* Large Logos row */}
@@ -126,12 +114,32 @@ export function BrandingPreviewCard({ logoUrl, primaryColor, projectName, score,
             {projectName || 'Your Project'}
           </h2>
 
-          {/* Security Audit badge - prominent */}
-          <div
-            className="px-6 py-2.5 rounded-full text-xs font-bold text-white uppercase tracking-widest shadow-lg"
-            style={{ backgroundColor: brandColor }}
-          >
-            SECURITY AUDIT
+          {/* Security Audit badge with score */}
+          <div className="flex items-center gap-4">
+            <div
+              className="px-6 py-2.5 rounded-full text-xs font-bold text-white uppercase tracking-widest shadow-lg"
+              style={{ backgroundColor: brandColor }}
+            >
+              SECURITY AUDIT
+            </div>
+            {/* Score Display */}
+            {grade && score !== undefined ? (
+              <div
+                className="px-6 py-2.5 rounded-xl font-black text-white shadow-lg flex items-baseline gap-2"
+                style={{ backgroundColor: ribbonColor }}
+              >
+                <span className="text-2xl leading-none">{displayScore}</span>
+                <span className="text-sm leading-none opacity-90">{score}%</span>
+              </div>
+            ) : (
+              <div
+                className="px-6 py-2.5 rounded-xl font-black text-white shadow-lg flex items-baseline gap-2"
+                style={{ backgroundColor: brandColor, opacity: 0.5 }}
+              >
+                <span className="text-2xl leading-none">--</span>
+                <span className="text-sm leading-none opacity-90">--%</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

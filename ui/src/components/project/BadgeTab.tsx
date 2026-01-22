@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Shield, Copy, Check, ExternalLink, Globe, Lock } from 'lucide-react'
+import { Shield, Copy, Check, Globe, Lock } from 'lucide-react'
 import { authFetch } from '../../services/authService'
 import { BrandingPreviewCard } from './BrandingPreview'
 
@@ -60,7 +60,6 @@ export default function BadgeTab({ projectId, projectSlug, projectName, primaryC
           }))
         setAudits(completedAudits)
 
-        // Set current audit from latest
         if (completedAudits.length > 0) {
           setCurrentAudit(completedAudits[0])
         }
@@ -113,7 +112,6 @@ export default function BadgeTab({ projectId, projectSlug, projectName, primaryC
         link: `${window.location.origin}/project/${projectSlug}`
       }
     }
-    // Mock data when no audit
     return {
       score: '00',
       grade: 'A+',
@@ -153,7 +151,7 @@ export default function BadgeTab({ projectId, projectSlug, projectName, primaryC
 
   return (
     <div className="space-y-6">
-      {/* Branding Preview - Hero style */}
+      {/* Branding Preview with Score */}
       <BrandingPreviewCard
         logoUrl={logoUrl}
         primaryColor={primaryColor}
@@ -162,262 +160,149 @@ export default function BadgeTab({ projectId, projectSlug, projectName, primaryC
         grade={currentAudit?.scoreLabel}
       />
 
-      {/* Badge Previews */}
+      {/* Badge Styles Grid */}
       <div>
         <h3 className="font-black text-sm text-slate-400 uppercase tracking-widest mb-4">Badge Styles</h3>
 
-        {/* Ribbon Badge */}
-        <div className="card-premium p-6 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h4 className="font-bold text-sm text-slate-900">Ribbon Badge</h4>
-              <p className="text-xs text-slate-500">Compact horizontal badge for READMEs</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Ribbon Badge */}
+          <div className="card-premium p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h4 className="font-bold text-xs text-slate-900">Ribbon</h4>
+                <p className="text-[10px] text-slate-500">For READMEs</p>
+              </div>
+              {currentAudit && (
+                <button
+                  onClick={() => handleCopy(getEmbedCode('ribbon'), 'ribbon')}
+                  className="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                  title="Copy embed code"
+                >
+                  {copied === 'ribbon' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                </button>
+              )}
             </div>
-            {currentAudit && (
-              <button
-                onClick={() => handleCopy(getEmbedCode('ribbon'), 'ribbon')}
-                className="px-4 h-9 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+
+            <div className="flex justify-center p-4 bg-slate-50 rounded-lg">
+              <div
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full shadow-lg text-xs"
+                style={{ backgroundColor: color }}
               >
-                {copied === 'ribbon' ? (
-                  <>
-                    <Check size={14} className="text-emerald-600" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy size={14} />
-                    Copy Embed
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-
-          <div className="flex justify-center p-6 bg-slate-50 rounded-lg">
-            {/* Ribbon Badge Preview */}
-            <div
-              className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full shadow-lg"
-              style={{
-                backgroundColor: color,
-                boxShadow: `0 4px 14px ${color}40`
-              }}
-            >
-              {/* Logo */}
-              <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm p-1 flex items-center justify-center">
-                <img
-                  src="/logo.svg"
-                  alt="Uatu"
-                  className="w-full h-full object-contain brightness-0 invert"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none'
-                  }}
-                />
-              </div>
-
-              {/* Project Name */}
-              <div className="text-white text-xs font-bold uppercase tracking-wide">
-                {projectName}
-              </div>
-
-              {/* Divider */}
-              <div className="w-px h-6 bg-white/30"></div>
-
-              {/* Score */}
-              <div className="flex items-baseline gap-1">
-                <div className="text-xl font-black text-white leading-none">
-                  {badgeData.grade}
+                <div className="w-6 h-6 rounded-full bg-white/20 p-1 flex items-center justify-center">
+                  <img src="/logo.svg" alt="Uatu" className="w-full h-full object-contain" />
                 </div>
-                <div className="text-sm font-bold text-white/90 leading-none">
-                  {badgeData.score}%
-                </div>
+                <span className="text-white font-bold">{projectName}</span>
+                <div className="w-px h-4 bg-white/30"></div>
+                <span className="text-white font-black">{badgeData.grade}</span>
+                <span className="text-white/90 font-bold">{badgeData.score}%</span>
+                <Shield size={12} className="text-white/80" />
               </div>
-
-              {/* Shield Icon */}
-              <Shield size={16} className="text-white/80" fill="white" fillOpacity={0.2} />
             </div>
           </div>
-        </div>
 
-        {/* Rectangle Badge (OG Image) */}
-        <div className="card-premium p-6 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h4 className="font-bold text-sm text-slate-900">Rectangle Badge</h4>
-              <p className="text-xs text-slate-500">Perfect for OG meta images and social sharing</p>
+          {/* Rectangle Badge */}
+          <div className="card-premium p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h4 className="font-bold text-xs text-slate-900">Rectangle</h4>
+                <p className="text-[10px] text-slate-500">OG Image</p>
+              </div>
+              {currentAudit && (
+                <button
+                  onClick={() => handleCopy(getEmbedCode('rectangle'), 'rectangle')}
+                  className="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                  title="Copy embed code"
+                >
+                  {copied === 'rectangle' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                </button>
+              )}
             </div>
-            {currentAudit && (
-              <button
-                onClick={() => handleCopy(getEmbedCode('rectangle'), 'rectangle')}
-                className="px-4 h-9 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+
+            <div className="flex justify-center p-4 bg-slate-50 rounded-lg">
+              <div
+                className="w-full rounded-lg shadow-xl overflow-hidden text-[8px]"
+                style={{ backgroundColor: color }}
               >
-                {copied === 'rectangle' ? (
-                  <>
-                    <Check size={14} className="text-emerald-600" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy size={14} />
-                    Copy Embed
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-
-          <div className="flex justify-center p-6 bg-slate-50 rounded-lg">
-            {/* Rectangle Badge Preview */}
-            <div
-              className="w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden"
-              style={{
-                backgroundColor: color,
-                boxShadow: `0 8px 32px ${color}40`
-              }}
-            >
-              <div className="flex items-center justify-between p-6">
-                {/* Left: Logos and Project */}
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm p-2 flex items-center justify-center">
-                      <img
-                        src="/logo.svg"
-                        alt="Uatu"
-                        className="w-full h-full object-contain brightness-0 invert"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none'
-                        }}
-                      />
+                <div className="flex items-center justify-between p-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-8 h-8 rounded-lg bg-white/20 p-1 flex items-center justify-center">
+                      <img src="/logo.svg" alt="Uatu" className="w-full h-full object-contain" />
                     </div>
                     {logoUrl && (
                       <>
-                        <div className="text-white/40 text-2xl font-black">×</div>
-                        <div className="w-12 h-12 rounded-xl bg-white p-2 flex items-center justify-center shadow">
+                        <span className="text-white/40 text-sm font-black">×</span>
+                        <div className="w-8 h-8 rounded-lg bg-white p-1">
+                          <img src={logoUrl} alt="Project" className="w-full h-full object-contain" />
+                        </div>
+                      </>
+                    )}
+                    <div className="text-left ml-1">
+                      <div className="text-white font-bold leading-none">{projectName}</div>
+                      <div className="text-white/70 text-[7px] mt-0.5">Security Audit</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-white font-black text-lg leading-none">{badgeData.grade}</span>
+                      <span className="text-white/90 font-bold text-xs leading-none">{badgeData.score}%</span>
+                    </div>
+                    <div className="text-white/80 text-[6px] font-bold mt-0.5">SECURITY SCORE</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Square Badge */}
+          <div className="card-premium p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h4 className="font-bold text-xs text-slate-900">Square</h4>
+                <p className="text-[10px] text-slate-500">For websites</p>
+              </div>
+              {currentAudit && (
+                <button
+                  onClick={() => handleCopy(getEmbedCode('square'), 'square')}
+                  className="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                  title="Copy embed code"
+                >
+                  {copied === 'square' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                </button>
+              )}
+            </div>
+
+            <div className="flex justify-center p-4 bg-slate-50 rounded-lg">
+              <div
+                className="w-32 rounded-xl shadow-xl overflow-hidden"
+                style={{ backgroundColor: color }}
+              >
+                <div className="p-3 text-center space-y-2">
+                  <div className="flex items-center justify-center gap-1">
+                    <div className="w-8 h-8 rounded-lg bg-white/20 p-1">
+                      <img src="/logo.svg" alt="Uatu" className="w-full h-full object-contain" />
+                    </div>
+                    {logoUrl && (
+                      <>
+                        <span className="text-white/40 text-xs font-black">×</span>
+                        <div className="w-8 h-8 rounded-lg bg-white p-1">
                           <img src={logoUrl} alt="Project" className="w-full h-full object-contain" />
                         </div>
                       </>
                     )}
                   </div>
-
-                  <div className="text-left">
-                    <div className="text-white text-base font-bold uppercase tracking-wide">
-                      {projectName}
+                  <div className="text-white text-[10px] font-bold">{projectName}</div>
+                  <div className="h-px bg-white/20"></div>
+                  <div>
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-white font-black text-3xl leading-none">{badgeData.grade}</span>
+                      <span className="text-white/90 font-bold text-lg leading-none">{badgeData.score}%</span>
                     </div>
-                    <div className="text-white/70 text-xs font-medium mt-0.5">
-                      Security Audit
+                    <div className="text-white/80 text-[8px] font-bold mt-1">SECURITY SCORE</div>
+                  </div>
+                  <div className="flex justify-center">
+                    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
+                      <Shield size={12} className="text-white" />
                     </div>
-                  </div>
-                </div>
-
-                {/* Right: Score */}
-                <div className="text-right">
-                  <div className="flex items-baseline gap-2 justify-end">
-                    <div className="text-5xl font-black text-white leading-none">
-                      {badgeData.grade}
-                    </div>
-                    <div className="text-2xl font-bold text-white/90 leading-none">
-                      {badgeData.score}%
-                    </div>
-                  </div>
-                  <div className="text-white/80 text-xs font-bold mt-2 uppercase tracking-wider">
-                    Security Score
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Square Card Badge */}
-        <div className="card-premium p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h4 className="font-bold text-sm text-slate-900">Square Card Badge</h4>
-              <p className="text-xs text-slate-500">Square format for websites and documentation</p>
-            </div>
-            {currentAudit && (
-              <button
-                onClick={() => handleCopy(getEmbedCode('square'), 'square')}
-                className="px-4 h-9 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
-              >
-                {copied === 'square' ? (
-                  <>
-                    <Check size={14} className="text-emerald-600" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy size={14} />
-                    Copy Embed
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-
-          <div className="flex justify-center p-6 bg-slate-50 rounded-lg">
-            {/* Square Badge Preview */}
-            <div
-              className="w-64 rounded-2xl shadow-2xl overflow-hidden"
-              style={{
-                backgroundColor: color,
-                boxShadow: `0 8px 32px ${color}40`
-              }}
-            >
-              <div className="p-6 text-center space-y-4">
-                {/* Logos */}
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm p-2 flex items-center justify-center">
-                    <img
-                      src="/logo.svg"
-                      alt="Uatu"
-                      className="w-full h-full object-contain brightness-0 invert"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
-                  </div>
-                  {logoUrl && (
-                    <>
-                      <div className="text-white/40 text-xl font-black">×</div>
-                      <div className="w-12 h-12 rounded-xl bg-white p-2 flex items-center justify-center shadow">
-                        <img src={logoUrl} alt="Project" className="w-full h-full object-contain" />
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Project Name */}
-                <div>
-                  <div className="text-white text-lg font-bold uppercase tracking-wide">
-                    {projectName}
-                  </div>
-                  <div className="text-white/70 text-xs font-medium mt-1">
-                    Security Audit
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div className="h-px bg-white/20"></div>
-
-                {/* Score */}
-                <div>
-                  <div className="flex items-baseline gap-2 justify-center">
-                    <div className="text-6xl font-black text-white leading-none">
-                      {badgeData.grade}
-                    </div>
-                    <div className="text-3xl font-bold text-white/90 leading-none">
-                      {badgeData.score}%
-                    </div>
-                  </div>
-                  <div className="text-white/80 text-xs font-bold mt-2 uppercase tracking-wider">
-                    Security Score
-                  </div>
-                </div>
-
-                {/* Shield Icon */}
-                <div className="flex justify-center">
-                  <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
-                    <Shield size={20} className="text-white" fill="white" fillOpacity={0.2} />
                   </div>
                 </div>
               </div>
@@ -427,7 +312,7 @@ export default function BadgeTab({ projectId, projectSlug, projectName, primaryC
 
         {!currentAudit && (
           <p className="text-center text-sm text-slate-400 mt-4">
-            Complete an audit to enable embed codes and actual security scores
+            Complete an audit to enable embed codes. Currently showing mock data (00% A+).
           </p>
         )}
       </div>
