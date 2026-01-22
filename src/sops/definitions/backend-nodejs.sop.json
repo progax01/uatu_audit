@@ -1,0 +1,998 @@
+{
+  "id": "backend-nodejs",
+  "version": "1.0.0",
+  "name": "Node.js Backend Security Audit",
+  "description": "Comprehensive security audit for Node.js backend applications (Express, Fastify, NestJS, Koa)",
+  "framework": "nodejs",
+  "language": "typescript",
+  "requiredTools": [
+    {
+      "name": "node",
+      "version": ">=16.0.0",
+      "installUrl": "https://nodejs.org"
+    },
+    {
+      "name": "npm",
+      "version": ">=8.0.0",
+      "installUrl": "https://npmjs.com"
+    }
+  ],
+  "optionalTools": [
+    {
+      "name": "eslint",
+      "version": ">=8.0.0",
+      "installUrl": "https://eslint.org"
+    },
+    {
+      "name": "semgrep",
+      "version": ">=1.0.0",
+      "installUrl": "https://semgrep.dev"
+    }
+  ],
+  "depths": {
+    "quick": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "analyze-dependencies",
+        "detect-component-dependencies",
+        "npm-audit",
+        "parse-npm-audit",
+        "merge-tool-findings",
+        "calculate-severity",
+        "calculate-dependency-weighted-score",
+        "generate-report"
+      ],
+      "parallelizationLevel": "none",
+      "estimatedDurationMinutes": 5,
+      "toolTimeouts": {
+        "npm": 180
+      }
+    },
+    "standard": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "analyze-dependencies",
+        "detect-component-dependencies",
+        "npm-audit",
+        "parse-npm-audit",
+        "eslint-security",
+        "parse-eslint",
+        "semgrep-nodejs",
+        "parse-semgrep",
+        "analyze-api-endpoints",
+        "analyze-auth-flows",
+        "merge-tool-findings",
+        "deduplicate",
+        "ai-injection-analysis",
+        "ai-auth-analysis",
+        "calculate-severity",
+        "calculate-dependency-weighted-score",
+        "generate-report"
+      ],
+      "parallelizationLevel": "tools",
+      "estimatedDurationMinutes": 20,
+      "toolTimeouts": {
+        "npm": 180,
+        "eslint": 120,
+        "semgrep": 120
+      }
+    },
+    "deep": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "analyze-dependencies",
+        "detect-component-dependencies",
+        "npm-audit",
+        "parse-npm-audit",
+        "eslint-security",
+        "parse-eslint",
+        "semgrep-nodejs",
+        "parse-semgrep",
+        "analyze-api-endpoints",
+        "analyze-auth-flows",
+        "analyze-database-queries",
+        "analyze-external-apis",
+        "generate-api-flow-diagrams",
+        "merge-tool-findings",
+        "deduplicate",
+        "ai-injection-analysis",
+        "ai-auth-analysis",
+        "ai-business-logic-nodejs",
+        "ai-api-security",
+        "ai-validate-findings",
+        "generate-security-tests-nodejs",
+        "execute-security-tests-nodejs",
+        "bind-test-results-to-findings",
+        "calculate-severity",
+        "calculate-dependency-weighted-score",
+        "cross-component-security-analysis",
+        "ai-custom-recommendations",
+        "generate-report"
+      ],
+      "parallelizationLevel": "tools",
+      "estimatedDurationMinutes": 60,
+      "toolTimeouts": {
+        "npm": 300,
+        "eslint": 180,
+        "semgrep": 180,
+        "jest": 600
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "detect-framework",
+      "name": "Detect Node.js Framework",
+      "description": "Identify Node.js framework (Express, Fastify, NestJS, Koa) from package.json and project structure",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectNodeFramework"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": [],
+      "provides": [
+        "framework",
+        "frameworkVersion",
+        "isTypeScript",
+        "packageJson"
+      ],
+      "requires": [
+        "projectPath"
+      ],
+      "category": "detection",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "validate-structure",
+      "name": "Validate Project Structure",
+      "description": "Verify project has valid Node.js structure with required directories and entry points",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "validateNodeProjectStructure"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": [
+        "detect-framework"
+      ],
+      "provides": [
+        "projectStructure",
+        "srcDir",
+        "testDir",
+        "entryPoint"
+      ],
+      "requires": [
+        "projectPath",
+        "framework"
+      ],
+      "category": "setup",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "analyze-dependencies",
+      "name": "Analyze Package Dependencies",
+      "description": "Parse package.json to extract all dependencies, devDependencies, and analyze dependency tree",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeNodeDependencies"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": [
+        "validate-structure"
+      ],
+      "provides": [
+        "dependencies",
+        "devDependencies",
+        "dependencyTree"
+      ],
+      "requires": [
+        "projectPath",
+        "packageJson"
+      ],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 1,
+      "continueOnFailure": false
+    },
+    {
+      "id": "detect-component-dependencies",
+      "name": "Detect Cross-Component Dependencies",
+      "description": "Identify dependencies on other project components (smart contracts, frontend, other services)",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectComponentDependencies"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 60,
+      "dependsOn": [
+        "analyze-dependencies"
+      ],
+      "provides": [
+        "componentDependencies",
+        "smartContractCalls",
+        "externalApiCalls",
+        "databaseConnections"
+      ],
+      "requires": [
+        "srcDir",
+        "projectPath"
+      ],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": true,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "npm-audit",
+      "name": "Run npm audit",
+      "description": "Execute npm audit to find known vulnerabilities in dependencies",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "shell",
+        "command": "npm audit --json",
+        "workingDir": "{projectPath}"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 180,
+      "dependsOn": [
+        "analyze-dependencies"
+      ],
+      "provides": [
+        "npmAuditRaw"
+      ],
+      "requires": [
+        "projectPath"
+      ],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-npm-audit",
+      "name": "Parse npm audit Results",
+      "description": "Parse npm audit JSON output into structured findings",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseNpmAudit"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": [
+        "npm-audit"
+      ],
+      "provides": [
+        "npmAuditFindings"
+      ],
+      "requires": [
+        "npmAuditRaw"
+      ],
+      "category": "parsing",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "eslint-security",
+      "name": "Run ESLint with Security Rules",
+      "description": "Execute ESLint with security-focused plugins (eslint-plugin-security, @typescript-eslint)",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "shell",
+        "command": "npx eslint --format json --ext .js,.ts,.jsx,.tsx {srcDir}",
+        "workingDir": "{projectPath}"
+      },
+      "estimatedDurationSeconds": 45,
+      "timeoutSeconds": 180,
+      "dependsOn": [
+        "validate-structure"
+      ],
+      "provides": [
+        "eslintRaw"
+      ],
+      "requires": [
+        "srcDir"
+      ],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-eslint",
+      "name": "Parse ESLint Results",
+      "description": "Parse ESLint JSON output into structured security findings",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseESLintResults"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": [
+        "eslint-security"
+      ],
+      "provides": [
+        "eslintFindings"
+      ],
+      "requires": [
+        "eslintRaw"
+      ],
+      "category": "parsing",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "semgrep-nodejs",
+      "name": "Run Semgrep for Node.js",
+      "description": "Execute Semgrep with Node.js security rules",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "shell",
+        "command": "semgrep --config=p/nodejs --json {srcDir}",
+        "workingDir": "{projectPath}"
+      },
+      "estimatedDurationSeconds": 60,
+      "timeoutSeconds": 180,
+      "dependsOn": [
+        "validate-structure"
+      ],
+      "provides": [
+        "semgrepRaw"
+      ],
+      "requires": [
+        "srcDir"
+      ],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-semgrep",
+      "name": "Parse Semgrep Results",
+      "description": "Parse Semgrep JSON output into structured findings",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseSemgrepResults"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": [
+        "semgrep-nodejs"
+      ],
+      "provides": [
+        "semgrepFindings"
+      ],
+      "requires": [
+        "semgrepRaw"
+      ],
+      "category": "parsing",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-api-endpoints",
+      "name": "Analyze API Endpoints",
+      "description": "Extract and analyze all API endpoints (routes) for security issues",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeAPIEndpoints"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": [
+        "validate-structure"
+      ],
+      "provides": [
+        "apiEndpoints",
+        "routeDefinitions"
+      ],
+      "requires": [
+        "srcDir",
+        "framework"
+      ],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-auth-flows",
+      "name": "Analyze Authentication Flows",
+      "description": "Identify authentication mechanisms (JWT, sessions, OAuth) and analyze for security issues",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeAuthFlows"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": [
+        "analyze-api-endpoints"
+      ],
+      "provides": [
+        "authMechanisms",
+        "authMiddleware",
+        "authFindings"
+      ],
+      "requires": [
+        "srcDir",
+        "apiEndpoints"
+      ],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 7,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-database-queries",
+      "name": "Analyze Database Queries",
+      "description": "Analyze database queries for SQL injection, NoSQL injection, and unsafe operations",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeDatabaseQueries"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": [
+        "validate-structure"
+      ],
+      "provides": [
+        "databaseQueries",
+        "ormUsage",
+        "injectionRisks"
+      ],
+      "requires": [
+        "srcDir",
+        "dependencies"
+      ],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-external-apis",
+      "name": "Analyze External API Calls",
+      "description": "Identify all external API calls and analyze for SSRF, insecure communication, and API key exposure",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeExternalAPIs"
+      },
+      "estimatedDurationSeconds": 20,
+      "timeoutSeconds": 90,
+      "dependsOn": [
+        "validate-structure"
+      ],
+      "provides": [
+        "externalAPICalls",
+        "httpClientUsage",
+        "ssrfRisks"
+      ],
+      "requires": [
+        "srcDir"
+      ],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-api-flow-diagrams",
+      "name": "Generate API Flow Diagrams",
+      "description": "Generate Mermaid diagrams showing API request flows, middleware chains, and authentication flows",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generateAPIFlowDiagrams"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": [
+        "analyze-api-endpoints",
+        "analyze-auth-flows"
+      ],
+      "provides": [
+        "apiFlows",
+        "apiFlowDiagrams"
+      ],
+      "requires": [
+        "apiEndpoints",
+        "authMiddleware"
+      ],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "merge-tool-findings",
+      "name": "Merge Tool Findings",
+      "description": "Combine findings from all static analysis tools",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "mergeToolFindings"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": [
+        "parse-npm-audit",
+        "parse-eslint",
+        "parse-semgrep"
+      ],
+      "provides": [
+        "mergedFindings"
+      ],
+      "requires": [],
+      "category": "aggregation",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "deduplicate",
+      "name": "Deduplicate Findings",
+      "description": "Remove duplicate findings using semantic similarity",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "deduplicateFindings"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 120,
+      "dependsOn": [
+        "merge-tool-findings"
+      ],
+      "provides": [
+        "deduplicatedFindings"
+      ],
+      "requires": [
+        "mergedFindings"
+      ],
+      "category": "aggregation",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "ai-injection-analysis",
+      "name": "AI Injection Analysis",
+      "description": "Use AI to analyze code for SQL injection, NoSQL injection, command injection, and XSS vulnerabilities",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "nodejs-injection-analysis"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": [
+        "analyze-database-queries",
+        "analyze-api-endpoints"
+      ],
+      "provides": [
+        "aiInjectionFindings"
+      ],
+      "requires": [
+        "srcDir",
+        "databaseQueries",
+        "apiEndpoints"
+      ],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-auth-analysis",
+      "name": "AI Authentication Analysis",
+      "description": "Use AI to deeply analyze authentication and authorization logic for bypasses and privilege escalation",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "nodejs-auth-analysis"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": [
+        "analyze-auth-flows"
+      ],
+      "provides": [
+        "aiAuthFindings"
+      ],
+      "requires": [
+        "srcDir",
+        "authMechanisms",
+        "authMiddleware"
+      ],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-business-logic-nodejs",
+      "name": "AI Business Logic Analysis",
+      "description": "Use AI to analyze business logic for vulnerabilities specific to Node.js APIs",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "nodejs-business-logic"
+      },
+      "estimatedDurationSeconds": 180,
+      "timeoutSeconds": 600,
+      "dependsOn": [
+        "analyze-api-endpoints"
+      ],
+      "provides": [
+        "aiBusinessLogicFindings"
+      ],
+      "requires": [
+        "srcDir",
+        "apiEndpoints"
+      ],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 12,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-api-security",
+      "name": "AI API Security Analysis",
+      "description": "Use AI to analyze API security (rate limiting, CORS, input validation, output encoding)",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "nodejs-api-security"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": [
+        "analyze-api-endpoints"
+      ],
+      "provides": [
+        "aiAPISecurityFindings"
+      ],
+      "requires": [
+        "srcDir",
+        "apiEndpoints"
+      ],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-validate-findings",
+      "name": "AI Validate Findings",
+      "description": "Use AI to validate and refine all findings, removing false positives",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "validate-findings"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": [
+        "deduplicate"
+      ],
+      "provides": [
+        "validatedFindings"
+      ],
+      "requires": [
+        "deduplicatedFindings",
+        "srcDir"
+      ],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-security-tests-nodejs",
+      "name": "Generate Security Tests (Node.js)",
+      "description": "Generate Jest/Mocha test cases for critical and high severity findings with STRIDE/OWASP/positive/negative patterns",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generate-tests-nodejs"
+      },
+      "estimatedDurationSeconds": 180,
+      "timeoutSeconds": 600,
+      "dependsOn": [
+        "deduplicate"
+      ],
+      "provides": [
+        "generatedTests",
+        "testFiles",
+        "testsPath"
+      ],
+      "requires": [
+        "deduplicatedFindings",
+        "projectPath",
+        "framework"
+      ],
+      "category": "testing",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "execute-security-tests-nodejs",
+      "name": "Execute Security Tests (Node.js)",
+      "description": "Run generated Jest/Mocha test cases and capture execution results with proof of concept",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "execute-tests-nodejs"
+      },
+      "estimatedDurationSeconds": 240,
+      "timeoutSeconds": 900,
+      "dependsOn": [
+        "generate-security-tests-nodejs"
+      ],
+      "provides": [
+        "testResults",
+        "testExecutionSummary"
+      ],
+      "requires": [
+        "generatedTests",
+        "testFiles",
+        "projectPath"
+      ],
+      "category": "testing",
+      "aiAssisted": false,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "bind-test-results-to-findings",
+      "name": "Bind Test Results to Findings",
+      "description": "Link test execution results to findings as proof of vulnerability existence or false positive evidence",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "bindTestResultsToFindings"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": [
+        "execute-security-tests-nodejs"
+      ],
+      "provides": [
+        "enrichedFindings"
+      ],
+      "requires": [
+        "deduplicatedFindings",
+        "testResults"
+      ],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "calculate-severity",
+      "name": "Calculate Severity",
+      "description": "Calculate final severity for all findings",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "calculateSeverity"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": [
+        "deduplicate"
+      ],
+      "provides": [
+        "findingsWithSeverity"
+      ],
+      "requires": [
+        "deduplicatedFindings"
+      ],
+      "category": "scoring",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "calculate-dependency-weighted-score",
+      "name": "Calculate Dependency-Weighted Score",
+      "description": "Calculate security score considering component dependencies. If this component depends on audited components with good scores, confidence increases. If dependencies are missing or have bad scores, this is reflected.",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "calculateDependencyWeightedScore"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 120,
+      "dependsOn": [
+        "calculate-severity",
+        "detect-component-dependencies"
+      ],
+      "provides": [
+        "score",
+        "scoreBreakdown",
+        "dependencyImpact"
+      ],
+      "requires": [
+        "findingsWithSeverity",
+        "componentDependencies"
+      ],
+      "category": "scoring",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "cross-component-security-analysis",
+      "name": "Cross-Component Security Analysis",
+      "description": "Analyze security at the boundaries between this component and others (e.g., backend calling smart contracts, frontend calling backend)",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "cross-component-security"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": [
+        "detect-component-dependencies",
+        "calculate-dependency-weighted-score"
+      ],
+      "provides": [
+        "crossComponentFindings"
+      ],
+      "requires": [
+        "componentDependencies",
+        "srcDir"
+      ],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-custom-recommendations",
+      "name": "AI Custom Recommendations",
+      "description": "Generate custom remediation recommendations for each finding",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "custom-recommendations"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": [
+        "calculate-dependency-weighted-score"
+      ],
+      "provides": [
+        "findingsWithRecommendations"
+      ],
+      "requires": [
+        "findingsWithSeverity",
+        "srcDir"
+      ],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-report",
+      "name": "Generate Report",
+      "description": "Generate final audit report with all findings, scores, and recommendations",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generateReport"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": [
+        "calculate-dependency-weighted-score"
+      ],
+      "provides": [
+        "report",
+        "reportPath"
+      ],
+      "requires": [
+        "findingsWithSeverity",
+        "score",
+        "projectPath"
+      ],
+      "category": "reporting",
+      "aiAssisted": false,
+      "progressWeight": 4,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    }
+  ]
+}

@@ -32,6 +32,16 @@ const SOP_FILES: Partial<Record<Framework, string>> = {
   move: 'move-generic.sop.json',
   ink: 'ink-substrate.sop.json',
   cargo: 'rust-generic.sop.json',
+  // Backend/Frontend SOPs
+  nodejs: 'backend-nodejs.sop.json',
+  express: 'backend-nodejs.sop.json',
+  fastify: 'backend-nodejs.sop.json',
+  nestjs: 'backend-nodejs.sop.json',
+  react: 'frontend-react.sop.json',
+  'cargo-backend': 'rust-backend.sop.json',
+  python: 'backend-python.sop.json',
+  flask: 'backend-python.sop.json',
+  django: 'backend-python.sop.json',
   generic: 'base-solidity.sop.json',
   unknown: 'base-solidity.sop.json',
 };

@@ -1,0 +1,740 @@
+{
+  "id": "rust-backend",
+  "version": "1.0.0",
+  "name": "Rust Backend Security Audit",
+  "description": "Comprehensive security audit for Rust backend services (Actix, Rocket, Axum, Tokio)",
+  "framework": "cargo-backend",
+  "language": "rust",
+  "requiredTools": [
+    {
+      "name": "cargo",
+      "version": ">=1.70.0",
+      "installUrl": "https://rustup.rs"
+    },
+    {
+      "name": "rustc",
+      "version": ">=1.70.0",
+      "installUrl": "https://rustup.rs"
+    }
+  ],
+  "optionalTools": [
+    {
+      "name": "clippy",
+      "version": ">=0.1.0",
+      "installUrl": "https://github.com/rust-lang/rust-clippy"
+    },
+    {
+      "name": "cargo-audit",
+      "version": ">=0.18.0",
+      "installUrl": "https://github.com/rustsec/rustsec"
+    }
+  ],
+  "depths": {
+    "quick": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "analyze-dependencies",
+        "detect-component-dependencies",
+        "cargo-audit",
+        "parse-cargo-audit",
+        "merge-tool-findings",
+        "calculate-severity",
+        "calculate-dependency-weighted-score",
+        "generate-report"
+      ],
+      "parallelizationLevel": "none",
+      "estimatedDurationMinutes": 5,
+      "toolTimeouts": {
+        "cargo": 180
+      }
+    },
+    "standard": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "analyze-dependencies",
+        "detect-component-dependencies",
+        "cargo-audit",
+        "parse-cargo-audit",
+        "cargo-clippy",
+        "parse-clippy",
+        "detect-unsafe-code",
+        "analyze-api-handlers",
+        "analyze-async-code",
+        "merge-tool-findings",
+        "deduplicate",
+        "ai-memory-safety",
+        "ai-concurrency-analysis",
+        "calculate-severity",
+        "calculate-dependency-weighted-score",
+        "generate-report"
+      ],
+      "parallelizationLevel": "tools",
+      "estimatedDurationMinutes": 20,
+      "toolTimeouts": {
+        "cargo": 300,
+        "clippy": 180
+      }
+    },
+    "deep": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "analyze-dependencies",
+        "detect-component-dependencies",
+        "cargo-audit",
+        "parse-cargo-audit",
+        "cargo-clippy",
+        "parse-clippy",
+        "detect-unsafe-code",
+        "analyze-api-handlers",
+        "analyze-async-code",
+        "analyze-ffi-boundaries",
+        "analyze-serialization",
+        "generate-handler-flow-diagrams",
+        "merge-tool-findings",
+        "deduplicate",
+        "ai-memory-safety",
+        "ai-concurrency-analysis",
+        "ai-api-security-rust",
+        "ai-unsafe-analysis",
+        "ai-validate-findings",
+        "generate-security-tests-rust",
+        "execute-security-tests-rust",
+        "bind-test-results-to-findings",
+        "calculate-severity",
+        "calculate-dependency-weighted-score",
+        "cross-component-security-analysis",
+        "ai-custom-recommendations",
+        "generate-report"
+      ],
+      "parallelizationLevel": "tools",
+      "estimatedDurationMinutes": 60,
+      "toolTimeouts": {
+        "cargo": 600,
+        "clippy": 300
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "detect-framework",
+      "name": "Detect Rust Framework",
+      "description": "Identify Rust web framework (Actix, Rocket, Axum, Warp)",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectRustFramework"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": [],
+      "provides": ["framework", "frameworkVersion", "cargoToml"],
+      "requires": ["projectPath"],
+      "category": "detection",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "validate-structure",
+      "name": "Validate Project Structure",
+      "description": "Verify project has valid Rust structure",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "validateRustProjectStructure"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["detect-framework"],
+      "provides": ["projectStructure", "srcDir", "testDir"],
+      "requires": ["projectPath", "framework"],
+      "category": "setup",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "analyze-dependencies",
+      "name": "Analyze Cargo Dependencies",
+      "description": "Parse Cargo.toml and analyze dependency tree",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeRustDependencies"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["validate-structure"],
+      "provides": ["dependencies", "devDependencies"],
+      "requires": ["projectPath", "cargoToml"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 1,
+      "continueOnFailure": false
+    },
+    {
+      "id": "detect-component-dependencies",
+      "name": "Detect Cross-Component Dependencies",
+      "description": "Identify dependencies on databases, external APIs, smart contracts",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectComponentDependenciesRust"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 60,
+      "dependsOn": ["analyze-dependencies"],
+      "provides": ["componentDependencies", "externalCalls"],
+      "requires": ["srcDir", "projectPath"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": true,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "cargo-audit",
+      "name": "Run Cargo Audit",
+      "description": "Check for known security vulnerabilities in dependencies",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "shell",
+        "command": "cargo audit --json",
+        "workingDir": "{projectPath}"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 180,
+      "dependsOn": ["analyze-dependencies"],
+      "provides": ["cargoAuditRaw"],
+      "requires": ["projectPath"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-cargo-audit",
+      "name": "Parse Cargo Audit Results",
+      "description": "Parse cargo audit JSON output",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseCargoAudit"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["cargo-audit"],
+      "provides": ["cargoAuditFindings"],
+      "requires": ["cargoAuditRaw"],
+      "category": "parsing",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "cargo-clippy",
+      "name": "Run Cargo Clippy",
+      "description": "Run Clippy with security lints",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "shell",
+        "command": "cargo clippy --message-format=json -- -W clippy::all -W clippy::pedantic -W clippy::security",
+        "workingDir": "{projectPath}"
+      },
+      "estimatedDurationSeconds": 60,
+      "timeoutSeconds": 300,
+      "dependsOn": ["validate-structure"],
+      "provides": ["clippyRaw"],
+      "requires": ["projectPath"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-clippy",
+      "name": "Parse Clippy Results",
+      "description": "Parse Clippy JSON output",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseClippyResults"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["cargo-clippy"],
+      "provides": ["clippyFindings"],
+      "requires": ["clippyRaw"],
+      "category": "parsing",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "detect-unsafe-code",
+      "name": "Detect Unsafe Code",
+      "description": "Find all unsafe blocks and analyze for memory safety issues",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectUnsafeCode"
+      },
+      "estimatedDurationSeconds": 20,
+      "timeoutSeconds": 90,
+      "dependsOn": ["validate-structure"],
+      "provides": ["unsafeBlocks", "unsafeFindings"],
+      "requires": ["srcDir"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 7,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-api-handlers",
+      "name": "Analyze API Handlers",
+      "description": "Extract and analyze HTTP handlers (Actix/Rocket/Axum routes)",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeAPIHandlersRust"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["validate-structure"],
+      "provides": ["apiHandlers", "routeDefinitions"],
+      "requires": ["srcDir", "framework"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-async-code",
+      "name": "Analyze Async/Concurrency",
+      "description": "Analyze async code, tokio usage, potential race conditions",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeAsyncCode"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["validate-structure"],
+      "provides": ["asyncPatterns", "concurrencyFindings"],
+      "requires": ["srcDir", "dependencies"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 7,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-ffi-boundaries",
+      "name": "Analyze FFI Boundaries",
+      "description": "Analyze Foreign Function Interface usage for safety issues",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeFFIBoundaries"
+      },
+      "estimatedDurationSeconds": 20,
+      "timeoutSeconds": 90,
+      "dependsOn": ["detect-unsafe-code"],
+      "provides": ["ffiUsage", "ffiFindings"],
+      "requires": ["srcDir", "unsafeBlocks"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-serialization",
+      "name": "Analyze Serialization",
+      "description": "Analyze serde usage for deserialization vulnerabilities",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeSerialization"
+      },
+      "estimatedDurationSeconds": 20,
+      "timeoutSeconds": 90,
+      "dependsOn": ["validate-structure"],
+      "provides": ["serdeUsage", "serializationFindings"],
+      "requires": ["srcDir", "dependencies"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-handler-flow-diagrams",
+      "name": "Generate Handler Flow Diagrams",
+      "description": "Generate Mermaid diagrams for API handler flows",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generateHandlerFlowDiagrams"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["analyze-api-handlers"],
+      "provides": ["handlerFlows", "handlerFlowDiagrams"],
+      "requires": ["apiHandlers"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "merge-tool-findings",
+      "name": "Merge Tool Findings",
+      "description": "Combine findings from all tools",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "mergeToolFindings"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["parse-cargo-audit", "parse-clippy", "detect-unsafe-code"],
+      "provides": ["mergedFindings"],
+      "requires": [],
+      "category": "aggregation",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "deduplicate",
+      "name": "Deduplicate Findings",
+      "description": "Remove duplicate findings",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "deduplicateFindings"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 120,
+      "dependsOn": ["merge-tool-findings"],
+      "provides": ["deduplicatedFindings"],
+      "requires": ["mergedFindings"],
+      "category": "aggregation",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "ai-memory-safety",
+      "name": "AI Memory Safety Analysis",
+      "description": "Deep AI analysis of memory safety issues",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "rust-memory-safety"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["detect-unsafe-code"],
+      "provides": ["aiMemoryFindings"],
+      "requires": ["srcDir", "unsafeBlocks"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-concurrency-analysis",
+      "name": "AI Concurrency Analysis",
+      "description": "AI analysis of race conditions, deadlocks, async issues",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "rust-concurrency"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["analyze-async-code"],
+      "provides": ["aiConcurrencyFindings"],
+      "requires": ["srcDir", "asyncPatterns"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-api-security-rust",
+      "name": "AI API Security Analysis",
+      "description": "Analyze API handler security with AI",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "rust-api-security"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["analyze-api-handlers"],
+      "provides": ["aiAPIFindings"],
+      "requires": ["srcDir", "apiHandlers"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-unsafe-analysis",
+      "name": "AI Unsafe Code Analysis",
+      "description": "Deep AI review of unsafe blocks",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "rust-unsafe-analysis"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["detect-unsafe-code"],
+      "provides": ["aiUnsafeFindings"],
+      "requires": ["srcDir", "unsafeBlocks"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-validate-findings",
+      "name": "AI Validate Findings",
+      "description": "Validate and refine all findings",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "validate-findings"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["deduplicate"],
+      "provides": ["validatedFindings"],
+      "requires": ["deduplicatedFindings", "srcDir"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-security-tests-rust",
+      "name": "Generate Security Tests (Rust)",
+      "description": "Generate cargo test cases with STRIDE/OWASP patterns",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generate-tests-rust"
+      },
+      "estimatedDurationSeconds": 180,
+      "timeoutSeconds": 600,
+      "dependsOn": ["deduplicate"],
+      "provides": ["generatedTests", "testFiles", "testsPath"],
+      "requires": ["deduplicatedFindings", "projectPath", "framework"],
+      "category": "testing",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "execute-security-tests-rust",
+      "name": "Execute Security Tests (Rust)",
+      "description": "Run generated cargo tests and capture results",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "execute-tests-rust"
+      },
+      "estimatedDurationSeconds": 240,
+      "timeoutSeconds": 900,
+      "dependsOn": ["generate-security-tests-rust"],
+      "provides": ["testResults", "testExecutionSummary"],
+      "requires": ["generatedTests", "testFiles", "projectPath"],
+      "category": "testing",
+      "aiAssisted": false,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "bind-test-results-to-findings",
+      "name": "Bind Test Results to Findings",
+      "description": "Link test results to findings as proof",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "bindTestResultsToFindings"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["execute-security-tests-rust"],
+      "provides": ["enrichedFindings"],
+      "requires": ["deduplicatedFindings", "testResults"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "calculate-severity",
+      "name": "Calculate Severity",
+      "description": "Calculate final severity",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "calculateSeverity"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["deduplicate"],
+      "provides": ["findingsWithSeverity"],
+      "requires": ["deduplicatedFindings"],
+      "category": "scoring",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "calculate-dependency-weighted-score",
+      "name": "Calculate Dependency-Weighted Score",
+      "description": "Calculate score considering component dependencies",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "calculateDependencyWeightedScore"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 120,
+      "dependsOn": ["calculate-severity", "detect-component-dependencies"],
+      "provides": ["score", "scoreBreakdown", "dependencyImpact"],
+      "requires": ["findingsWithSeverity", "componentDependencies"],
+      "category": "scoring",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "cross-component-security-analysis",
+      "name": "Cross-Component Security Analysis",
+      "description": "Analyze security at component boundaries",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "cross-component-security"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["detect-component-dependencies", "calculate-dependency-weighted-score"],
+      "provides": ["crossComponentFindings"],
+      "requires": ["componentDependencies", "srcDir"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-custom-recommendations",
+      "name": "AI Custom Recommendations",
+      "description": "Generate custom remediation recommendations",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "custom-recommendations"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["calculate-dependency-weighted-score"],
+      "provides": ["findingsWithRecommendations"],
+      "requires": ["findingsWithSeverity", "srcDir"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-report",
+      "name": "Generate Report",
+      "description": "Generate final audit report",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generateReport"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["calculate-dependency-weighted-score"],
+      "provides": ["report", "reportPath"],
+      "requires": ["findingsWithSeverity", "score", "projectPath"],
+      "category": "reporting",
+      "aiAssisted": false,
+      "progressWeight": 4,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    }
+  ]
+}

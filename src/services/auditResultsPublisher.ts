@@ -104,6 +104,27 @@ export async function publishAuditResults(
   // Get audit findings
   const findings = await getAuditFindings(auditJobId);
 
+  // Get user flows and diagrams from audit results
+  let userFlows: any[] | undefined;
+  let userFlowDiagrams: any[] | undefined;
+  try {
+    const { auditResults } = await import('../db/schema.js');
+    const [results] = await db
+      .select()
+      .from(auditResults)
+      .where(eq(auditResults.jobId, auditJobId))
+      .limit(1);
+
+    if (results && results.metadata) {
+      const metadata = results.metadata as any;
+      userFlows = metadata.userFlows;
+      userFlowDiagrams = metadata.userFlowDiagrams;
+    }
+  } catch (error) {
+    console.warn('Failed to fetch user flows:', error);
+    // Continue without flows - they're optional
+  }
+
   // Copy generated tests if they exist
   let testFilesCopied = 0;
   if (options.includeTests && testsPath && (await fs.pathExists(testsPath))) {
@@ -127,7 +148,7 @@ export async function publishAuditResults(
   const timestamp = new Date().toISOString().split('T')[0];
   const reportFileName = `AUDIT_REPORT_${timestamp}.md`;
   const reportPath = path.join(sourcePath, reportFileName);
-  const markdown = generateAuditReport(findings, job, testFilesCopied);
+  const markdown = generateAuditReport(findings, job, testFilesCopied, userFlows, userFlowDiagrams);
   await fs.writeFile(reportPath, markdown, 'utf-8');
 
   // Generate README for test directory if tests were added
@@ -234,7 +255,9 @@ function generateCommitMessage(
 function generateAuditReport(
   findings: AuditFinding[],
   job: any,
-  testCount: number
+  testCount: number,
+  userFlows?: any[],
+  userFlowDiagrams?: any[]
 ): string {
   const timestamp = new Date().toISOString();
   const workspace = job.metadata?.workspace;
@@ -317,6 +340,64 @@ function generateAuditReport(
 
       if (finding.recommendation) {
         markdown += `**Recommendation:**\n\n${finding.recommendation}\n\n`;
+      }
+
+      markdown += `---\n\n`;
+    }
+  }
+
+  // Add User Flow Diagrams section
+  if (userFlows && userFlows.length > 0 && userFlowDiagrams && userFlowDiagrams.length > 0) {
+    markdown += `## User Flow Analysis\n\n`;
+    markdown += `The following diagrams visualize how users interact with the smart contracts and highlight potential security risks in each flow.\n\n`;
+
+    for (const flow of userFlows) {
+      markdown += `### ${flow.name}\n\n`;
+      markdown += `**Description:** ${flow.description}\n\n`;
+
+      // Add entry point information
+      markdown += `**Entry Point:** \`${flow.entryPoint.contractName || 'Contract'}.${flow.entryPoint.functionName}()\`\n\n`;
+      markdown += `- **Visibility:** ${flow.entryPoint.visibility}\n`;
+      if (flow.entryPoint.modifiers && flow.entryPoint.modifiers.length > 0) {
+        markdown += `- **Modifiers:** ${flow.entryPoint.modifiers.join(', ')}\n`;
+      }
+      markdown += `\n`;
+
+      // Add flow diagram
+      const flowDiagram = userFlowDiagrams.find((d: any) => d.flowId === flow.id && d.diagramType === 'flowchart');
+      if (flowDiagram) {
+        markdown += `**Flow Diagram:**\n\n`;
+        markdown += `\`\`\`mermaid\n${flowDiagram.mermaidCode}\`\`\`\n\n`;
+      }
+
+      // Add sequence diagram
+      const sequenceDiagram = userFlowDiagrams.find((d: any) => d.flowId === flow.id && d.diagramType === 'sequenceDiagram');
+      if (sequenceDiagram) {
+        markdown += `**Sequence Diagram:**\n\n`;
+        markdown += `\`\`\`mermaid\n${sequenceDiagram.mermaidCode}\`\`\`\n\n`;
+      }
+
+      // Add identified risks
+      if (flow.risks && flow.risks.length > 0) {
+        markdown += `**⚠️ Identified Risks:**\n\n`;
+        for (const risk of flow.risks) {
+          markdown += `- ${risk}\n`;
+        }
+        markdown += `\n`;
+      }
+
+      // Add execution steps summary
+      if (flow.steps && flow.steps.length > 0) {
+        markdown += `**Execution Steps:** ${flow.steps.length}\n\n`;
+        markdown += `| Step | Function | State Changes | External Calls |\n`;
+        markdown += `|------|----------|---------------|----------------|\n`;
+        for (let i = 0; i < flow.steps.length; i++) {
+          const step = flow.steps[i];
+          const stateChanges = step.stateChanges && step.stateChanges.length > 0 ? step.stateChanges.join(', ') : '-';
+          const externalCalls = step.externalCalls && step.externalCalls.length > 0 ? step.externalCalls.join(', ') : '-';
+          markdown += `| ${i + 1} | \`${step.functionName}()\` | ${stateChanges} | ${externalCalls} |\n`;
+        }
+        markdown += `\n`;
       }
 
       markdown += `---\n\n`;

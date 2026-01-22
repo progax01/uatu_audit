@@ -4,6 +4,7 @@ import fs from 'fs-extra';
 
 export interface UserFlowNode {
   functionName: string;
+  contractName?: string; // Contract name for better context
   visibility: 'public' | 'external' | 'internal' | 'private';
   modifiers: string[];
   stateChanges: string[];
@@ -335,4 +336,18 @@ export function summarizeFlowAnalysis(analysis: UserFlowAnalysis): string {
   }
 
   return summary;
+}
+
+/**
+ * Analyze user flows and generate Mermaid diagrams
+ */
+export async function analyzeUserFlowsWithDiagrams(
+  sourceDir: string
+): Promise<{ analysis: UserFlowAnalysis; diagrams: any[] }> {
+  const analysis = await analyzeUserFlows(sourceDir);
+  const { generateDiagramsForFlows } = await import('./mermaidDiagramGenerator.js');
+
+  const diagrams = generateDiagramsForFlows(analysis.flows);
+
+  return { analysis, diagrams };
 }

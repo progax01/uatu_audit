@@ -272,6 +272,15 @@ interface UatuData {
   test_methodology?: TestMethodology | null;
   user_flows?: UserFlow[];
   test_results?: TestResult[];
+  // Markdown sections for detailed reports
+  testExecutionMarkdown?: string;
+  userFlowMarkdown?: string;
+  userFlowDiagrams?: Array<{
+    flowId: string;
+    diagramType: string;
+    mermaidCode: string;
+    description: string;
+  }>;
   // PAGE 1: Executive Certificate data
   page1_certificate?: Page1Certificate;
   // PAGE 2: Risk Narrative data
@@ -704,6 +713,14 @@ export async function generateReportFromResults(
     test_methodology: results.test_methodology || null,
     user_flows: results.user_flows || [],
     test_results: results.test_results || [],
+    // Generate markdown sections for test execution and user flows
+    testExecutionMarkdown: (rawResults as any).testResults && (rawResults as any).generatedTests
+      ? generateTestExecutionSection((rawResults as any).testResults, (rawResults as any).generatedTests)
+      : undefined,
+    userFlowMarkdown: (rawResults as any).userFlows
+      ? generateUserFlowSection((rawResults as any).userFlows, (rawResults as any).userFlowDiagrams || [])
+      : undefined,
+    userFlowDiagrams: (rawResults as any).userFlowDiagrams || undefined,
     // Undeclared components section
     undeclaredComponents: undeclaredFindings.map(f => ({
       name: f.title || 'Unknown',
@@ -768,6 +785,144 @@ async function imageToDataUri(imagePath: string): Promise<string | undefined> {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Generate test execution section for report
+ * Shows generated tests, execution results, and proof of vulnerabilities
+ */
+function generateTestExecutionSection(testResults: any[], generatedTests: any[]): string {
+  if (!testResults || testResults.length === 0) {
+    return '## Test Execution\n\nNo security tests were executed during this audit.\n\n';
+  }
+
+  const passed = testResults.filter((r: any) => r.success).length;
+  const failed = testResults.filter((r: any) => !r.success).length;
+
+  let section = '## 🧪 Test Execution\n\n';
+  section += `Generated and executed **${testResults.length}** security tests to validate findings.\n\n`;
+  section += `### Summary\n\n`;
+  section += `| Metric | Count | Interpretation |\n`;
+  section += `|--------|-------|----------------|\n`;
+  section += `| Total Tests | ${testResults.length} | Security tests generated for critical/high findings |\n`;
+  section += `| ✅ Passed | ${passed} | Vulnerability **NOT present** or **fixed** |\n`;
+  section += `| ❌ Failed | ${failed} | Vulnerability **CONFIRMED** by test |\n\n`;
+
+  if (failed > 0) {
+    section += `> **⚠️ ${failed} test(s) failed**: These failures confirm the presence of vulnerabilities. Review test output for proof of concept.\n\n`;
+  }
+
+  section += '### Test Details\n\n';
+
+  testResults.forEach((result: any, idx: number) => {
+    const test = generatedTests?.find((t: any) => t.findingId === result.findingId);
+    if (!test) return;
+
+    section += `#### Test ${idx + 1}: \`${result.testFileName}\`\n\n`;
+    section += `**Result**: ${result.success ? '✅ PASSED' : '❌ FAILED'}\n\n`;
+    section += `**Interpretation**: ${result.success
+      ? 'Vulnerability is NOT present in the current code (or has been fixed)'
+      : 'Vulnerability is CONFIRMED - test demonstrates the exploit'}\n\n`;
+
+    if (result.gasUsed) {
+      section += `**Gas Used**: ${result.gasUsed.toLocaleString()}\n\n`;
+    }
+
+    // Show test code (truncated if too long)
+    if (test.testCode) {
+      const testCode = test.testCode.length > 1500
+        ? test.testCode.substring(0, 1500) + '\n\n// ... (truncated) ...'
+        : test.testCode;
+      section += '**Test Code**:\n```solidity\n' + testCode + '\n```\n\n';
+    }
+
+    // Show test output (truncated if too long)
+    if (result.output) {
+      const output = result.output.length > 1000
+        ? result.output.substring(0, 1000) + '\n... (truncated) ...'
+        : result.output;
+      section += '**Execution Output**:\n```\n' + output + '\n```\n\n';
+    }
+
+    if (result.error) {
+      section += `**Error**: ${result.error}\n\n`;
+    }
+
+    section += '---\n\n';
+  });
+
+  return section;
+}
+
+/**
+ * Generate user flow section with Mermaid diagrams
+ * Visualizes contract interaction flows and security risks
+ */
+function generateUserFlowSection(userFlows: any[], userFlowDiagrams: any[]): string {
+  if (!userFlows || userFlows.length === 0) {
+    return '## User Flows\n\nNo user interaction flows were analyzed.\n\n';
+  }
+
+  let section = '## 🔄 User Flow Analysis\n\n';
+  section += `Analyzed **${userFlows.length}** user interaction flow(s) to understand how users interact with the system.\n\n`;
+
+  userFlows.forEach((flow: any, idx: number) => {
+    section += `### Flow ${idx + 1}: ${flow.name}\n\n`;
+    section += `**Description**: ${flow.description}\n\n`;
+
+    // Show flow risks if any
+    if (flow.risks && flow.risks.length > 0) {
+      section += `**⚠️ Security Risks Identified**:\n`;
+      flow.risks.forEach((risk: string) => {
+        section += `- ${risk}\n`;
+      });
+      section += '\n';
+    }
+
+    // Find and display flowchart diagram
+    const flowDiagrams = userFlowDiagrams?.filter((d: any) => d.flowId === flow.id);
+    if (flowDiagrams && flowDiagrams.length > 0) {
+      // Prefer flowchart, fallback to sequence diagram
+      const flowchart = flowDiagrams.find((d: any) => d.diagramType === 'flowchart');
+      const diagram = flowchart || flowDiagrams[0];
+
+      section += `**Flow Diagram** (${diagram.diagramType}):\n\n`;
+      section += '```mermaid\n' + diagram.mermaidCode + '\n```\n\n';
+
+      // If we have a state diagram too, show it
+      const stateDiagram = flowDiagrams.find((d: any) => d.diagramType === 'stateDiagram');
+      if (stateDiagram && stateDiagram !== diagram) {
+        section += `**State Transitions**:\n\n`;
+        section += '```mermaid\n' + stateDiagram.mermaidCode + '\n```\n\n';
+      }
+    }
+
+    // Show flow steps in table format
+    if (flow.steps && flow.steps.length > 0) {
+      section += `**Flow Steps** (${flow.steps.length} total):\n\n`;
+      section += `| Step | Function | Visibility | Modifiers | State Changes | External Calls |\n`;
+      section += `|------|----------|------------|-----------|---------------|----------------|\n`;
+
+      flow.steps.forEach((step: any, stepIdx: number) => {
+        const stateChanges = step.stateChanges?.length > 0
+          ? step.stateChanges.slice(0, 2).join(', ') + (step.stateChanges.length > 2 ? '...' : '')
+          : 'None';
+        const externalCalls = step.externalCalls?.length > 0
+          ? step.externalCalls.slice(0, 2).join(', ') + (step.externalCalls.length > 2 ? '...' : '')
+          : 'None';
+        const modifiers = step.modifiers?.length > 0
+          ? step.modifiers.join(', ')
+          : 'None';
+
+        section += `| ${stepIdx + 1} | \`${step.functionName}()\` | ${step.visibility} | ${modifiers} | ${stateChanges} | ${externalCalls} |\n`;
+      });
+      section += '\n';
+    }
+
+    section += '---\n\n';
+  });
+
+  return section;
 }
 
 /**

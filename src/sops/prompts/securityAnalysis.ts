@@ -35,11 +35,40 @@ ${answeredQuestions.map((qa, i) => `
 ## YOUR TASK
 Perform comprehensive security analysis and generate test files. Output results as JSON.
 
+## STEP 0: Check for Existing Audit Data (RESUME MODE)
+
+**CRITICAL - Always check first:**
+
+1. Look for \`.uatu/stepData.json\` in the project directory: \`${projectPath}/.uatu/stepData.json\`
+2. If it exists, read it to find:
+   - Previous findings that may still be valid
+   - Generated test files and their locations
+   - Test execution results and proof of vulnerabilities
+   - Contract analysis data (AST, flows, dependencies)
+   - Previous scoring and recommendations
+3. **REUSE existing data when:**
+   - Code hasn't changed (check file hashes in stepData)
+   - Tests already exist and have valid results
+   - Findings are still relevant to current code
+   - Analysis metadata is recent (within reason)
+4. **Re-run analysis only when:**
+   - Contract code has been modified since last audit
+   - New contracts added to scope
+   - Previous audit was incomplete or errored
+   - Significant time has passed requiring fresh analysis
+
+**Benefits of Resume Mode:**
+- ⚡ Faster analysis (skip redundant work)
+- 📊 Consistent findings (same vulnerabilities = same IDs)
+- 🧪 Preserved test results (don't re-run passing tests)
+- 🎯 Focus on what changed (delta analysis)
+
 ## STEP 1: Read Context Files
 
 Read these files:
 - \`${path.join(contextPath, "files_structure.md")}\` - Project structure and contract source code
 - \`${path.join(contextPath, "test_requirements.md")}\` - Test generation requirements
+- \`${projectPath}/.uatu/stepData.json\` - Previous audit data (if exists - check in STEP 0)
 ${answeredQuestionsSection}
 
 ## STEP 2: Security Analysis

@@ -103,6 +103,7 @@
         "detect-interfaces",
         "extract-signatures",
         "identify-external-calls",
+        "generate-userflow-diagrams",
         "run-slither",
         "parse-slither",
         "run-mythril",
@@ -121,6 +122,9 @@
         "ai-economic-analysis",
         "ai-validate-findings",
         "deduplicate",
+        "generate-security-tests",
+        "execute-security-tests",
+        "bind-test-results-to-findings",
         "user-finding-validation",
         "calculate-severity",
         "calculate-score",
@@ -563,6 +567,36 @@
       "progressWeight": 3,
       "required": false,
       "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-userflow-diagrams",
+      "name": "Generate User Flow Diagrams",
+      "description": "Analyze user flows and generate Mermaid diagrams",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generateUserFlowDiagrams"
+      },
+      "estimatedDurationSeconds": 60,
+      "timeoutSeconds": 180,
+      "dependsOn": [
+        "generate-ast",
+        "identify-external-calls"
+      ],
+      "provides": [
+        "userFlows",
+        "userFlowDiagrams"
+      ],
+      "requires": [
+        "srcDir",
+        "projectPath"
+      ],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 4,
+      "required": false,
+      "retryCount": 1,
       "continueOnFailure": true
     },
     {
@@ -1134,6 +1168,94 @@
       "required": true,
       "retryCount": 0,
       "continueOnFailure": false
+    },
+    {
+      "id": "generate-security-tests",
+      "name": "Generate Security Tests",
+      "description": "Generate AI-powered test cases for critical and high severity findings with detailed PURPOSE/SETUP/EXPECTED/IMPACT documentation",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generate-tests"
+      },
+      "estimatedDurationSeconds": 180,
+      "timeoutSeconds": 600,
+      "dependsOn": [
+        "deduplicate"
+      ],
+      "provides": [
+        "generatedTests",
+        "testFiles",
+        "testsPath"
+      ],
+      "requires": [
+        "deduplicatedFindings",
+        "projectPath"
+      ],
+      "category": "testing",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "execute-security-tests",
+      "name": "Execute Security Tests",
+      "description": "Run generated test cases and capture execution results with gas estimates and proof of concept",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "execute-tests"
+      },
+      "estimatedDurationSeconds": 240,
+      "timeoutSeconds": 900,
+      "dependsOn": [
+        "generate-security-tests"
+      ],
+      "provides": [
+        "testResults",
+        "testExecutionSummary"
+      ],
+      "requires": [
+        "generatedTests",
+        "testFiles",
+        "projectPath"
+      ],
+      "category": "testing",
+      "aiAssisted": false,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "bind-test-results-to-findings",
+      "name": "Bind Test Results to Findings",
+      "description": "Link test execution results to findings as proof of vulnerability existence or false positive evidence",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "bindTestResultsToFindings"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": [
+        "execute-security-tests"
+      ],
+      "provides": [
+        "enrichedFindings"
+      ],
+      "requires": [
+        "deduplicatedFindings",
+        "testResults"
+      ],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
     },
     {
       "id": "calculate-severity",

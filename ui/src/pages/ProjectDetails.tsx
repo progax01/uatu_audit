@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import {
-    Shield, ChevronRight, ArrowLeft, Loader2, Play, Trash2, AlertTriangle, FileCode, Award, Package, Settings, Layers
+    Shield, ChevronRight, ArrowLeft, Loader2, Play, Trash2, AlertTriangle, FileCode, Award, Package, Settings, Layers, GitBranch
 } from 'lucide-react'
 import { authFetch } from '../services/authService'
 import SourcesTab from '../components/project/SourcesTab'
@@ -9,6 +9,7 @@ import AuditsTab from '../components/project/AuditsTab'
 import BadgeTab from '../components/project/BadgeTab'
 import ComponentsTab from '../components/project/ComponentsTab'
 import SettingsTab from '../components/project/SettingsTab'
+import FlowsTab from '../components/project/FlowsTab'
 import { fetchGitHubBranches } from '../services/githubService'
 
 interface Project {
@@ -37,7 +38,7 @@ interface Project {
     discordUrl?: string
 }
 
-type TabType = 'sources' | 'audits' | 'components' | 'badge' | 'settings'
+type TabType = 'sources' | 'audits' | 'flows' | 'components' | 'badge' | 'settings'
 
 export default function ProjectDetails() {
     const { slug } = useParams()
@@ -619,6 +620,20 @@ export default function ProjectDetails() {
                         )}
                     </button>
                     <button
+                        onClick={() => setActiveTab('flows')}
+                        className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-all relative ${
+                            activeTab === 'flows'
+                                ? 'text-indigo-600'
+                                : 'text-slate-400 hover:text-slate-900'
+                        }`}
+                    >
+                        <GitBranch size={16} />
+                        Flows
+                        {activeTab === 'flows' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
+                        )}
+                    </button>
+                    <button
                         onClick={() => setActiveTab('components')}
                         className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-all relative ${
                             activeTab === 'components'
@@ -677,6 +692,9 @@ export default function ProjectDetails() {
                             runningJobId={runningJobId}
                             onAuditComplete={() => setRunningJobId(null)}
                         />
+                    )}
+                    {activeTab === 'flows' && (
+                        <FlowsTab projectId={project.id} />
                     )}
                     {activeTab === 'components' && (
                         <ComponentsTab projectId={project.id} />

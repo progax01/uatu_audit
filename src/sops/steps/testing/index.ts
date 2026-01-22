@@ -205,13 +205,30 @@ const generateTests: TestingExecutor = async (step, config, context) => {
     }
   }
 
-  await context.onProgress?.(95, 'Test generation complete');
+  await context.onProgress?.(95, 'Validating test coverage...');
+
+  // Validate test coverage
+  const { validateTestCoverage, generateCoverageReport } = await import('../../../services/testCoverageValidator.js');
+
+  const coverageReport = validateTestCoverage(testableFindings, generatedTests);
 
   log.info('Test generation complete', {
     generated: generatedTests.length,
     failed: errors.length,
+    coverage: `${coverageReport.testCoverage.toFixed(1)}%`,
+    coverageGaps: coverageReport.coverageGaps.length,
     testsPath,
   });
+
+  // Generate coverage report markdown
+  const coverageMarkdown = generateCoverageReport(coverageReport);
+
+  // Save coverage report to .uatu folder
+  const coverageReportPath = path.join(testsPath, '..', '.uatu', 'test-coverage-report.md');
+  await fs.ensureDir(path.dirname(coverageReportPath));
+  await fs.writeFile(coverageReportPath, coverageMarkdown, 'utf-8');
+
+  log.info('Saved test coverage report', { path: coverageReportPath });
 
   return {
     success: true,
@@ -220,10 +237,13 @@ const generateTests: TestingExecutor = async (step, config, context) => {
       testsFailed: errors.length,
       testsPath,
       framework,
+      testCoverage: coverageReport.testCoverage,
+      coverageGaps: coverageReport.coverageGaps.length,
       errors: errors.length > 0 ? errors : undefined,
     },
     data: {
       generatedTests,
+      testCoverageReport: coverageReport,
       errors,
     },
     findings: [],

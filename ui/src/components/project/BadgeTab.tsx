@@ -24,6 +24,8 @@ interface AuditOption {
   chainId?: string
 }
 
+type BadgeStyle = 'ribbon' | 'rectangle' | 'square'
+
 export default function BadgeTab({ projectId, projectSlug, projectName, primaryColor, logoUrl }: BadgeTabProps) {
   const [isPublic, setIsPublic] = useState(false)
   const [selectedAuditId, setSelectedAuditId] = useState<string>('')
@@ -103,19 +105,32 @@ export default function BadgeTab({ projectId, projectSlug, projectName, primaryC
     }
   }
 
-  const getBadgeUrl = () => {
+  const getBadgeData = () => {
+    if (currentAudit) {
+      return {
+        score: currentAudit.score.toString().padStart(2, '0'),
+        grade: currentAudit.scoreLabel,
+        link: `${window.location.origin}/project/${projectSlug}`
+      }
+    }
+    // Mock data when no audit
+    return {
+      score: '00',
+      grade: 'A+',
+      link: 'https://uatu.xyz'
+    }
+  }
+
+  const getBadgeImageUrl = (style: BadgeStyle) => {
     const baseUrl = window.location.origin
-    return `${baseUrl}/badge/${projectSlug}`
+    const { score, grade } = getBadgeData()
+    return `${baseUrl}/api/badge/${projectSlug}/${style}?score=${score}&grade=${grade}`
   }
 
-  const getMarkdownCode = () => {
-    const badgeUrl = getBadgeUrl()
-    return `[![Uatu Audit Score](${badgeUrl})](${window.location.origin}/project/${projectSlug})`
-  }
-
-  const getHtmlCode = () => {
-    const badgeUrl = getBadgeUrl()
-    return `<a href="${window.location.origin}/project/${projectSlug}"><img src="${badgeUrl}" alt="Uatu Audit Score" /></a>`
+  const getEmbedCode = (style: BadgeStyle) => {
+    const { link } = getBadgeData()
+    const imageUrl = getBadgeImageUrl(style)
+    return `<a href="${link}"><img src="${imageUrl}" alt="${projectName} Security Audit" /></a>`
   }
 
   const handleCopy = (text: string, type: string) => {
@@ -123,33 +138,6 @@ export default function BadgeTab({ projectId, projectSlug, projectName, primaryC
     setCopied(type)
     setTimeout(() => setCopied(null), 2000)
   }
-
-  const getAuditInfo = () => {
-    if (!currentAudit) return null
-
-    // Check if it's a GitHub repo audit
-    if (currentAudit.repo && !currentAudit.repo.startsWith('contract:')) {
-      return {
-        type: 'repo' as const,
-        line1: currentAudit.branch || 'main',
-        line2: currentAudit.commitSha?.substring(0, 7) || 'latest'
-      }
-    }
-
-    // Check if it's a contract audit
-    if (currentAudit.contractAddress || currentAudit.repo?.startsWith('contract:')) {
-      const address = currentAudit.contractAddress || currentAudit.repo?.split(':')[2] || ''
-      const chain = currentAudit.chainId || 'ethereum'
-      return {
-        type: 'contract' as const,
-        line1: `${address.substring(0, 6)}...${address.substring(address.length - 4)}`,
-        line2: chain.charAt(0).toUpperCase() + chain.slice(1)
-      }
-    }
-
-    return null
-  }
-
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -160,7 +148,8 @@ export default function BadgeTab({ projectId, projectSlug, projectName, primaryC
     })
   }
 
-  const auditInfo = getAuditInfo()
+  const badgeData = getBadgeData()
+  const color = primaryColor || '#5C61FF'
 
   return (
     <div className="space-y-6">
@@ -173,23 +162,211 @@ export default function BadgeTab({ projectId, projectSlug, projectName, primaryC
         grade={currentAudit?.scoreLabel}
       />
 
-      {/* Badge Preview */}
+      {/* Badge Previews */}
       <div>
-        <h3 className="font-black text-sm text-slate-400 uppercase tracking-widest mb-4">Badge Preview</h3>
-        <div className="card-premium p-10">
-          {currentAudit ? (
-            <div className="flex justify-center">
-              {/* Horizontal badge design - more polished */}
-              <div
-                className="inline-flex items-center gap-4 px-6 py-3.5 rounded-xl shadow-lg"
-                style={{
-                  backgroundColor: primaryColor || '#5C61FF',
-                  boxShadow: `0 4px 14px ${primaryColor || '#5C61FF'}40`
-                }}
+        <h3 className="font-black text-sm text-slate-400 uppercase tracking-widest mb-4">Badge Styles</h3>
+
+        {/* Ribbon Badge */}
+        <div className="card-premium p-6 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h4 className="font-bold text-sm text-slate-900">Ribbon Badge</h4>
+              <p className="text-xs text-slate-500">Compact horizontal badge for READMEs</p>
+            </div>
+            {currentAudit && (
+              <button
+                onClick={() => handleCopy(getEmbedCode('ribbon'), 'ribbon')}
+                className="px-4 h-9 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
               >
-                {/* Left side - Logos */}
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-lg bg-white/25 backdrop-blur-sm p-1.5 flex items-center justify-center">
+                {copied === 'ribbon' ? (
+                  <>
+                    <Check size={14} className="text-emerald-600" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={14} />
+                    Copy Embed
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          <div className="flex justify-center p-6 bg-slate-50 rounded-lg">
+            {/* Ribbon Badge Preview */}
+            <div
+              className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full shadow-lg"
+              style={{
+                backgroundColor: color,
+                boxShadow: `0 4px 14px ${color}40`
+              }}
+            >
+              {/* Logo */}
+              <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm p-1 flex items-center justify-center">
+                <img
+                  src="/logo.svg"
+                  alt="Uatu"
+                  className="w-full h-full object-contain brightness-0 invert"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none'
+                  }}
+                />
+              </div>
+
+              {/* Project Name */}
+              <div className="text-white text-xs font-bold uppercase tracking-wide">
+                {projectName}
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-6 bg-white/30"></div>
+
+              {/* Score */}
+              <div className="flex items-baseline gap-1">
+                <div className="text-xl font-black text-white leading-none">
+                  {badgeData.grade}
+                </div>
+                <div className="text-sm font-bold text-white/90 leading-none">
+                  {badgeData.score}%
+                </div>
+              </div>
+
+              {/* Shield Icon */}
+              <Shield size={16} className="text-white/80" fill="white" fillOpacity={0.2} />
+            </div>
+          </div>
+        </div>
+
+        {/* Rectangle Badge (OG Image) */}
+        <div className="card-premium p-6 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h4 className="font-bold text-sm text-slate-900">Rectangle Badge</h4>
+              <p className="text-xs text-slate-500">Perfect for OG meta images and social sharing</p>
+            </div>
+            {currentAudit && (
+              <button
+                onClick={() => handleCopy(getEmbedCode('rectangle'), 'rectangle')}
+                className="px-4 h-9 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+              >
+                {copied === 'rectangle' ? (
+                  <>
+                    <Check size={14} className="text-emerald-600" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={14} />
+                    Copy Embed
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          <div className="flex justify-center p-6 bg-slate-50 rounded-lg">
+            {/* Rectangle Badge Preview */}
+            <div
+              className="w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden"
+              style={{
+                backgroundColor: color,
+                boxShadow: `0 8px 32px ${color}40`
+              }}
+            >
+              <div className="flex items-center justify-between p-6">
+                {/* Left: Logos and Project */}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm p-2 flex items-center justify-center">
+                      <img
+                        src="/logo.svg"
+                        alt="Uatu"
+                        className="w-full h-full object-contain brightness-0 invert"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                    </div>
+                    {logoUrl && (
+                      <>
+                        <div className="text-white/40 text-2xl font-black">×</div>
+                        <div className="w-12 h-12 rounded-xl bg-white p-2 flex items-center justify-center shadow">
+                          <img src={logoUrl} alt="Project" className="w-full h-full object-contain" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="text-left">
+                    <div className="text-white text-base font-bold uppercase tracking-wide">
+                      {projectName}
+                    </div>
+                    <div className="text-white/70 text-xs font-medium mt-0.5">
+                      Security Audit
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Score */}
+                <div className="text-right">
+                  <div className="flex items-baseline gap-2 justify-end">
+                    <div className="text-5xl font-black text-white leading-none">
+                      {badgeData.grade}
+                    </div>
+                    <div className="text-2xl font-bold text-white/90 leading-none">
+                      {badgeData.score}%
+                    </div>
+                  </div>
+                  <div className="text-white/80 text-xs font-bold mt-2 uppercase tracking-wider">
+                    Security Score
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Square Card Badge */}
+        <div className="card-premium p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h4 className="font-bold text-sm text-slate-900">Square Card Badge</h4>
+              <p className="text-xs text-slate-500">Square format for websites and documentation</p>
+            </div>
+            {currentAudit && (
+              <button
+                onClick={() => handleCopy(getEmbedCode('square'), 'square')}
+                className="px-4 h-9 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+              >
+                {copied === 'square' ? (
+                  <>
+                    <Check size={14} className="text-emerald-600" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={14} />
+                    Copy Embed
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          <div className="flex justify-center p-6 bg-slate-50 rounded-lg">
+            {/* Square Badge Preview */}
+            <div
+              className="w-64 rounded-2xl shadow-2xl overflow-hidden"
+              style={{
+                backgroundColor: color,
+                boxShadow: `0 8px 32px ${color}40`
+              }}
+            >
+              <div className="p-6 text-center space-y-4">
+                {/* Logos */}
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm p-2 flex items-center justify-center">
                     <img
                       src="/logo.svg"
                       alt="Uatu"
@@ -201,210 +378,129 @@ export default function BadgeTab({ projectId, projectSlug, projectName, primaryC
                   </div>
                   {logoUrl && (
                     <>
-                      <div className="text-white/40 text-lg font-black">×</div>
-                      <div className="w-10 h-10 rounded-lg bg-white p-1.5 flex items-center justify-center shadow-sm">
+                      <div className="text-white/40 text-xl font-black">×</div>
+                      <div className="w-12 h-12 rounded-xl bg-white p-2 flex items-center justify-center shadow">
                         <img src={logoUrl} alt="Project" className="w-full h-full object-contain" />
                       </div>
                     </>
                   )}
                 </div>
 
-                {/* Divider */}
-                <div className="w-px h-12 bg-white/20"></div>
-
-                {/* Middle - Project info */}
-                <div className="text-left">
-                  <div className="text-white text-xs font-bold uppercase tracking-wide mb-0.5">
+                {/* Project Name */}
+                <div>
+                  <div className="text-white text-lg font-bold uppercase tracking-wide">
                     {projectName}
                   </div>
-                  {auditInfo && (
-                    <div className="text-white/70 text-[10px] font-mono">
-                      {auditInfo.type === 'repo' ? (
-                        <>{auditInfo.line1} @ {auditInfo.line2}</>
-                      ) : (
-                        <>{auditInfo.line1} · {auditInfo.line2}</>
-                      )}
-                    </div>
-                  )}
+                  <div className="text-white/70 text-xs font-medium mt-1">
+                    Security Audit
+                  </div>
                 </div>
 
                 {/* Divider */}
-                <div className="w-px h-12 bg-white/20"></div>
+                <div className="h-px bg-white/20"></div>
 
-                {/* Right side - Score */}
-                <div className="text-left">
-                  <div className="flex items-baseline gap-1.5">
-                    <div className="text-3xl font-black text-white leading-none">
-                      {currentAudit.scoreLabel}
+                {/* Score */}
+                <div>
+                  <div className="flex items-baseline gap-2 justify-center">
+                    <div className="text-6xl font-black text-white leading-none">
+                      {badgeData.grade}
                     </div>
-                    <div className="text-lg font-bold text-white/90 leading-none">
-                      {currentAudit.score}%
+                    <div className="text-3xl font-bold text-white/90 leading-none">
+                      {badgeData.score}%
                     </div>
                   </div>
-                  <div className="text-white/80 text-[10px] font-bold mt-1 uppercase tracking-wider">
+                  <div className="text-white/80 text-xs font-bold mt-2 uppercase tracking-wider">
                     Security Score
                   </div>
                 </div>
+
+                {/* Shield Icon */}
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                    <Shield size={20} className="text-white" fill="white" fillOpacity={0.2} />
+                  </div>
+                </div>
               </div>
             </div>
-          ) : (
-            <div className="text-center py-4">
-              <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                <Shield size={28} className="text-slate-300" />
-              </div>
-              <p className="text-sm text-slate-400">
-                Complete an audit to generate your security badge
-              </p>
-            </div>
-          )}
+          </div>
         </div>
+
+        {!currentAudit && (
+          <p className="text-center text-sm text-slate-400 mt-4">
+            Complete an audit to enable embed codes and actual security scores
+          </p>
+        )}
       </div>
 
       {/* Public Settings */}
       {currentAudit && (
-        <>
-          <div>
-            <h3 className="font-black text-sm text-slate-400 uppercase tracking-widest mb-4">Badge Settings</h3>
-            <div className="card-premium p-6 space-y-6">
-              {/* Public Toggle */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {isPublic ? (
-                    <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center">
-                      <Globe size={16} className="text-emerald-600" />
-                    </div>
-                  ) : (
-                    <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
-                      <Lock size={16} className="text-slate-400" />
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-bold text-sm text-slate-900">Make Badge Public</p>
-                    <p className="text-xs text-slate-500">
-                      Allow anyone to view your security score
-                    </p>
+        <div>
+          <h3 className="font-black text-sm text-slate-400 uppercase tracking-widest mb-4">Badge Settings</h3>
+          <div className="card-premium p-6 space-y-6">
+            {/* Public Toggle */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {isPublic ? (
+                  <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center">
+                    <Globe size={16} className="text-emerald-600" />
                   </div>
-                </div>
-                <button
-                  onClick={() => setIsPublic(!isPublic)}
-                  className={`relative w-12 h-7 rounded-full transition-all flex-shrink-0 ${
-                    isPublic ? 'bg-indigo-600' : 'bg-slate-300'
-                  }`}
-                >
-                  <div
-                    className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
-                      isPublic ? 'translate-x-[22px]' : 'translate-x-0.5'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Audit Selection */}
-              {isPublic && audits.length > 0 && (
+                ) : (
+                  <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <Lock size={16} className="text-slate-400" />
+                  </div>
+                )}
                 <div>
-                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-2">
-                    Display Audit Report
-                  </label>
-                  <select
-                    value={selectedAuditId}
-                    onChange={(e) => setSelectedAuditId(e.target.value)}
-                    className="w-full h-10 px-3 bg-white border-2 border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
-                  >
-                    <option value="">Latest Audit (Default)</option>
-                    {audits.map((audit) => (
-                      <option key={audit.id} value={audit.jobId}>
-                        {formatDate(audit.createdAt)} - Score: {audit.score}
-                      </option>
-                    ))}
-                  </select>
+                  <p className="font-bold text-sm text-slate-900">Make Badge Public</p>
+                  <p className="text-xs text-slate-500">
+                    Allow anyone to view your security score
+                  </p>
                 </div>
-              )}
-
-              {/* Save Button */}
+              </div>
               <button
-                onClick={handleSaveSettings}
-                disabled={saving}
-                className="w-full h-10 bg-indigo-600 text-white rounded-lg font-bold text-xs hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
+                onClick={() => setIsPublic(!isPublic)}
+                className={`relative w-12 h-7 rounded-full transition-all flex-shrink-0 ${
+                  isPublic ? 'bg-indigo-600' : 'bg-slate-300'
+                }`}
               >
-                {saving ? 'Saving...' : 'Save Settings'}
+                <div
+                  className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                    isPublic ? 'translate-x-[22px]' : 'translate-x-0.5'
+                  }`}
+                />
               </button>
             </div>
-          </div>
 
-          {/* Embed Code */}
-          {isPublic && (
-            <div>
-              <h3 className="font-black text-sm text-slate-400 uppercase tracking-widest mb-4">Embed Badge</h3>
-              <div className="card-premium p-6 space-y-4">
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
-                    Badge URL
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={getBadgeUrl()}
-                      readOnly
-                      className="flex-1 h-11 px-4 bg-slate-50 border border-black/[0.05] rounded-xl text-sm font-mono text-slate-600"
-                    />
-                    <a
-                      href={getBadgeUrl()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 h-11 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center justify-center"
-                    >
-                      <ExternalLink size={16} />
-                    </a>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
-                    Markdown
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={getMarkdownCode()}
-                      readOnly
-                      className="flex-1 h-11 px-4 bg-slate-50 border border-black/[0.05] rounded-xl text-sm font-mono text-slate-600"
-                    />
-                    <button
-                      onClick={() => handleCopy(getMarkdownCode(), 'markdown')}
-                      className="px-4 h-11 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center justify-center"
-                    >
-                      {copied === 'markdown' ? <Check size={16} className="text-emerald-600" /> : <Copy size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
-                    HTML
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={getHtmlCode()}
-                      readOnly
-                      className="flex-1 h-11 px-4 bg-slate-50 border border-black/[0.05] rounded-xl text-sm font-mono text-slate-600"
-                    />
-                    <button
-                      onClick={() => handleCopy(getHtmlCode(), 'html')}
-                      className="px-4 h-11 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center justify-center"
-                    >
-                      {copied === 'html' ? <Check size={16} className="text-emerald-600" /> : <Copy size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                <p className="text-xs text-slate-400">
-                  Copy this code to display your Uatu security badge in your README or documentation.
-                </p>
+            {/* Audit Selection */}
+            {isPublic && audits.length > 0 && (
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-2">
+                  Display Audit Report
+                </label>
+                <select
+                  value={selectedAuditId}
+                  onChange={(e) => setSelectedAuditId(e.target.value)}
+                  className="w-full h-10 px-3 bg-white border-2 border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+                >
+                  <option value="">Latest Audit (Default)</option>
+                  {audits.map((audit) => (
+                    <option key={audit.id} value={audit.jobId}>
+                      {formatDate(audit.createdAt)} - Score: {audit.score}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </div>
-          )}
-        </>
+            )}
+
+            {/* Save Button */}
+            <button
+              onClick={handleSaveSettings}
+              disabled={saving}
+              className="w-full h-10 bg-indigo-600 text-white rounded-lg font-bold text-xs hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
+            >
+              {saving ? 'Saving...' : 'Save Settings'}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

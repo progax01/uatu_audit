@@ -1,0 +1,763 @@
+{
+  "id": "backend-python",
+  "version": "1.0.0",
+  "name": "Python Backend Security Audit",
+  "description": "Comprehensive security audit for Python backend applications (Flask, Django, FastAPI)",
+  "framework": "python",
+  "language": "python",
+  "requiredTools": [
+    {
+      "name": "python",
+      "version": ">=3.8.0",
+      "installUrl": "https://python.org"
+    },
+    {
+      "name": "pip",
+      "version": ">=21.0.0",
+      "installUrl": "https://pip.pypa.io"
+    }
+  ],
+  "optionalTools": [
+    {
+      "name": "bandit",
+      "version": ">=1.7.0",
+      "installUrl": "https://bandit.readthedocs.io"
+    },
+    {
+      "name": "safety",
+      "version": ">=2.0.0",
+      "installUrl": "https://pyup.io/safety"
+    }
+  ],
+  "depths": {
+    "quick": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "analyze-dependencies",
+        "detect-component-dependencies",
+        "safety-check",
+        "parse-safety",
+        "merge-tool-findings",
+        "calculate-severity",
+        "calculate-dependency-weighted-score",
+        "generate-report"
+      ],
+      "parallelizationLevel": "none",
+      "estimatedDurationMinutes": 5,
+      "toolTimeouts": {
+        "pip": 180
+      }
+    },
+    "standard": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "analyze-dependencies",
+        "detect-component-dependencies",
+        "safety-check",
+        "parse-safety",
+        "bandit-scan",
+        "parse-bandit",
+        "analyze-routes",
+        "analyze-database-queries",
+        "detect-injection-patterns",
+        "merge-tool-findings",
+        "deduplicate",
+        "ai-injection-analysis",
+        "ai-auth-analysis",
+        "calculate-severity",
+        "calculate-dependency-weighted-score",
+        "generate-report"
+      ],
+      "parallelizationLevel": "tools",
+      "estimatedDurationMinutes": 20,
+      "toolTimeouts": {
+        "pip": 180,
+        "bandit": 120
+      }
+    },
+    "deep": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "analyze-dependencies",
+        "detect-component-dependencies",
+        "safety-check",
+        "parse-safety",
+        "bandit-scan",
+        "parse-bandit",
+        "analyze-routes",
+        "analyze-database-queries",
+        "detect-injection-patterns",
+        "analyze-serialization-python",
+        "analyze-template-engines",
+        "analyze-file-operations",
+        "generate-route-flow-diagrams",
+        "merge-tool-findings",
+        "deduplicate",
+        "ai-injection-analysis",
+        "ai-auth-analysis",
+        "ai-deserialization-analysis",
+        "ai-template-injection",
+        "ai-validate-findings",
+        "generate-security-tests-python",
+        "execute-security-tests-python",
+        "bind-test-results-to-findings",
+        "calculate-severity",
+        "calculate-dependency-weighted-score",
+        "cross-component-security-analysis",
+        "ai-custom-recommendations",
+        "generate-report"
+      ],
+      "parallelizationLevel": "tools",
+      "estimatedDurationMinutes": 60,
+      "toolTimeouts": {
+        "pip": 300,
+        "bandit": 180,
+        "pytest": 600
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "detect-framework",
+      "name": "Detect Python Framework",
+      "description": "Identify Python web framework (Flask, Django, FastAPI)",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectPythonFramework"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": [],
+      "provides": ["framework", "frameworkVersion", "requirementsTxt"],
+      "requires": ["projectPath"],
+      "category": "detection",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "validate-structure",
+      "name": "Validate Project Structure",
+      "description": "Verify project has valid Python structure",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "validatePythonProjectStructure"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["detect-framework"],
+      "provides": ["projectStructure", "srcDir", "testDir"],
+      "requires": ["projectPath", "framework"],
+      "category": "setup",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "analyze-dependencies",
+      "name": "Analyze Package Dependencies",
+      "description": "Parse requirements.txt/pyproject.toml and analyze dependencies",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzePythonDependencies"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["validate-structure"],
+      "provides": ["dependencies"],
+      "requires": ["projectPath", "requirementsTxt"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 1,
+      "continueOnFailure": false
+    },
+    {
+      "id": "detect-component-dependencies",
+      "name": "Detect Cross-Component Dependencies",
+      "description": "Identify dependencies on databases, APIs, smart contracts",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectComponentDependenciesPython"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 60,
+      "dependsOn": ["analyze-dependencies"],
+      "provides": ["componentDependencies", "externalCalls"],
+      "requires": ["srcDir", "projectPath"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": true,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "safety-check",
+      "name": "Run Safety Check",
+      "description": "Check for known vulnerabilities in dependencies",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "shell",
+        "command": "safety check --json",
+        "workingDir": "{projectPath}"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 180,
+      "dependsOn": ["analyze-dependencies"],
+      "provides": ["safetyRaw"],
+      "requires": ["projectPath"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-safety",
+      "name": "Parse Safety Results",
+      "description": "Parse safety check JSON output",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseSafetyResults"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["safety-check"],
+      "provides": ["safetyFindings"],
+      "requires": ["safetyRaw"],
+      "category": "parsing",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "bandit-scan",
+      "name": "Run Bandit Security Scanner",
+      "description": "Execute Bandit for Python security issues",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "shell",
+        "command": "bandit -r {srcDir} -f json",
+        "workingDir": "{projectPath}"
+      },
+      "estimatedDurationSeconds": 45,
+      "timeoutSeconds": 180,
+      "dependsOn": ["validate-structure"],
+      "provides": ["banditRaw"],
+      "requires": ["srcDir"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-bandit",
+      "name": "Parse Bandit Results",
+      "description": "Parse Bandit JSON output",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseBanditResults"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["bandit-scan"],
+      "provides": ["banditFindings"],
+      "requires": ["banditRaw"],
+      "category": "parsing",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-routes",
+      "name": "Analyze Routes/Endpoints",
+      "description": "Extract and analyze Flask/Django/FastAPI routes",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeRoutesPython"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["validate-structure"],
+      "provides": ["routes", "routeDefinitions"],
+      "requires": ["srcDir", "framework"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-database-queries",
+      "name": "Analyze Database Queries",
+      "description": "Analyze SQL queries, ORM usage for injection vulnerabilities",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeDatabaseQueriesPython"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["validate-structure"],
+      "provides": ["databaseQueries", "ormUsage"],
+      "requires": ["srcDir", "dependencies"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 7,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "detect-injection-patterns",
+      "name": "Detect Injection Patterns",
+      "description": "Detect SQL injection, command injection, LDAP injection patterns",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectInjectionPatterns"
+      },
+      "estimatedDurationSeconds": 25,
+      "timeoutSeconds": 90,
+      "dependsOn": ["analyze-database-queries"],
+      "provides": ["injectionFindings"],
+      "requires": ["srcDir"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 7,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-serialization-python",
+      "name": "Analyze Serialization",
+      "description": "Detect pickle/yaml deserialization vulnerabilities",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeSerializationPython"
+      },
+      "estimatedDurationSeconds": 20,
+      "timeoutSeconds": 90,
+      "dependsOn": ["validate-structure"],
+      "provides": ["serializationFindings"],
+      "requires": ["srcDir"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-template-engines",
+      "name": "Analyze Template Engines",
+      "description": "Analyze Jinja2/Django templates for SSTI vulnerabilities",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeTemplateEngines"
+      },
+      "estimatedDurationSeconds": 25,
+      "timeoutSeconds": 90,
+      "dependsOn": ["validate-structure"],
+      "provides": ["templateFindings"],
+      "requires": ["srcDir", "framework"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-file-operations",
+      "name": "Analyze File Operations",
+      "description": "Detect path traversal, insecure file uploads, race conditions",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeFileOperations"
+      },
+      "estimatedDurationSeconds": 20,
+      "timeoutSeconds": 90,
+      "dependsOn": ["validate-structure"],
+      "provides": ["fileOperationFindings"],
+      "requires": ["srcDir"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-route-flow-diagrams",
+      "name": "Generate Route Flow Diagrams",
+      "description": "Generate Mermaid diagrams for route flows",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generateRouteFlowDiagrams"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["analyze-routes"],
+      "provides": ["routeFlows", "routeFlowDiagrams"],
+      "requires": ["routes"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "merge-tool-findings",
+      "name": "Merge Tool Findings",
+      "description": "Combine findings from all tools",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "mergeToolFindings"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["parse-safety", "parse-bandit", "detect-injection-patterns"],
+      "provides": ["mergedFindings"],
+      "requires": [],
+      "category": "aggregation",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "deduplicate",
+      "name": "Deduplicate Findings",
+      "description": "Remove duplicate findings",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "deduplicateFindings"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 120,
+      "dependsOn": ["merge-tool-findings"],
+      "provides": ["deduplicatedFindings"],
+      "requires": ["mergedFindings"],
+      "category": "aggregation",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "ai-injection-analysis",
+      "name": "AI Injection Analysis",
+      "description": "Deep AI analysis of SQL/command/LDAP injection",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "python-injection-analysis"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["detect-injection-patterns"],
+      "provides": ["aiInjectionFindings"],
+      "requires": ["srcDir", "injectionFindings"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-auth-analysis",
+      "name": "AI Authentication Analysis",
+      "description": "Analyze authentication/authorization logic with AI",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "python-auth-analysis"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["analyze-routes"],
+      "provides": ["aiAuthFindings"],
+      "requires": ["srcDir", "routes"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-deserialization-analysis",
+      "name": "AI Deserialization Analysis",
+      "description": "Analyze pickle/yaml deserialization with AI",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "python-deserialization"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["analyze-serialization-python"],
+      "provides": ["aiDeserializationFindings"],
+      "requires": ["srcDir", "serializationFindings"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-template-injection",
+      "name": "AI Template Injection Analysis",
+      "description": "Analyze SSTI vulnerabilities with AI",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "python-template-injection"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["analyze-template-engines"],
+      "provides": ["aiTemplateFindings"],
+      "requires": ["srcDir", "templateFindings"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-validate-findings",
+      "name": "AI Validate Findings",
+      "description": "Validate and refine all findings",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "validate-findings"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["deduplicate"],
+      "provides": ["validatedFindings"],
+      "requires": ["deduplicatedFindings", "srcDir"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-security-tests-python",
+      "name": "Generate Security Tests (Python)",
+      "description": "Generate pytest test cases with STRIDE/OWASP patterns",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generate-tests-python"
+      },
+      "estimatedDurationSeconds": 180,
+      "timeoutSeconds": 600,
+      "dependsOn": ["deduplicate"],
+      "provides": ["generatedTests", "testFiles", "testsPath"],
+      "requires": ["deduplicatedFindings", "projectPath", "framework"],
+      "category": "testing",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "execute-security-tests-python",
+      "name": "Execute Security Tests (Python)",
+      "description": "Run generated pytest tests and capture results",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "execute-tests-python"
+      },
+      "estimatedDurationSeconds": 240,
+      "timeoutSeconds": 900,
+      "dependsOn": ["generate-security-tests-python"],
+      "provides": ["testResults", "testExecutionSummary"],
+      "requires": ["generatedTests", "testFiles", "projectPath"],
+      "category": "testing",
+      "aiAssisted": false,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "bind-test-results-to-findings",
+      "name": "Bind Test Results to Findings",
+      "description": "Link test results to findings as proof",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "bindTestResultsToFindings"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["execute-security-tests-python"],
+      "provides": ["enrichedFindings"],
+      "requires": ["deduplicatedFindings", "testResults"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "calculate-severity",
+      "name": "Calculate Severity",
+      "description": "Calculate final severity",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "calculateSeverity"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["deduplicate"],
+      "provides": ["findingsWithSeverity"],
+      "requires": ["deduplicatedFindings"],
+      "category": "scoring",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "calculate-dependency-weighted-score",
+      "name": "Calculate Dependency-Weighted Score",
+      "description": "Calculate score considering component dependencies",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "calculateDependencyWeightedScore"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 120,
+      "dependsOn": ["calculate-severity", "detect-component-dependencies"],
+      "provides": ["score", "scoreBreakdown", "dependencyImpact"],
+      "requires": ["findingsWithSeverity", "componentDependencies"],
+      "category": "scoring",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "cross-component-security-analysis",
+      "name": "Cross-Component Security Analysis",
+      "description": "Analyze security at component boundaries",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "cross-component-security"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["detect-component-dependencies", "calculate-dependency-weighted-score"],
+      "provides": ["crossComponentFindings"],
+      "requires": ["componentDependencies", "srcDir"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-custom-recommendations",
+      "name": "AI Custom Recommendations",
+      "description": "Generate custom remediation recommendations",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "custom-recommendations"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["calculate-dependency-weighted-score"],
+      "provides": ["findingsWithRecommendations"],
+      "requires": ["findingsWithSeverity", "srcDir"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-report",
+      "name": "Generate Report",
+      "description": "Generate final audit report",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generateReport"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["calculate-dependency-weighted-score"],
+      "provides": ["report", "reportPath"],
+      "requires": ["findingsWithSeverity", "score", "projectPath"],
+      "category": "reporting",
+      "aiAssisted": false,
+      "progressWeight": 4,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    }
+  ]
+}

@@ -1,0 +1,765 @@
+{
+  "id": "frontend-react",
+  "version": "1.0.0",
+  "name": "React Frontend Security Audit",
+  "description": "Comprehensive security audit for React frontend applications (React, Next.js, Vite)",
+  "framework": "react",
+  "language": "typescript",
+  "requiredTools": [
+    {
+      "name": "node",
+      "version": ">=16.0.0",
+      "installUrl": "https://nodejs.org"
+    },
+    {
+      "name": "npm",
+      "version": ">=8.0.0",
+      "installUrl": "https://npmjs.com"
+    }
+  ],
+  "optionalTools": [
+    {
+      "name": "eslint",
+      "version": ">=8.0.0",
+      "installUrl": "https://eslint.org"
+    },
+    {
+      "name": "lighthouse",
+      "version": ">=10.0.0",
+      "installUrl": "https://github.com/GoogleChrome/lighthouse"
+    }
+  ],
+  "depths": {
+    "quick": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "analyze-dependencies",
+        "detect-component-dependencies",
+        "npm-audit",
+        "parse-npm-audit",
+        "merge-tool-findings",
+        "calculate-severity",
+        "calculate-dependency-weighted-score",
+        "generate-report"
+      ],
+      "parallelizationLevel": "none",
+      "estimatedDurationMinutes": 5,
+      "toolTimeouts": {
+        "npm": 180
+      }
+    },
+    "standard": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "analyze-dependencies",
+        "detect-component-dependencies",
+        "npm-audit",
+        "parse-npm-audit",
+        "eslint-security",
+        "parse-eslint",
+        "analyze-components",
+        "analyze-state-management",
+        "analyze-api-calls",
+        "detect-xss-patterns",
+        "merge-tool-findings",
+        "deduplicate",
+        "ai-xss-analysis",
+        "ai-state-security",
+        "calculate-severity",
+        "calculate-dependency-weighted-score",
+        "generate-report"
+      ],
+      "parallelizationLevel": "tools",
+      "estimatedDurationMinutes": 20,
+      "toolTimeouts": {
+        "npm": 180,
+        "eslint": 120
+      }
+    },
+    "deep": {
+      "enabledSteps": [
+        "detect-framework",
+        "validate-structure",
+        "analyze-dependencies",
+        "detect-component-dependencies",
+        "npm-audit",
+        "parse-npm-audit",
+        "eslint-security",
+        "parse-eslint",
+        "analyze-components",
+        "analyze-state-management",
+        "analyze-api-calls",
+        "detect-xss-patterns",
+        "analyze-sensitive-data",
+        "analyze-auth-flows-frontend",
+        "generate-component-flow-diagrams",
+        "merge-tool-findings",
+        "deduplicate",
+        "ai-xss-analysis",
+        "ai-state-security",
+        "ai-api-security-frontend",
+        "ai-sensitive-data-exposure",
+        "ai-validate-findings",
+        "generate-security-tests-react",
+        "execute-security-tests-react",
+        "bind-test-results-to-findings",
+        "calculate-severity",
+        "calculate-dependency-weighted-score",
+        "cross-component-security-analysis",
+        "ai-custom-recommendations",
+        "generate-report"
+      ],
+      "parallelizationLevel": "tools",
+      "estimatedDurationMinutes": 60,
+      "toolTimeouts": {
+        "npm": 300,
+        "eslint": 180,
+        "jest": 600,
+        "cypress": 900
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "detect-framework",
+      "name": "Detect React Framework",
+      "description": "Identify React framework variant (CRA, Next.js, Vite, Remix)",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectReactFramework"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": [],
+      "provides": ["framework", "frameworkVersion", "isTypeScript", "packageJson"],
+      "requires": ["projectPath"],
+      "category": "detection",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "validate-structure",
+      "name": "Validate Project Structure",
+      "description": "Verify project has valid React structure",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "validateReactProjectStructure"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["detect-framework"],
+      "provides": ["projectStructure", "srcDir", "publicDir", "componentDirs"],
+      "requires": ["projectPath", "framework"],
+      "category": "setup",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "analyze-dependencies",
+      "name": "Analyze Package Dependencies",
+      "description": "Parse package.json and analyze dependency tree",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeNodeDependencies"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["validate-structure"],
+      "provides": ["dependencies", "devDependencies"],
+      "requires": ["projectPath", "packageJson"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 1,
+      "continueOnFailure": false
+    },
+    {
+      "id": "detect-component-dependencies",
+      "name": "Detect Cross-Component Dependencies",
+      "description": "Identify dependencies on backend APIs, smart contracts, external services",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectComponentDependenciesReact"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 60,
+      "dependsOn": ["analyze-dependencies"],
+      "provides": ["componentDependencies", "apiEndpoints", "contractInteractions"],
+      "requires": ["srcDir", "projectPath"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": true,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "npm-audit",
+      "name": "Run npm audit",
+      "description": "Execute npm audit for known vulnerabilities",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "shell",
+        "command": "npm audit --json",
+        "workingDir": "{projectPath}"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 180,
+      "dependsOn": ["analyze-dependencies"],
+      "provides": ["npmAuditRaw"],
+      "requires": ["projectPath"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-npm-audit",
+      "name": "Parse npm audit Results",
+      "description": "Parse npm audit JSON output",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseNpmAudit"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["npm-audit"],
+      "provides": ["npmAuditFindings"],
+      "requires": ["npmAuditRaw"],
+      "category": "parsing",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "eslint-security",
+      "name": "Run ESLint with Security Rules",
+      "description": "Execute ESLint with React security plugins",
+      "executor": "tool",
+      "executorConfig": {
+        "type": "shell",
+        "command": "npx eslint --format json --ext .js,.ts,.jsx,.tsx {srcDir}",
+        "workingDir": "{projectPath}"
+      },
+      "estimatedDurationSeconds": 45,
+      "timeoutSeconds": 180,
+      "dependsOn": ["validate-structure"],
+      "provides": ["eslintRaw"],
+      "requires": ["srcDir"],
+      "category": "static-analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "parse-eslint",
+      "name": "Parse ESLint Results",
+      "description": "Parse ESLint JSON output",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "parseESLintResults"
+      },
+      "estimatedDurationSeconds": 5,
+      "timeoutSeconds": 30,
+      "dependsOn": ["eslint-security"],
+      "provides": ["eslintFindings"],
+      "requires": ["eslintRaw"],
+      "category": "parsing",
+      "aiAssisted": false,
+      "progressWeight": 2,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-components",
+      "name": "Analyze React Components",
+      "description": "Extract and analyze all React components for security issues",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeReactComponents"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["validate-structure"],
+      "provides": ["components", "componentTree"],
+      "requires": ["srcDir", "framework"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-state-management",
+      "name": "Analyze State Management",
+      "description": "Analyze Redux, Context, Zustand, etc. for security issues",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeStateManagement"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["analyze-components"],
+      "provides": ["stateManagement", "storeDefinitions"],
+      "requires": ["srcDir", "dependencies"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-api-calls",
+      "name": "Analyze API Calls",
+      "description": "Identify all API calls (fetch, axios) and analyze for security issues",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeAPICallsReact"
+      },
+      "estimatedDurationSeconds": 20,
+      "timeoutSeconds": 90,
+      "dependsOn": ["analyze-components"],
+      "provides": ["apiCalls", "endpointsUsed"],
+      "requires": ["srcDir"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "detect-xss-patterns",
+      "name": "Detect XSS Patterns",
+      "description": "Detect dangerouslySetInnerHTML, unsanitized input rendering, DOM manipulation",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "detectXSSPatterns"
+      },
+      "estimatedDurationSeconds": 25,
+      "timeoutSeconds": 90,
+      "dependsOn": ["analyze-components"],
+      "provides": ["xssFindings"],
+      "requires": ["srcDir"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 7,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-sensitive-data",
+      "name": "Analyze Sensitive Data Exposure",
+      "description": "Detect API keys, secrets, tokens, PII in code and localStorage",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeSensitiveData"
+      },
+      "estimatedDurationSeconds": 20,
+      "timeoutSeconds": 90,
+      "dependsOn": ["analyze-components"],
+      "provides": ["sensitiveDataFindings"],
+      "requires": ["srcDir", "publicDir"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "analyze-auth-flows-frontend",
+      "name": "Analyze Frontend Authentication",
+      "description": "Analyze token storage, auth state management, protected routes",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "analyzeAuthFlowsFrontend"
+      },
+      "estimatedDurationSeconds": 25,
+      "timeoutSeconds": 120,
+      "dependsOn": ["analyze-state-management"],
+      "provides": ["authFlows", "tokenStorage"],
+      "requires": ["srcDir", "stateManagement"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-component-flow-diagrams",
+      "name": "Generate Component Flow Diagrams",
+      "description": "Generate Mermaid diagrams showing component interactions, state flows, API calls",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generateComponentFlowDiagrams"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["analyze-components", "analyze-state-management"],
+      "provides": ["componentFlows", "componentFlowDiagrams"],
+      "requires": ["components", "stateManagement"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "merge-tool-findings",
+      "name": "Merge Tool Findings",
+      "description": "Combine findings from all static analysis tools",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "mergeToolFindings"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["parse-npm-audit", "parse-eslint", "detect-xss-patterns"],
+      "provides": ["mergedFindings"],
+      "requires": [],
+      "category": "aggregation",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "deduplicate",
+      "name": "Deduplicate Findings",
+      "description": "Remove duplicate findings",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "deduplicateFindings"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 120,
+      "dependsOn": ["merge-tool-findings"],
+      "provides": ["deduplicatedFindings"],
+      "requires": ["mergedFindings"],
+      "category": "aggregation",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "ai-xss-analysis",
+      "name": "AI XSS Analysis",
+      "description": "Deep AI analysis of XSS vulnerabilities in React components",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "react-xss-analysis"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["detect-xss-patterns"],
+      "provides": ["aiXSSFindings"],
+      "requires": ["srcDir", "xssFindings"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-state-security",
+      "name": "AI State Security Analysis",
+      "description": "Analyze state management security (Redux, Context) with AI",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "react-state-security"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["analyze-state-management"],
+      "provides": ["aiStateFindings"],
+      "requires": ["srcDir", "stateManagement"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-api-security-frontend",
+      "name": "AI Frontend API Security",
+      "description": "Analyze API call security, CORS, authentication headers",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "react-api-security"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["analyze-api-calls"],
+      "provides": ["aiAPIFindings"],
+      "requires": ["srcDir", "apiCalls"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-sensitive-data-exposure",
+      "name": "AI Sensitive Data Exposure",
+      "description": "AI analysis of sensitive data handling and exposure risks",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "react-sensitive-data"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["analyze-sensitive-data"],
+      "provides": ["aiSensitiveDataFindings"],
+      "requires": ["srcDir", "sensitiveDataFindings"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-validate-findings",
+      "name": "AI Validate Findings",
+      "description": "Validate all findings and remove false positives",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "validate-findings"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["deduplicate"],
+      "provides": ["validatedFindings"],
+      "requires": ["deduplicatedFindings", "srcDir"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-security-tests-react",
+      "name": "Generate Security Tests (React)",
+      "description": "Generate React Testing Library/Cypress tests with STRIDE/OWASP patterns",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generate-tests-react"
+      },
+      "estimatedDurationSeconds": 180,
+      "timeoutSeconds": 600,
+      "dependsOn": ["deduplicate"],
+      "provides": ["generatedTests", "testFiles", "testsPath"],
+      "requires": ["deduplicatedFindings", "projectPath", "framework"],
+      "category": "testing",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "execute-security-tests-react",
+      "name": "Execute Security Tests (React)",
+      "description": "Run generated tests (Jest/Cypress) and capture results",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "execute-tests-react"
+      },
+      "estimatedDurationSeconds": 300,
+      "timeoutSeconds": 900,
+      "dependsOn": ["generate-security-tests-react"],
+      "provides": ["testResults", "testExecutionSummary"],
+      "requires": ["generatedTests", "testFiles", "projectPath"],
+      "category": "testing",
+      "aiAssisted": false,
+      "progressWeight": 10,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "bind-test-results-to-findings",
+      "name": "Bind Test Results to Findings",
+      "description": "Link test results to findings as proof",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "bindTestResultsToFindings"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["execute-security-tests-react"],
+      "provides": ["enrichedFindings"],
+      "requires": ["deduplicatedFindings", "testResults"],
+      "category": "analysis",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": false,
+      "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "calculate-severity",
+      "name": "Calculate Severity",
+      "description": "Calculate final severity for all findings",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "calculateSeverity"
+      },
+      "estimatedDurationSeconds": 10,
+      "timeoutSeconds": 60,
+      "dependsOn": ["deduplicate"],
+      "provides": ["findingsWithSeverity"],
+      "requires": ["deduplicatedFindings"],
+      "category": "scoring",
+      "aiAssisted": false,
+      "progressWeight": 3,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "calculate-dependency-weighted-score",
+      "name": "Calculate Dependency-Weighted Score",
+      "description": "Calculate score considering backend API dependencies",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "calculateDependencyWeightedScore"
+      },
+      "estimatedDurationSeconds": 15,
+      "timeoutSeconds": 120,
+      "dependsOn": ["calculate-severity", "detect-component-dependencies"],
+      "provides": ["score", "scoreBreakdown", "dependencyImpact"],
+      "requires": ["findingsWithSeverity", "componentDependencies"],
+      "category": "scoring",
+      "aiAssisted": false,
+      "progressWeight": 5,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    },
+    {
+      "id": "cross-component-security-analysis",
+      "name": "Cross-Component Security Analysis",
+      "description": "Analyze security at frontend-backend boundaries",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "cross-component-security"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["detect-component-dependencies", "calculate-dependency-weighted-score"],
+      "provides": ["crossComponentFindings"],
+      "requires": ["componentDependencies", "srcDir"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 8,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "ai-custom-recommendations",
+      "name": "AI Custom Recommendations",
+      "description": "Generate custom remediation recommendations",
+      "executor": "ai",
+      "executorConfig": {
+        "type": "ai",
+        "model": "claude-sonnet-4-5-20250929",
+        "promptType": "custom-recommendations"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 600,
+      "dependsOn": ["calculate-dependency-weighted-score"],
+      "provides": ["findingsWithRecommendations"],
+      "requires": ["findingsWithSeverity", "srcDir"],
+      "category": "ai-analysis",
+      "aiAssisted": true,
+      "progressWeight": 6,
+      "required": false,
+      "retryCount": 1,
+      "continueOnFailure": true
+    },
+    {
+      "id": "generate-report",
+      "name": "Generate Report",
+      "description": "Generate final audit report",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "generateReport"
+      },
+      "estimatedDurationSeconds": 30,
+      "timeoutSeconds": 120,
+      "dependsOn": ["calculate-dependency-weighted-score"],
+      "provides": ["report", "reportPath"],
+      "requires": ["findingsWithSeverity", "score", "projectPath"],
+      "category": "reporting",
+      "aiAssisted": false,
+      "progressWeight": 4,
+      "required": true,
+      "retryCount": 0,
+      "continueOnFailure": false
+    }
+  ]
+}

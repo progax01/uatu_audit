@@ -133,16 +133,68 @@ export function adjustSeverityForDisclosure(
   return finding;
 }
 
+/**
+ * Adjust finding severity based on test execution results
+ * Test PASS = vulnerability NOT present → reduce severity 2 levels
+ * Test FAIL = vulnerability confirmed → add verification badge
+ */
+export function adjustSeverityForTestResults(
+  finding: FindingLike & { testProof?: any }
+): FindingLike {
+  if (!finding.testProof?.testExecuted) return finding;
+
+  const { testPassed, vulnerabilityConfirmed } = finding.testProof;
+
+  // Test PASSED but expected FAIL = FALSE POSITIVE
+  if (testPassed && !vulnerabilityConfirmed) {
+    const severityMap: Record<string, string> = {
+      'critical': 'medium',
+      'high': 'low',
+      'medium': 'info',
+      'low': 'info'
+    };
+
+    const currentSeverity = finding.severity?.toLowerCase() || 'info';
+    const newSeverity = severityMap[currentSeverity] || finding.severity;
+
+    return {
+      ...finding,
+      severity: newSeverity,
+      description: (finding.description || '') +
+        `\n\n[✓ TEST VALIDATED: Test execution confirmed this is a FALSE POSITIVE. Severity reduced from ${finding.severity} to ${newSeverity}.]`,
+    };
+  }
+
+  // Test FAILED = vulnerability CONFIRMED
+  if (!testPassed && vulnerabilityConfirmed) {
+    return {
+      ...finding,
+      description: (finding.description || '') +
+        `\n\n[✓ VERIFIED: Test execution CONFIRMED this vulnerability exists. Test file: ${finding.testProof.testFileName}]`,
+    };
+  }
+
+  return finding;
+}
+
 export function calculateWeightedScore(
   findings: FindingLike[],
   liabilityMap: LiabilityMap | null,
   externalWeightFactor = 0.2,
   disclosedAdminPrivileges: string[] = []
 ): WeightedScoreResult {
-  // Adjust findings based on disclosure before scoring
-  const adjustedFindings = findings.map(f =>
+  // STEP 1: Adjust findings based on disclosure
+  const disclosureAdjusted = findings.map(f =>
     adjustSeverityForDisclosure(f, disclosedAdminPrivileges)
   );
+
+  // STEP 2: Adjust findings based on test results
+  const testAdjusted = disclosureAdjusted.map(f =>
+    adjustSeverityForTestResults(f)
+  );
+
+  // STEP 3: Calculate score with adjusted findings
+  const adjustedFindings = testAdjusted;
   const breakdown: ScoreBreakdown = {
     critical_count_internal: 0,
     high_count_internal: 0,
@@ -200,5 +252,80 @@ export function calculateWeightedScore(
   const grade = gradeFromScore(value);
 
   return { value, grade, breakdown };
+}
+
+/**
+ * Calculate score with dependency awareness
+ * If this component depends on other audited components, their scores affect this component's score
+ */
+export interface DependencyWeightedScoreResult extends WeightedScoreResult {
+  dependencyImpact?: {
+    baseScore: number;
+    adjustedScore: number;
+    totalAdjustment: number;
+    impacts: Array<{
+      componentId: string;
+      componentScore?: number;
+      adjustment: number;
+      reasoning: string;
+    }>;
+  };
+}
+
+export function calculateDependencyWeightedScore(
+  findings: FindingLike[],
+  liabilityMap: LiabilityMap | null,
+  componentDependencies?: {
+    dependencies: Array<{ targetComponent: string; critical: boolean }>;
+    auditedComponents: Map<string, { score: number; findings: number }>;
+  },
+  externalWeightFactor = 0.2,
+  disclosedAdminPrivileges: string[] = []
+): DependencyWeightedScoreResult {
+  // Calculate base score (same as before)
+  const baseResult = calculateWeightedScore(
+    findings,
+    liabilityMap,
+    externalWeightFactor,
+    disclosedAdminPrivileges
+  );
+
+  // If no dependency info provided, return base score
+  if (!componentDependencies || !componentDependencies.dependencies.length) {
+    return baseResult;
+  }
+
+  // Calculate dependency impacts
+  const { applyDependencyImpacts, calculateDependencyImpact } = require('./componentDependencyAnalyzer.js');
+
+  const impacts = calculateDependencyImpact(
+    componentDependencies.dependencies.map(d => ({
+      targetComponent: d.targetComponent,
+      dependencyType: 'api-call' as const,
+      callSites: [],
+      confidence: 1,
+      critical: d.critical
+    })),
+    componentDependencies.auditedComponents
+  );
+
+  const { adjustedScore, totalAdjustment } = applyDependencyImpacts(baseResult.value, impacts);
+
+  return {
+    ...baseResult,
+    value: adjustedScore,
+    grade: gradeFromScore(adjustedScore),
+    dependencyImpact: {
+      baseScore: baseResult.value,
+      adjustedScore,
+      totalAdjustment,
+      impacts: impacts.map((i: any) => ({
+        componentId: i.dependentComponentId,
+        componentScore: i.dependentComponentScore,
+        adjustment: i.scoreAdjustment,
+        reasoning: i.reasoning
+      }))
+    }
+  };
 }
 

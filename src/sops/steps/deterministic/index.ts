@@ -1706,10 +1706,167 @@ const DETERMINISTIC_EXECUTORS: Record<string, DeterministicExecutor> = {
   'extractFunctionSignaturesRegex': extractFunctionSignaturesRegex,
   // User flow analysis
   'analyzeUserFlows': analyzeUserFlows,
+  'generateUserFlowDiagrams': async (step, config, context) => {
+    const srcDir = context.data.srcDir;
+
+    if (!srcDir) {
+      return {
+        success: false,
+        output: { error: 'srcDir not available' },
+        findings: [],
+      };
+    }
+
+    await context.onProgress?.(10, 'Analyzing user flows...');
+
+    try {
+      const { analyzeUserFlowsWithDiagrams } = await import('../../../services/userFlowAnalyzer.js');
+
+      const { analysis, diagrams } = await analyzeUserFlowsWithDiagrams(srcDir);
+
+      await context.onProgress?.(90, `Generated ${diagrams.length} flow diagrams`);
+
+      return {
+        success: true,
+        data: {
+          userFlows: analysis.flows,
+          userFlowDiagrams: diagrams,
+        },
+        findings: [],
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        output: { error: error.message },
+        findings: [],
+      };
+    }
+  },
   // Testing - import from testing module
   'generate-tests': async (step, config, context) => {
     const { executeTestingStep } = await import('../testing/index.js');
     return executeTestingStep(step, config, context);
+  },
+  'execute-tests': async (step, config, context) => {
+    const generatedTests = context.data.generatedTests || [];
+    const testsPath = context.data.testsPath;
+
+    if (!generatedTests.length || !testsPath) {
+      return {
+        success: true,
+        output: { message: 'No tests to execute' },
+        findings: [],
+      };
+    }
+
+    await context.onProgress?.(10, `Executing ${generatedTests.length} tests...`);
+
+    try {
+      const testResults: any[] = [];
+      const framework = generatedTests[0].framework;
+
+      if (framework === 'foundry') {
+        const { runFoundryTest } = await import('../../../tools/foundryWrapper.js');
+        const path = await import('path');
+
+        for (let i = 0; i < generatedTests.length; i++) {
+          const test = generatedTests[i];
+          const progress = 10 + (i / generatedTests.length) * 80;
+          await context.onProgress?.(progress, `Running test ${i + 1}/${generatedTests.length}...`);
+
+          try {
+            const testFilePath = path.join(testsPath, test.testFileName);
+            const result = await runFoundryTest({
+              projectPath: context.projectPath,
+              args: ['--match-path', testFilePath, '-vv'],
+              timeout: 120000,
+            });
+
+            testResults.push({
+              findingId: test.findingId,
+              testFileName: test.testFileName,
+              success: result.success,
+              output: result.stdout || '',
+              error: result.error,
+              vulnerabilityConfirmed: !result.success, // Test FAIL = vuln exists
+            });
+          } catch (error: any) {
+            testResults.push({
+              findingId: test.findingId,
+              testFileName: test.testFileName,
+              success: false,
+              error: error.message,
+              vulnerabilityConfirmed: true,
+            });
+          }
+        }
+      }
+
+      const summary = {
+        total: testResults.length,
+        passed: testResults.filter(r => r.success).length,
+        failed: testResults.filter(r => !r.success).length,
+      };
+
+      return {
+        success: true,
+        output: { summary },
+        data: {
+          testResults,
+          testExecutionSummary: summary,
+        },
+        findings: [],
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message,
+        findings: [],
+      };
+    }
+  },
+  'bindTestResultsToFindings': async (step, config, context) => {
+    const findings = context.data.deduplicatedFindings || [];
+    const testResults = context.data.testResults || [];
+
+    if (!testResults.length) {
+      return {
+        success: true,
+        data: { enrichedFindings: findings },
+        findings: [],
+      };
+    }
+
+    await context.onProgress?.(50, 'Binding test results to findings...');
+
+    const testResultMap = new Map();
+    for (const result of testResults) {
+      testResultMap.set(result.findingId, result);
+    }
+
+    const enrichedFindings = findings.map((finding: any) => {
+      const testResult = testResultMap.get(finding.id || finding.findingId);
+      if (!testResult) return finding;
+
+      return {
+        ...finding,
+        testProof: {
+          testExecuted: true,
+          testPassed: testResult.success,
+          testFileName: testResult.testFileName,
+          testOutput: testResult.output,
+          vulnerabilityConfirmed: testResult.vulnerabilityConfirmed,
+        },
+        // Adjust confidence based on test results
+        confidence: testResult.vulnerabilityConfirmed ? 1.0 : (finding.confidence || 0.7) * 0.5,
+      };
+    });
+
+    return {
+      success: true,
+      data: { enrichedFindings },
+      findings: [],
+    };
   },
   'publish-to-github': async (step, config, context) => {
     const { executeTestingStep } = await import('../testing/index.js');

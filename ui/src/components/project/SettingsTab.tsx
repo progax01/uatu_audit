@@ -22,6 +22,7 @@ export default function SettingsTab({ projectId, projectSlug, projectName, initi
     const [logoPreview, setLogoPreview] = useState(initialSettings?.logoUrl || '')
     const [websiteUrl, setWebsiteUrl] = useState(initialSettings?.websiteUrl || '')
     const [primaryColor, setPrimaryColor] = useState(initialSettings?.primaryColor || '#5C61FF')
+    const [backgroundColor, setBackgroundColor] = useState('#FFFFFF')
     const [docsUrl, setDocsUrl] = useState(initialSettings?.docsUrl || '')
     const [githubUrl, setGithubUrl] = useState(initialSettings?.githubUrl || '')
     const [twitterUrl, setTwitterUrl] = useState(initialSettings?.twitterUrl || '')
@@ -78,20 +79,23 @@ export default function SettingsTab({ projectId, projectSlug, projectName, initi
     const handleSaveAll = async () => {
         setSavingBranding(true)
         setSavingLinks(true)
+        setError(null)
 
         try {
-            // Save branding
+            // Save all settings in one call
             await authFetch(`/api/projects/${projectId}/settings`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ logoUrl, primaryColor })
-            })
-
-            // Save links
-            await authFetch(`/api/projects/${projectId}/settings`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ websiteUrl, docsUrl, githubUrl, twitterUrl, discordUrl })
+                body: JSON.stringify({
+                    logoUrl,
+                    primaryColor,
+                    backgroundColor,
+                    websiteUrl,
+                    docsUrl,
+                    githubUrl,
+                    twitterUrl,
+                    discordUrl
+                })
             })
 
             setSavedBranding(true)
@@ -138,86 +142,74 @@ export default function SettingsTab({ projectId, projectSlug, projectName, initi
                     </div>
                 </div>
 
-                {/* Logo and Color - Side by Side */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 pb-6 border-b border-slate-100">
-                    {/* Logo Upload */}
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-3">
-                            Project Logo
-                        </label>
-                        <div className="flex items-start gap-4">
-                            {/* Preview */}
-                            <div className="flex-shrink-0">
-                                <div className="w-24 h-24 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden">
-                                    {logoPreview ? (
-                                        <img src={logoPreview} alt="Logo preview" className="w-full h-full object-contain" />
-                                    ) : (
-                                        <ImageIcon className="text-slate-300" size={24} />
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Upload Button */}
-                            <div className="flex-1">
-                                <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors cursor-pointer">
-                                    {uploading ? (
-                                        <>
-                                            <Loader2 size={16} className="animate-spin" />
-                                            Uploading...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Upload size={16} />
-                                            Upload Logo
-                                        </>
-                                    )}
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleLogoUpload}
-                                        className="hidden"
-                                        disabled={uploading}
-                                    />
-                                </label>
-                                <p className="text-xs text-slate-500 mt-2">
-                                    PNG, JPG, SVG up to 2MB. Recommended: square format, transparent background
-                                </p>
-                                <p className="text-xs text-slate-400 mt-1">
-                                    This logo will appear on your audit reports, certificates, and public badge
-                                </p>
-                            </div>
-                        </div>
+                {/* Compact Row: Logo + Upload + Colors */}
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
+                    {/* Logo Preview */}
+                    <div className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {logoPreview ? (
+                            <img src={logoPreview} alt="Logo" className="w-full h-full object-contain" />
+                        ) : (
+                            <ImageIcon className="text-slate-300" size={20} />
+                        )}
                     </div>
 
-                    {/* Brand Color */}
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-3">
-                            Brand Color
-                        </label>
-                        <div className="flex items-center gap-4">
-                            <div
-                                className="w-12 h-12 rounded-xl border-2 border-slate-200 cursor-pointer overflow-hidden flex-shrink-0"
-                                style={{ backgroundColor: primaryColor }}
-                                onClick={() => document.getElementById('color-picker')?.click()}
-                            />
-                            <input
-                                id="color-picker"
-                                type="color"
-                                value={primaryColor}
-                                onChange={(e) => setPrimaryColor(e.target.value)}
-                                className="hidden"
-                            />
-                            <input
-                                type="text"
-                                value={primaryColor}
-                                onChange={(e) => setPrimaryColor(e.target.value)}
-                                placeholder="#5C61FF"
-                                className="flex-1 px-4 py-3 bg-white rounded-xl border-2 border-slate-200 font-mono text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
-                            />
-                        </div>
-                        <p className="text-xs text-slate-500 mt-2">
-                            Used for accents in audit reports and public badge
-                        </p>
+                    {/* Upload Button */}
+                    <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors cursor-pointer flex-shrink-0">
+                        {uploading ? (
+                            <>
+                                <Loader2 size={16} className="animate-spin" />
+                                Uploading...
+                            </>
+                        ) : (
+                            <>
+                                <Upload size={16} />
+                                Upload Logo
+                            </>
+                        )}
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="hidden"
+                            disabled={uploading}
+                        />
+                    </label>
+
+                    {/* Spacer */}
+                    <div className="flex-1"></div>
+
+                    {/* Background Color Picker */}
+                    <div className="flex flex-col items-center gap-1.5">
+                        <div
+                            className="w-14 h-14 rounded-xl border-2 border-slate-300 cursor-pointer transition-all hover:scale-105"
+                            style={{ backgroundColor: backgroundColor }}
+                            onClick={() => document.getElementById('bg-color-picker')?.click()}
+                        />
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Background</label>
+                        <input
+                            id="bg-color-picker"
+                            type="color"
+                            value={backgroundColor}
+                            onChange={(e) => setBackgroundColor(e.target.value)}
+                            className="hidden"
+                        />
+                    </div>
+
+                    {/* Brand Color Picker */}
+                    <div className="flex flex-col items-center gap-1.5">
+                        <div
+                            className="w-14 h-14 rounded-xl border-2 border-slate-300 cursor-pointer transition-all hover:scale-105"
+                            style={{ backgroundColor: primaryColor }}
+                            onClick={() => document.getElementById('brand-color-picker')?.click()}
+                        />
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Brand</label>
+                        <input
+                            id="brand-color-picker"
+                            type="color"
+                            value={primaryColor}
+                            onChange={(e) => setPrimaryColor(e.target.value)}
+                            className="hidden"
+                        />
                     </div>
                 </div>
 

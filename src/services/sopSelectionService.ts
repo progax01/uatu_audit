@@ -64,6 +64,9 @@ export async function detectEcosystem(projectPath: string): Promise<EcosystemDet
     checkFileExists(projectPath, 'Aptos.toml'),
     checkFileExists(projectPath, 'sui.config'),
     checkFileExists(projectPath, 'Cargo.toml'),
+    checkFileExists(projectPath, 'package.json'),
+    checkFileExists(projectPath, 'requirements.txt'),
+    checkFileExists(projectPath, 'pyproject.toml'),
   ]);
 
   const [
@@ -77,6 +80,9 @@ export async function detectEcosystem(projectPath: string): Promise<EcosystemDet
     hasAptos,
     hasSui,
     hasCargo,
+    hasPackageJson,
+    hasRequirementsTxt,
+    hasPyProject,
   ] = configChecks;
 
   // Determine framework and language
@@ -138,7 +144,7 @@ export async function detectEcosystem(projectPath: string): Promise<EcosystemDet
     confidence = 0.8;
     indicators.push('Move.toml found');
   }
-  // Plain Cargo (could be Solana without Anchor)
+  // Plain Cargo (could be Solana without Anchor or backend service)
   else if (hasCargo) {
     const cargoResult = await analyzeCargoProject(projectPath);
     framework = cargoResult.framework;
@@ -146,6 +152,24 @@ export async function detectEcosystem(projectPath: string): Promise<EcosystemDet
     suggestedSOP = cargoResult.suggestedSOP;
     confidence = cargoResult.confidence;
     indicators.push(...cargoResult.indicators);
+  }
+  // Node.js backend
+  else if (hasPackageJson) {
+    const nodeResult = await analyzeNodeJSProject(projectPath);
+    framework = nodeResult.framework;
+    language = nodeResult.language;
+    suggestedSOP = nodeResult.suggestedSOP;
+    confidence = nodeResult.confidence;
+    indicators.push(...nodeResult.indicators);
+  }
+  // Python backend
+  else if (hasRequirementsTxt || hasPyProject) {
+    const pythonResult = await analyzePythonProject(projectPath);
+    framework = pythonResult.framework;
+    language = 'python';
+    suggestedSOP = pythonResult.suggestedSOP;
+    confidence = pythonResult.confidence;
+    indicators.push(...pythonResult.indicators);
   }
 
   // If no config found, check for source files
@@ -439,6 +463,147 @@ async function hasFilesWithExtension(dir: string, extensions: string[]): Promise
   return false;
 }
 
+/**
+ * Analyze Node.js project to determine specific framework
+ */
+async function analyzeNodeJSProject(projectPath: string): Promise<{
+  framework: Framework;
+  language: Language;
+  suggestedSOP: string;
+  confidence: number;
+  indicators: string[];
+}> {
+  const packageJsonPath = path.join(projectPath, 'package.json');
+  const indicators: string[] = ['package.json found'];
+
+  try {
+    const content = await fs.readFile(packageJsonPath, 'utf-8');
+    const packageJson = JSON.parse(content);
+    const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
+
+    // Check for TypeScript
+    const isTypeScript = !!dependencies.typescript;
+    const language: Language = isTypeScript ? 'typescript' : 'javascript';
+
+    // Check for specific frameworks
+    if (dependencies.express) {
+      return {
+        framework: 'express',
+        language,
+        suggestedSOP: 'backend-nodejs',
+        confidence: 0.95,
+        indicators: [...indicators, 'Express framework detected']
+      };
+    }
+
+    if (dependencies.fastify) {
+      return {
+        framework: 'fastify',
+        language,
+        suggestedSOP: 'backend-nodejs',
+        confidence: 0.95,
+        indicators: [...indicators, 'Fastify framework detected']
+      };
+    }
+
+    if (dependencies['@nestjs/core']) {
+      return {
+        framework: 'nestjs',
+        language,
+        suggestedSOP: 'backend-nodejs',
+        confidence: 0.95,
+        indicators: [...indicators, 'NestJS framework detected']
+      };
+    }
+
+    // Check for React (frontend)
+    if (dependencies.react) {
+      return {
+        framework: 'react',
+        language,
+        suggestedSOP: 'frontend-react',
+        confidence: 0.95,
+        indicators: [...indicators, 'React framework detected']
+      };
+    }
+
+    // Generic Node.js
+    return {
+      framework: 'nodejs',
+      language,
+      suggestedSOP: 'backend-nodejs',
+      confidence: 0.7,
+      indicators
+    };
+  } catch {
+    return {
+      framework: 'nodejs',
+      language: 'javascript',
+      suggestedSOP: 'backend-nodejs',
+      confidence: 0.5,
+      indicators
+    };
+  }
+}
+
+/**
+ * Analyze Python project to determine specific framework
+ */
+async function analyzePythonProject(projectPath: string): Promise<{
+  framework: Framework;
+  language: Language;
+  suggestedSOP: string;
+  confidence: number;
+  indicators: string[];
+}> {
+  const indicators: string[] = [];
+
+  // Check for requirements.txt
+  const requirementsPath = path.join(projectPath, 'requirements.txt');
+  if (await fs.pathExists(requirementsPath)) {
+    try {
+      const content = await fs.readFile(requirementsPath, 'utf-8');
+      indicators.push('requirements.txt found');
+
+      if (content.includes('Flask')) {
+        return {
+          framework: 'flask',
+          language: 'python',
+          suggestedSOP: 'backend-python',
+          confidence: 0.95,
+          indicators: [...indicators, 'Flask framework detected']
+        };
+      }
+
+      if (content.includes('Django')) {
+        return {
+          framework: 'django',
+          language: 'python',
+          suggestedSOP: 'backend-python',
+          confidence: 0.95,
+          indicators: [...indicators, 'Django framework detected']
+        };
+      }
+    } catch {
+      // Continue
+    }
+  }
+
+  // Check for pyproject.toml
+  const pyprojectPath = path.join(projectPath, 'pyproject.toml');
+  if (await fs.pathExists(pyprojectPath)) {
+    indicators.push('pyproject.toml found');
+  }
+
+  return {
+    framework: 'python',
+    language: 'python',
+    suggestedSOP: 'backend-python',
+    confidence: 0.7,
+    indicators
+  };
+}
+
 async function getDetectionForFramework(framework: Framework): Promise<EcosystemDetectionResult> {
   const frameworkMap: Record<Framework, { language: Language; suggestedSOP: string }> = {
     'foundry': { language: 'solidity', suggestedSOP: 'solidity-foundry' },
@@ -452,6 +617,15 @@ async function getDetectionForFramework(framework: Framework): Promise<Ecosystem
     'move': { language: 'move', suggestedSOP: 'move-generic' },
     'ink': { language: 'rust', suggestedSOP: 'ink-substrate' },
     'cargo': { language: 'rust', suggestedSOP: 'rust-generic' },
+    'cargo-backend': { language: 'rust', suggestedSOP: 'rust-backend' },
+    'nodejs': { language: 'typescript', suggestedSOP: 'backend-nodejs' },
+    'express': { language: 'typescript', suggestedSOP: 'backend-nodejs' },
+    'fastify': { language: 'typescript', suggestedSOP: 'backend-nodejs' },
+    'nestjs': { language: 'typescript', suggestedSOP: 'backend-nodejs' },
+    'react': { language: 'typescript', suggestedSOP: 'frontend-react' },
+    'python': { language: 'python', suggestedSOP: 'backend-python' },
+    'flask': { language: 'python', suggestedSOP: 'backend-python' },
+    'django': { language: 'python', suggestedSOP: 'backend-python' },
     'generic': { language: 'solidity', suggestedSOP: 'base-solidity' },
     'unknown': { language: 'unknown', suggestedSOP: 'base-solidity' },
   };

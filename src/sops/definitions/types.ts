@@ -21,10 +21,19 @@ export type Framework =
   | 'move'          // Move - Generic
   | 'ink'           // Rust - Substrate ink!
   | 'cargo'         // Rust - Generic Cargo
+  | 'nodejs'        // Node.js - Generic
+  | 'express'       // Node.js - Express
+  | 'fastify'       // Node.js - Fastify
+  | 'nestjs'        // Node.js - NestJS
+  | 'react'         // Frontend - React
+  | 'cargo-backend' // Rust - Backend service
+  | 'python'        // Python - Generic
+  | 'flask'         // Python - Flask
+  | 'django'        // Python - Django
   | 'generic'       // Fallback for generic projects
   | 'unknown';      // Unknown framework
 
-export type Language = 'solidity' | 'rust' | 'move' | 'unknown';
+export type Language = 'solidity' | 'rust' | 'move' | 'typescript' | 'javascript' | 'python' | 'unknown';
 
 export type AuditDepth = 'quick' | 'standard' | 'deep';
 

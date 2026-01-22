@@ -268,86 +268,217 @@ async function generateTestWithClaude(params: {
   // Get appropriate template hint
   const templateHint = getTemplateHint(vulnerabilityType, framework);
 
-  const prompt = `You are a smart contract security auditor generating a test case to verify a vulnerability.
+  const prompt = `You are an expert smart contract security tester. Generate a COMPREHENSIVE, GOAL-ORIENTED test suite that validates this security finding using established frameworks (STRIDE, OWASP, negative/positive testing).
 
-## Finding Details
-- **ID:** ${finding.findingId}
-- **Title:** ${finding.title}
-- **Severity:** ${finding.severity}
-- **Description:** ${finding.description}
-${finding.recommendation ? `- **Recommendation:** ${finding.recommendation}` : ''}
-${finding.filePath ? `- **File:** ${finding.filePath}` : ''}
-${finding.lineStart ? `- **Line:** ${finding.lineStart}` : ''}
-${finding.functionName ? `- **Function:** ${finding.functionName}` : ''}
-${finding.contractName ? `- **Contract:** ${finding.contractName}` : ''}
+═══════════════════════════════════════════════════════════
+🎯 PRIMARY GOAL: VALIDATE THIS SPECIFIC FINDING
+═══════════════════════════════════════════════════════════
+- **Finding ID**: ${finding.findingId}
+- **Title**: ${finding.title}
+- **Severity**: ${finding.severity}
+- **Vulnerability Type**: ${vulnerabilityType}
+- **Description**: ${finding.description}
+${finding.recommendation ? `- **Recommendation**: ${finding.recommendation}` : ''}
+${finding.contractName ? `- **Contract**: ${finding.contractName}` : ''}
+${finding.functionName ? `- **Function**: ${finding.functionName}` : ''}
+${finding.filePath ? `- **Location**: ${finding.filePath}${finding.lineStart ? ':' + finding.lineStart : ''}` : ''}
 
-## Vulnerability Type
-${vulnerabilityType}
-
-## Contract Code
+═══════════════════════════════════════════════════════════
+📋 CONTRACT CODE
+═══════════════════════════════════════════════════════════
 \`\`\`solidity
 ${contractCode}
 \`\`\`
 
-## Template Guidance
+═══════════════════════════════════════════════════════════
+🛡️ SECURITY TESTING FRAMEWORKS (APPLY ALL RELEVANT)
+═══════════════════════════════════════════════════════════
+
+**STRIDE Analysis** - Apply where relevant:
+- Spoofing: Can attacker impersonate another user?
+- Tampering: Can attacker modify unauthorized data?
+- Repudiation: Can actions be denied?
+- Information Disclosure: Is sensitive data exposed?
+- Denial of Service: Can attacker block legitimate use?
+- Elevation of Privilege: Can attacker gain unauthorized access?
+
+**OWASP Smart Contract Top 10** - Map to category:
+- Reentrancy, Access Control, Arithmetic, Unchecked Calls, DoS
+- Bad Randomness, Front-Running, Time Manipulation, etc.
+
+**Negative vs Positive Testing** - BOTH are REQUIRED:
+- POSITIVE: Test legitimate operations work correctly (should PASS)
+- NEGATIVE: Test exploit attempts (should FAIL if vuln exists, or REVERT if fixed)
+
+═══════════════════════════════════════════════════════════
+✅ REQUIRED TEST STRUCTURE
+═══════════════════════════════════════════════════════════
+
+Generate a ${framework === 'foundry' ? 'Foundry' : 'Hardhat'} test file with this EXACT structure:
+
+\`\`\`solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/**
+ * ═══════════════════════════════════════════════════════════
+ * SECURITY TEST SUITE FOR FINDING: ${finding.findingId}
+ * ═══════════════════════════════════════════════════════════
+ *
+ * 🎯 GOAL: ${finding.title}
+ * 📊 SEVERITY: ${finding.severity}
+ * 🔍 TYPE: ${vulnerabilityType}
+ *
+ * ═══════════════════════════════════════════════════════════
+ * 📝 PURPOSE
+ * ═══════════════════════════════════════════════════════════
+ * This test suite validates the finding by testing:
+ * 1. ✅ POSITIVE cases - Expected legitimate behavior
+ * 2. ❌ NEGATIVE cases - Exploit attempts
+ * 3. 🛡️ STRIDE framework vectors
+ * 4. 📋 OWASP vulnerability patterns
+ * 5. 🔬 Edge cases and boundaries
+ *
+ * ═══════════════════════════════════════════════════════════
+ * 🚀 SETUP
+ * ═══════════════════════════════════════════════════════════
+ * Run: forge test --match-contract Test_Finding_${finding.findingId.replace(/[^a-zA-Z0-9]/g, '_')} -vvv
+ *
+ * ═══════════════════════════════════════════════════════════
+ * 📊 EXPECTED RESULTS
+ * ═══════════════════════════════════════════════════════════
+ * If vulnerability EXISTS:
+ * - Positive tests PASS (normal functionality works)
+ * - Exploit tests FAIL (vulnerability demonstrated)
+ *
+ * If vulnerability FIXED:
+ * - Positive tests PASS
+ * - Exploit tests REVERT (vulnerability prevented)
+ *
+ * ═══════════════════════════════════════════════════════════
+ * ⚠️ IMPACT
+ * ═══════════════════════════════════════════════════════════
+ * ${finding.description}
+ * ═══════════════════════════════════════════════════════════
+ */
+
+import "forge-std/Test.sol";
+// Add other imports as needed
+
+contract Test_Finding_${finding.findingId.replace(/[^a-zA-Z0-9]/g, '_')} is Test {
+    // Declare contract instances, test accounts, etc.
+    address attacker = address(0xBAD);
+    address victim = address(0x1);
+    address admin = address(0xADMIN);
+
+    function setUp() public {
+        // Initialize test environment
+        // Deploy contracts
+        // Setup initial state
+        // Fund accounts
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // ✅ POSITIVE TESTS (Expected Legitimate Behavior)
+    // ═══════════════════════════════════════════════════════════
+
+    /// @notice Test that legitimate users can perform valid operations
+    /// @dev This should PASS showing normal functionality works
+    function test_Positive_LegitimateOperation() public {
+        // Test normal user flow
+        // Verify state changes correctly
+        // Assert expected outcomes
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // ❌ NEGATIVE TESTS (Exploit Scenarios)
+    // ═══════════════════════════════════════════════════════════
+
+    /// @notice Main exploit test for the vulnerability
+    /// @dev This should FAIL if vuln exists (exploit succeeds)
+    /// @dev OR should REVERT if vulnerability is fixed
+    function test_Negative_ExploitVulnerability() public {
+        // Setup exploit scenario
+        // Attempt to exploit the vulnerability
+        // Assert exploit succeeded (if vuln exists) OR expect revert (if fixed)
+    }
+
+    /// @notice Test boundary conditions
+    function test_Negative_BoundaryConditions() public {
+        // Test edge cases
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 🛡️ STRIDE-BASED TESTS (Apply relevant vectors)
+    // ═══════════════════════════════════════════════════════════
+
+    /// @notice STRIDE: Test spoofing/impersonation
+    function test_STRIDE_Spoofing() public {
+        // Can attacker impersonate legitimate user?
+    }
+
+    /// @notice STRIDE: Test unauthorized tampering
+    function test_STRIDE_Tampering() public {
+        // Can attacker modify protected data?
+    }
+
+    /// @notice STRIDE: Test privilege escalation
+    function test_STRIDE_ElevationOfPrivilege() public {
+        // Can attacker gain unauthorized access?
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 📋 OWASP-BASED TESTS (Map to specific vulnerability)
+    // ═══════════════════════════════════════════════════════════
+
+    // Add OWASP tests based on vulnerability type
+    // Examples: test_OWASP_Reentrancy, test_OWASP_AccessControl, etc.
+}
+
+// ═══════════════════════════════════════════════════════════
+// 💀 ATTACK CONTRACT (if needed for exploit)
+// ═══════════════════════════════════════════════════════════
+contract AttackerContract {
+    // Implement attack logic if needed
+}
+\`\`\`
+
+═══════════════════════════════════════════════════════════
+💡 FRAMEWORK-SPECIFIC HINTS
+═══════════════════════════════════════════════════════════
 ${templateHint}
 
-## Instructions
-Generate a complete ${framework === 'foundry' ? 'Foundry' : 'Hardhat'} test file that:
+═══════════════════════════════════════════════════════════
+🎯 CRITICAL REQUIREMENTS
+═══════════════════════════════════════════════════════════
+1. ✅ Every test MUST map directly to the finding
+2. ✅ Include BOTH positive and negative tests
+3. ✅ Apply STRIDE and OWASP frameworks
+4. ✅ Test should be SPECIFIC to this finding, not generic
+5. ✅ Include detailed inline comments
+6. ✅ Make tests runnable as-is
+7. ✅ Return ONLY code - NO explanations before/after
 
-1. **Tests the vulnerability** - The test should demonstrate the vulnerability exists
-2. **Should FAIL initially** - Proving the vulnerability is present
-3. **Includes clear comments** - Explain the exploit step-by-step
-4. **Uses proper setup** - Deploy contracts, set initial state
-5. **Follows best practices** - Use appropriate test patterns for ${framework}
-
-**IMPORTANT:**
-- Return ONLY the test code, no explanations before or after
-- Include all necessary imports
-- Make the test runnable as-is
-- Add inline comments explaining the vulnerability
-- The test should FAIL (or expect revert) to prove the vulnerability
-
-Generate the test code now:`;
+Generate the comprehensive test suite NOW:`;
 
   try {
-    // TODO: Install @anthropic-ai/sdk package before enabling this functionality
-    throw new Error('@anthropic-ai/sdk package not installed. Install with: npm install @anthropic-ai/sdk');
+    // Use Claude CLI for test generation
+    const { executeStreamingClaude } = await import('./ai/simpleClaudeExecutor.js');
 
-    /* Commented out until package is installed
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error('ANTHROPIC_API_KEY not set');
-    }
-
-    const anthropic = new Anthropic({ apiKey });
-
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 4000,
-      temperature: 0.2, // Low temperature for consistent code generation
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
+    // Execute with Claude CLI
+    const result = await executeStreamingClaude(prompt, {
+      timeout: 300000, // 5 minutes for test generation
+      model: 'claude-sonnet-4-5-20250929',
     });
 
-    const content = response.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type from Claude');
-    }
-
-    // Extract code from response (remove any markdown formatting)
-    let testCode = content.text.trim();
+    let testCode = result.output || '';
 
     // Remove markdown code blocks if present
-    testCode = testCode.replace(/^```[a-z]*\n/i, '');
-    testCode = testCode.replace(/\n```$/i, '');
+    testCode = testCode.replace(/^```[a-z]*\n/im, '');
+    testCode = testCode.replace(/\n```$/im, '');
+    testCode = testCode.trim();
 
     return testCode;
-    */
   } catch (error: any) {
     console.error(`Failed to generate test with Claude: ${error.message}`);
 
