@@ -46,9 +46,9 @@ export function BrandingPreviewCard({ logoUrl, primaryColor, projectName, score,
         <h4 className="text-xs font-bold text-slate-900">Branding Preview</h4>
       </div>
 
-      {/* Hero-style preview with large logos */}
+      {/* Compact preview */}
       <div
-        className="relative rounded-xl overflow-hidden border-2 border-slate-200 aspect-[1.91/1]"
+        className="relative rounded-xl overflow-hidden border-2 border-slate-200"
         style={{ backgroundColor: bgColor }}
       >
         {/* Mascot watermark in background */}
@@ -63,81 +63,94 @@ export function BrandingPreviewCard({ logoUrl, primaryColor, projectName, score,
           />
         </div>
 
-        {/* Main content - hero centered */}
-        <div className="relative h-full flex flex-col items-center justify-center p-8">
-          {/* Large Logos row */}
-          <div className="flex items-center gap-5 mb-6">
-            {/* Uatu logo - large rectangle with logo.svg */}
-            <div
-              className="w-32 h-28 rounded-2xl flex items-center justify-center shadow-xl relative"
-              style={{
-                backgroundColor: brandColor,
-                boxShadow: `0 10px 40px ${brandColor}40`
-              }}
-            >
-              <img
-                src="/logo.svg"
-                alt="Uatu"
-                className="w-20 h-20 object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none'
+        {/* Main content - compact horizontal layout */}
+        <div className="relative flex items-center justify-between p-8">
+          {/* Left: Logos and Project name */}
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-3">
+              {/* Uatu logo - compact */}
+              <div
+                className="w-20 h-20 rounded-xl flex items-center justify-center shadow-lg"
+                style={{
+                  backgroundColor: brandColor,
+                  boxShadow: `0 4px 20px ${brandColor}40`
                 }}
-              />
+              >
+                <img
+                  src="/logo.svg"
+                  alt="Uatu"
+                  className="w-12 h-12 object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none'
+                  }}
+                />
+              </div>
+
+              {logoUrl ? (
+                <>
+                  <div className="text-3xl font-black opacity-20" style={{ color: brandColor }}>×</div>
+                  <div className="w-20 h-20 rounded-xl bg-white shadow-lg flex items-center justify-center p-2.5">
+                    <img
+                      src={logoUrl}
+                      alt="Project"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none'
+                      }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-3xl font-black opacity-20" style={{ color: brandColor }}>×</div>
+                  <div
+                    className="w-20 h-20 rounded-xl shadow-lg flex items-center justify-center"
+                    style={{ backgroundColor: brandColor }}
+                  >
+                    <span className="text-white text-3xl font-black">
+                      {projectName?.charAt(0).toUpperCase() || 'P'}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
 
-            {logoUrl && (
-              <>
-                {/* Multiplication symbol */}
-                <div
-                  className="text-4xl font-black opacity-30"
-                  style={{ color: brandColor }}
-                >
-                  ×
-                </div>
-                {/* Project logo - large square */}
-                <div className="w-28 h-28 rounded-2xl bg-white shadow-xl flex items-center justify-center p-3">
-                  <img
-                    src={logoUrl}
-                    alt="Project"
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none'
-                    }}
-                  />
-                </div>
-              </>
-            )}
+            <div className="text-left">
+              <h2 className="text-2xl font-black text-slate-900 leading-tight tracking-tight">
+                {projectName || 'Your Project'}
+              </h2>
+              <div
+                className="inline-block mt-1 px-3 py-1 rounded-full text-[9px] font-bold text-white uppercase tracking-widest"
+                style={{ backgroundColor: brandColor }}
+              >
+                SECURITY AUDIT
+              </div>
+            </div>
           </div>
 
-          {/* Project name - large and bold */}
-          <h2 className="text-4xl font-black text-slate-900 mb-4 text-center leading-tight tracking-tight">
-            {projectName || 'Your Project'}
-          </h2>
-
-          {/* Security Audit badge with score */}
-          <div className="flex items-center gap-4">
-            <div
-              className="px-6 py-2.5 rounded-full text-xs font-bold text-white uppercase tracking-widest shadow-lg"
-              style={{ backgroundColor: brandColor }}
-            >
-              SECURITY AUDIT
-            </div>
-            {/* Score Display */}
+          {/* Right: Score Display */}
+          <div className="flex-shrink-0">
             {grade && score !== undefined ? (
               <div
-                className="px-6 py-2.5 rounded-xl font-black text-white shadow-lg flex items-baseline gap-2"
+                className="px-5 py-3 rounded-xl font-black text-white shadow-lg text-right"
                 style={{ backgroundColor: ribbonColor }}
               >
-                <span className="text-2xl leading-none">{displayScore}</span>
-                <span className="text-sm leading-none opacity-90">{score}%</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl leading-none">{displayScore}</span>
+                  <span className="text-lg leading-none opacity-90">{score}%</span>
+                </div>
+                <div className="text-[9px] font-bold mt-1 opacity-80 uppercase tracking-wider">Security Score</div>
               </div>
             ) : (
               <div
-                className="px-6 py-2.5 rounded-xl font-black text-white shadow-lg flex items-baseline gap-2"
+                className="px-5 py-3 rounded-xl font-black text-white shadow-lg text-right"
                 style={{ backgroundColor: brandColor, opacity: 0.5 }}
               >
-                <span className="text-2xl leading-none">--</span>
-                <span className="text-sm leading-none opacity-90">--%</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl leading-none">--</span>
+                  <span className="text-lg leading-none opacity-90">--%</span>
+                </div>
+                <div className="text-[9px] font-bold mt-1 opacity-80 uppercase tracking-wider">Security Score</div>
               </div>
             )}
           </div>
