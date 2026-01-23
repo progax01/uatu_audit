@@ -359,6 +359,21 @@ export async function handleAuditRoutes(
       // If job has projectPath + sopId, it can be resumed
       // Otherwise, it needs to be started from scratch
       if (job.projectPath && job.sopId) {
+        // Clean up old execution records to avoid unique constraint violations
+        log.info('Cleaning up old execution records before retry', { jobId });
+
+        // Delete old SOP execution record (has unique constraint on jobId)
+        await db
+          .delete(auditSopExecution)
+          .where(eq(auditSopExecution.jobId, jobId));
+
+        // Delete old step progress records
+        await db
+          .delete(auditStepProgress)
+          .where(eq(auditStepProgress.jobId, jobId));
+
+        log.info('Old execution records cleaned up', { jobId });
+
         // Can be resumed - reset to pending
         await db
           .update(auditJobs)
@@ -481,6 +496,7 @@ export async function handleAuditRoutes(
         success: true,
         audit: {
           id: job.id,
+          userId: job.userId, // CRITICAL: Include userId for ownership checks in frontend
           status: job.status,
           auditType: job.auditType,
           visibility: job.visibility,
@@ -602,7 +618,7 @@ export async function handleAuditRoutes(
   }
 
   // ============================================================================
-  // GET /api/audit/:jobId/clarifications - Get post-audit clarification questions
+  // GET /api/audit/:jobId/clarifications - Get clarification questions
   // ============================================================================
   const clarificationsMatch = parsed.pathname?.match(/^\/api\/audit\/([a-f0-9-]+)\/clarifications$/);
   if (req.method === 'GET' && clarificationsMatch) {
@@ -611,14 +627,27 @@ export async function handleAuditRoutes(
     try {
       const { getAllClarifications } = await import('../../services/clarificationService.js');
 
-      // Get post-audit clarifications
-      const clarifications = await getAllClarifications(jobId, 'post_audit');
+      // Get phase from query string (default to post_audit for backwards compatibility)
+      const phase = (parsed.query?.phase || 'post_audit') as 'pre_audit' | 'post_audit';
+
+      // Get clarifications for specified phase
+      const clarifications = await getAllClarifications(jobId, phase);
+
+      // Calculate counts
+      const counts = {
+        pending: clarifications.filter(c => c.status === 'pending').length,
+        answered: clarifications.filter(c => c.status === 'answered').length,
+        skipped: clarifications.filter(c => c.status === 'skipped').length,
+        total: clarifications.length
+      };
 
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({
+        ok: true,
         success: true,
         clarifications: clarifications.map((c) => ({
           id: c.id,
+          phase: c.phase,
           questionKey: c.questionKey,
           questionText: c.questionText,
           questionType: c.questionType,
@@ -627,7 +656,9 @@ export async function handleAuditRoutes(
           status: c.status,
           answerValue: c.answerValue,
           answeredAt: c.answeredAt,
+          createdAt: c.createdAt,
         })),
+        counts,
       }));
       return true;
     } catch (error: any) {
@@ -661,17 +692,66 @@ export async function handleAuditRoutes(
         return true;
       }
 
-      const { submitAnswer } = await import('../../services/clarificationService.js');
+      const { submitAnswer, getAllClarifications } = await import('../../services/clarificationService.js');
       const updated = await submitAnswer(clarificationId, answer);
+
+      // Get updated clarifications to calculate counts
+      const clarifications = await getAllClarifications(jobId);
+      const counts = {
+        pending: clarifications.filter(c => c.status === 'pending').length,
+        answered: clarifications.filter(c => c.status === 'answered').length,
+        skipped: clarifications.filter(c => c.status === 'skipped').length,
+        total: clarifications.length
+      };
 
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({
+        ok: true,
         success: true,
         clarification: updated,
+        counts,
       }));
       return true;
     } catch (error: any) {
       log.error('Failed to submit clarification answer', { jobId, clarificationId, error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ success: false, error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // POST /api/audit/:jobId/clarifications/:clarificationId/skip - Skip clarification
+  // ============================================================================
+  const skipMatch = parsed.pathname?.match(/^\/api\/audit\/([a-f0-9-]+)\/clarifications\/([a-f0-9-]+)\/skip$/);
+  if (req.method === 'POST' && skipMatch) {
+    const jobId = skipMatch[1];
+    const clarificationId = skipMatch[2];
+
+    try {
+      const { skipClarification, getAllClarifications } = await import('../../services/clarificationService.js');
+      const updated = await skipClarification(clarificationId);
+
+      // Get updated clarifications to calculate counts
+      const clarifications = await getAllClarifications(jobId);
+      const counts = {
+        pending: clarifications.filter(c => c.status === 'pending').length,
+        answered: clarifications.filter(c => c.status === 'answered').length,
+        skipped: clarifications.filter(c => c.status === 'skipped').length,
+        total: clarifications.length
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        ok: true,
+        success: true,
+        clarification: updated,
+        counts,
+      }));
+      return true;
+    } catch (error: any) {
+      log.error('Failed to skip clarification', { jobId, clarificationId, error: error.message });
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ success: false, error: error.message }));

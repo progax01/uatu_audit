@@ -130,7 +130,7 @@ export default function AuditClarifications({
         setError(null)
 
         try {
-            const res = await fetch(`/jobs/${jobId}/clarifications?phase=${phase}`)
+            const res = await fetch(`/api/audit/${jobId}/clarifications?phase=${phase}`)
             const data = await res.json()
 
             if (data.ok) {
@@ -166,7 +166,7 @@ export default function AuditClarifications({
         setError(null)
 
         try {
-            const res = await fetch(`/jobs/${jobId}/clarifications/${clarificationId}/answer`, {
+            const res = await fetch(`/api/audit/${jobId}/clarifications/${clarificationId}/answer`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ answer })
@@ -201,7 +201,7 @@ export default function AuditClarifications({
         setSubmitting(clarificationId)
 
         try {
-            const res = await fetch(`/jobs/${jobId}/clarifications/${clarificationId}/skip`, {
+            const res = await fetch(`/api/audit/${jobId}/clarifications/${clarificationId}/skip`, {
                 method: 'POST'
             })
 

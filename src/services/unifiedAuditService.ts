@@ -1001,11 +1001,16 @@ export class UnifiedAuditService extends EventEmitter {
       let projectName = 'Smart Contract';
       if (request.source.type === 'github-repo') {
         const repoUrl = request.source.repoUrl;
-        const match = repoUrl.match(/github\.com\/[^/]+\/([^/.]+)/);
-        projectName = match ? match[1] : projectName;
+        if (repoUrl && typeof repoUrl === 'string') {
+          const match = repoUrl.match(/github\.com\/[^/]+\/([^/.]+)/);
+          projectName = match ? match[1] : projectName;
+        }
       } else if (request.source.type === 'deployed-contract') {
-        // Use first 8 chars of address as fallback name
-        projectName = request.source.address.slice(0, 10) + '...';
+        const address = request.source.address;
+        if (address && typeof address === 'string') {
+          // Use first 8 chars of address as fallback name
+          projectName = address.slice(0, 10) + '...';
+        }
       }
 
       // Fetch project logo if projectId is provided

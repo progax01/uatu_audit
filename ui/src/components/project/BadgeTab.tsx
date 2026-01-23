@@ -104,10 +104,10 @@ export default function BadgeTab({ projectId, projectSlug, projectName, primaryC
   }
 
   const getBadgeData = () => {
-    if (currentAudit) {
+    if (currentAudit && currentAudit.score !== null && currentAudit.score !== undefined) {
       return {
         score: currentAudit.score.toString().padStart(2, '0'),
-        grade: currentAudit.scoreLabel,
+        grade: currentAudit.scoreLabel || 'A+',
         link: `${window.location.origin}/project/${projectSlug}`
       }
     }

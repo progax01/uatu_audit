@@ -268,6 +268,8 @@ export async function runFoundryTest(config: ToolRunnerConfig): Promise<ToolRunn
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
+    let lastProgressUpdate = Date.now();
+    let testCount = 0;
 
     const proc = spawn('forge', args, {
       cwd: config.projectPath,
@@ -279,11 +281,41 @@ export async function runFoundryTest(config: ToolRunnerConfig): Promise<ToolRunn
     });
 
     proc.stdout.on('data', (data) => {
-      stdout += data.toString();
+      const chunk = data.toString();
+      stdout += chunk;
+
+      // Count test runs
+      const testMatches = chunk.match(/\[PASS\]|\[FAIL\]/g);
+      if (testMatches) {
+        testCount += testMatches.length;
+      }
+
+      // Log progress every 2 seconds
+      const now = Date.now();
+      if (now - lastProgressUpdate > 2000) {
+        const progress = Math.min(90, 30 + (testCount * 10));
+        config.onProgress?.(progress, `Running tests (${testCount} completed)...`);
+        lastProgressUpdate = now;
+
+        // Log test output for visibility
+        if (chunk.trim()) {
+          log.info('Test execution output', {
+            output: chunk.substring(0, 200)
+          });
+        }
+      }
     });
 
     proc.stderr.on('data', (data) => {
-      stderr += data.toString();
+      const chunk = data.toString();
+      stderr += chunk;
+
+      // Log errors immediately
+      if (chunk.trim()) {
+        log.warn('Test execution stderr', {
+          error: chunk.substring(0, 200)
+        });
+      }
     });
 
     proc.on('close', (code) => {

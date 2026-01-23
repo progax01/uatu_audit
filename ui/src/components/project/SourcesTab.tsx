@@ -134,12 +134,13 @@ export default function SourcesTab({ projectId, components, onComponentAdded }: 
   }
 
   const handleAddGitHub = async () => {
-    if (!selectedRepo || !selectedBranch) return
+    if (!selectedRepo) return
 
     setLoading(true)
     setError(null)
 
     try {
+      const defaultBranch = selectedRepo.default_branch
       const res = await authFetch(`/api/projects/${projectId}/components`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -151,9 +152,9 @@ export default function SourcesTab({ projectId, components, onComponentAdded }: 
             repo: selectedRepo.full_name.split('/')[1],
             fullName: selectedRepo.full_name,
             cloneUrl: selectedRepo.clone_url,
-            defaultBranch: selectedRepo.default_branch,
-            trackedBranches: [selectedBranch],
-            currentBranch: selectedBranch,
+            defaultBranch: defaultBranch,
+            trackedBranches: [defaultBranch], // Track default branch
+            currentBranch: defaultBranch, // Use default branch
             isPrivate: selectedRepo.private
           }
         })
@@ -275,49 +276,34 @@ export default function SourcesTab({ projectId, components, onComponentAdded }: 
               <>
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Repository</label>
-                  <div className="flex gap-2">
-                    <select
-                      value={selectedRepo?.full_name || ''}
-                      onChange={(e) => {
-                        const repo = repositories.find(r => r.full_name === e.target.value)
-                        if (repo) {
-                          setSelectedRepo(repo)
-                          setSelectedBranch('')
-                          fetchBranches(repo.full_name)
-                        }
-                      }}
-                      className="flex-1 h-11 px-4 bg-white border border-black/[0.05] rounded-xl text-sm"
-                    >
-                      <option value="">Select repository...</option>
-                      {repositories.map(repo => (
-                        <option key={repo.id} value={repo.full_name}>{repo.full_name}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={fetchRepositories}
-                      disabled={loadingRepos}
-                      className="px-4 h-11 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
-                    >
-                      <RefreshCw size={16} className={loadingRepos ? 'animate-spin' : ''} />
-                    </button>
-                  </div>
+                  <select
+                    value={selectedRepo?.full_name || ''}
+                    onChange={(e) => {
+                      const repo = repositories.find(r => r.full_name === e.target.value)
+                      if (repo) {
+                        setSelectedRepo(repo)
+                        setSelectedBranch(repo.default_branch) // Auto-set default branch
+                      }
+                    }}
+                    className="w-full h-11 px-4 bg-white border-indigo-200 border-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500"
+                    onFocus={() => {
+                      if (repositories.length === 0) {
+                        fetchRepositories()
+                      }
+                    }}
+                  >
+                    <option value="">Select repository...</option>
+                    {repositories.map(repo => (
+                      <option key={repo.id} value={repo.full_name}>{repo.full_name}</option>
+                    ))}
+                  </select>
+                  {selectedRepo && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      Branch: <span className="font-mono font-bold text-slate-700">{selectedRepo.default_branch}</span>
+                      <span className="text-slate-400 ml-1">(You can select different branches when starting audits)</span>
+                    </p>
+                  )}
                 </div>
-
-                {selectedRepo && (
-                  <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Branch</label>
-                    <select
-                      value={selectedBranch}
-                      onChange={(e) => setSelectedBranch(e.target.value)}
-                      className="w-full h-11 px-4 bg-white border border-black/[0.05] rounded-xl text-sm"
-                    >
-                      <option value="">Select branch...</option>
-                      {branches.map(branch => (
-                        <option key={branch.name} value={branch.name}>{branch.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
 
                 {error && (
                   <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-xs">
@@ -328,14 +314,14 @@ export default function SourcesTab({ projectId, components, onComponentAdded }: 
                 <div className="flex gap-2">
                   <button
                     onClick={() => setAddingType(null)}
-                    className="flex-1 h-11 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs uppercase"
+                    className="flex-1 h-11 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs uppercase hover:bg-slate-200 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleAddGitHub}
-                    disabled={!selectedRepo || !selectedBranch || loading}
-                    className="flex-1 h-11 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase hover:bg-indigo-600 disabled:opacity-50"
+                    disabled={!selectedRepo || loading}
+                    className="flex-1 h-11 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {loading ? 'Adding...' : 'Add Repository'}
                   </button>

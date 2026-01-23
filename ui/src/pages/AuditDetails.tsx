@@ -11,10 +11,9 @@ import { useAccount } from 'wagmi'
 import logo from '../assets/logo.svg'
 import mascot from '../assets/letf-mascot.png'
 import MouseTooltip from '../components/MouseTooltip'
-import MilestoneTracker from '../components/MilestoneTracker'
 import { Link } from 'react-router-dom'
 import AuthModal from '../components/AuthModal'
-import { authFetch, getStoredUser } from '../services/authService'
+import { authFetch, getStoredUser, getValidToken } from '../services/authService'
 import { TestExecutionReport } from '../components/TestExecutionReport'
 import { GroupedDependencyFindings } from '../components/DependencyFindingCard'
 import { DependencyScoreCard } from '../components/DependencyScoreCard'
@@ -94,7 +93,14 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   // Check if current user owns this audit
   const isAuditOwner = () => {
     const currentUser = getStoredUser()
-    return currentUser && jobInfo?.userId === currentUser.id
+    const isOwner = currentUser && jobInfo?.userId === currentUser.id
+    console.log('🔍 isAuditOwner check:', {
+      currentUserId: currentUser?.id,
+      jobUserId: jobInfo?.userId,
+      isOwner,
+      isQuickScan
+    })
+    return isOwner
   }
 
   // Open clarification modal for a specific finding
@@ -174,6 +180,26 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       setAddressMismatchError(null)
     }
   }, [address])
+
+  // Debug logging for clarification button visibility
+  useEffect(() => {
+    if (auditData?.vulnerabilities && auditData.vulnerabilities.length > 0) {
+      const currentUser = getStoredUser()
+      const criticalHighCount = auditData.vulnerabilities.filter((v: any) =>
+        ['critical', 'high'].includes(v.severity?.toLowerCase() || '')
+      ).length
+
+      console.log('Clarification button visibility check:', {
+        criticalHighCount,
+        currentUserId: currentUser?.id,
+        jobUserId: jobInfo?.userId,
+        isOwner: currentUser && jobInfo?.userId === currentUser.id,
+        auditDepth: jobInfo?.depth,
+        isQuickScan: jobInfo?.depth === 'quick-scan',
+        totalVulnerabilities: auditData.vulnerabilities.length
+      })
+    }
+  }, [auditData, jobInfo])
 
   // PDF Export function
   const handleExportPDF = () => {
@@ -488,6 +514,16 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       if (!jobId || !isUUID(jobId)) return false;
 
       try {
+        // Debug auth state
+        const token = await getValidToken();
+        const user = getStoredUser();
+        console.log('🔐 Auth Debug:', {
+          hasToken: !!token,
+          tokenPreview: token?.substring(0, 20) + '...',
+          userId: user?.id,
+          userLogin: user?.githubLogin || user?.username
+        });
+
         // Fetch from unified audit endpoint (includes job + results)
         const response = await authFetch(`/api/audit/${jobId}`);
         if (response.ok) {
@@ -526,6 +562,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
             setJobInfo({
               id: data.audit.id,
               legacyId: data.audit.legacyId,
+              userId: data.audit.userId, // CRITICAL: Need this for ownership check!
               project: projectName,
               status: data.audit.status,
               auditType: data.audit.auditType,
@@ -964,54 +1001,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
 
         {/* Full Width Layout */}
         <div className="flex-1 p-8">
-          {/* Progress Summary Card */}
-          <div className="max-w-6xl mx-auto mb-6">
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-                    <Timer size={24} className="text-white animate-pulse" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-black text-slate-900">Audit In Progress</h2>
-                    <p className="text-sm text-slate-500">
-                      {progress?.currentStep || 'Initializing audit pipeline...'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-6">
-                  {jobInfo && (
-                    <div className="text-right">
-                      <div className="text-xs text-slate-500 uppercase tracking-wide font-bold mb-1">Project</div>
-                      <div className="text-sm font-mono text-slate-900">{jobInfo.project}</div>
-                    </div>
-                  )}
-                  {typeof progress?.pct === 'number' && (
-                    <div className="text-right">
-                      <div className="text-xs text-slate-500 uppercase tracking-wide font-bold mb-1">Progress</div>
-                      <div className="text-2xl font-black text-indigo-600">{progress.pct}%</div>
-                    </div>
-                  )}
-                  <div className="px-4 py-2 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                      <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Scanning</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {typeof progress?.pct === 'number' && (
-                <div className="mt-4 w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
-                    style={{ width: `${progress.pct}%` }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Full Width Terminal */}
+          {/* Full Width Terminal - NO PROGRESS CARD ABOVE */}
           <div className="max-w-6xl mx-auto">
           {progress && (
             <div className="w-full">
@@ -1080,94 +1070,136 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       <span className="text-sm font-semibold">Framework detected: {jobInfo?.detectedFramework || 'analyzing...'}</span>
                     </motion.div>
 
-                    {/* Overall Progress */}
+                    {/* Terminal-Style Overall Progress */}
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.3 }}
-                      className="mb-6"
+                      className="mb-8 bg-slate-50 rounded-lg p-4 border-l-4 border-indigo-500"
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm text-slate-700 font-semibold">Overall Progress</span>
-                        <span className="text-lg font-bold text-indigo-600">{progress.pct || 0}%</span>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-full transition-all duration-500 rounded-full flex items-center justify-end pr-2"
-                          style={{ width: `${progress.pct || 0}%` }}
-                        >
-                          {(progress.pct || 0) > 10 && (
-                            <span className="text-xs text-white font-bold">{progress.pct}%</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Progress</span>
+                          {progress.stepsCompleted !== undefined && progress.stepsTotal !== undefined && (
+                            <span className="text-xs text-slate-400 font-mono">
+                              [{progress.stepsCompleted}/{progress.stepsTotal} steps]
+                            </span>
                           )}
                         </div>
+                        <span className="text-base font-bold font-mono text-indigo-600">{progress.pct || 0}%</span>
+                      </div>
+                      {/* Terminal-style ASCII Progress Bar */}
+                      <div className="font-mono text-sm text-slate-700 mb-2">
+                        [
+                        <span className="text-emerald-600 font-bold">
+                          {'/'.repeat(Math.floor((progress.pct || 0) / 5))}
+                        </span>
+                        <span className="text-slate-300">
+                          {'_'.repeat(20 - Math.floor((progress.pct || 0) / 5))}
+                        </span>
+                        ]
+                      </div>
+                      {/* Percentage indicator under bar */}
+                      <div
+                        className="relative h-0.5 bg-transparent"
+                        style={{ width: '100%' }}
+                      >
+                        <motion.div
+                          className="absolute text-[10px] font-mono text-indigo-600"
+                          initial={{ left: '0%' }}
+                          animate={{ left: `${Math.max(0, Math.min(95, (progress.pct || 0) - 2))}%` }}
+                          transition={{ duration: 0.5 }}
+                        >
+                          ▲
+                        </motion.div>
                       </div>
                     </motion.div>
 
-                    {/* Current Step Status */}
+                    {/* Current Running Task with Typing Animation */}
                     {progress.currentStep && (
                       <motion.div
                         key={progress.currentStep}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="mb-6"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="mb-8 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-5 border-l-4 border-amber-500 shadow-sm"
                       >
-                        <div className="flex items-center gap-3 text-amber-600 font-bold">
-                          <Zap size={16} className="animate-pulse" />
-                          <span className="text-base">Running: {progress.currentStep}</span>
+                        <div className="flex items-start gap-3">
+                          <motion.div
+                            animate={{
+                              scale: [1, 1.2, 1],
+                              rotate: [0, 5, -5, 0]
+                            }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              ease: "easeInOut"
+                            }}
+                          >
+                            <Zap size={20} className="text-amber-600 mt-0.5" />
+                          </motion.div>
+                          <div className="flex-1">
+                            <div className="text-[10px] font-mono uppercase tracking-widest text-amber-600 mb-2 font-bold">
+                              Currently Running
+                            </div>
+                            {/* Typing Animation Effect */}
+                            <motion.div
+                              className="text-base font-semibold text-slate-900 font-mono"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                            >
+                              {progress.currentStep.split('').map((char, idx) => (
+                                <motion.span
+                                  key={`${progress.currentStep}-${idx}`}
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  transition={{
+                                    duration: 0.05,
+                                    delay: idx * 0.03,
+                                    ease: "easeOut"
+                                  }}
+                                >
+                                  {char}
+                                </motion.span>
+                              ))}
+                              <motion.span
+                                className="inline-block w-2 h-4 bg-amber-600 ml-1"
+                                animate={{ opacity: [1, 0, 1] }}
+                                transition={{ duration: 0.8, repeat: Infinity }}
+                              />
+                            </motion.div>
+                          </div>
                         </div>
-                      </motion.div>
-                    )}
-
-                    {/* Step Progress */}
-                    {progress.stepsCompleted !== undefined && progress.stepsTotal !== undefined && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.4 }}
-                        className="text-sm text-slate-700 mb-6"
-                      >
-                        → Step {progress.stepsCompleted} of {progress.stepsTotal} completed
                       </motion.div>
                     )}
 
                     {/* Divider */}
-                    <div className="text-slate-300 my-6">
-                      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                    <div className="font-mono text-slate-300 my-6 text-xs">
+                      {'─'.repeat(60)}
                     </div>
 
-                    {/* Current Activity */}
+                    {/* Terminal Cursor with Status */}
                     <motion.div
-                      key={progress.currentStep}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="flex items-start gap-2 text-sm"
-                    >
-                      <span className="text-indigo-600 mt-0.5 font-bold">→</span>
-                      <div className="flex-1">
-                        <div className="text-slate-800 font-medium">
-                          {progress.currentStep || 'Processing audit pipeline...'}
-                        </div>
-                      </div>
-                    </motion.div>
-
-                    {/* Terminal Cursor */}
-                    <motion.div
-                      className="flex items-center gap-2 mt-8 pt-6 border-t border-slate-300"
+                      className="flex items-center gap-3 mt-6"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.6 }}
                     >
-                      <span className="text-emerald-600 text-xs font-bold">$</span>
+                      <span className="text-emerald-600 text-sm font-mono font-bold">$</span>
                       <motion.div
-                        className="w-2 h-3.5 bg-indigo-500"
+                        className="w-2 h-4 bg-indigo-500"
                         animate={{ opacity: [1, 0, 1] }}
                         transition={{ duration: 0.8, repeat: Infinity }}
                       />
+                      <span className="text-xs text-slate-500 font-mono ml-2">
+                        awaiting completion...
+                      </span>
                     </motion.div>
 
                     {/* Status Note */}
-                    <div className="text-slate-600 italic text-sm mt-6">
-                      Page auto-updates when complete. No refresh needed.
+                    <div className="text-slate-500 text-xs mt-6 font-mono flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                      Live updates enabled • No refresh needed
                     </div>
                   </div>
 
@@ -1363,13 +1395,25 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                 Resolve Clarifications
               </Link>
             ) : auditData ? (
-              <button
-                onClick={handleExportPDF}
-                className="flex items-center gap-3 bg-white border border-slate-950 px-7 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-950 hover:bg-slate-50 transition-all shadow-sm"
-              >
-                <Download size={14} strokeWidth={3} />
-                Export Certificate
-              </button>
+              <>
+                {/* Answer Findings Button - for project owner to provide context */}
+                {isAuditOwner() && (
+                  <Link
+                    to={`/clarifications/${jobId}?phase=post_audit`}
+                    className="flex items-center gap-3 bg-indigo-600 border border-indigo-700 px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-white hover:bg-indigo-700 transition-all shadow-sm"
+                  >
+                    <AlertCircle size={14} strokeWidth={2.5} />
+                    Answer Questions About Findings
+                  </Link>
+                )}
+                <button
+                  onClick={handleExportPDF}
+                  className="flex items-center gap-3 bg-white border border-slate-950 px-7 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-950 hover:bg-slate-50 transition-all shadow-sm"
+                >
+                  <Download size={14} strokeWidth={3} />
+                  Export Certificate
+                </button>
+              </>
             ) : (
               <div className="flex items-center gap-3 text-slate-400 text-[10px] font-black uppercase tracking-widest">
                 <motion.div animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.5, repeat: Infinity }}>
@@ -1406,71 +1450,6 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                 </Link>
               </motion.div>
             )}
-
-            <div className="bg-white border border-slate-200 p-10 rounded-[40px] shadow-sm">
-              <div className="flex items-center justify-between mb-10 pb-6 border-b border-slate-100">
-                <div>
-                  <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">
-                    {progress?.phases ? 'Live Processing Stream' : 'Audit Progress'}
-                  </h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                    {progress?.phases
-                      ? `Real-time reasoning log for ${jobInfo.project}`
-                      : progress?.stepsCompleted !== undefined
-                        ? `Step ${progress.stepsCompleted} of ${progress.stepsTotal}: ${progress.currentStep || 'Processing...'}`
-                        : `Analyzing ${jobInfo.project}`
-                    }
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-2xl font-black text-slate-900 tracking-tighter">
-                    {Math.round(progress?.pct || progress?.overall_pct || 0)}%
-                  </span>
-                  <div className="w-32 h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress?.pct || progress?.overall_pct || 0}%` }}
-                      className="h-full bg-indigo-500"
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
-                </div>
-              </div>
-              {progress?.phases ? (
-                <MilestoneTracker
-                  milestones={progress.phases.map((p: any, idx: number) => ({
-                    number: idx + 1,
-                    name: p.name.replace(/_/g, ' '),
-                    description: p.step || 'Processing...',
-                    status: (p.pct === 100 ? 'completed' : p.pct > 0 ? 'running' : 'pending') as any,
-                    progress: p.pct,
-                    step: p.step
-                  }))}
-                />
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-slate-600">
-                      {progress?.currentStep || 'Initializing audit...'}
-                    </span>
-                    <span className="font-bold text-indigo-600">
-                      {progress?.stepsCompleted || 0} / {progress?.stepsTotal || '?'} steps
-                    </span>
-                  </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-indigo-500 to-violet-500"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress?.pct || 0}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
-                  <p className="text-xs text-slate-400 italic">
-                    {progress?.status === 'running' ? 'Audit in progress... This may take several minutes.' : 'Preparing audit...'}
-                  </p>
-                </div>
-              )}
-            </div>
           </div>
         )}
 
@@ -1646,6 +1625,38 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         exit={{ opacity: 0 }}
                         className="space-y-6"
                       >
+                        {/* Professional Banner to Answer Questions */}
+                        {!isQuickScan && isAuditOwner() && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-8 shadow-sm mb-8"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-6">
+                                <div className="w-14 h-14 bg-amber-100 rounded-xl flex items-center justify-center">
+                                  <AlertCircle size={28} className="text-amber-600" strokeWidth={2.5} />
+                                </div>
+                                <div>
+                                  <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-2">
+                                    Action Required: Provide Context for Findings
+                                  </h2>
+                                  <p className="text-slate-600 font-medium text-sm">
+                                    Challenge critical or high severity findings by explaining your design choices and security measures.
+                                  </p>
+                                </div>
+                              </div>
+                              <Link
+                                to={`/clarifications/${jobId}?phase=post_audit`}
+                                className="flex items-center gap-3 bg-indigo-600 px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-wide text-white hover:bg-indigo-700 transition-all shadow-sm flex-shrink-0 group"
+                              >
+                                <span>Answer Questions</span>
+                                <ArrowRight size={18} strokeWidth={2.5} className="group-hover:translate-x-1 transition-transform" />
+                              </Link>
+                            </div>
+                          </motion.div>
+                        )}
+
                         {/* Summary Section for Quick Scans */}
                         {isQuickScan && auditData.summary && (
                           <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-sm mb-6">
@@ -1792,11 +1803,19 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                           </div>
                         )}
 
-                        {/* Vulnerabilities - Accordion Style */}
-                        {auditData.vulnerabilities?.map((v: any) => {
-                          const isExpanded = expandedVulns.has(v.id)
-                          const wasDisclosureAdjusted = v.description?.includes('[Note: Severity reduced because')
-                          return (
+                        {/* VULNERABILITY DISCLOSURE LEDGER - Properly Organized Report */}
+                        {(() => {
+                          // Group findings by severity
+                          const critical = auditData.vulnerabilities?.filter((v: any) => v.severity === 'critical') || []
+                          const high = auditData.vulnerabilities?.filter((v: any) => v.severity === 'high') || []
+                          const medium = auditData.vulnerabilities?.filter((v: any) => v.severity === 'medium') || []
+                          const low = auditData.vulnerabilities?.filter((v: any) => v.severity === 'low') || []
+                          const gas = auditData.vulnerabilities?.filter((v: any) => v.severity === 'gas' || v.category === 'gas-optimization') || []
+
+                          const renderFinding = (v: any) => {
+                            const isExpanded = expandedVulns.has(v.id)
+                            const wasDisclosureAdjusted = v.description?.includes('[Note: Severity reduced because')
+                            return (
                             <div
                               key={v.id}
                               className="border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all"
@@ -1824,50 +1843,69 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                               )}
 
                               {/* Accordion Header - Always visible */}
-                              <button
-                                onClick={() => toggleVuln(v.id)}
-                                className={`w-full px-8 py-6 flex items-center justify-between cursor-pointer transition-colors ${
-                                  v.severity === 'critical' ? 'bg-rose-50/70 hover:bg-rose-50' :
-                                  v.severity === 'high' ? 'bg-rose-50/50 hover:bg-rose-50/70' :
-                                  v.severity === 'medium' ? 'bg-amber-50/50 hover:bg-amber-50/70' :
-                                  'bg-blue-50/50 hover:bg-blue-50/70'
+                              <div
+                                className={`w-full px-8 py-6 transition-colors ${
+                                  v.severity === 'critical' ? 'bg-rose-50/70' :
+                                  v.severity === 'high' ? 'bg-rose-50/50' :
+                                  v.severity === 'medium' ? 'bg-amber-50/50' :
+                                  'bg-blue-50/50'
                                 }`}
                               >
-                                <div className="flex items-center gap-5">
-                                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                    v.severity === 'critical' ? 'text-rose-600' :
-                                    v.severity === 'high' ? 'text-rose-500' :
-                                    v.severity === 'medium' ? 'text-amber-500' :
-                                    'text-blue-500'
-                                  }`}>
-                                    <AlertCircle size={24} strokeWidth={3} />
-                                  </div>
-                                  <div className="text-left">
-                                    <h4 className="text-base font-black text-slate-900 tracking-tight">{v.title}</h4>
-                                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block mt-1">
-                                      {typeof v.location === 'object' && v.location ?
-                                        `${v.location.file || ''}${v.location.line ? `:L${v.location.line}` : ''}${v.location.column ? `:C${v.location.column}` : ''}` :
-                                        v.location || ''}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <span className={`px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest ${
-                                    v.severity === 'critical' ? 'bg-rose-600 text-white' :
-                                    v.severity === 'high' ? 'bg-rose-500 text-white' :
-                                    v.severity === 'medium' ? 'bg-amber-500 text-white' :
-                                    'bg-blue-500 text-white'
-                                  }`}>
-                                    {v.severity}
-                                  </span>
-                                  <motion.div
-                                    animate={{ rotate: isExpanded ? 180 : 0 }}
-                                    transition={{ duration: 0.2 }}
+                                <div className="flex items-center justify-between">
+                                  <button
+                                    onClick={() => toggleVuln(v.id)}
+                                    className="flex items-center gap-5 flex-1 cursor-pointer"
                                   >
-                                    <ChevronDown size={20} className="text-slate-400" />
-                                  </motion.div>
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                                      v.severity === 'critical' ? 'text-rose-600' :
+                                      v.severity === 'high' ? 'text-rose-500' :
+                                      v.severity === 'medium' ? 'text-amber-500' :
+                                      'text-blue-500'
+                                    }`}>
+                                      <AlertCircle size={24} strokeWidth={3} />
+                                    </div>
+                                    <div className="text-left flex-1">
+                                      <h4 className="text-base font-black text-slate-900 tracking-tight">{v.title}</h4>
+                                      <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block mt-1">
+                                        {typeof v.location === 'object' && v.location ?
+                                          `${v.location.file || ''}${v.location.line ? `:L${v.location.line}` : ''}${v.location.column ? `:C${v.location.column}` : ''}` :
+                                          v.location || ''}
+                                      </span>
+                                    </div>
+                                  </button>
+                                  <div className="flex items-center gap-4">
+                                    {/* Provide Context button for critical/high */}
+                                    {!isQuickScan && (v.severity === 'critical' || v.severity === 'high') && isAuditOwner() && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openClarificationModal(v);
+                                        }}
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs uppercase tracking-wide transition-all shadow-sm flex-shrink-0"
+                                      >
+                                        <span>💬</span>
+                                        Provide Context
+                                      </button>
+                                    )}
+                                    <span className={`px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest ${
+                                      v.severity === 'critical' ? 'bg-rose-600 text-white' :
+                                      v.severity === 'high' ? 'bg-rose-500 text-white' :
+                                      v.severity === 'medium' ? 'bg-amber-500 text-white' :
+                                      'bg-blue-500 text-white'
+                                    }`}>
+                                      {v.severity}
+                                    </span>
+                                    <motion.div
+                                      animate={{ rotate: isExpanded ? 180 : 0 }}
+                                      transition={{ duration: 0.2 }}
+                                    >
+                                      <button onClick={() => toggleVuln(v.id)}>
+                                        <ChevronDown size={20} className="text-slate-400" />
+                                      </button>
+                                    </motion.div>
+                                  </div>
                                 </div>
-                              </button>
+                              </div>
 
                               {/* Accordion Content - Expandable */}
                               <AnimatePresence>
@@ -1901,8 +1939,75 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                           </div>
                                           <p className="text-[13px] text-slate-900 leading-relaxed font-black">{v.recommendation}</p>
                                         </div>
+
+                                        {/* 10th Man Devil's Advocate Analysis */}
+                                        {v.tenthManAnalysis && (
+                                          <div className="mt-6 pt-6 border-t border-slate-300">
+                                            <div className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                              🎯 10th Man Analysis
+                                            </div>
+                                            <div className="space-y-3">
+                                              {/* Severity Challenge */}
+                                              {v.tenthManAnalysis.severityChallenge.shouldDowngrade && (
+                                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                                  <p className="text-[10px] font-black text-amber-900 uppercase mb-1">Severity Challenge</p>
+                                                  <p className="text-[11px] text-amber-800">
+                                                    Original: <strong>{v.tenthManAnalysis.severityChallenge.originalSeverity}</strong> →
+                                                    Recommended: <strong>{v.tenthManAnalysis.severityChallenge.challengedSeverity}</strong>
+                                                  </p>
+                                                  <p className="text-[10px] text-amber-700 mt-1 italic">
+                                                    Risk Score: {v.tenthManAnalysis.severityChallenge.riskScore.toFixed(0)}/100
+                                                  </p>
+                                                </div>
+                                              )}
+
+                                              {/* Key Questions */}
+                                              {v.tenthManAnalysis.finalVerdict.keyQuestions && v.tenthManAnalysis.finalVerdict.keyQuestions.length > 0 && (
+                                                <div>
+                                                  <p className="text-[9px] font-bold text-slate-500 uppercase mb-1">Key Questions:</p>
+                                                  <ul className="text-[10px] text-slate-700 space-y-0.5">
+                                                    {v.tenthManAnalysis.finalVerdict.keyQuestions.map((q: string, idx: number) => (
+                                                      <li key={idx} className="text-[10px]">• {q}</li>
+                                                    ))}
+                                                  </ul>
+                                                </div>
+                                              )}
+
+                                              {/* Red Flags */}
+                                              {v.tenthManAnalysis.finalVerdict.redFlags && v.tenthManAnalysis.finalVerdict.redFlags.length > 0 && (
+                                                <div className="bg-rose-50 border border-rose-200 rounded-lg p-2">
+                                                  <p className="text-[9px] font-bold text-rose-700 uppercase mb-1">⚠️ Red Flags:</p>
+                                                  <ul className="text-[10px] text-rose-700 space-y-0.5">
+                                                    {v.tenthManAnalysis.finalVerdict.redFlags.map((flag: string, idx: number) => (
+                                                      <li key={idx} className="text-[10px]">• {flag}</li>
+                                                    ))}
+                                                  </ul>
+                                                </div>
+                                              )}
+
+                                              {/* Final Verdict */}
+                                              <div className="bg-slate-100 rounded-lg p-3">
+                                                <p className="text-[9px] font-bold text-slate-600 uppercase mb-1">Final Verdict:</p>
+                                                <p className="text-[10px] text-slate-800 leading-relaxed">
+                                                  {v.tenthManAnalysis.finalVerdict.reasoning}
+                                                </p>
+                                              </div>
+
+                                              {/* Stakeholder Impact */}
+                                              {v.tenthManAnalysis.stakeholderImpact && v.tenthManAnalysis.stakeholderImpact.primaryVictim !== 'none' && (
+                                                <div>
+                                                  <p className="text-[9px] font-bold text-slate-500 uppercase mb-1">Primary Victim:</p>
+                                                  <p className="text-[11px] text-slate-700 font-bold capitalize">
+                                                    {v.tenthManAnalysis.stakeholderImpact.primaryVictim}
+                                                  </p>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
+
                                         {/* Show clarification button for critical/high findings if user owns the audit */}
-                                        {!isQuickScan && (v.severity === 'critical' || v.severity === 'high') && isAuditOwner() && (
+                                        {!isQuickScan && ['critical', 'high'].includes(v.severity?.toLowerCase() || '') && isAuditOwner() && (
                                           <div className="flex items-center gap-3 mt-8 pt-6 border-t border-slate-200">
                                             <button
                                               onClick={() => openClarificationModal(v)}
@@ -1916,14 +2021,196 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                             </p>
                                           </div>
                                         )}
+                                        {/* Show feedback message when button is hidden for non-owners */}
+                                        {!isQuickScan &&
+                                         ['critical', 'high'].includes(v.severity?.toLowerCase() || '') &&
+                                         jobInfo?.userId && // Ensure jobInfo loaded
+                                         !isAuditOwner() && // User is definitely not the owner
+                                         getStoredUser() && ( // Ensure current user loaded (not just unauthenticated)
+                                          <div className="mt-8 pt-6 border-t border-slate-200">
+                                            <p className="text-sm text-slate-500 italic">
+                                              Only audit owner can provide clarifications
+                                            </p>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   </motion.div>
                                 )}
                               </AnimatePresence>
                             </div>
+                            )
+                          }
+
+                          return (
+                            <div className="space-y-12">
+                              {/* SECTION 1: CRITICAL & HIGH SEVERITY */}
+                              {(critical.length > 0 || high.length > 0) && (
+                                <div>
+                                  <div className="bg-rose-600 border-2 border-rose-700 rounded-xl px-8 py-5 mb-6">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                                          <AlertTriangle size={24} className="text-white" strokeWidth={2.5} />
+                                        </div>
+                                        <div>
+                                          <h2 className="text-xl font-black text-white uppercase tracking-tight">Critical & High Severity Issues</h2>
+                                          <p className="text-sm text-rose-100 font-semibold">Institutional findings requiring immediate attention</p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="text-3xl font-black text-white">{critical.length + high.length}</div>
+                                        <div className="text-xs text-rose-100 font-bold uppercase tracking-wider">Total</div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-4">
+                                    {critical.map(renderFinding)}
+                                    {high.map(renderFinding)}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* SECTION 2: LOW SEVERITY (Medium Findings) */}
+                              {medium.length > 0 && (
+                                <div>
+                                  <div className="bg-amber-500 border-2 border-amber-600 rounded-xl px-8 py-5 mb-6">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                                          <AlertCircle size={24} className="text-white" strokeWidth={2.5} />
+                                        </div>
+                                        <div>
+                                          <h2 className="text-xl font-black text-white uppercase tracking-tight">Low Severity Issues</h2>
+                                          <p className="text-sm text-amber-100 font-semibold">Medium-priority findings for review</p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="text-3xl font-black text-white">{medium.length}</div>
+                                        <div className="text-xs text-amber-100 font-bold uppercase tracking-wider">Total</div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-4">
+                                    {medium.map(renderFinding)}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* SECTION 3: INFORMATIONAL (Low Findings) */}
+                              {low.length > 0 && (
+                                <div>
+                                  <div className="bg-blue-500 border-2 border-blue-600 rounded-xl px-8 py-5 mb-6">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                                          <CheckCircle2 size={24} className="text-white" strokeWidth={2.5} />
+                                        </div>
+                                        <div>
+                                          <h2 className="text-xl font-black text-white uppercase tracking-tight">Informational Findings</h2>
+                                          <p className="text-sm text-blue-100 font-semibold">Best practice recommendations and code quality improvements</p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="text-3xl font-black text-white">{low.length}</div>
+                                        <div className="text-xs text-blue-100 font-bold uppercase tracking-wider">Total</div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-4">
+                                    {low.map(renderFinding)}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* SECTION 4: GAS OPTIMIZATION TABLE */}
+                              {gas.length > 0 && (
+                                <div>
+                                  <div className="bg-emerald-500 border-2 border-emerald-600 rounded-xl px-8 py-5 mb-6">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                                          <Zap size={24} className="text-white" strokeWidth={2.5} />
+                                        </div>
+                                        <div>
+                                          <h2 className="text-xl font-black text-white uppercase tracking-tight">Gas Optimization Opportunities</h2>
+                                          <p className="text-sm text-emerald-100 font-semibold">Cost reduction recommendations</p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="text-3xl font-black text-white">{gas.length}</div>
+                                        <div className="text-xs text-emerald-100 font-bold uppercase tracking-wider">Optimizations</div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                                    <table className="w-full">
+                                      <thead className="bg-slate-50">
+                                        <tr>
+                                          <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Function/Location</th>
+                                          <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Issue</th>
+                                          <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Est. Gas Cost</th>
+                                          <th className="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Optimization Needed</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100">
+                                        {gas.map((v: any, idx: number) => (
+                                          <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-6 py-4">
+                                              <code className="text-xs font-bold text-indigo-600">
+                                                {typeof v.location === 'object' && v.location ?
+                                                  `${v.location.file || ''}${v.location.line ? `:L${v.location.line}` : ''}` :
+                                                  v.location || 'N/A'}
+                                              </code>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                              <p className="text-sm text-slate-900 font-bold">{v.title || v.issue}</p>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                              <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold">
+                                                {v.estimatedSavings || v.gasCost || 'Variable'}
+                                              </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                              <span className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold">
+                                                <CheckCircle2 size={14} />
+                                                Yes
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           )
-                        })}
+                        })()}
+
+                        {/* Professional CTA: Answer Questions */}
+                        {!isQuickScan && isAuditOwner() && (
+                          <div className="mt-12 bg-slate-50 border-2 border-slate-200 rounded-2xl p-10 text-center">
+                            <div className="max-w-2xl mx-auto">
+                              <div className="w-16 h-16 bg-indigo-100 rounded-xl flex items-center justify-center mx-auto mb-5">
+                                <AlertCircle size={32} className="text-indigo-600" strokeWidth={2.5} />
+                              </div>
+                              <h2 className="text-2xl font-black text-slate-900 mb-3 uppercase tracking-tight">
+                                Questions About These Findings?
+                              </h2>
+                              <p className="text-base text-slate-600 font-medium mb-6 leading-relaxed">
+                                Provide context for critical or high severity findings. Your answers will trigger re-analysis and may adjust severity ratings.
+                              </p>
+                              <Link
+                                to={`/clarifications/${jobId}?phase=post_audit`}
+                                className="inline-flex items-center gap-3 bg-indigo-600 px-8 py-4 rounded-xl text-sm font-bold uppercase tracking-wide text-white hover:bg-indigo-700 transition-all shadow-sm group"
+                              >
+                                <span>Answer Questions</span>
+                                <ArrowRight size={18} strokeWidth={2.5} className="group-hover:translate-x-1 transition-transform" />
+                              </Link>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Contract Analysis Section for Quick Scans */}
                         {isQuickScan && auditData.contractAnalysis && (
@@ -2341,9 +2628,9 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                             <div className="w-20 h-20 rounded-2xl bg-slate-200/50 flex items-center justify-center mx-auto mb-6">
                               <Package size={32} className="text-slate-400" />
                             </div>
-                            <h3 className="text-xl font-black text-slate-900 tracking-tight mb-3">Pre-Audit Questionnaire Not Available</h3>
+                            <h3 className="text-xl font-black text-slate-900 tracking-tight mb-3">Project Context Not Available</h3>
                             <p className="text-sm text-slate-500 font-medium max-w-md mx-auto mb-8 leading-relaxed">
-                              Quick Scans provide immediate automated analysis without pre-audit questionnaires or liability triage. These features are only available in Deep Scans.
+                              Quick Scans provide immediate automated analysis without project context questions or liability triage. These features are only available in Deep Scans.
                             </p>
                             <div className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-50 border border-indigo-200 rounded-xl">
                               <AlertCircle size={16} className="text-indigo-600" />
@@ -2356,14 +2643,14 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                           </div>
                         ) : (
                           <>
-                            {/* Pre-Audit Questionnaire Section */}
+                            {/* About the Project Section */}
                             <div className="space-y-4">
                               <div className="border-l-4 border-indigo-600 pl-4 mb-5">
                                 <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">
-                                  Pre-Audit Questionnaire
+                                  About the Project
                                 </h3>
                                 <p className="text-[10px] text-slate-400 mt-1 font-bold">
-                                  Information provided before audit
+                                  Context and clarifications provided by project owner
                                 </p>
                               </div>
 
@@ -2376,7 +2663,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                     </p>
                                     {qa.status === 'answered' && qa.answeredAt && (
                                       <p className="text-[10px] text-slate-400 mt-2">
-                                        Answered: {new Date(qa.answeredAt).toLocaleDateString()}
+                                        Provided: {new Date(qa.answeredAt).toLocaleDateString()}
                                       </p>
                                     )}
                                   </div>
@@ -2386,8 +2673,8 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                   <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
                                     <Package size={20} className="text-slate-300" />
                                   </div>
-                                  <p className="text-sm text-slate-500 font-medium">No questionnaire answers available</p>
-                                  <p className="text-xs text-slate-400 mt-1">Pre-audit questions will appear here when answered</p>
+                                  <p className="text-sm text-slate-500 font-medium">No project information provided</p>
+                                  <p className="text-xs text-slate-400 mt-1">Project context and clarifications will appear here</p>
                                 </div>
                               )}
                             </div>

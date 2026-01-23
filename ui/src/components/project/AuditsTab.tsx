@@ -394,23 +394,88 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
           const statusConfig = getStatusConfig(audit.status)
           const isCompleted = audit.status === 'completed'
           const isFailed = audit.status === 'failed'
-          const isRunning = audit.status === 'pending' || audit.status === 'auditing'
+          const activeStatuses = ['pending', 'queued', 'running', 'cloning', 'analyzing', 'awaiting_clarification', 'auditing', 'generating']
+          const isRunning = activeStatuses.includes(audit.status)
           const canViewReport = isCompleted
           const canViewStatus = isRunning
 
           return (
             <div
               key={audit.id}
-              className="w-full card-premium p-5 text-left"
+              className="w-full card-premium p-6 text-left hover:border-indigo-200 transition-all"
             >
-              <div className="flex items-start justify-between gap-4">
+              {/* Main content row */}
+              <div className="flex items-start justify-between gap-6">
+                {/* Left: Project info card */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-3 flex-wrap">
-                    <span className={`px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest ${statusConfig.colorClass}`}>
+                  {/* Project name */}
+                  {audit.sources && audit.sources.length > 0 && (
+                    <h3 className="text-lg font-black text-slate-900 mb-2 truncate">
+                      {audit.sources[0]}
+                    </h3>
+                  )}
+
+                  {/* Commit + Branch */}
+                  {audit.commitSha && (
+                    <div className="flex items-center gap-2 mb-2">
+                      {audit.repoOwner && audit.repoName ? (
+                        <a
+                          href={`https://github.com/${audit.repoOwner}/${audit.repoName}/commit/${audit.commitSha}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-200 hover:bg-indigo-100 transition-colors font-bold"
+                          title="View commit on GitHub"
+                        >
+                          {audit.commitSha.substring(0, 7)}
+                        </a>
+                      ) : (
+                        <span className="font-mono text-xs px-2 py-1 bg-slate-100 text-slate-600 rounded-lg border border-slate-200 font-bold">
+                          {audit.commitSha.substring(0, 7)}
+                        </span>
+                      )}
+                      {audit.branch && (
+                        <>
+                          <span className="text-slate-300 text-xs">on</span>
+                          {audit.repoOwner && audit.repoName ? (
+                            <a
+                              href={`https://github.com/${audit.repoOwner}/${audit.repoName}/tree/${audit.branch}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-mono text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline"
+                              title="View branch on GitHub"
+                            >
+                              {audit.branch}
+                            </a>
+                          ) : (
+                            <span className="font-mono text-xs font-bold text-slate-700">{audit.branch}</span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Date + Time */}
+                  <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar size={12} />
+                      <span>{formatDate(audit.createdAt)}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={12} />
+                      <span>{formatTime(audit.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Status badges + actions */}
+                <div className="flex flex-col items-end gap-3">
+                  {/* Top badges row */}
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest ${statusConfig.colorClass}`}>
                       {statusConfig.label}
                     </span>
                     {audit.auditDepth && (
-                      <span className={`px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest ${
+                      <span className={`px-2.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest ${
                         audit.auditDepth === 'deep' ? 'bg-violet-50 text-violet-600 border-violet-200' :
                         audit.auditDepth === 'standard' ? 'bg-blue-50 text-blue-600 border-blue-200' :
                         'bg-amber-50 text-amber-600 border-amber-200'
@@ -420,29 +485,38 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
                          'QUICK'}
                       </span>
                     )}
+                  </div>
+
+                  {/* Middle metrics row */}
+                  <div className="flex items-center gap-2">
                     {audit.score !== undefined && audit.status === 'completed' && (
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-black ${getScoreColor(audit.score)}`}>
+                      <span className={`px-3 py-1.5 rounded-lg text-sm font-black ${getScoreColor(audit.score)}`}>
                         {audit.score}/100
+                      </span>
+                    )}
+                    {audit.findingsCount > 0 && (
+                      <span className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold">
+                        {audit.findingsCount} {audit.findingsCount === 1 ? 'Finding' : 'Findings'}
                       </span>
                     )}
                     {audit.status === 'completed' && (
                       <button
                         onClick={() => toggleVisibility(audit.jobId, audit.visibility || 'private')}
-                        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-colors ${
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-colors ${
                           audit.visibility === 'public'
                             ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
-                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                            : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
                         }`}
                         title={audit.visibility === 'public' ? 'Make Private' : 'Make Public'}
                       >
                         {audit.visibility === 'public' ? (
                           <>
-                            <Globe size={10} />
+                            <Globe size={11} />
                             PUBLIC
                           </>
                         ) : (
                           <>
-                            <Lock size={10} />
+                            <Lock size={11} />
                             PRIVATE
                           </>
                         )}
@@ -450,136 +524,77 @@ export default function AuditsTab({ projectId, runningJobId, onAuditComplete }: 
                     )}
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-slate-400 mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar size={12} />
-                      <span>{formatDate(audit.createdAt)}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Clock size={12} />
-                      <span>{formatTime(audit.createdAt)}</span>
-                    </div>
-                    {audit.findingsCount > 0 && (
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold">
-                        {audit.findingsCount} {audit.findingsCount === 1 ? 'Finding' : 'Findings'}
-                      </span>
-                    )}
-                  </div>
-
-                  {audit.sources && audit.sources.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Sources:</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {audit.sources.map((source, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold"
-                          >
-                            {source}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-3 space-y-1">
-                    <div className="text-[10px] text-slate-300 font-mono">
-                      ID: {audit.jobId}
-                    </div>
-                    {audit.commitSha && (
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                        <span className="font-bold">Commit:</span>
-                        {audit.repoOwner && audit.repoName ? (
-                          <a
-                            href={`https://github.com/${audit.repoOwner}/${audit.repoName}/commit/${audit.commitSha}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-mono px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer"
-                            title="View commit on GitHub"
-                          >
-                            {audit.commitSha.substring(0, 7)}
-                          </a>
-                        ) : (
-                          <span className="font-mono px-2 py-0.5 bg-slate-50 rounded border border-slate-200">
-                            {audit.commitSha.substring(0, 7)}
-                          </span>
-                        )}
-                        {audit.branch && (
-                          <span className="text-slate-300">
-                            on{' '}
-                            {audit.repoOwner && audit.repoName ? (
-                              <a
-                                href={`https://github.com/${audit.repoOwner}/${audit.repoName}/tree/${audit.branch}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-mono font-bold text-indigo-600 hover:text-indigo-700 hover:underline"
-                                title="View branch on GitHub"
-                              >
-                                {audit.branch}
-                              </a>
-                            ) : (
-                              <span className="font-mono font-bold">{audit.branch}</span>
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Show error message for failed audits */}
-                    {audit.status === 'failed' && audit.errorMessage && (
-                      <div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-lg">
-                        <div className="flex items-start gap-2">
-                          <div className="text-rose-500 mt-0.5">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs font-bold text-rose-700 mb-1">Error:</p>
-                            <p className="text-xs text-rose-600 leading-relaxed">{audit.errorMessage}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex flex-col gap-2 flex-shrink-0 self-start">
-                  {/* View Report button - only for completed audits */}
+                  {/* Action button */}
                   {canViewReport && (
                     <button
                       onClick={() => navigate(`/audit/${audit.jobId}`)}
-                      className="btn-primary px-4 py-2 text-xs"
+                      className="btn-primary px-5 py-2.5 text-xs"
                     >
                       View Report
                       <ChevronRight size={14} />
                     </button>
                   )}
-
-                  {/* View Status button - only for running audits */}
                   {canViewStatus && (
                     <button
                       onClick={() => navigate(`/audit/${audit.jobId}`)}
-                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-blue-50 text-blue-700 border-2 border-blue-200 rounded-xl hover:bg-blue-100 hover:border-blue-300 transition-all"
+                      className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold bg-blue-50 text-blue-700 border-2 border-blue-200 rounded-xl hover:bg-blue-100 hover:border-blue-300 transition-all"
                       title="View audit status"
                     >
                       <Eye size={14} />
                       View Status
                     </button>
                   )}
-
-                  {/* Retry button - only for failed audits */}
                   {isFailed && (
                     <button
                       onClick={() => retryAudit(audit.jobId)}
-                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-amber-50 text-amber-700 border-2 border-amber-200 rounded-xl hover:bg-amber-100 hover:border-amber-300 transition-all"
+                      className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold bg-amber-50 text-amber-700 border-2 border-amber-200 rounded-xl hover:bg-amber-100 hover:border-amber-300 transition-all"
                       title="Retry this audit"
                     >
                       <RotateCcw size={14} />
                       Retry Audit
                     </button>
                   )}
+                </div>
+              </div>
+
+              {/* Error message - full width below */}
+              {audit.status === 'failed' && audit.errorMessage && (
+                <div className="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-xl">
+                  <div className="flex items-start gap-3">
+                    <div className="text-rose-500 mt-0.5 flex-shrink-0">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-black text-rose-700 uppercase tracking-wide mb-1">Error</p>
+                      <p className="text-sm text-rose-600 leading-relaxed">{audit.errorMessage}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Job ID - clickable link to audit status */}
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] text-slate-400 font-mono font-bold">Job ID:</span>
+                  <button
+                    onClick={() => navigate(`/audit/${audit.jobId}`)}
+                    className="text-[10px] text-indigo-600 font-mono hover:text-indigo-700 hover:underline font-semibold transition-colors"
+                    title="Click to view audit details"
+                  >
+                    {audit.jobId.substring(0, 16)}...
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(audit.jobId)
+                      // You could add a toast notification here
+                    }}
+                    className="text-[10px] text-slate-400 hover:text-slate-600 font-mono transition-colors"
+                    title="Copy full Job ID"
+                  >
+                    [copy]
+                  </button>
                 </div>
               </div>
             </div>

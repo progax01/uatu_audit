@@ -1328,6 +1328,8 @@ const generateReport: DeterministicExecutor = async (step, config, context) => {
     dependencies: context.data.identifiedDependencies || [],
     findings: context.data.finalFindings || [],
     toolsUsed: context.availableTools,
+    tenthManAnalyses: context.data.tenthManAnalyses || [],
+    severityAdjustments: context.data.severityAdjustments || [],
   };
 
   await context.onProgress?.(100, 'Report generated');
@@ -1398,21 +1400,300 @@ const parseSemgrepOutput: DeterministicExecutor = async (step, config, context) 
 };
 
 const parseTestResults: DeterministicExecutor = async (step, config, context) => {
-  await context.onProgress?.(50, 'Processing test results...');
+  await context.onProgress?.(10, 'Processing test results...');
 
-  const testResult = context.data.forgeTestResult;
-  const findings = testResult?.findings || [];
+  // Support both forge and hardhat
+  const forgeResult = context.data.forgeTestResult;
+  const hardhatResult = context.data.hardhatTestResult;
+  const rawTestOutput = context.data.testOutput || '';
 
-  await context.onProgress?.(100, `${findings.length} test findings`);
+  if (!forgeResult && !hardhatResult && !rawTestOutput) {
+    log.warn('No test results available to parse');
+    return {
+      success: true,
+      findings: [],
+      data: {
+        testsPassed: false,
+        testsExecuted: false,
+      },
+    };
+  }
 
-  return {
-    success: true,
-    findings: [],
-    data: {
-      forgeTestFindings: findings,
-      testsPassed: testResult?.success || false,
-    },
-  };
+  await context.onProgress?.(50, 'Parsing test output...');
+
+  try {
+    // Import test result parser
+    const { parseTestOutput } = await import('../../../services/testResultParser.js');
+
+    // Determine framework
+    const framework = forgeResult ? 'foundry' : 'hardhat';
+
+    // Parse structured output
+    const parsed = parseTestOutput(
+      rawTestOutput || forgeResult?.stdout || hardhatResult?.stdout || '',
+      framework
+    );
+
+    const testResults = {
+      framework,
+      totalTests: parsed?.testCases?.length || 0,
+      passed: parsed?.testCases?.filter((t: any) => t.status === 'passed').length || 0,
+      failed: parsed?.testCases?.filter((t: any) => t.status === 'failed').length || 0,
+      skipped: parsed?.testCases?.filter((t: any) => t.status === 'skipped').length || 0,
+      duration: parsed?.stats?.duration || 0,
+      testCases: parsed?.testCases || [],
+    };
+
+    log.info('Test results parsed', {
+      framework,
+      totalTests: testResults.totalTests,
+      passed: testResults.passed,
+      failed: testResults.failed,
+    });
+
+    await context.onProgress?.(100, 'Test parsing complete');
+
+    return {
+      success: true,
+      findings: forgeResult?.findings || [],
+      data: {
+        forgeTestFindings: forgeResult?.findings || [],
+        testsPassed: testResults.failed === 0 && testResults.totalTests > 0,
+        testsExecuted: testResults.totalTests > 0,
+        testResults,  // ADD STRUCTURED RESULTS
+        parsedTests: parsed,  // ADD FULL PARSED DATA
+      },
+    };
+  } catch (error: any) {
+    log.error('Failed to parse test results', { error: error.message });
+    return {
+      success: true,  // Don't fail audit on parsing error
+      findings: forgeResult?.findings || [],
+      data: {
+        forgeTestFindings: forgeResult?.findings || [],
+        testsPassed: forgeResult?.success || false,
+        testsExecuted: true,
+        parseError: error.message,
+      },
+    };
+  }
+};
+
+const parseCoverageResults: DeterministicExecutor = async (step, config, context) => {
+  await context.onProgress?.(10, 'Parsing coverage report...');
+
+  const coverageReport = context.data.coverageReport;
+
+  if (!coverageReport) {
+    log.warn('No coverage report available to parse');
+    return {
+      success: true,
+      findings: [],
+      data: {
+        coverageAvailable: false,
+        coverageSummary: null,
+      },
+    };
+  }
+
+  await context.onProgress?.(50, 'Extracting coverage metrics...');
+
+  try {
+    // Parse coverage JSON (hardhat coverage format)
+    const coverage = typeof coverageReport === 'string'
+      ? JSON.parse(coverageReport)
+      : coverageReport;
+
+    const summary = {
+      statements: {
+        total: 0,
+        covered: 0,
+        pct: 0
+      },
+      branches: {
+        total: 0,
+        covered: 0,
+        pct: 0
+      },
+      functions: {
+        total: 0,
+        covered: 0,
+        pct: 0
+      },
+      lines: {
+        total: 0,
+        covered: 0,
+        pct: 0
+      }
+    };
+
+    // Extract metrics from coverage report
+    Object.values(coverage).forEach((file: any) => {
+      if (file.s) summary.statements.total += Object.keys(file.s).length;
+      if (file.b) summary.branches.total += Object.keys(file.b).length;
+      if (file.f) summary.functions.total += Object.keys(file.f).length;
+      if (file.l) summary.lines.total += Object.keys(file.l).length;
+
+      Object.values(file.s || {}).forEach((hits: any) => {
+        if (hits > 0) summary.statements.covered++;
+      });
+      Object.values(file.b || {}).forEach((branch: any) => {
+        if (Array.isArray(branch) && branch.some(b => b > 0)) summary.branches.covered++;
+      });
+      Object.values(file.f || {}).forEach((hits: any) => {
+        if (hits > 0) summary.functions.covered++;
+      });
+      Object.values(file.l || {}).forEach((hits: any) => {
+        if (hits > 0) summary.lines.covered++;
+      });
+    });
+
+    // Calculate percentages
+    summary.statements.pct = summary.statements.total > 0
+      ? (summary.statements.covered / summary.statements.total) * 100
+      : 0;
+    summary.branches.pct = summary.branches.total > 0
+      ? (summary.branches.covered / summary.branches.total) * 100
+      : 0;
+    summary.functions.pct = summary.functions.total > 0
+      ? (summary.functions.covered / summary.functions.total) * 100
+      : 0;
+    summary.lines.pct = summary.lines.total > 0
+      ? (summary.lines.covered / summary.lines.total) * 100
+      : 0;
+
+    log.info('Coverage summary calculated', summary);
+
+    await context.onProgress?.(100, 'Coverage parsing complete');
+
+    return {
+      success: true,
+      findings: [],
+      data: {
+        coverageAvailable: true,
+        coverageSummary: summary,
+        parsedCoverage: coverage,
+      },
+    };
+  } catch (error: any) {
+    log.error('Failed to parse coverage report', { error: error.message });
+    return {
+      success: true,  // Don't fail audit on coverage parsing error
+      findings: [],
+      data: {
+        coverageAvailable: false,
+        coverageSummary: null,
+        coverageParseError: error.message,
+      },
+    };
+  }
+};
+
+// ============================================================================
+// 10th Man Analysis - Devil's Advocate Severity Validation
+// ============================================================================
+
+const perform10thManAnalysis: DeterministicExecutor = async (step, config, context) => {
+  await context.onProgress?.(10, 'Performing 10th man analysis...');
+
+  // Get all findings from context
+  const allFindings = context.data.findings || [];
+  const mergedFindings = context.data.mergedFindings || [];
+  const findings = mergedFindings.length > 0 ? mergedFindings : allFindings;
+
+  if (!findings || findings.length === 0) {
+    log.warn('No findings available for 10th man analysis');
+    return {
+      success: true,
+      findings: [],
+      data: {
+        tenthManAnalyses: [],
+        severityAdjustments: [],
+      },
+    };
+  }
+
+  await context.onProgress?.(30, 'Challenging critical/high findings...');
+
+  try {
+    // Import the 10th man analysis service
+    const { analyze10thManForFindings } = await import('../../../services/tenthManAnalysis.js');
+
+    // Detect contract type from context
+    const contractType = context.data.contractType || context.data.category || 'generic';
+
+    // Perform 10th man analysis on all critical/high findings
+    const analyses = await analyze10thManForFindings(findings, contractType);
+
+    await context.onProgress?.(70, 'Validating severity ratings...');
+
+    // Track severity adjustments
+    const severityAdjustments: Array<{
+      findingId: string;
+      originalSeverity: string;
+      adjustedSeverity: string;
+      reason: string;
+      confidence: string;
+    }> = [];
+
+    // Apply severity adjustments to findings
+    for (const analysis of analyses) {
+      if (analysis.severityChallenge.shouldDowngrade || analysis.severityChallenge.shouldUpgrade) {
+        severityAdjustments.push({
+          findingId: analysis.findingId,
+          originalSeverity: analysis.severityChallenge.originalSeverity,
+          adjustedSeverity: analysis.finalVerdict.agreedSeverity,
+          reason: analysis.finalVerdict.reasoning,
+          confidence: analysis.severityChallenge.confidence,
+        });
+
+        // Find and update the finding
+        const finding = findings.find((f: any) => f.id === analysis.findingId);
+        if (finding) {
+          finding.originalSeverity = finding.severity;
+          finding.severity = analysis.finalVerdict.agreedSeverity;
+          finding.severityAdjustmentReason = analysis.finalVerdict.reasoning;
+          finding.tenthManAnalysis = analysis;
+
+          log.info('10th man adjusted severity', {
+            findingId: finding.id,
+            from: analysis.severityChallenge.originalSeverity,
+            to: analysis.finalVerdict.agreedSeverity,
+            confidence: analysis.severityChallenge.confidence,
+          });
+        }
+      }
+    }
+
+    await context.onProgress?.(100, '10th man analysis complete');
+
+    log.info('10th man analysis completed', {
+      totalFindings: findings.length,
+      analysesPerformed: analyses.length,
+      adjustmentsMade: severityAdjustments.length,
+    });
+
+    return {
+      success: true,
+      findings: [],  // Don't add new findings, just modify existing ones
+      data: {
+        tenthManAnalyses: analyses,
+        severityAdjustments,
+        adjustedFindings: findings,  // Return modified findings
+      },
+    };
+  } catch (error: any) {
+    log.error('Failed to perform 10th man analysis', { error: error.message });
+    return {
+      success: true,  // Don't fail audit on 10th man analysis error
+      findings: [],
+      data: {
+        tenthManAnalyses: [],
+        severityAdjustments: [],
+        tenthManError: error.message,
+      },
+    };
+  }
 };
 
 // ============================================================================
@@ -1695,6 +1976,8 @@ const DETERMINISTIC_EXECUTORS: Record<string, DeterministicExecutor> = {
   'parseMythrilOutput': parseMythrilOutput,
   'parseSemgrepOutput': parseSemgrepOutput,
   'parseTestResults': parseTestResults,
+  'parseCoverageResults': parseCoverageResults,
+  'perform10thManAnalysis': perform10thManAnalysis,
   'mergeToolFindings': mergeToolFindings,
   'deduplicateFindings': deduplicateFindings,
   'calculateSeverity': calculateSeverity,

@@ -32,6 +32,9 @@ export interface Finding {
   impact?: string;
   likelihood?: string;
   references?: string[];
+  originalSeverity?: string;
+  severityAdjustmentReason?: string;
+  tenthManAnalysis?: any;
 }
 
 /**
@@ -86,6 +89,8 @@ export interface UnifiedResults {
   compliance_and_legal?: any;
   conclusion?: any;
   tooling_artifacts?: any;
+  tenthManAnalyses?: any[];
+  severityAdjustments?: any[];
 }
 
 /**
@@ -105,6 +110,8 @@ interface OldFormatResults {
   test_methodology?: any;
   user_flows?: any[];
   test_results?: any[];
+  tenthManAnalyses?: any[];
+  severityAdjustments?: any[];
 }
 
 /**
@@ -135,6 +142,8 @@ interface MilestoneFormatResults {
   compliance_and_legal?: any;
   conclusion?: any;
   tooling_artifacts?: any;
+  tenthManAnalyses?: any[];
+  severityAdjustments?: any[];
 }
 
 // ============================================================================
@@ -194,7 +203,9 @@ function adaptOldFormat(raw: OldFormatResults): UnifiedResults {
     contracts_explained: raw.contracts_explained,
     test_methodology: raw.test_methodology,
     user_flows: raw.user_flows,
-    test_results: raw.test_results
+    test_results: raw.test_results,
+    tenthManAnalyses: raw.tenthManAnalyses || [],
+    severityAdjustments: raw.severityAdjustments || []
   };
 }
 
@@ -249,7 +260,9 @@ function adaptMilestoneFormat(raw: MilestoneFormatResults): UnifiedResults {
     remediation_roadmap: raw.remediation_roadmap,
     compliance_and_legal: raw.compliance_and_legal,
     conclusion: raw.conclusion,
-    tooling_artifacts: raw.tooling_artifacts
+    tooling_artifacts: raw.tooling_artifacts,
+    tenthManAnalyses: raw.tenthManAnalyses || [],
+    severityAdjustments: raw.severityAdjustments || []
   };
 }
 

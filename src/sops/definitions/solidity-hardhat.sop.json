@@ -1021,6 +1021,31 @@
       "retryCount": 0
     },
     {
+      "id": "tenth-man-analysis",
+      "name": "10th Man Devil's Advocate Analysis",
+      "category": "synthesis",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 15,
+      "dependsOn": [
+        "calculate-severity"
+      ],
+      "provides": [
+        "tenthManAnalyses",
+        "severityAdjustments",
+        "adjustedFindings"
+      ],
+      "requires": [
+        "severityRankedFindings"
+      ],
+      "config": {
+        "function": "perform10thManAnalysis"
+      },
+      "progressWeight": 3,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
       "id": "calculate-score",
       "name": "Calculate Audit Score",
       "category": "synthesis",
