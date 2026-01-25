@@ -140,12 +140,42 @@ const generateTests: TestingExecutor = async (step, config, context) => {
     tool: f.tool || undefined,
   }));
 
-  // Filter to high/critical findings for test generation
-  const testableFindings = allFindings.filter(
-    (f) => f.severity === 'critical' || f.severity === 'high'
-  );
+  // Get audit depth from job
+  const auditDepth = job.auditDepth || 'standard';
+
+  // Filter findings based on audit depth
+  let testableFindings: AuditFinding[];
+
+  if (auditDepth === 'deep') {
+    // DEEP MODE: Test ALL severity levels (critical, high, medium, low, info)
+    // Generate comprehensive test coverage for maximum security validation
+    testableFindings = allFindings.filter(
+      (f) => ['critical', 'high', 'medium', 'low', 'info'].includes(f.severity)
+    );
+    log.info('🔬 DEEP MODE: Generating comprehensive test suite for ALL findings', {
+      total: allFindings.length,
+      testable: testableFindings.length,
+      critical: testableFindings.filter(f => f.severity === 'critical').length,
+      high: testableFindings.filter(f => f.severity === 'high').length,
+      medium: testableFindings.filter(f => f.severity === 'medium').length,
+      low: testableFindings.filter(f => f.severity === 'low').length,
+      info: testableFindings.filter(f => f.severity === 'info').length,
+    });
+  } else {
+    // STANDARD MODE: Test only critical and high severity findings
+    testableFindings = allFindings.filter(
+      (f) => f.severity === 'critical' || f.severity === 'high'
+    );
+    log.info('⚡ STANDARD MODE: Generating tests for critical/high severity findings', {
+      total: allFindings.length,
+      testable: testableFindings.length,
+      critical: testableFindings.filter(f => f.severity === 'critical').length,
+      high: testableFindings.filter(f => f.severity === 'high').length,
+    });
+  }
 
   log.info('Found testable findings', {
+    depth: auditDepth,
     total: allFindings.length,
     testable: testableFindings.length,
   });
@@ -170,46 +200,92 @@ const generateTests: TestingExecutor = async (step, config, context) => {
   const generatedTests: GeneratedTest[] = [];
   const errors: Array<{ findingId: string; error: string }> = [];
 
+  // Determine test generation strategy based on audit depth
+  const generateMultipleVariants = auditDepth === 'deep';
+  const testVariants: Array<'basic' | 'edge-case' | 'fuzz'> = generateMultipleVariants
+    ? ['basic', 'edge-case', 'fuzz'] // Deep mode: 3 variants per finding
+    : ['basic']; // Standard mode: 1 test per finding
+
+  const totalTests = testableFindings.length * testVariants.length;
+  let testsProcessed = 0;
+
+  log.info('Test generation strategy', {
+    depth: auditDepth,
+    findingsToTest: testableFindings.length,
+    variantsPerFinding: testVariants.length,
+    totalTestsToGenerate: totalTests,
+  });
+
   // Generate tests for each finding
   for (let i = 0; i < testableFindings.length; i++) {
     const finding = testableFindings[i];
-    const progress = 20 + (i / testableFindings.length) * 70;
 
-    await context.onProgress?.(
-      progress,
-      `Generating test ${i + 1}/${testableFindings.length}: ${finding.title.substring(0, 50)}...`
-    );
+    // In deep mode, generate multiple test variants per finding
+    for (const variant of testVariants) {
+      testsProcessed++;
+      const progress = 20 + (testsProcessed / totalTests) * 70;
 
-    try {
-      log.info('Generating test for finding', {
-        findingId: finding.findingId,
-        title: finding.title,
-        severity: finding.severity,
-      });
+      const variantLabel = variant === 'basic' ? '' : ` [${variant}]`;
+      await context.onProgress?.(
+        progress,
+        `Generating test ${testsProcessed}/${totalTests}: ${finding.title.substring(0, 40)}${variantLabel}...`
+      );
 
-      const test = await generateTestForFinding(finding, sourcePath, framework);
+      try {
+        log.info('Generating test for finding', {
+          findingId: finding.findingId,
+          title: finding.title,
+          severity: finding.severity,
+          variant,
+          depth: auditDepth,
+        });
 
-      // Write test file to workspace tests directory
-      const testFilePath = path.join(testsPath, test.testFileName);
-      await fs.writeFile(testFilePath, test.testCode, 'utf-8');
+        const test = await generateTestForFinding(finding, sourcePath, framework);
 
-      generatedTests.push(test);
+        // Modify test code based on variant in deep mode
+        let finalTestCode = test.testCode;
+        let finalFileName = test.testFileName;
 
-      log.info('Generated test case', {
-        findingId: finding.findingId,
-        testFile: test.testFileName,
-        type: test.testType,
-      });
-    } catch (error: any) {
-      log.error('Failed to generate test for finding', {
-        findingId: finding.findingId,
-        error: error.message,
-      });
+        if (generateMultipleVariants && variant !== 'basic') {
+          // Generate variant-specific test code
+          const { generateTestVariant } = await import('../../../services/testCaseGenerator.js');
+          const variantTest = await generateTestVariant(
+            test,
+            variant as 'edge-case' | 'fuzz',
+            finding
+          );
+          finalTestCode = variantTest.testCode;
+          finalFileName = variantTest.testFileName;
+        }
 
-      errors.push({
-        findingId: finding.findingId,
-        error: error.message,
-      });
+        // Write test file to workspace tests directory
+        const testFilePath = path.join(testsPath, finalFileName);
+        await fs.writeFile(testFilePath, finalTestCode, 'utf-8');
+
+        generatedTests.push({
+          ...test,
+          testCode: finalTestCode,
+          testFileName: finalFileName,
+        });
+
+        log.info('Generated test case', {
+          findingId: finding.findingId,
+          testFile: finalFileName,
+          type: test.testType,
+          variant: variant !== 'basic' ? variant : undefined,
+        });
+      } catch (error: any) {
+        log.error('Failed to generate test for finding', {
+          findingId: finding.findingId,
+          variant,
+          error: error.message,
+        });
+
+        errors.push({
+          findingId: finding.findingId,
+          error: `${variant}: ${error.message}`,
+        });
+      }
     }
   }
 

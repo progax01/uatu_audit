@@ -69,13 +69,16 @@
         "ai-business-logic",
         "ai-validate-findings",
         "deduplicate",
+        "generate-security-tests",
+        "execute-security-tests",
+        "bind-test-results-to-findings",
         "calculate-severity",
         "calculate-score",
         "ai-recommendations",
         "generate-report"
       ],
       "parallelizationLevel": "low",
-      "estimatedDurationMinutes": 25,
+      "estimatedDurationMinutes": 35,
       "toolTimeouts": {
         "forge": 120,
         "slither": 180,
@@ -132,7 +135,7 @@
         "generate-report"
       ],
       "parallelizationLevel": "none",
-      "estimatedDurationMinutes": 120,
+      "estimatedDurationMinutes": 180,
       "toolTimeouts": {
         "forge": 300,
         "slither": 300,

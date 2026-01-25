@@ -695,3 +695,101 @@ export async function detectTestFramework(sourcePath: string): Promise<'foundry'
   // Default to foundry
   return 'foundry';
 }
+
+/**
+ * Generate test variant for deep audit mode
+ * Creates edge-case and fuzz test variants from basic test
+ */
+export async function generateTestVariant(
+  baseTest: GeneratedTest,
+  variant: 'edge-case' | 'fuzz',
+  finding: AuditFinding
+): Promise<{ testCode: string; testFileName: string }> {
+  let variantPrompt = '';
+  let filenameSuffix = '';
+
+  if (variant === 'edge-case') {
+    variantPrompt = `You are a security auditor creating EDGE CASE tests for smart contract vulnerabilities.
+
+Given this base test case that demonstrates a vulnerability:
+
+\`\`\`solidity
+${baseTest.testCode}
+\`\`\`
+
+Finding: ${finding.title}
+Description: ${finding.description}
+
+Generate an EDGE CASE variant that tests:
+- Boundary conditions (zero values, max uint256, etc.)
+- Unexpected input combinations
+- State transitions at critical moments
+- Integer overflow/underflow boundaries
+- Gas limit edge cases
+- Array boundary conditions
+
+Keep the same test structure but modify the test logic to explore edge cases.
+Return ONLY the complete Solidity test code, no explanations.`;
+
+    filenameSuffix = 'edge_case';
+  } else if (variant === 'fuzz') {
+    variantPrompt = `You are a security auditor creating FUZZ tests for smart contract vulnerabilities.
+
+Given this base test case that demonstrates a vulnerability:
+
+\`\`\`solidity
+${baseTest.testCode}
+\`\`\`
+
+Finding: ${finding.title}
+Description: ${finding.description}
+
+Generate a FUZZ TEST variant using Foundry's fuzzing capabilities:
+- Use "function testFuzz_..." naming
+- Add randomized inputs (uint256, address, etc.) as function parameters
+- Add "vm.assume()" constraints for valid ranges
+- Test multiple execution paths with random data
+- Include boundary checks in assumptions
+
+Example:
+\`\`\`solidity
+function testFuzz_ExploitWithRandomInputs(uint256 amount, address attacker) public {
+    vm.assume(amount > 0 && amount < type(uint128).max);
+    vm.assume(attacker != address(0) && attacker != address(this));
+
+    // Your fuzz test logic here
+}
+\`\`\`
+
+Return ONLY the complete Solidity test code with fuzz parameters, no explanations.`;
+
+    filenameSuffix = 'fuzz';
+  }
+
+  // Call Claude to generate variant
+  const { executeStreamingClaude } = await import('./ai/simpleClaudeExecutor.js');
+
+  const result = await executeStreamingClaude(variantPrompt, {
+    timeout: 180000, // 3 minutes for variant generation
+    model: 'claude-opus-4-5-20251101',
+  });
+
+  const variantCode = result.output || '';
+
+  // Clean up code (remove markdown fences if present)
+  let cleanedCode = variantCode.trim();
+  if (cleanedCode.startsWith('```solidity')) {
+    cleanedCode = cleanedCode.replace(/^```solidity\n/, '').replace(/\n```$/, '');
+  } else if (cleanedCode.startsWith('```')) {
+    cleanedCode = cleanedCode.replace(/^```\n/, '').replace(/\n```$/, '');
+  }
+
+  // Generate new filename with variant suffix
+  const baseFilename = baseTest.testFileName.replace('.t.sol', '');
+  const variantFilename = `${baseFilename}_${filenameSuffix}.t.sol`;
+
+  return {
+    testCode: cleanedCode,
+    testFileName: variantFilename,
+  };
+}
