@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, and } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { auditJobs, auditStepProgress, auditSopExecution, auditResults, projects, auditClarifications } from '../../db/schema.js';
 
@@ -356,25 +356,43 @@ export async function handleAuditRoutes(
       }
 
       // Reset job to pending so workers can pick it up
-      // If job has projectPath + sopId, it can be resumed
+      // If job has projectPath + sopId, it can be resumed from where it failed
       // Otherwise, it needs to be started from scratch
       if (job.projectPath && job.sopId) {
-        // Clean up old execution records to avoid unique constraint violations
-        log.info('Cleaning up old execution records before retry', { jobId });
+        // DON'T delete execution records - the orchestrator needs them to resume
+        // Only reset the LAST (failed) step - keep all completed steps
+        log.info('🔄 Retrying audit - will resume from last checkpoint', {
+          jobId,
+          currentStep: job.currentStepId,
+          progress: job.progressPct,
+        });
 
-        // Delete old SOP execution record (has unique constraint on jobId)
-        await db
-          .delete(auditSopExecution)
-          .where(eq(auditSopExecution.jobId, jobId));
+        // Reset ONLY the last/failed step to 'pending'
+        if (job.currentStepId) {
+          const { auditStepProgress } = await import('../../db/schema.js');
+          await db
+            .update(auditStepProgress)
+            .set({
+              status: 'pending',
+              errorMessage: null,
+              completedAt: null,
+              durationMs: null,
+              internalPct: 0,
+            })
+            .where(
+              and(
+                eq(auditStepProgress.jobId, jobId),
+                eq(auditStepProgress.stepId, job.currentStepId)
+              )
+            );
 
-        // Delete old step progress records
-        await db
-          .delete(auditStepProgress)
-          .where(eq(auditStepProgress.jobId, jobId));
+          log.info('✅ Reset failed step to pending', {
+            jobId,
+            stepId: job.currentStepId,
+          });
+        }
 
-        log.info('Old execution records cleaned up', { jobId });
-
-        // Can be resumed - reset to pending
+        // Reset job to pending
         await db
           .update(auditJobs)
           .set({
@@ -385,13 +403,39 @@ export async function handleAuditRoutes(
           })
           .where(eq(auditJobs.id, jobId));
 
-        log.info('Audit reset to pending for retry', { jobId });
+        log.info('✅ Audit reset to pending - executing retry inline', { jobId });
 
+        // Execute the retry inline instead of waiting for worker
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({
           success: true,
-          message: 'Audit reset to pending - will be picked up by workers'
+          message: 'Retry started - executing inline'
         }));
+
+        // Execute retry in background
+        setImmediate(async () => {
+          try {
+            const { UnifiedAuditService } = await import('../../services/unifiedAuditService.js');
+            const service = UnifiedAuditService.getInstance();
+
+            log.info('🚀 Executing retry inline', { jobId });
+            await service.resumeAudit(jobId);
+            log.info('✅ Retry execution complete', { jobId });
+          } catch (error: any) {
+            log.error('❌ Retry execution failed', { jobId, error: error.message });
+
+            // Mark job as failed
+            await db
+              .update(auditJobs)
+              .set({
+                status: 'failed',
+                errorMessage: error.message,
+                completedAt: new Date(),
+                updatedAt: new Date(),
+              })
+              .where(eq(auditJobs.id, jobId));
+          }
+        });
       } else {
         // Can't be resumed - need to create new audit
         res.statusCode = 400;
@@ -657,6 +701,11 @@ export async function handleAuditRoutes(
           answerValue: c.answerValue,
           answeredAt: c.answeredAt,
           createdAt: c.createdAt,
+          resolvedInCommit: c.resolvedInCommit,
+          commitSha: c.commitSha,
+          commitMessage: c.commitMessage,
+          commitVerified: c.commitVerified,
+          verificationNote: c.verificationNote,
         })),
         counts,
       }));
@@ -1143,7 +1192,7 @@ export async function handleAuditRoutes(
       for await (const c of req) chunks.push(c);
       const body = JSON.parse(Buffer.concat(chunks).toString());
 
-      const { findingId, clarificationType, explanation, evidenceUrl, context } = body;
+      const { findingId, clarificationType, explanation, evidenceUrl, context, resolvedInCommit, commitSha } = body;
 
       // Validate required fields
       if (!findingId || !clarificationType || !explanation) {
@@ -1162,8 +1211,45 @@ export async function handleAuditRoutes(
         return true;
       }
 
+      // If resolvedInCommit is true, fetch latest commit if SHA not provided
+      let finalCommitSha = commitSha;
+      let commitMessage = null;
+      if (resolvedInCommit && !commitSha) {
+        // Get repo path from job
+        if (job.repo) {
+          try {
+            const { getLatestCommit } = await import('../../services/gitService.js');
+            finalCommitSha = await getLatestCommit(job.repo);
+            log.info('Fetched latest commit for resolution', { commitSha: finalCommitSha });
+          } catch (error: any) {
+            log.error('Failed to fetch latest commit', { error: error.message });
+            // Continue without commit SHA
+          }
+        }
+      }
+
+      // Get commit message if we have a SHA
+      if (finalCommitSha && job.repo) {
+        try {
+          const { getCommitInfo } = await import('../../services/gitService.js');
+          const info = await getCommitInfo(job.repo, finalCommitSha);
+          if (info) {
+            commitMessage = info.message;
+          }
+        } catch (error: any) {
+          log.error('Failed to get commit info', { error: error.message });
+        }
+      }
+
       // Store clarification
       const { addClarification } = await import('../../services/clarificationService.js');
+
+      const clarificationContext = {
+        findingId,
+        clarificationType,
+        explanation,
+        evidenceUrl: evidenceUrl || null,
+      };
 
       const clarification = await addClarification({
         jobId,
@@ -1171,38 +1257,172 @@ export async function handleAuditRoutes(
         questionKey: `finding_clarification_${findingId}`,
         questionText: `Clarification for finding: ${findingId} - Type: ${clarificationType}, Explanation: ${explanation}`,
         questionType: 'text',
-        context: {
-          findingId,
-        },
+        context: clarificationContext as any,
       });
 
-      // Build answer map for re-analysis
-      const answerMap: Record<string, any> = {
-        [`finding_${findingId}_clarification_type`]: clarificationType,
-        [`finding_${findingId}_explanation`]: explanation,
-      };
+      // Update clarification with answer and commit resolution info
+      if (clarification) {
+        const answerData = {
+          findingId,
+          clarificationType,
+          explanation,
+          evidenceUrl: evidenceUrl || null,
+        };
+
+        await db.update(auditClarifications)
+          .set({
+            status: 'answered',
+            answerValue: answerData as any,
+            answeredAt: new Date(),
+            resolvedInCommit: resolvedInCommit || false,
+            commitSha: finalCommitSha || null,
+            commitMessage: commitMessage || null,
+          })
+          .where(eq(auditClarifications.id, clarification.id));
+
+        // ========================================================================
+        // AUTOMATIC VERIFICATION DISABLED
+        // User requested: Don't auto-verify on save - wastes resources
+        // Verification should be manually triggered when ready
+        // ========================================================================
+
+        // Just return success after saving clarification
+        log.info('✅ Clarification saved (auto-verification disabled)', {
+          jobId,
+          findingId,
+          clarificationId: clarification.id,
+        });
+
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({
+          success: true,
+          message: 'Clarification saved successfully',
+          clarificationId: clarification.id,
+        }));
+
+        return true;
+      }
+    } catch (error: any) {
+      log.error('Failed to submit finding clarification', { jobId, error: error.message });
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: error.message }));
+      return true;
+    }
+  }
+
+  // ============================================================================
+  // POST /api/audit/:jobId/trigger-reanalysis - Manually trigger re-analysis
+  // ============================================================================
+  if (req.method === 'POST' && parsed.pathname.match(/^\/api\/audit\/([^/]+)\/trigger-reanalysis$/)) {
+    const jobId = parsed.pathname.split('/')[3];
+
+    try {
+      // Verify authentication
+      const jwtAuth = await verifyAuth(req);
+      const userId = jwtAuth?.user?.id;
+
+      if (!userId) {
+        res.statusCode = 401;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Authentication required' }));
+        return true;
+      }
+
+      // Get audit job
+      const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
+
+      if (!job) {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Audit not found' }));
+        return true;
+      }
+
+      // Authorization check - must be audit owner
+      if (job.userId !== userId) {
+        res.statusCode = 403;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Only audit owner can trigger re-analysis' }));
+        return true;
+      }
+
+      // Check if audit has findings to re-analyze
+      const [results] = await db
+        .select()
+        .from(auditResults)
+        .where(eq(auditResults.jobId, jobId))
+        .limit(1);
+
+      if (!results || !results.findings || (results.findings as any[]).length === 0) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({
+          error: 'No findings to re-analyze. The audit must complete with findings before re-analysis can be performed.',
+          hint: 'Try running a full audit first (not retry) to generate findings.'
+        }));
+        return true;
+      }
+
+      // Get all answered clarifications for this job
+      const clarifications = await db
+        .select()
+        .from(auditClarifications)
+        .where(
+          and(
+            eq(auditClarifications.jobId, jobId),
+            eq(auditClarifications.status, 'answered')
+          )
+        );
+
+      if (clarifications.length === 0) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'No clarifications to process' }));
+        return true;
+      }
+
+      // Build answer map from clarifications
+      const answerMap: Record<string, any> = {};
+      for (const clarification of clarifications) {
+        if (clarification.answerValue) {
+          const answerValue = clarification.answerValue as any;
+          const context = clarification.context as any;
+          const findingId = answerValue.findingId || context?.findingId;
+          if (findingId) {
+            answerMap[`finding_${findingId}_clarification_type`] = answerValue.clarificationType;
+            answerMap[`finding_${findingId}_explanation`] = answerValue.explanation;
+            if (clarification.resolvedInCommit) {
+              answerMap[`finding_${findingId}_resolved_in_commit`] = true;
+              answerMap[`finding_${findingId}_commit_sha`] = clarification.commitSha;
+            }
+          }
+        }
+      }
 
       // Trigger re-analysis
       const { triggerReAnalysis } = await import('../../services/reAnalysisService.js');
-      await triggerReAnalysis(jobId, answerMap);
+      const reAnalysisResult = await triggerReAnalysis(jobId, answerMap);
 
-      log.info('Finding clarification submitted, re-analysis triggered', {
+      log.info('Manual re-analysis triggered', {
         jobId,
-        findingId,
-        clarificationType,
+        clarificationsCount: clarifications.length,
+        verificationStats: reAnalysisResult.verificationStats,
       });
 
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({
         success: true,
-        message: 'Clarification submitted. Audit is being re-analyzed.',
-        clarificationId: clarification?.id,
+        message: 'Re-analysis triggered successfully',
+        clarificationsProcessed: clarifications.length,
+        verificationStats: reAnalysisResult.verificationStats,
       }));
 
       return true;
     } catch (error: any) {
-      log.error('Failed to submit finding clarification', { jobId, error: error.message });
+      log.error('Failed to trigger re-analysis', { jobId, error: error.message });
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: error.message }));

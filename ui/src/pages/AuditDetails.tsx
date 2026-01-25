@@ -5,7 +5,8 @@ import {
   ShieldCheck, Download, AlertCircle, AlertTriangle,
   Code2, Timer, Target, Zap, Globe,
   CheckCircle2, XCircle, Binary, ArrowRight, ArrowLeft,
-  User, Lock, Unlock, ChevronDown, RefreshCw, Package
+  User, Lock, Unlock, ChevronDown, RefreshCw, Package, Check,
+  MessageSquare, GitBranch, ExternalLink, Clock
 } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import logo from '../assets/logo.svg'
@@ -67,9 +68,19 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   const [faqLoading, setFaqLoading] = useState(false)
   const [showClarificationModal, setShowClarificationModal] = useState(false)
   const [selectedFinding, setSelectedFinding] = useState<any>(null)
+  const [clarifications, setClarifications] = useState<any[]>([])
+  const [loadingClarifications, setLoadingClarifications] = useState(false)
+  const [isProcessingReanalysis, setIsProcessingReanalysis] = useState(false)
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   // Terminal auto-scroll ref
   const terminalRef = useRef<HTMLDivElement>(null)
+
+  // Show notification with auto-dismiss
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message })
+    setTimeout(() => setNotification(null), 4000)
+  }
 
   // Auto-scroll terminal to bottom when progress updates
   useEffect(() => {
@@ -103,9 +114,42 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
     return isOwner
   }
 
+  // Check if a finding has a submitted clarification
+  const hasSubmittedClarification = (findingId: string) => {
+    return clarifications.some((c: any) => {
+      const answerValue = c.answerValue as any
+      const context = c.context as any
+      return answerValue?.findingId === findingId || context?.findingId === findingId
+    })
+  }
+
+  // Get existing clarification for a finding
+  const getExistingClarification = (findingId: string) => {
+    return clarifications.find((c: any) => {
+      const answerValue = c.answerValue as any
+      const context = c.context as any
+      return answerValue?.findingId === findingId || context?.findingId === findingId
+    })
+  }
+
   // Open clarification modal for a specific finding
   const openClarificationModal = (finding: any) => {
-    setSelectedFinding(finding)
+    // Check if finding already has a clarification (use title as stable ID)
+    const existingClarification = getExistingClarification(finding.title)
+
+    // Attach existing clarification data to finding if it exists
+    const findingWithClarification = {
+      ...finding,
+      existingClarification: existingClarification ? {
+        clarificationType: (existingClarification.answerValue as any)?.clarificationType,
+        explanation: (existingClarification.answerValue as any)?.explanation,
+        evidenceUrl: (existingClarification.answerValue as any)?.evidenceUrl,
+        resolvedInCommit: existingClarification.resolvedInCommit,
+        commitSha: existingClarification.commitSha
+      } : null
+    }
+
+    setSelectedFinding(findingWithClarification)
     setShowClarificationModal(true)
   }
 
@@ -131,13 +175,75 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       console.log('Clarification submitted successfully:', data)
 
       // Show success message
-      alert('✅ Clarification submitted! The audit is being re-analyzed with your context.')
+      showNotification('success', 'Clarification submitted successfully! Add more or trigger re-analysis when ready.')
 
-      // Reload the page to show updated results
-      window.location.reload()
+      // Refresh clarifications list and close modal
+      await fetchClarifications()
+      setShowClarificationModal(false)
+      setSelectedFinding(null)
     } catch (err: any) {
       console.error('Failed to submit clarification:', err)
       throw err
+    }
+  }
+
+  // Fetch clarifications for this audit
+  const fetchClarifications = async () => {
+    if (!jobId) return
+
+    setLoadingClarifications(true)
+    try {
+      const res = await authFetch(`/api/audit/${jobId}/clarifications?phase=post_audit`)
+      if (res.ok) {
+        const data = await res.json()
+        // Only show answered clarifications (pending in queue for re-analysis)
+        const answeredClarifications = (data.clarifications || []).filter(
+          (c: any) => c.status === 'answered'
+        )
+        setClarifications(answeredClarifications)
+      }
+    } catch (error) {
+      console.error('Failed to fetch clarifications:', error)
+    } finally {
+      setLoadingClarifications(false)
+    }
+  }
+
+  // Handle re-analysis trigger
+  const handleTriggerReAnalysis = async () => {
+    if (!jobId || isProcessingReanalysis) return
+
+    setIsProcessingReanalysis(true)
+    try {
+      const res = await authFetch(`/api/audit/${jobId}/trigger-reanalysis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        const stats = data.verificationStats
+
+        // Build notification message with stats
+        let message = 'Re-analysis complete! '
+        if (stats && stats.total > 0) {
+          message += `Verified ${stats.verified} clarification${stats.verified !== 1 ? 's' : ''}, ` +
+                    `rejected ${stats.rejected} (${stats.acceptanceRate.toFixed(0)}% acceptance rate). `
+        }
+        message += 'Page will reload shortly.'
+
+        showNotification('success', message)
+        // Reload page after 4 seconds to give user time to read
+        setTimeout(() => window.location.reload(), 4000)
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        showNotification('error', errorData.error || 'Failed to trigger re-analysis. Please try again.')
+        setIsProcessingReanalysis(false)
+      }
+    } catch (error) {
+      console.error('Failed to trigger re-analysis:', error)
+      showNotification('error', 'An error occurred. Please try again.')
+      setIsProcessingReanalysis(false)
     }
   }
 
@@ -566,6 +672,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
               project: projectName,
               status: data.audit.status,
               auditType: data.audit.auditType,
+              depth: data.audit.auditDepth, // Map auditDepth from backend to depth in frontend
               contractAddress: data.audit.contractAddress,
               contractNetwork: data.audit.contractNetwork,
               isProxy: data.audit.isProxy,
@@ -574,6 +681,10 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
               createdAt: data.audit.createdAt,
               completedAt: data.audit.completedAt,
               detectedFramework: data.audit.detectedFramework,
+              repoOwner: data.audit.repoOwner,
+              repoName: data.audit.repoName,
+              branch: data.audit.branch,
+              commitSha: data.audit.commitSha,
             });
 
             // Set quick scan flag based on audit type
@@ -664,6 +775,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
           project: job.contractName || `Contract ${job.contractAddress?.slice(0, 8)}`,
           status: job.status,
           auditType: job.auditType,
+          depth: job.auditDepth,
           contractAddress: job.contractAddress,
           contractNetwork: job.contractNetwork,
           isProxy: job.isProxy,
@@ -884,6 +996,13 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
     };
   }, [jobId]);
 
+  // Fetch clarifications when audit data is loaded
+  useEffect(() => {
+    if (jobId && auditData && !isQuickScan) {
+      fetchClarifications();
+    }
+  }, [jobId, auditData, isQuickScan]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center">
@@ -1022,18 +1141,18 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                 {/* Terminal Content - Full height with scroll */}
                 <div
                   ref={terminalRef}
-                  className="relative p-6 font-mono text-sm flex-1 overflow-y-auto bg-white border-t border-slate-200 scrollbar-terminal"
+                  className="relative p-10 font-mono text-base flex-1 overflow-y-auto bg-white border-t border-slate-200 scrollbar-terminal"
                   style={{ scrollBehavior: 'smooth' }}
                 >
-                  <div className="space-y-3 max-w-full">
+                  <div className="space-y-5 max-w-full">
                     {/* Header with Project Info */}
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3 }}
-                      className="border-b border-slate-200 pb-4 mb-4"
+                      className="border-b border-slate-200 pb-6 mb-6"
                     >
-                      <div className="text-indigo-600 font-bold text-lg mb-2">
+                      <div className="text-indigo-600 font-black text-2xl mb-3">
                         UATU {jobInfo?.depth?.toUpperCase() || 'STANDARD'} AUDIT
                       </div>
                       {jobInfo?.repoOwner && jobInfo?.repoName && (
@@ -1054,9 +1173,9 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.1 }}
-                      className="text-sm text-slate-700 mb-4"
+                      className="text-base text-slate-700 mb-6"
                     >
-                      <span className="text-emerald-600">$</span> <span className="text-indigo-600 font-semibold">uatu audit start</span> <span className="text-slate-600">--depth</span> {jobInfo?.depth || 'standard'}
+                      <span className="text-emerald-600 text-lg">$</span> <span className="text-indigo-600 font-bold">uatu audit start</span> <span className="text-slate-600">--depth</span> {jobInfo?.depth || 'standard'}
                     </motion.div>
 
                     {/* Framework Detection */}
@@ -1064,10 +1183,10 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.2 }}
-                      className="text-emerald-600 flex items-center gap-2 mb-6"
+                      className="text-emerald-600 flex items-center gap-3 mb-8"
                     >
-                      <CheckCircle2 size={16} />
-                      <span className="text-sm font-semibold">Framework detected: {jobInfo?.detectedFramework || 'analyzing...'}</span>
+                      <CheckCircle2 size={20} />
+                      <span className="text-base font-bold">Framework detected: {jobInfo?.detectedFramework || 'analyzing...'}</span>
                     </motion.div>
 
                     {/* Terminal-Style Overall Progress */}
@@ -1075,21 +1194,21 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.3 }}
-                      className="mb-8 bg-slate-50 rounded-lg p-4 border-l-4 border-indigo-500"
+                      className="mb-10 bg-slate-50 rounded-xl p-8 border-l-[6px] border-indigo-500"
                     >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Progress</span>
+                      <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm font-mono text-slate-500 uppercase tracking-wider font-bold">Progress</span>
                           {progress.stepsCompleted !== undefined && progress.stepsTotal !== undefined && (
-                            <span className="text-xs text-slate-400 font-mono">
+                            <span className="text-sm text-slate-400 font-mono">
                               [{progress.stepsCompleted}/{progress.stepsTotal} steps]
                             </span>
                           )}
                         </div>
-                        <span className="text-base font-bold font-mono text-indigo-600">{progress.pct || 0}%</span>
+                        <span className="text-3xl font-black font-mono text-indigo-600">{progress.pct || 0}%</span>
                       </div>
                       {/* Terminal-style ASCII Progress Bar */}
-                      <div className="font-mono text-sm text-slate-700 mb-2">
+                      <div className="font-mono text-xl text-slate-700 mb-3 tracking-wide">
                         [
                         <span className="text-emerald-600 font-bold">
                           {'/'.repeat(Math.floor((progress.pct || 0) / 5))}
@@ -1101,11 +1220,11 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       </div>
                       {/* Percentage indicator under bar */}
                       <div
-                        className="relative h-0.5 bg-transparent"
+                        className="relative h-1 bg-transparent"
                         style={{ width: '100%' }}
                       >
                         <motion.div
-                          className="absolute text-[10px] font-mono text-indigo-600"
+                          className="absolute text-sm font-mono text-indigo-600"
                           initial={{ left: '0%' }}
                           animate={{ left: `${Math.max(0, Math.min(95, (progress.pct || 0) - 2))}%` }}
                           transition={{ duration: 0.5 }}
@@ -1122,9 +1241,9 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="mb-8 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-5 border-l-4 border-amber-500 shadow-sm"
+                        className="mb-10 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-8 border-l-[6px] border-amber-500 shadow-sm"
                       >
-                        <div className="flex items-start gap-3">
+                        <div className="flex items-start gap-5">
                           <motion.div
                             animate={{
                               scale: [1, 1.2, 1],
@@ -1136,15 +1255,15 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                               ease: "easeInOut"
                             }}
                           >
-                            <Zap size={20} className="text-amber-600 mt-0.5" />
+                            <Zap size={28} className="text-amber-600 mt-1" />
                           </motion.div>
                           <div className="flex-1">
-                            <div className="text-[10px] font-mono uppercase tracking-widest text-amber-600 mb-2 font-bold">
+                            <div className="text-xs font-mono uppercase tracking-widest text-amber-600 mb-3 font-bold">
                               Currently Running
                             </div>
                             {/* Typing Animation Effect */}
                             <motion.div
-                              className="text-base font-semibold text-slate-900 font-mono"
+                              className="text-xl font-semibold text-slate-900 font-mono leading-relaxed"
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                             >
@@ -1163,7 +1282,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                 </motion.span>
                               ))}
                               <motion.span
-                                className="inline-block w-2 h-4 bg-amber-600 ml-1"
+                                className="inline-block w-2.5 h-6 bg-amber-600 ml-1"
                                 animate={{ opacity: [1, 0, 1] }}
                                 transition={{ duration: 0.8, repeat: Infinity }}
                               />
@@ -1174,31 +1293,31 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                     )}
 
                     {/* Divider */}
-                    <div className="font-mono text-slate-300 my-6 text-xs">
+                    <div className="font-mono text-slate-300 my-8 text-sm">
                       {'─'.repeat(60)}
                     </div>
 
                     {/* Terminal Cursor with Status */}
                     <motion.div
-                      className="flex items-center gap-3 mt-6"
+                      className="flex items-center gap-4 mt-8"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.6 }}
                     >
-                      <span className="text-emerald-600 text-sm font-mono font-bold">$</span>
+                      <span className="text-emerald-600 text-lg font-mono font-bold">$</span>
                       <motion.div
-                        className="w-2 h-4 bg-indigo-500"
+                        className="w-2.5 h-5 bg-indigo-500"
                         animate={{ opacity: [1, 0, 1] }}
                         transition={{ duration: 0.8, repeat: Infinity }}
                       />
-                      <span className="text-xs text-slate-500 font-mono ml-2">
+                      <span className="text-sm text-slate-500 font-mono ml-2">
                         awaiting completion...
                       </span>
                     </motion.div>
 
                     {/* Status Note */}
-                    <div className="text-slate-500 text-xs mt-6 font-mono flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <div className="text-slate-500 text-sm mt-8 font-mono flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                       Live updates enabled • No refresh needed
                     </div>
                   </div>
@@ -1311,6 +1430,39 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       <div className="min-h-screen bg-[#F8FAFC] selection:bg-indigo-500/10 text-slate-950 font-sans relative">
         <MouseTooltip />
 
+        {/* Notification Toast */}
+        <AnimatePresence>
+          {notification && (
+            <motion.div
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              className="fixed top-6 right-6 z-[9999] max-w-md"
+            >
+              <div className={`px-6 py-4 rounded-xl shadow-2xl border-2 flex items-start gap-3 ${
+                notification.type === 'success'
+                  ? 'bg-emerald-50 border-emerald-400 text-emerald-900'
+                  : 'bg-rose-50 border-rose-400 text-rose-900'
+              }`}>
+                {notification.type === 'success' ? (
+                  <CheckCircle2 size={24} className="flex-shrink-0 text-emerald-600" />
+                ) : (
+                  <XCircle size={24} className="flex-shrink-0 text-rose-600" />
+                )}
+                <div className="flex-1">
+                  <p className="text-sm font-bold">{notification.message}</p>
+                </div>
+                <button
+                  onClick={() => setNotification(null)}
+                  className="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <XCircle size={18} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       {/* Institutional Body Watermark */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden flex items-center justify-center opacity-[0.03]">
         <img src={logo} alt="" className="w-[1200px] h-auto rotate-[-15deg] select-none" />
@@ -1396,16 +1548,6 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
               </Link>
             ) : auditData ? (
               <>
-                {/* Answer Findings Button - for project owner to provide context */}
-                {isAuditOwner() && (
-                  <Link
-                    to={`/clarifications/${jobId}?phase=post_audit`}
-                    className="flex items-center gap-3 bg-indigo-600 border border-indigo-700 px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-white hover:bg-indigo-700 transition-all shadow-sm"
-                  >
-                    <AlertCircle size={14} strokeWidth={2.5} />
-                    Answer Questions About Findings
-                  </Link>
-                )}
                 <button
                   onClick={handleExportPDF}
                   className="flex items-center gap-3 bg-white border border-slate-950 px-7 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-950 hover:bg-slate-50 transition-all shadow-sm"
@@ -1626,37 +1768,6 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                         className="space-y-6"
                       >
                         {/* Professional Banner to Answer Questions */}
-                        {!isQuickScan && isAuditOwner() && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-8 shadow-sm mb-8"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-6">
-                                <div className="w-14 h-14 bg-amber-100 rounded-xl flex items-center justify-center">
-                                  <AlertCircle size={28} className="text-amber-600" strokeWidth={2.5} />
-                                </div>
-                                <div>
-                                  <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-2">
-                                    Action Required: Provide Context for Findings
-                                  </h2>
-                                  <p className="text-slate-600 font-medium text-sm">
-                                    Challenge critical or high severity findings by explaining your design choices and security measures.
-                                  </p>
-                                </div>
-                              </div>
-                              <Link
-                                to={`/clarifications/${jobId}?phase=post_audit`}
-                                className="flex items-center gap-3 bg-indigo-600 px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-wide text-white hover:bg-indigo-700 transition-all shadow-sm flex-shrink-0 group"
-                              >
-                                <span>Answer Questions</span>
-                                <ArrowRight size={18} strokeWidth={2.5} className="group-hover:translate-x-1 transition-transform" />
-                              </Link>
-                            </div>
-                          </motion.div>
-                        )}
-
                         {/* Summary Section for Quick Scans */}
                         {isQuickScan && auditData.summary && (
                           <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-sm mb-6">
@@ -1803,6 +1914,43 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                           </div>
                         )}
 
+                        {/* Pending Clarifications Banner */}
+                        {isAuditOwner() && clarifications.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mb-6 p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-400 rounded-xl shadow-md"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-amber-600 rounded-full flex items-center justify-center">
+                                  <span className="text-white font-black text-lg">{clarifications.length}</span>
+                                </div>
+                                <div>
+                                  <p className="text-base font-black text-amber-900">
+                                    {clarifications.length} Clarification{clarifications.length !== 1 ? 's' : ''} Ready to Process
+                                  </p>
+                                  <p className="text-sm text-amber-700 mt-1">
+                                    Click the button to trigger re-analysis and update your audit report
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleTriggerReAnalysis()}
+                                disabled={isProcessingReanalysis}
+                                className={`px-8 py-4 text-white rounded-xl font-black text-base shadow-lg transition-all flex items-center gap-3 ${
+                                  isProcessingReanalysis
+                                    ? 'bg-amber-400 cursor-not-allowed'
+                                    : 'bg-amber-600 hover:bg-amber-700 hover:shadow-xl hover:scale-105'
+                                }`}
+                              >
+                                <RefreshCw size={20} className={isProcessingReanalysis ? 'animate-spin' : ''} />
+                                {isProcessingReanalysis ? 'Processing...' : 'Trigger Re-Analysis'}
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+
                         {/* VULNERABILITY DISCLOSURE LEDGER - Properly Organized Report */}
                         {(() => {
                           // Group findings by severity
@@ -1874,19 +2022,26 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                     </div>
                                   </button>
                                   <div className="flex items-center gap-4">
-                                    {/* Provide Context button for critical/high */}
-                                    {!isQuickScan && (v.severity === 'critical' || v.severity === 'high') && isAuditOwner() && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          openClarificationModal(v);
-                                        }}
-                                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs uppercase tracking-wide transition-all shadow-sm flex-shrink-0"
-                                      >
-                                        <span>💬</span>
-                                        Provide Context
-                                      </button>
-                                    )}
+                                    {/* Mark Resolved / Submitted button for all severities */}
+                                    {!isQuickScan && isAuditOwner() && (() => {
+                                      const hasClarification = hasSubmittedClarification(v.title)
+                                      return (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            openClarificationModal(v);
+                                          }}
+                                          className={`flex items-center gap-2 px-4 py-2 border-2 rounded-lg font-semibold text-sm transition-colors ${
+                                            hasClarification
+                                              ? 'border-emerald-400 bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+                                              : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-700'
+                                          }`}
+                                        >
+                                          <Check size={16} className={hasClarification ? 'text-emerald-600' : 'text-slate-600'} />
+                                          {hasClarification ? 'Submitted' : 'Mark Resolved'}
+                                        </button>
+                                      )
+                                    })()}
                                     <span className={`px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest ${
                                       v.severity === 'critical' ? 'bg-rose-600 text-white' :
                                       v.severity === 'high' ? 'bg-rose-500 text-white' :
@@ -2006,21 +2161,6 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                           </div>
                                         )}
 
-                                        {/* Show clarification button for critical/high findings if user owns the audit */}
-                                        {!isQuickScan && ['critical', 'high'].includes(v.severity?.toLowerCase() || '') && isAuditOwner() && (
-                                          <div className="flex items-center gap-3 mt-8 pt-6 border-t border-slate-200">
-                                            <button
-                                              onClick={() => openClarificationModal(v)}
-                                              className="flex items-center gap-2 px-6 py-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-all text-sm font-bold text-indigo-700 hover:text-indigo-800"
-                                            >
-                                              <span>💬</span>
-                                              Give Clarification
-                                            </button>
-                                            <p className="text-xs text-slate-400 italic">
-                                              Challenge this finding with context
-                                            </p>
-                                          </div>
-                                        )}
                                         {/* Show feedback message when button is hidden for non-owners */}
                                         {!isQuickScan &&
                                          ['critical', 'high'].includes(v.severity?.toLowerCase() || '') &&
@@ -2188,29 +2328,6 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                           )
                         })()}
 
-                        {/* Professional CTA: Answer Questions */}
-                        {!isQuickScan && isAuditOwner() && (
-                          <div className="mt-12 bg-slate-50 border-2 border-slate-200 rounded-2xl p-10 text-center">
-                            <div className="max-w-2xl mx-auto">
-                              <div className="w-16 h-16 bg-indigo-100 rounded-xl flex items-center justify-center mx-auto mb-5">
-                                <AlertCircle size={32} className="text-indigo-600" strokeWidth={2.5} />
-                              </div>
-                              <h2 className="text-2xl font-black text-slate-900 mb-3 uppercase tracking-tight">
-                                Questions About These Findings?
-                              </h2>
-                              <p className="text-base text-slate-600 font-medium mb-6 leading-relaxed">
-                                Provide context for critical or high severity findings. Your answers will trigger re-analysis and may adjust severity ratings.
-                              </p>
-                              <Link
-                                to={`/clarifications/${jobId}?phase=post_audit`}
-                                className="inline-flex items-center gap-3 bg-indigo-600 px-8 py-4 rounded-xl text-sm font-bold uppercase tracking-wide text-white hover:bg-indigo-700 transition-all shadow-sm group"
-                              >
-                                <span>Answer Questions</span>
-                                <ArrowRight size={18} strokeWidth={2.5} className="group-hover:translate-x-1 transition-transform" />
-                              </Link>
-                            </div>
-                          </div>
-                        )}
 
                         {/* Contract Analysis Section for Quick Scans */}
                         {isQuickScan && auditData.contractAnalysis && (
@@ -2448,6 +2565,184 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                             </p>
                           </div>
                         ) : null}
+
+                        {/* Your Clarifications Section */}
+                        {isAuditOwner() && clarifications.length > 0 && (
+                          <motion.div
+                            id="clarifications-section"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-12 mb-8"
+                          >
+                            <h2 className="font-black text-2xl text-slate-900 mb-6 flex items-center gap-3">
+                              <MessageSquare size={28} className="text-indigo-600" />
+                              Your Clarifications
+                              <span className="text-base font-semibold text-slate-500">
+                                ({clarifications.length} submitted)
+                              </span>
+                            </h2>
+
+                            <div className="space-y-4">
+                              {clarifications.map((clarification: any) => (
+                                <div
+                                  key={clarification.id}
+                                  className="bg-white border-2 border-slate-200 rounded-2xl p-6 shadow-sm space-y-4"
+                                >
+                                  {/* Header */}
+                                  <div className="flex items-start justify-between">
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full uppercase">
+                                          {clarification.answerValue?.clarificationType?.replace('_', ' ') || 'N/A'}
+                                        </span>
+                                        {clarification.resolvedInCommit && (
+                                          <>
+                                            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full flex items-center gap-1">
+                                              <GitBranch size={12} />
+                                              Resolved in Commit
+                                            </span>
+                                            {/* Verification Status Badge */}
+                                            {clarification.commitVerified === true && (
+                                              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full flex items-center gap-1">
+                                                <CheckCircle2 size={12} />
+                                                Verified
+                                              </span>
+                                            )}
+                                            {clarification.commitVerified === false && clarification.verificationNote && (
+                                              <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full flex items-center gap-1">
+                                                <XCircle size={12} />
+                                                Failed
+                                              </span>
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-slate-600 mt-2">
+                                        Finding ID: <code className="px-2 py-1 bg-slate-100 rounded text-xs font-mono">{clarification.answerValue?.findingId || clarification.context?.findingId}</code>
+                                      </p>
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      {new Date(clarification.answeredAt).toLocaleDateString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  {/* Explanation */}
+                                  <div>
+                                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-2">
+                                      Your Explanation
+                                    </label>
+                                    <p className="text-sm text-slate-700 leading-relaxed">
+                                      {clarification.answerValue?.explanation || 'No explanation provided'}
+                                    </p>
+                                  </div>
+
+                                  {/* Commit Info */}
+                                  {clarification.commitSha && (
+                                    <div>
+                                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-2">
+                                        Commit SHA
+                                      </label>
+                                      <code className="text-sm text-slate-700 font-mono bg-slate-100 px-3 py-2 rounded block">
+                                        {clarification.commitSha}
+                                      </code>
+                                    </div>
+                                  )}
+
+                                  {/* Verification Status */}
+                                  {clarification.verificationNote && (
+                                    <div className={`p-4 rounded-xl ${
+                                      clarification.commitVerified
+                                        ? 'bg-green-50 border-2 border-green-200'
+                                        : 'bg-red-50 border-2 border-red-200'
+                                    }`}>
+                                      <label className={`text-xs font-bold uppercase tracking-wider block mb-2 ${
+                                        clarification.commitVerified ? 'text-green-700' : 'text-red-700'
+                                      }`}>
+                                        {clarification.commitVerified ? '✅ Verification Passed' : '⚠️ Verification Failed'}
+                                      </label>
+                                      <p className={`text-sm leading-relaxed ${
+                                        clarification.commitVerified ? 'text-green-800' : 'text-red-800'
+                                      }`}>
+                                        {clarification.verificationNote}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* Evidence URL */}
+                                  {clarification.answerValue?.evidenceUrl && (
+                                    <div>
+                                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-2">
+                                        Evidence
+                                      </label>
+                                      <a
+                                        href={clarification.answerValue.evidenceUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-2"
+                                      >
+                                        <ExternalLink size={14} />
+                                        {clarification.answerValue.evidenceUrl}
+                                      </a>
+                                    </div>
+                                  )}
+
+                                  {/* Status */}
+                                  <div className="pt-4 border-t border-slate-200">
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <Clock size={14} className="text-slate-400" />
+                                      <span className="text-slate-600">
+                                        Status: <span className="font-semibold text-slate-900">
+                                          {clarification.status === 'answered' ? 'Awaiting Re-Analysis' :
+                                           clarification.status === 'resolved' ? 'Resolved' :
+                                           'Pending'}
+                                        </span>
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Re-Analysis CTA */}
+                            <div className="mt-6 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-300 rounded-xl shadow-md">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <h3 className="font-black text-lg text-slate-900 mb-2 flex items-center gap-2">
+                                    Ready to Process Clarifications?
+                                    <span className="px-3 py-1 bg-indigo-600 text-white text-xs font-bold rounded-full">
+                                      {clarifications.length} queued
+                                    </span>
+                                  </h3>
+                                  <p className="text-sm text-slate-700 mb-3">
+                                    Click below to trigger re-analysis. This will process all {clarifications.length} clarification{clarifications.length !== 1 ? 's' : ''} together
+                                    and update finding severities based on your input.
+                                  </p>
+                                  <p className="text-xs text-slate-500 italic">
+                                    💡 Tip: Submit all your clarifications first, then trigger re-analysis once to save time.
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => handleTriggerReAnalysis()}
+                                  disabled={isProcessingReanalysis}
+                                  className={`ml-6 px-8 py-4 text-white rounded-xl font-black text-base transition-all shadow-lg flex items-center gap-3 ${
+                                    isProcessingReanalysis
+                                      ? 'bg-indigo-400 cursor-not-allowed'
+                                      : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-xl hover:scale-105'
+                                  }`}
+                                >
+                                  <RefreshCw size={20} className={isProcessingReanalysis ? 'animate-spin' : ''} />
+                                  {isProcessingReanalysis ? 'Processing...' : `Process All (${clarifications.length})`}
+                                </button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
 
                         {auditData?.filterStats && (
                           <div className="mt-8 p-4 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">

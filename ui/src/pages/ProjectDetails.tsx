@@ -155,6 +155,7 @@ export default function ProjectDetails() {
             }
 
             // Start the audit
+            console.log('🚀 Starting audit with depth:', auditDepth)
             const response = await authFetch('/api/audit/start', {
                 method: 'POST',
                 headers: {

@@ -374,11 +374,15 @@ export class SOPOrchestrator extends EventEmitter {
     // Load persisted stepData if available (for resume)
     await this.loadStepData();
 
+    // Load existing step progress from database (for retry/resume)
+    await this.loadExistingProgress();
+
     log.debug('Orchestrator initialized', {
       totalSteps: this.enabledSteps.length,
       layers: this.executionLayers.length,
       availableTools: this.availableTools,
       totalWeight: this.totalWeight,
+      completedSteps: Array.from(this.stepStatus.entries()).filter(([_, status]) => status === 'completed').length,
     });
   }
 
@@ -420,6 +424,24 @@ export class SOPOrchestrator extends EventEmitter {
    * Execute a single step with error handling
    */
   private async executeStepSafe(step: StepDefinition): Promise<void> {
+    // Check if step is already completed (from resume)
+    const currentStatus = this.stepStatus.get(step.id);
+    if (currentStatus === 'completed') {
+      log.info(`⏭️  Skipping completed step`, {
+        stepId: step.id,
+        stepName: step.name,
+        reason: 'Already completed in previous run',
+      });
+
+      // Update progress tracking for skipped completed step
+      const stepWeight = (step as any).weight || 1;
+      this.completedWeight += stepWeight;
+
+      // Step is already marked completed in DB from previous run
+      // Just update in-memory progress tracking
+      return;
+    }
+
     // Check if dependencies are satisfied
     const dependenciesMet = this.checkDependencies(step);
 
@@ -1096,6 +1118,93 @@ export class SOPOrchestrator extends EventEmitter {
         path: stepDataPath,
       });
       // Don't throw - continue with empty stepData
+    }
+  }
+
+  /**
+   * Load existing step progress from database (for retry/resume)
+   */
+  private async loadExistingProgress(): Promise<void> {
+    try {
+      const { db } = await import('../../db/index.js');
+      const { auditStepProgress } = await import('../../db/schema.js');
+      const { eq } = await import('drizzle-orm');
+
+      // Load all step progress for this job
+      const stepProgress = await db
+        .select()
+        .from(auditStepProgress)
+        .where(eq(auditStepProgress.jobId, this.config.jobId));
+
+      if (stepProgress.length === 0) {
+        log.debug('🆕 No existing progress found - starting fresh');
+        return;
+      }
+
+      log.info('🔄 Loading existing progress for resume', {
+        jobId: this.config.jobId,
+        totalRecords: stepProgress.length,
+      });
+
+      let completedCount = 0;
+      let failedCount = 0;
+
+      // Restore step status from database
+      for (const step of stepProgress) {
+        if (step.status === 'completed') {
+          this.stepStatus.set(step.stepId, 'completed');
+          completedCount++;
+
+          // If step has results, restore them
+          if (step.outputSummary) {
+            this.stepResults.set(step.stepId, {
+              success: true,
+              findings: [],
+              data: step.outputSummary as any,
+            });
+          }
+
+          log.debug(`  ✅ ${step.stepId} - completed (will skip)`);
+        } else if (step.status === 'failed') {
+          failedCount++;
+          log.debug(`  ❌ ${step.stepId} - failed (will retry)`);
+        } else if (step.status === 'running') {
+          log.debug(`  🔄 ${step.stepId} - was running (will retry)`);
+        }
+      }
+
+      // CRITICAL: Restore existing findings from audit_results
+      // This prevents data loss when retrying - we preserve findings from completed steps
+      const { auditResults } = await import('../../db/schema.js');
+      const [existingResults] = await db
+        .select()
+        .from(auditResults)
+        .where(eq(auditResults.jobId, this.config.jobId))
+        .limit(1);
+
+      if (existingResults && existingResults.findings) {
+        const restoredFindings = existingResults.findings as any[];
+        if (Array.isArray(restoredFindings) && restoredFindings.length > 0) {
+          this.allFindings.push(...restoredFindings);
+          log.info('✅ Restored existing findings from previous run', {
+            findingsCount: restoredFindings.length,
+            reason: 'Preserving findings from completed steps on retry',
+          });
+        }
+      }
+
+      log.info('✅ Existing progress loaded', {
+        completed: completedCount,
+        failed: failedCount,
+        restoredFindings: this.allFindings.length,
+        willResume: true,
+      });
+
+    } catch (error: any) {
+      log.warn('⚠️  Failed to load existing progress - starting fresh', {
+        error: error.message,
+      });
+      // Don't throw - continue with empty progress
     }
   }
 

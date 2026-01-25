@@ -917,6 +917,7 @@ export class UnifiedAuditService extends EventEmitter {
     const report = this.generateReport(filteredFindings, score, request);
 
     // Save structured results to audit_results table
+    // Use UPSERT to handle retry cases where results already exist
     await db.insert(auditResults).values({
       jobId,
       scoreValue: score,
@@ -935,6 +936,27 @@ export class UnifiedAuditService extends EventEmitter {
         },
         depth: request.depth,
         dependencyScores, // Add dependency scores to metadata
+      },
+    }).onConflictDoUpdate({
+      target: auditResults.jobId,
+      set: {
+        scoreValue: score,
+        scoreLabel: grade,
+        findings: filteredFindings as any,
+        summary: `Found ${filteredFindings.length} findings with audit score ${score}`,
+        metadata: {
+          findingsCount: filteredFindings.length,
+          filteredOutCount: removedCount,
+          bySeverity: {
+            critical: filteredFindings.filter(f => f.severity === 'critical').length,
+            high: filteredFindings.filter(f => f.severity === 'high').length,
+            medium: filteredFindings.filter(f => f.severity === 'medium').length,
+            low: filteredFindings.filter(f => f.severity === 'low').length,
+            info: filteredFindings.filter(f => f.severity === 'info').length,
+          },
+          depth: request.depth,
+          dependencyScores,
+        },
       },
     });
 

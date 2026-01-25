@@ -336,3 +336,110 @@ export async function hasUncommittedChanges(repoPath: string): Promise<boolean> 
   const status = await git.status();
   return !status.isClean();
 }
+
+/**
+ * Get the latest commit SHA from a repository
+ * Alias for getFullCommitHash for clarity in clarification context
+ */
+export async function getLatestCommit(repoPath: string): Promise<string> {
+  const hash = await getFullCommitHash(repoPath);
+  if (!hash) {
+    throw new Error('Could not retrieve latest commit SHA');
+  }
+  return hash;
+}
+
+/**
+ * Get commit information including message
+ */
+export async function getCommitInfo(repoPath: string, commitSha: string) {
+  try {
+    const { stdout } = await execAsync(`git show -s --format=%B ${commitSha}`, {
+      cwd: repoPath
+    });
+    return {
+      sha: commitSha,
+      message: stdout.trim()
+    };
+  } catch (error: any) {
+    console.error('Failed to get commit info', { error: error.message, commitSha });
+    return null;
+  }
+}
+
+/**
+ * Verify if a commit exists in the repository
+ */
+export async function verifyCommitExists(repoPath: string, commitSha: string): Promise<boolean> {
+  try {
+    await execAsync(`git cat-file -e ${commitSha}^{commit}`, {
+      cwd: repoPath
+    });
+    return true;
+  } catch (error: any) {
+    console.warn('Commit does not exist', { commitSha, repoPath });
+    return false;
+  }
+}
+
+/**
+ * Get the diff for a specific commit
+ * Shows what changes were made in that commit
+ */
+export async function getCommitDiff(repoPath: string, commitSha: string): Promise<string | null> {
+  try {
+    // Get diff for the commit (shows changes from parent to this commit)
+    const { stdout } = await execAsync(`git show ${commitSha} --format="" --no-color`, {
+      cwd: repoPath,
+      maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large diffs
+    });
+    return stdout;
+  } catch (error: any) {
+    console.error('Failed to get commit diff', { error: error.message, commitSha });
+    return null;
+  }
+}
+
+/**
+ * Get file context around a specific line
+ * Returns code surrounding the specified line for context
+ */
+export async function getFileContext(
+  repoPath: string,
+  filePath: string,
+  line: number,
+  contextLines: number = 10
+): Promise<string | null> {
+  try {
+    const fullPath = path.join(repoPath, filePath);
+
+    // Check if file exists
+    if (!(await fs.pathExists(fullPath))) {
+      console.warn('File not found for context extraction', { filePath, repoPath });
+      return null;
+    }
+
+    // Read the file
+    const content = await fs.readFile(fullPath, 'utf-8');
+    const lines = content.split('\n');
+
+    // Calculate range (0-indexed)
+    const startLine = Math.max(0, line - contextLines - 1);
+    const endLine = Math.min(lines.length, line + contextLines);
+
+    // Extract context with line numbers
+    const contextWithLineNumbers = lines
+      .slice(startLine, endLine)
+      .map((lineContent, idx) => {
+        const lineNumber = startLine + idx + 1;
+        const marker = lineNumber === line ? '→ ' : '  ';
+        return `${marker}${lineNumber.toString().padStart(4, ' ')} | ${lineContent}`;
+      })
+      .join('\n');
+
+    return contextWithLineNumbers;
+  } catch (error: any) {
+    console.error('Failed to get file context', { error: error.message, filePath, line });
+    return null;
+  }
+}

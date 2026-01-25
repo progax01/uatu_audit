@@ -765,32 +765,39 @@ export async function handleInteractiveAuditRoutes(
         return true;
       }
 
-      let findings = await db
+      // Get findings from audit_results.findings JSONB
+      const { auditResults } = await import('../../db/schema.js');
+      const [results] = await db
         .select()
-        .from(auditFindings)
-        .where(eq(auditFindings.jobId, jobId));
+        .from(auditResults)
+        .where(eq(auditResults.jobId, jobId));
+
+      if (!results || !results.findings) {
+        sendJson(res, { findings: [], summary: { total: 0, bySeverity: {}, adjusted: 0, withContext: 0 } });
+        return true;
+      }
+
+      let findings = results.findings as any[];
 
       const { severity, status } = parsed.query;
       if (severity) {
-        findings = findings.filter(
-          (f) => (f.adjustedSeverity || f.originalSeverity) === severity
-        );
+        findings = findings.filter((f: any) => f.severity === severity);
       }
       if (status) {
-        findings = findings.filter((f) => f.status === status);
+        findings = findings.filter((f: any) => f.status === status);
       }
 
       const summary = {
         total: findings.length,
         bySeverity: {
-          critical: findings.filter((f) => (f.adjustedSeverity || f.originalSeverity) === 'critical').length,
-          high: findings.filter((f) => (f.adjustedSeverity || f.originalSeverity) === 'high').length,
-          medium: findings.filter((f) => (f.adjustedSeverity || f.originalSeverity) === 'medium').length,
-          low: findings.filter((f) => (f.adjustedSeverity || f.originalSeverity) === 'low').length,
-          info: findings.filter((f) => (f.adjustedSeverity || f.originalSeverity) === 'info').length,
+          critical: findings.filter((f: any) => f.severity === 'critical').length,
+          high: findings.filter((f: any) => f.severity === 'high').length,
+          medium: findings.filter((f: any) => f.severity === 'medium').length,
+          low: findings.filter((f: any) => f.severity === 'low').length,
+          info: findings.filter((f: any) => f.severity === 'info').length,
         },
-        adjusted: findings.filter((f) => f.adjustedSeverity && f.adjustedSeverity !== f.originalSeverity).length,
-        withContext: findings.filter((f) => f.userContext && Object.keys(f.userContext as any).length > 0).length,
+        adjusted: findings.filter((f: any) => f.originalSeverity && f.severity !== f.originalSeverity).length,
+        withContext: findings.filter((f: any) => f.metadata && Object.keys(f.metadata).length > 0).length,
       };
 
       sendJson(res, { findings, summary });

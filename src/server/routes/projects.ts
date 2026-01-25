@@ -1005,7 +1005,47 @@ interface Route {
   handler: RouteHandler;
 }
 
+/**
+ * GET /api/projects/clarification-status - Get projects with pending clarifications
+ */
+const getClarificationStatusHandler: RouteHandler = async (req, res, ctx) => {
+  if (!ctx.userId) {
+    return sendError(res, 401, 'Authentication required');
+  }
+
+  try {
+    const { db } = await import('../../db/index.js');
+    const { auditClarifications, auditJobs, projects } = await import('../../db/schema.js');
+    const { eq, and } = await import('drizzle-orm');
+
+    // Find all projects with pending clarifications
+    const projectsWithClarifications = await db
+      .select({
+        projectId: projects.id,
+        jobId: auditJobs.id,
+      })
+      .from(auditClarifications)
+      .innerJoin(auditJobs, eq(auditClarifications.jobId, auditJobs.id))
+      .innerJoin(projects, eq(auditJobs.projectId, projects.id))
+      .where(
+        and(
+          eq(projects.userId, ctx.userId),
+          eq(auditClarifications.status, 'answered')
+        )
+      )
+      .groupBy(projects.id, auditJobs.id);
+
+    const projectIds = [...new Set(projectsWithClarifications.map(p => p.projectId))];
+
+    sendJson(res, 200, { projectIds });
+  } catch (error: any) {
+    log.error('Failed to fetch clarification status:', error);
+    sendError(res, 500, error.message || 'Failed to fetch clarification status');
+  }
+};
+
 const routes: Route[] = [
+  { method: 'GET', pattern: '/api/projects/clarification-status', handler: getClarificationStatusHandler },
   { method: 'POST', pattern: '/api/projects', handler: createProjectHandler },
   { method: 'GET', pattern: '/api/projects', handler: listProjectsHandler },
   { method: 'GET', pattern: '/api/projects/by-slug/:slug', handler: getProjectBySlugHandler },

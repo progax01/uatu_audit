@@ -82,61 +82,92 @@ export class CLIError extends Error {
 }
 
 /**
- * Get Claude CLI path dynamically
+ * Get Claude CLI path dynamically and resolve to actual executable
  */
 function getCLIPath(): string {
+  let claudePath: string | null = null;
+
   // If CLAUDE_CLI_PATH is explicitly set, use it (but validate)
   if (process.env.CLAUDE_CLI_PATH) {
     try {
       execSync(`test -f "${process.env.CLAUDE_CLI_PATH}"`, { stdio: 'pipe' });
-      return process.env.CLAUDE_CLI_PATH;
+      claudePath = process.env.CLAUDE_CLI_PATH;
     } catch (error) {
       log.warn(`CLAUDE_CLI_PATH set to ${process.env.CLAUDE_CLI_PATH} but file not found, falling back to auto-detect`);
     }
   }
 
   // Try to find claude in PATH
-  try {
-    const command = process.platform === 'win32' ? 'where claude' : 'which claude';
-    const foundPath = execSync(command, { stdio: 'pipe', encoding: 'utf8' }).trim();
-    if (foundPath) {
-      log.debug(`Claude CLI found at: ${foundPath}`);
-      return foundPath;
+  if (!claudePath) {
+    try {
+      const command = process.platform === 'win32' ? 'where claude' : 'which claude';
+      const foundPath = execSync(command, { stdio: 'pipe', encoding: 'utf8' }).trim();
+      if (foundPath) {
+        log.debug(`Claude CLI found at: ${foundPath}`);
+        claudePath = foundPath;
+      }
+    } catch (error) {
+      // Not in PATH - try common locations
     }
-  } catch (error) {
-    // Not in PATH - try common locations
   }
 
   // Check common installation locations (especially for daemon mode where PATH is limited)
-  const homeDir = process.env.HOME || '/Users/' + (process.env.USER || 'user');
-  const commonPaths = [
-    // NVM installations (check multiple node versions)
-    `${homeDir}/.nvm/versions/node/v24.12.0/bin/claude`,
-    `${homeDir}/.nvm/versions/node/v22.0.0/bin/claude`,
-    `${homeDir}/.nvm/versions/node/v20.0.0/bin/claude`,
-    // Global npm
-    '/usr/local/bin/claude',
-    '/opt/homebrew/bin/claude',
-    `${homeDir}/.npm-global/bin/claude`,
-    // Yarn global
-    `${homeDir}/.yarn/bin/claude`,
-    // pnpm global
-    `${homeDir}/.local/share/pnpm/claude`,
-  ];
+  if (!claudePath) {
+    const homeDir = process.env.HOME || '/Users/' + (process.env.USER || 'user');
+    const commonPaths = [
+      // Local project node_modules (FIRST PRIORITY)
+      `${process.cwd()}/node_modules/.bin/claude`,
+      // NVM installations (check multiple node versions)
+      `${homeDir}/.nvm/versions/node/v24.12.0/bin/claude`,
+      `${homeDir}/.nvm/versions/node/v22.0.0/bin/claude`,
+      `${homeDir}/.nvm/versions/node/v20.0.0/bin/claude`,
+      // Global npm
+      '/usr/local/bin/claude',
+      '/opt/homebrew/bin/claude',
+      `${homeDir}/.npm-global/bin/claude`,
+      // Yarn global
+      `${homeDir}/.yarn/bin/claude`,
+      // pnpm global
+      `${homeDir}/.local/share/pnpm/claude`,
+    ];
 
-  for (const candidatePath of commonPaths) {
-    try {
-      execSync(`test -f "${candidatePath}"`, { stdio: 'pipe' });
-      log.info(`Claude CLI found at common location: ${candidatePath}`);
-      return candidatePath;
-    } catch {
-      // Try next path
+    for (const candidatePath of commonPaths) {
+      try {
+        execSync(`test -f "${candidatePath}"`, { stdio: 'pipe' });
+        log.info(`Claude CLI found at common location: ${candidatePath}`);
+        claudePath = candidatePath;
+        break;
+      } catch {
+        // Try next path
+      }
     }
   }
 
-  // Last resort: just return 'claude' and let it fail if not found
-  log.warn('Claude CLI not found in any common location');
-  return 'claude';
+  // If not found, use 'claude' and hope it's in PATH
+  if (!claudePath) {
+    log.warn('Claude CLI not found in any common location');
+    return 'claude';
+  }
+
+  // Resolve symlinks to get the actual file path
+  try {
+    const resolvedPath = execSync(`readlink -f "${claudePath}" || realpath "${claudePath}" || echo "${claudePath}"`, {
+      stdio: 'pipe',
+      encoding: 'utf8'
+    }).trim();
+
+    // If it's a .js file, we need to execute it with node
+    if (resolvedPath.endsWith('.js')) {
+      log.debug(`Resolved ${claudePath} to ${resolvedPath} - will execute with node`);
+      return `node "${resolvedPath}"`;
+    }
+
+    log.debug(`Resolved ${claudePath} to ${resolvedPath}`);
+    return resolvedPath;
+  } catch (error) {
+    log.warn(`Failed to resolve symlink for ${claudePath}, using as-is`);
+    return claudePath;
+  }
 }
 
 /**
@@ -323,9 +354,12 @@ async function executeClaudeOnce(
   }
 
   // Build CLI arguments
-  // Note: --dangerously-skip-permissions cannot be used with root privileges
-  // Use --permission-mode instead (passed via flags parameter)
-  const args = ['--print', '--output-format', 'json'];
+  const args = [
+    '--dangerously-skip-permissions',
+    '--print',
+    '--output-format', 'json',
+    '-p', prompt  // Pass prompt directly like deep analysis does
+  ];
 
   // Add model flag if specified
   if (model) {
@@ -334,9 +368,6 @@ async function executeClaudeOnce(
 
   // Add custom flags
   args.push(...flags);
-
-  // NO LONGER ADDING PROMPT AS ARGUMENT - using stdin instead
-  // args.push(prompt); // OLD WAY - causes "Argument list too long"
 
   log.info(`[${sessionId}] === STARTING CLAUDE CLI EXECUTION ===`);
   log.info(`[${sessionId}] CLI Path: ${getCLIPath()}`);
@@ -387,21 +418,38 @@ async function executeClaudeOnce(
       const env = {
         ...process.env,
         HOME: process.env.HOME || '/home/uatu',
-        USER: process.env.USER || 'uatu'
+        USER: process.env.USER || 'uatu',
+        CLAUDE_CODE_ENTRYPOINT: 'cli'
       };
 
-      // Use shell to pipe file content to Claude CLI via stdin
-      // This avoids "Argument list too long" error
-      const shellCommand = `cat "${tempPromptFile}" | ${getCLIPath()} ${args.join(' ')}`;
+      // Get CLI path and use it directly (don't rely on PATH)
+      const cliPath = getCLIPath();
 
-      ptySession = pty.spawn('/bin/bash', ['-c', shellCommand], {
+      // If cliPath contains "node", we need to split it
+      let command: string;
+      let spawnArgs: string[];
+
+      if (cliPath.startsWith('node ')) {
+        // Extract the .js file path
+        const jsPath = cliPath.replace('node "', '').replace('"', '');
+        command = 'node';
+        spawnArgs = [jsPath, ...args];
+      } else {
+        command = cliPath;
+        spawnArgs = args;
+      }
+
+      log.info(`[${sessionId}] Spawning with command: ${command}, args: ${spawnArgs.slice(0, 3).join(' ')}...`);
+
+      // Spawn PTY process directly with claude executable
+      ptySession = pty.spawn(command, spawnArgs, {
         name: 'dumb',
         cols,
         rows,
         cwd,
         env
       });
-      log.info(`[${sessionId}] PTY process spawned successfully (using stdin from temp file)`);
+      log.info(`[${sessionId}] PTY process spawned successfully`);
 
       // Track session
       activeSessions.set(sessionId, ptySession);
@@ -578,7 +626,13 @@ async function resumeClaudeSession(
   const startTime = Date.now();
 
   // Build CLI arguments for resume
-  const args = ['--print', '--output-format', 'json', '--resume', claudeSessionId];
+  const args = [
+    '--dangerously-skip-permissions',
+    '--print',
+    '--output-format', 'json',
+    '--resume', claudeSessionId,
+    '-p', followUpPrompt  // Pass prompt directly
+  ];
 
   if (model) {
     args.push('--model', model);
@@ -607,7 +661,8 @@ async function resumeClaudeSession(
       const env = {
         ...process.env,
         HOME: process.env.HOME || '/home/uatu',
-        USER: process.env.USER || 'uatu'
+        USER: process.env.USER || 'uatu',
+        CLAUDE_CODE_ENTRYPOINT: 'cli'
       };
 
       // Create temp file for follow-up prompt
@@ -615,9 +670,25 @@ async function resumeClaudeSession(
       const tempFile = join(tempDir, 'prompt.txt');
       writeFileSync(tempFile, followUpPrompt, 'utf8');
 
-      const shellCommand = `cat "${tempFile}" | ${getCLIPath()} ${args.join(' ')}`;
+      // Get CLI path and use it directly (don't rely on PATH)
+      const cliPath = getCLIPath();
 
-      ptySession = pty.spawn('/bin/bash', ['-c', shellCommand], {
+      // If cliPath contains "node", we need to split it
+      let command: string;
+      let spawnArgs: string[];
+
+      if (cliPath.startsWith('node ')) {
+        // Extract the .js file path
+        const jsPath = cliPath.replace('node "', '').replace('"', '');
+        command = 'node';
+        spawnArgs = [jsPath, ...args];
+      } else {
+        command = cliPath;
+        spawnArgs = args;
+      }
+
+      // Spawn PTY process directly with claude executable
+      ptySession = pty.spawn(command, spawnArgs, {
         name: 'dumb',
         cols,
         rows,

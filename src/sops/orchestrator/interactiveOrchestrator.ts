@@ -993,6 +993,11 @@ export class InteractiveOrchestrator extends EventEmitter {
 
     await this.updateSessionStatus(status);
 
+    // If successful, aggregate findings into audit_results.findings JSONB
+    if (success) {
+      await this.finalizeAuditResults();
+    }
+
     if (success && this.config.notifyOnCompletion) {
       await this.sendNotification(
         'audit_complete',
@@ -1005,6 +1010,111 @@ export class InteractiveOrchestrator extends EventEmitter {
       this.emit('audit_failed', { sessionId: this.sessionId, error: error || 'Unknown error' });
     } else {
       this.emit('audit_complete', { sessionId: this.sessionId });
+    }
+  }
+
+  /**
+   * Finalize audit results by aggregating findings into audit_results JSONB
+   */
+  private async finalizeAuditResults(): Promise<void> {
+    if (!this.sessionId) return;
+
+    const { auditResults } = await import('../../db/schema.js');
+
+    // Get all findings for this job from audit_findings
+    const findings = await db
+      .select()
+      .from(auditFindings)
+      .where(eq(auditFindings.jobId, this.config.jobId));
+
+    if (findings.length === 0) {
+      return;
+    }
+
+    // Transform findings to JSONB format
+    const findingsJson = findings.map((f: any) => ({
+      id: f.findingId,
+      findingId: f.findingId,
+      title: f.title,
+      description: f.description,
+      severity: f.adjustedSeverity || f.originalSeverity,
+      originalSeverity: f.originalSeverity,
+      recommendation: f.recommendation,
+      location: f.filePath
+        ? {
+            file: f.filePath,
+            line: f.lineStart,
+          }
+        : undefined,
+      tool: f.tool,
+      stepId: f.stepId,
+      status: f.status,
+      impact: f.impact,
+      likelihood: f.likelihood,
+      remediationEffort: f.remediationEffort,
+      codeSnippet: f.codeSnippet,
+      references: f.references,
+      metadata: f.metadata,
+    }));
+
+    // Calculate score based on severities
+    const severityCounts = {
+      critical: findingsJson.filter((f) => f.severity === 'critical').length,
+      high: findingsJson.filter((f) => f.severity === 'high').length,
+      medium: findingsJson.filter((f) => f.severity === 'medium').length,
+      low: findingsJson.filter((f) => f.severity === 'low').length,
+      info: findingsJson.filter((f) => f.severity === 'info').length,
+    };
+
+    // Simple scoring: -20 per critical, -10 per high, -5 per medium, -2 per low
+    const score = Math.max(
+      0,
+      100 -
+        severityCounts.critical * 20 -
+        severityCounts.high * 10 -
+        severityCounts.medium * 5 -
+        severityCounts.low * 2
+    );
+
+    const grade =
+      score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
+
+    // Check if audit_results already exists for this job
+    const [existing] = await db
+      .select()
+      .from(auditResults)
+      .where(eq(auditResults.jobId, this.config.jobId));
+
+    if (existing) {
+      // Update existing record
+      await db
+        .update(auditResults)
+        .set({
+          findings: findingsJson as any,
+          scoreValue: score,
+          scoreLabel: grade,
+          summary: `Interactive audit completed with ${findings.length} findings`,
+          metadata: {
+            findingsCount: findings.length,
+            bySeverity: severityCounts,
+            sessionId: this.sessionId,
+          },
+        })
+        .where(eq(auditResults.jobId, this.config.jobId));
+    } else {
+      // Create new record
+      await db.insert(auditResults).values({
+        jobId: this.config.jobId,
+        findings: findingsJson as any,
+        scoreValue: score,
+        scoreLabel: grade,
+        summary: `Interactive audit completed with ${findings.length} findings`,
+        metadata: {
+          findingsCount: findings.length,
+          bySeverity: severityCounts,
+          sessionId: this.sessionId,
+        },
+      });
     }
   }
 

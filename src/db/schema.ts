@@ -5,6 +5,7 @@ import {
   text,
   bigint,
   smallint,
+  integer,
   boolean,
   timestamp,
   jsonb,
@@ -584,6 +585,12 @@ export const auditClarifications = pgTable(
     answeredAt: timestamp('answered_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    // Commit resolution tracking
+    resolvedInCommit: boolean('resolved_in_commit').default(false),
+    commitSha: varchar('commit_sha', { length: 64 }),
+    commitMessage: text('commit_message'),
+    commitVerified: boolean('commit_verified').default(false),
+    verificationNote: text('verification_note'),
   },
   (table) => ({
     jobIdIdx: index('audit_clarifications_job_id_idx').on(table.jobId),
@@ -593,6 +600,134 @@ export const auditClarifications = pgTable(
   })
 );
 
+// ============================================================================
+// CLARIFICATION FAQ TABLE
+// ============================================================================
+
+export const clarificationFaqCategoryEnum = pgEnum('clarification_faq_category', [
+  'false_positive',
+  'mitigated',
+  'accepted_risk',
+  'already_fixed',
+  'commit_verified',
+  'general',
+]);
+
+export const clarificationFaqs = pgTable(
+  'clarification_faqs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+
+    // Related clarification
+    clarificationId: uuid('clarification_id').references(() => auditClarifications.id, {
+      onDelete: 'set null',
+    }),
+    findingId: varchar('finding_id', { length: 500 }).notNull(), // Finding title or ID
+    findingTitle: text('finding_title').notNull(),
+
+    // FAQ content
+    question: text('question').notNull(), // Auto-generated: "Why was this finding marked as resolved?"
+    answer: text('answer').notNull(), // User explanation + verification reasoning
+    category: clarificationFaqCategoryEnum('category').notNull().default('general'),
+
+    // Verification details
+    verified: boolean('verified').notNull().default(false),
+    verifiedBy: varchar('verified_by', { length: 50 }).default('claude-verifier'), // claude-verifier, manual, system
+    verificationReasoning: text('verification_reasoning'), // Why it was accepted/rejected
+    confidence: varchar('confidence', { length: 20 }), // high, medium, low
+
+    // Metadata
+    helpful: boolean('helpful').default(true),
+    viewCount: integer('view_count').default(0),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    jobIdIdx: index('clarification_faqs_job_id_idx').on(table.jobId),
+    categoryIdx: index('clarification_faqs_category_idx').on(table.category),
+    verifiedIdx: index('clarification_faqs_verified_idx').on(table.verified),
+    findingIdIdx: index('clarification_faqs_finding_id_idx').on(table.findingId),
+  })
+);
+
+// ============================================================================
+// CLARIFICATION VERIFICATION RESULTS TABLE
+// ============================================================================
+
+export const verificationRecommendationEnum = pgEnum('verification_recommendation', [
+  'accept',
+  'reject',
+  'manual_review',
+]);
+
+export const clarificationVerifications = pgTable(
+  'clarification_verifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+    clarificationId: uuid('clarification_id')
+      .notNull()
+      .references(() => auditClarifications.id, { onDelete: 'cascade' }),
+
+    // Finding context
+    findingId: varchar('finding_id', { length: 500 }).notNull(),
+    findingTitle: text('finding_title').notNull(),
+    findingSeverity: varchar('finding_severity', { length: 20 }).notNull(),
+    findingDescription: text('finding_description').notNull(),
+
+    // User's clarification
+    clarificationType: varchar('clarification_type', { length: 50 }).notNull(),
+    userExplanation: text('user_explanation').notNull(),
+    evidenceUrl: text('evidence_url'),
+
+    // Commit resolution context
+    resolvedInCommit: boolean('resolved_in_commit').default(false),
+    commitSha: varchar('commit_sha', { length: 64 }),
+    commitDiff: text('commit_diff'), // Actual code diff from commit
+    commitMessage: text('commit_message'),
+
+    // Code context used for verification
+    codeSnippet: text('code_snippet'), // Code at finding location
+    fileContext: text('file_context'), // Surrounding code context
+
+    // Verification result
+    verified: boolean('verified').notNull(),
+    confidence: varchar('confidence', { length: 20 }).notNull(), // high, medium, low
+    recommendation: verificationRecommendationEnum('recommendation').notNull(),
+    reasoning: text('reasoning').notNull(), // Technical explanation from Claude
+
+    // Verification metadata
+    verifiedBy: varchar('verified_by', { length: 50 }).default('claude-verifier'),
+    verificationModel: varchar('verification_model', { length: 50 }), // e.g., claude-opus-4.5
+    verificationPromptVersion: varchar('verification_prompt_version', { length: 20 }), // Track prompt changes
+
+    // Manual override
+    manuallyReviewed: boolean('manually_reviewed').default(false),
+    manualReviewer: varchar('manual_reviewer', { length: 255 }),
+    manualDecision: verificationRecommendationEnum('manual_decision'),
+    manualNotes: text('manual_notes'),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    jobIdIdx: index('clarification_verifications_job_id_idx').on(table.jobId),
+    clarificationIdIdx: index('clarification_verifications_clarification_id_idx').on(
+      table.clarificationId
+    ),
+    verifiedIdx: index('clarification_verifications_verified_idx').on(table.verified),
+    recommendationIdx: index('clarification_verifications_recommendation_idx').on(
+      table.recommendation
+    ),
+    confidenceIdx: index('clarification_verifications_confidence_idx').on(table.confidence),
+  })
+);
 
 // ============================================================================
 // CONTRACT CLASSIFICATIONS TABLE
@@ -751,31 +886,6 @@ export const tierThresholds = pgTable(
   },
   (table) => ({
     tierIdx: uniqueIndex('tier_thresholds_tier_idx').on(table.tier),
-  })
-);
-
-// ============================================================================
-// AUDIT TRAIL TABLE
-// ============================================================================
-
-export const auditTrail = pgTable(
-  'audit_trail',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
-    action: varchar('action', { length: 100 }).notNull(),
-    entityType: varchar('entity_type', { length: 50 }).notNull(),
-    entityId: uuid('entity_id'),
-    oldValue: jsonb('old_value'),
-    newValue: jsonb('new_value'),
-    ipAddress: varchar('ip_address', { length: 45 }),
-    userAgent: text('user_agent'),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => ({
-    userIdIdx: index('audit_trail_user_id_idx').on(table.userId),
-    entityIdx: index('audit_trail_entity_idx').on(table.entityType, table.entityId),
-    createdAtIdx: index('audit_trail_created_at_idx').on(table.createdAt),
   })
 );
 
@@ -1004,6 +1114,14 @@ export type AuditVisibility = (typeof auditVisibilityEnum.enumValues)[number];
 // Table types
 export type AuditClarification = typeof auditClarifications.$inferSelect;
 export type NewAuditClarification = typeof auditClarifications.$inferInsert;
+
+export type ClarificationFaq = typeof clarificationFaqs.$inferSelect;
+export type NewClarificationFaq = typeof clarificationFaqs.$inferInsert;
+export type ClarificationFaqCategory = (typeof clarificationFaqCategoryEnum.enumValues)[number];
+
+export type ClarificationVerification = typeof clarificationVerifications.$inferSelect;
+export type NewClarificationVerification = typeof clarificationVerifications.$inferInsert;
+export type VerificationRecommendation = (typeof verificationRecommendationEnum.enumValues)[number];
 
 export type ContractClassification = typeof contractClassifications.$inferSelect;
 export type NewContractClassification = typeof contractClassifications.$inferInsert;
@@ -1535,52 +1653,6 @@ export const auditFindings = pgTable(
 );
 
 // ============================================================================
-// AUDIT CROSS REFERENCES TABLE (Links Between Findings/Projects)
-// ============================================================================
-
-export const auditCrossReferences = pgTable(
-  'audit_cross_references',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-
-    // Source finding
-    findingId: uuid('finding_id')
-      .notNull()
-      .references(() => auditFindings.id, { onDelete: 'cascade' }),
-
-    // Target type
-    targetType: varchar('target_type', { length: 30 }).notNull(), // finding, linked_project, known_address
-
-    // Target references (one will be set based on targetType)
-    targetFindingId: uuid('target_finding_id').references(() => auditFindings.id, {
-      onDelete: 'cascade',
-    }),
-    targetLinkedProjectId: uuid('target_linked_project_id').references(
-      () => auditLinkedProjects.id,
-      { onDelete: 'cascade' }
-    ),
-    targetKnownAddressId: uuid('target_known_address_id').references(
-      () => auditKnownAddresses.id,
-      { onDelete: 'cascade' }
-    ),
-
-    // Relationship details
-    relationshipType: varchar('relationship_type', { length: 50 }).notNull(), // calls, inherits, controls, depends_on, same_issue
-    description: text('description'),
-
-    // Source
-    createdBy: varchar('created_by', { length: 30 }).default('ai'), // ai, user
-    confidence: smallint('confidence'), // 0-100 for AI-detected
-
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => ({
-    findingIdIdx: index('audit_cross_references_finding_id_idx').on(table.findingId),
-    targetTypeIdx: index('audit_cross_references_target_type_idx').on(table.targetType),
-  })
-);
-
-// ============================================================================
 // NOTIFICATIONS TABLE
 // ============================================================================
 
@@ -1804,26 +1876,6 @@ export const auditFindingsRelations = relations(auditFindings, ({ one, many }) =
     fields: [auditFindings.sessionId],
     references: [auditSessions.id],
   }),
-  crossReferences: many(auditCrossReferences),
-}));
-
-export const auditCrossReferencesRelations = relations(auditCrossReferences, ({ one }) => ({
-  finding: one(auditFindings, {
-    fields: [auditCrossReferences.findingId],
-    references: [auditFindings.id],
-  }),
-  targetFinding: one(auditFindings, {
-    fields: [auditCrossReferences.targetFindingId],
-    references: [auditFindings.id],
-  }),
-  targetLinkedProject: one(auditLinkedProjects, {
-    fields: [auditCrossReferences.targetLinkedProjectId],
-    references: [auditLinkedProjects.id],
-  }),
-  targetKnownAddress: one(auditKnownAddresses, {
-    fields: [auditCrossReferences.targetKnownAddressId],
-    references: [auditKnownAddresses.id],
-  }),
 }));
 
 export const notificationsRelations = relations(notifications, ({ one }) => ({
@@ -1870,9 +1922,6 @@ export type NewAuditUserAnswer = typeof auditUserAnswers.$inferInsert;
 
 export type AuditFinding = typeof auditFindings.$inferSelect;
 export type NewAuditFinding = typeof auditFindings.$inferInsert;
-
-export type AuditCrossReference = typeof auditCrossReferences.$inferSelect;
-export type NewAuditCrossReference = typeof auditCrossReferences.$inferInsert;
 
 export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;

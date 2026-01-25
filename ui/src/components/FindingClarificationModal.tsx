@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, AlertCircle, CheckCircle2, ExternalLink } from 'lucide-react';
+import { X, AlertCircle, CheckCircle2, ExternalLink, GitBranch } from 'lucide-react';
 
 interface FindingClarificationModalProps {
   finding: any;
@@ -15,6 +15,8 @@ export interface FindingClarification {
   explanation: string;
   evidenceUrl?: string;
   context?: Record<string, any>;
+  resolvedInCommit?: boolean;
+  commitSha?: string;
 }
 
 const getSeverityColor = (severity: string) => {
@@ -41,8 +43,29 @@ export function FindingClarificationModal({
   const [clarificationType, setClarificationType] = useState<string>('');
   const [explanation, setExplanation] = useState('');
   const [evidenceUrl, setEvidenceUrl] = useState('');
+  const [resolvedInCommit, setResolvedInCommit] = useState(false);
+  const [commitSha, setCommitSha] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pre-fill form if editing existing clarification
+  useEffect(() => {
+    if (finding?.existingClarification && isOpen) {
+      const existing = finding.existingClarification
+      setClarificationType(existing.clarificationType || '')
+      setExplanation(existing.explanation || '')
+      setEvidenceUrl(existing.evidenceUrl || '')
+      setResolvedInCommit(existing.resolvedInCommit || false)
+      setCommitSha(existing.commitSha || '')
+    } else if (isOpen) {
+      // Reset form for new clarification
+      setClarificationType('')
+      setExplanation('')
+      setEvidenceUrl('')
+      setResolvedInCommit(false)
+      setCommitSha('')
+    }
+  }, [finding, isOpen])
 
   const handleSubmit = async () => {
     if (!clarificationType || !explanation) {
@@ -55,16 +78,20 @@ export function FindingClarificationModal({
 
     try {
       await onSubmit({
-        findingId: finding.id || finding.title,
+        findingId: finding.title, // Use title as stable ID, not the temporary vuln-{idx} ID
         clarificationType: clarificationType as any,
         explanation,
         evidenceUrl: evidenceUrl || undefined,
+        resolvedInCommit: resolvedInCommit || undefined,
+        commitSha: (resolvedInCommit && commitSha) ? commitSha : undefined,
       });
 
       // Reset form
       setClarificationType('');
       setExplanation('');
       setEvidenceUrl('');
+      setResolvedInCommit(false);
+      setCommitSha('');
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to submit clarification');
@@ -78,6 +105,8 @@ export function FindingClarificationModal({
       setClarificationType('');
       setExplanation('');
       setEvidenceUrl('');
+      setResolvedInCommit(false);
+      setCommitSha('');
       setError(null);
       onClose();
     }
@@ -174,6 +203,52 @@ export function FindingClarificationModal({
                 </select>
               </div>
 
+              {/* Commit Resolution Section */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 p-4 border-2 border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={resolvedInCommit}
+                    onChange={(e) => {
+                      setResolvedInCommit(e.target.checked);
+                      if (!e.target.checked) {
+                        setCommitSha('');
+                      }
+                    }}
+                    disabled={submitting}
+                    className="w-5 h-5 text-indigo-600 rounded"
+                  />
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm text-slate-900 flex items-center gap-2">
+                      <GitBranch size={16} className="text-slate-600" />
+                      Resolved in Latest Commit
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      This finding has been fixed in the most recent commit. We'll verify the fix.
+                    </div>
+                  </div>
+                </label>
+
+                {resolvedInCommit && (
+                  <div className="ml-8 space-y-2">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                      Commit SHA (optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., a1b2c3d4e5f6..."
+                      value={commitSha}
+                      onChange={(e) => setCommitSha(e.target.value)}
+                      disabled={submitting}
+                      className="w-full h-10 px-3 bg-white border-2 border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Leave empty to use the latest commit automatically
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Explanation */}
               <div>
                 <label className="block text-sm font-black text-slate-900 mb-3 uppercase tracking-wider">
@@ -224,16 +299,15 @@ export function FindingClarificationModal({
               )}
 
               {/* Info Box */}
-              <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4 flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+              <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-slate-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-bold text-indigo-900 mb-1">
-                    Re-analysis will be triggered
+                  <p className="text-sm font-bold text-slate-900 mb-1">
+                    Clarification will be saved
                   </p>
-                  <p className="text-xs text-indigo-700">
-                    After submission, the audit will be re-analyzed considering your
-                    clarification. This may adjust the severity or mark findings as resolved.
-                    The system has built-in safeguards to prevent manipulation.
+                  <p className="text-xs text-slate-700">
+                    Your clarification will be saved and queued. You can submit multiple clarifications,
+                    then trigger re-analysis once to process them all together.
                   </p>
                 </div>
               </div>
@@ -246,7 +320,7 @@ export function FindingClarificationModal({
                 disabled={!clarificationType || !explanation || submitting}
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider transition-all shadow-lg disabled:shadow-none"
               >
-                {submitting ? 'Submitting...' : 'Submit Clarification & Re-Analyze'}
+                {submitting ? 'Submitting...' : 'Submit Clarification'}
               </button>
               <button
                 onClick={handleClose}

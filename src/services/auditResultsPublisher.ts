@@ -10,7 +10,7 @@ import {
 } from './gitService.js';
 import { checkBranchExists } from './workspaceManager.js';
 import { getDb } from '../db/index.js';
-import { auditFindings, auditJobs } from '../db/schema.js';
+import { auditJobs } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 
 export interface AuditFinding {
@@ -464,19 +464,26 @@ function generateTestReadme(findings: AuditFinding[], testCount: number): string
  */
 async function getAuditFindings(auditJobId: string): Promise<AuditFinding[]> {
   const db = getDb();
+  const { auditResults } = await import('../db/schema.js');
 
-  const results = await db
+  // Get findings from audit_results.findings JSONB
+  const [results] = await db
     .select()
-    .from(auditFindings)
-    .where(eq(auditFindings.jobId, auditJobId))
-    .orderBy(desc(auditFindings.originalSeverity));
+    .from(auditResults)
+    .where(eq(auditResults.jobId, auditJobId));
 
-  return results.map((finding) => ({
-    id: finding.id,
+  if (!results || !results.findings) {
+    return [];
+  }
+
+  const findings = results.findings as any[];
+
+  return findings.map((finding: any) => ({
+    id: finding.id || finding.findingId,
     title: finding.title || 'Untitled Finding',
-    severity: finding.adjustedSeverity || finding.originalSeverity || 'info',
+    severity: finding.severity || 'info',
     description: finding.description || '',
-    location: finding.filePath || undefined,
+    location: finding.location?.file || undefined,
     recommendation: finding.recommendation || undefined,
     category: finding.tool || undefined,
   }));

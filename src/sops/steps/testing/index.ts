@@ -21,7 +21,7 @@ import {
 } from '../../../services/testCaseGenerator.js';
 import { publishAuditResults } from '../../../services/auditResultsPublisher.js';
 import { getDb } from '../../../db/index.js';
-import { auditFindings, auditJobs } from '../../../db/schema.js';
+import { auditJobs } from '../../../db/schema.js';
 import { eq } from 'drizzle-orm';
 
 const log = logger.child({ module: 'testing-steps' });
@@ -110,25 +110,33 @@ const generateTests: TestingExecutor = async (step, config, context) => {
 
   await context.onProgress?.(10, 'Loading findings...');
 
-  // Get all findings from database
-  const findingsResult = await db
+  // Get all findings from audit_results.findings JSONB
+  const { auditResults } = await import('../../../db/schema.js');
+  const [results] = await db
     .select()
-    .from(auditFindings)
-    .where(eq(auditFindings.jobId, jobId));
+    .from(auditResults)
+    .where(eq(auditResults.jobId, jobId));
+
+  if (!results || !results.findings) {
+    await context.onProgress?.(100, 'No findings to test');
+    return { success: true, findings: [] };
+  }
+
+  const findingsData = results.findings as any[];
 
   // Convert to AuditFinding format
-  const allFindings: AuditFinding[] = findingsResult.map((f) => ({
-    id: f.id,
-    findingId: f.findingId,
+  const allFindings: AuditFinding[] = findingsData.map((f: any) => ({
+    id: f.id || f.findingId,
+    findingId: f.findingId || f.id,
     title: f.title || 'Untitled Finding',
     description: f.description || '',
     recommendation: f.recommendation || undefined,
-    severity: f.adjustedSeverity || f.originalSeverity || 'info',
-    filePath: f.filePath || undefined,
-    lineStart: f.lineStart || undefined,
-    lineEnd: f.lineEnd || undefined,
-    functionName: f.functionName || undefined,
-    contractName: f.contractName || undefined,
+    severity: f.severity || 'info',
+    filePath: f.location?.file || undefined,
+    lineStart: f.location?.line || undefined,
+    lineEnd: f.location?.lineEnd || undefined,
+    functionName: f.location?.function || undefined,
+    contractName: f.location?.contract || undefined,
     tool: f.tool || undefined,
   }));
 

@@ -109,32 +109,91 @@ export class MicroStepProgressService {
       sopId,
     });
 
-    // Create SOP execution record
-    await db.insert(auditSopExecution).values({
-      id: crypto.randomUUID(),
-      jobId,
-      sopId,
-      sopVersion,
-      auditDepth,
-      totalSteps: steps.length,
-      completedSteps: 0,
-      availableTools,
-    });
+    // Create or update SOP execution record (for retry/resume)
+    const existingExecution = await db
+      .select()
+      .from(auditSopExecution)
+      .where(eq(auditSopExecution.jobId, jobId))
+      .limit(1);
 
-    // Create step progress records
-    const stepRecords = steps.map((step, index) => ({
-      id: crypto.randomUUID(),
-      jobId,
-      stepId: step.id,
-      stepName: step.name,
-      stepCategory: getStepCategory(step),
-      status: 'pending' as const,
-      orderIndex: index,
-      internalPct: 0,
-      retryCount: 0,
-    }));
+    if (existingExecution.length === 0) {
+      // Fresh audit - create new execution record
+      await db.insert(auditSopExecution).values({
+        id: crypto.randomUUID(),
+        jobId,
+        sopId,
+        sopVersion,
+        auditDepth,
+        totalSteps: steps.length,
+        completedSteps: 0,
+        availableTools,
+      });
+      log.debug('Created new SOP execution record', { jobId });
+    } else {
+      // Retry/Resume - update existing record
+      await db
+        .update(auditSopExecution)
+        .set({
+          totalSteps: steps.length,
+          completedSteps: 0, // Reset on retry
+          availableTools,
+          updatedAt: new Date(),
+        })
+        .where(eq(auditSopExecution.jobId, jobId));
+      log.debug('Updated existing SOP execution record for retry', { jobId });
+    }
 
-    await db.insert(auditStepProgress).values(stepRecords);
+    // Create or update step progress records (for retry/resume)
+    const existingSteps = await db
+      .select()
+      .from(auditStepProgress)
+      .where(eq(auditStepProgress.jobId, jobId));
+
+    const existingStepIds = new Set(existingSteps.map(s => s.stepId));
+
+    if (existingSteps.length === 0) {
+      // Fresh audit - create all step records
+      const stepRecords = steps.map((step, index) => ({
+        id: crypto.randomUUID(),
+        jobId,
+        stepId: step.id,
+        stepName: step.name,
+        stepCategory: getStepCategory(step),
+        status: 'pending' as const,
+        orderIndex: index,
+        internalPct: 0,
+        retryCount: 0,
+      }));
+
+      await db.insert(auditStepProgress).values(stepRecords);
+      log.debug('Created step progress records', { jobId, count: stepRecords.length });
+    } else {
+      // Retry/Resume - only create missing steps, leave existing ones alone
+      const newSteps = steps
+        .filter((step, index) => !existingStepIds.has(step.id))
+        .map((step, index) => ({
+          id: crypto.randomUUID(),
+          jobId,
+          stepId: step.id,
+          stepName: step.name,
+          stepCategory: getStepCategory(step),
+          status: 'pending' as const,
+          orderIndex: steps.findIndex(s => s.id === step.id),
+          internalPct: 0,
+          retryCount: 0,
+        }));
+
+      if (newSteps.length > 0) {
+        await db.insert(auditStepProgress).values(newSteps);
+        log.debug('Created missing step records for retry', { jobId, count: newSteps.length });
+      }
+
+      log.debug('Reusing existing step progress records for retry', {
+        jobId,
+        existing: existingSteps.length,
+        new: newSteps.length
+      });
+    }
 
     // Update job with SOP info
     await db
