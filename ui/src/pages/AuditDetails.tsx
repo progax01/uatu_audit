@@ -1121,7 +1121,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
         {/* Full Width Layout */}
         <div className="flex-1 p-8">
           {/* Full Width Terminal - NO PROGRESS CARD ABOVE */}
-          <div className="max-w-6xl mx-auto">
+          <div className="w-full">
           {progress && (
             <div className="w-full">
               <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200">
@@ -1211,10 +1211,10 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                       <div className="font-mono text-xl text-slate-700 mb-3 tracking-wide">
                         [
                         <span className="text-emerald-600 font-bold">
-                          {'/'.repeat(Math.floor((progress.pct || 0) / 5))}
+                          {'/'.repeat(Math.floor((progress.pct || 0) / 2))}
                         </span>
                         <span className="text-slate-300">
-                          {'_'.repeat(20 - Math.floor((progress.pct || 0) / 5))}
+                          {'_'.repeat(50 - Math.floor((progress.pct || 0) / 2))}
                         </span>
                         ]
                       </div>
@@ -1409,7 +1409,19 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
   // Generate dynamic SEO metadata
   const projectName = auditData?.projectName || jobInfo?.project || 'Smart Contract'
   const auditScore = auditData?.score || 0
-  const grade = auditData?.grade || 'N/A'
+
+  // Calculate grade from score to ensure consistency (fix A+ on 0% bug)
+  const calculateGradeFromScore = (score: number): string => {
+    if (score >= 90) return 'A';
+    if (score >= 80) return 'B';
+    if (score >= 70) return 'C';
+    if (score >= 60) return 'D';
+    return 'F';
+  }
+  const grade = auditData?.score !== undefined && auditData?.score !== null
+    ? calculateGradeFromScore(auditData.score)
+    : (auditData?.grade || 'N/A')
+
   const severityCounts = auditData?.severity || {}
   const totalIssues = Object.values(severityCounts).reduce((sum: number, count: any) => sum + (count || 0), 0) as number
 

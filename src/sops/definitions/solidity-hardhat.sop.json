@@ -65,12 +65,15 @@
         "ai-business-logic",
         "ai-validate-findings",
         "deduplicate",
+        "generate-security-tests",
+        "execute-security-tests",
+        "bind-test-results-to-findings",
         "calculate-severity",
         "calculate-score",
         "ai-recommendations",
         "generate-report"
       ],
-      "estimatedDurationMinutes": 25,
+      "estimatedDurationMinutes": 35,
       "parallelization": "low"
     },
     "deep": {
@@ -115,13 +118,17 @@
         "ai-economic-analysis",
         "ai-validate-findings",
         "deduplicate",
+        "generate-security-tests",
+        "execute-security-tests",
+        "bind-test-results-to-findings",
+        "validate-audit-completion",
         "user-finding-validation",
         "calculate-severity",
         "calculate-score",
         "ai-custom-recommendations",
         "generate-report"
       ],
-      "estimatedDurationMinutes": 120,
+      "estimatedDurationMinutes": 183,
       "parallelization": "high"
     }
   },
@@ -1305,6 +1312,113 @@
       "required": false,
       "continueOnFailure": true,
       "retryCount": 0
+    },
+    {
+      "id": "generate-security-tests",
+      "name": "Generate Security Tests",
+      "description": "Generate AI-powered test cases for critical and high severity findings",
+      "category": "testing",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 180,
+      "dependsOn": [
+        "deduplicate"
+      ],
+      "provides": [
+        "generatedTests",
+        "testFiles",
+        "testsPath"
+      ],
+      "requires": [
+        "deduplicatedFindings",
+        "projectPath"
+      ],
+      "config": {
+        "function": "generate-tests"
+      },
+      "progressWeight": 8,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "execute-security-tests",
+      "name": "Execute Security Tests",
+      "description": "Run generated test cases and capture execution results",
+      "category": "testing",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 240,
+      "dependsOn": [
+        "generate-security-tests"
+      ],
+      "provides": [
+        "testResults",
+        "testExecutionSummary"
+      ],
+      "requires": [
+        "generatedTests",
+        "testFiles",
+        "projectPath"
+      ],
+      "config": {
+        "function": "execute-tests"
+      },
+      "progressWeight": 10,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
+    },
+    {
+      "id": "bind-test-results-to-findings",
+      "name": "Bind Test Results to Findings",
+      "description": "Link test execution results to findings",
+      "category": "testing",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 30,
+      "dependsOn": [
+        "execute-security-tests"
+      ],
+      "provides": [
+        "enrichedFindings"
+      ],
+      "requires": [
+        "deduplicatedFindings",
+        "testResults"
+      ],
+      "config": {
+        "function": "bindTestResultsToFindings"
+      },
+      "progressWeight": 3,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 0
+    },
+    {
+      "id": "validate-audit-completion",
+      "name": "Validate Audit Completion",
+      "description": "Deep mode monitoring: validate SOP execution and test results",
+      "category": "validation",
+      "executor": "deterministic",
+      "estimatedDurationSeconds": 120,
+      "dependsOn": [
+        "bind-test-results-to-findings"
+      ],
+      "provides": [
+        "validationReport",
+        "testFailureAnalysis",
+        "auditQualityScore"
+      ],
+      "requires": [
+        "generatedTests",
+        "testResults",
+        "deduplicatedFindings"
+      ],
+      "config": {
+        "function": "validate-audit-completion"
+      },
+      "progressWeight": 5,
+      "required": false,
+      "continueOnFailure": true,
+      "retryCount": 1
     },
     {
       "id": "ai-custom-recommendations",

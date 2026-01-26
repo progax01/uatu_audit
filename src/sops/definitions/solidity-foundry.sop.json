@@ -128,6 +128,7 @@
         "generate-security-tests",
         "execute-security-tests",
         "bind-test-results-to-findings",
+        "validate-audit-completion",
         "user-finding-validation",
         "calculate-severity",
         "calculate-score",
@@ -135,7 +136,7 @@
         "generate-report"
       ],
       "parallelizationLevel": "none",
-      "estimatedDurationMinutes": 180,
+      "estimatedDurationMinutes": 183,
       "toolTimeouts": {
         "forge": 300,
         "slither": 300,
@@ -1258,6 +1259,37 @@
       "progressWeight": 3,
       "required": false,
       "retryCount": 0,
+      "continueOnFailure": true
+    },
+    {
+      "id": "validate-audit-completion",
+      "name": "Validate Audit Completion",
+      "description": "Deep mode monitoring: validate SOP execution, analyze test results, differentiate real vulnerabilities from system issues, ensure audit quality",
+      "executor": "deterministic",
+      "executorConfig": {
+        "type": "deterministic",
+        "function": "validate-audit-completion"
+      },
+      "estimatedDurationSeconds": 120,
+      "timeoutSeconds": 360,
+      "dependsOn": [
+        "bind-test-results-to-findings"
+      ],
+      "provides": [
+        "validationReport",
+        "testFailureAnalysis",
+        "auditQualityScore"
+      ],
+      "requires": [
+        "generatedTests",
+        "testResults",
+        "deduplicatedFindings"
+      ],
+      "category": "validation",
+      "aiAssisted": true,
+      "progressWeight": 5,
+      "required": false,
+      "retryCount": 1,
       "continueOnFailure": true
     },
     {
