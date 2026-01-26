@@ -218,16 +218,20 @@ export async function handleAuthRoutes(
 
     // CRITICAL: Pass state parameter through to GitHub
     const state = parsed.query.state;
+
+    // SECURITY: Reject GitHub OAuth attempts without state parameter
+    // State contains linkToUserId required for account linking
+    if (!state) {
+      logger.debug("GitHub login request rejected - no state parameter (likely bot or old bookmark)");
+      res.statusCode = 302;
+      res.setHeader("Location", "/?error=invalid_oauth&message=" + encodeURIComponent("GitHub connection requires an active session. Please login first."));
+      res.end();
+      return true;
+    }
+
     const scope = encodeURIComponent("repo read:org admin:repo_hook");
     let redirect = `https://github.com/login/oauth/authorize?client_id=${GH_CLIENT_ID}&redirect_uri=${encodeURIComponent(GH_CALLBACK)}&scope=${scope}`;
-
-    // GitHub will pass state back to callback
-    if (state) {
-      redirect += `&state=${encodeURIComponent(state)}`;
-      logger.debug("Passing state parameter to GitHub OAuth", { statePresent: true });
-    } else {
-      logger.warn("No state parameter in GitHub login request");
-    }
+    redirect += `&state=${encodeURIComponent(state)}`;
 
     logger.debug("Redirecting to GitHub OAuth", { redirect: redirect.substring(0, 100) + '...' });
     res.statusCode = 302;
@@ -411,7 +415,7 @@ export async function handleAuthRoutes(
 
       // POLICY: GitHub can only be used for account linking, not standalone login
       if (!linkToUserId) {
-        logger.warn("Standalone GitHub login attempt blocked - GitHub must be linked to wallet account");
+        logger.debug("Standalone GitHub login attempt blocked - no linkToUserId in state");
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         res.end(
           `<script>
@@ -766,7 +770,7 @@ export async function handleAuthRoutes(
 
       // POLICY: GitHub can only be used for account linking, not standalone login
       if (!linkToUserId) {
-        logger.warn("Standalone GitHub login attempt blocked (alias) - GitHub must be linked to wallet account");
+        logger.debug("Standalone GitHub login attempt blocked (alias) - no linkToUserId in state");
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         res.end(
           `<script>

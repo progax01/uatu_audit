@@ -131,21 +131,24 @@ export default function Settings() {
     }
 
     const handleGitHubConnect = () => {
+        // Pass current user ID in state to trigger account linking instead of creating new user
+        const currentUser = getStoredUser()
+
+        if (!currentUser?.id) {
+            // User must be logged in to connect GitHub
+            setTokenError('Please login with your wallet first before connecting GitHub')
+            return
+        }
+
         // Store return URL so we come back to settings after OAuth
         localStorage.setItem('oauth_return_url', '/settings')
 
-        // Pass current user ID in state to trigger account linking instead of creating new user
-        const currentUser = getStoredUser()
-        if (currentUser?.id) {
-            const stateData = {
-                returnUrl: '/settings',
-                linkToUserId: currentUser.id  // Signal this is an account linking request
-            }
-            const encodedState = btoa(JSON.stringify(stateData))
-            window.location.href = `/auth/github/login?state=${encodeURIComponent(encodedState)}`
-        } else {
-            window.location.href = '/auth/github/login'
+        const stateData = {
+            returnUrl: '/settings',
+            linkToUserId: currentUser.id  // Signal this is an account linking request
         }
+        const encodedState = btoa(JSON.stringify(stateData))
+        window.location.href = `/auth/github/login?state=${encodeURIComponent(encodedState)}`
     }
 
     const handleSaveToken = async () => {
