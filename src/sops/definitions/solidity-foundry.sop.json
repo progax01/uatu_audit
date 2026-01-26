@@ -1400,8 +1400,7 @@
       "estimatedDurationSeconds": 30,
       "timeoutSeconds": 120,
       "dependsOn": [
-        "calculate-score",
-        "ai-custom-recommendations"
+        "calculate-score"
       ],
       "provides": [
         "finalReport",

@@ -1110,8 +1110,7 @@
       "executor": "deterministic",
       "estimatedDurationSeconds": 30,
       "dependsOn": [
-        "calculate-score",
-        "ai-custom-recommendations"
+        "calculate-score"
       ],
       "provides": [
         "finalReport",
