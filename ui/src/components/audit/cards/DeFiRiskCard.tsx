@@ -245,7 +245,7 @@ export default function DeFiRiskCard({ data, preAuditAnswers }: DeFiRiskCardProp
                     <div className="font-medium text-gray-900">{finding.title}</div>
                     {finding.location && (
                       <div className="text-xs text-gray-500 font-mono mt-1">
-                        {finding.location.file}:{finding.location.line}
+                        {formatLocation(finding.location)}
                       </div>
                     )}
                   </div>

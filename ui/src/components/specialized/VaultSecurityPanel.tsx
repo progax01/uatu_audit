@@ -15,6 +15,7 @@ import {
   Lock, Unlock, TrendingUp, Clock, Activity
 } from 'lucide-react';
 
+import { formatLocation } from '../../utils/pathUtils';
 interface VaultAnalysis {
   isVault: boolean;
   vaultType: 'ERC4626' | 'custom';
@@ -398,7 +399,7 @@ function FindingCard({ finding }: { finding: Finding }) {
         <SeverityBadge severity={finding.severity} />
       </div>
       <p className="text-xs mb-2">{finding.description}</p>
-      <p className="text-xs font-mono bg-black/5 p-2 rounded">{finding.location}</p>
+      <p className="text-xs font-mono bg-black/5 p-2 rounded">{formatLocation(finding.location)}</p>
       <div className="mt-2 pt-2 border-t border-current border-opacity-20">
         <p className="text-xs font-bold">Recommendation:</p>
         <p className="text-xs mt-1">{finding.recommendation}</p>

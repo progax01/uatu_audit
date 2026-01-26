@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Wrench, ChevronDown, ChevronUp, CheckCircle, XCircle, Clock } from 'lucide-react';
 import StatusIndicator from '../shared/StatusIndicator';
+import { formatLocation } from '../../../utils/pathUtils';
 
 interface ToolFinding {
   title: string;
@@ -205,8 +206,7 @@ export default function ToolResultCard({ results }: ToolResultCardProps) {
 
                             {finding.location && (
                               <div className="text-xs text-gray-500 font-mono">
-                                {finding.location.file}
-                                {finding.location.line && `:${finding.location.line}`}
+                                {formatLocation(finding.location)}
                               </div>
                             )}
 

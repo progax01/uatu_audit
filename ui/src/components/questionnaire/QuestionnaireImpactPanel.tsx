@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Eye,
   ChevronDown,
+import { formatLocation } from '../../utils/pathUtils';
   ChevronUp,
   Info,
   Sparkles,
@@ -149,7 +150,7 @@ function FindingCard({ finding }: { finding: FindingImpact }) {
             <p className="text-sm font-bold text-slate-900">{finding.title}</p>
           </div>
           <p className="text-xs text-slate-700 mb-2">{finding.description}</p>
-          <p className="text-xs text-slate-500">📍 {finding.location}</p>
+          <p className="text-xs text-slate-500">📍 {formatLocation(finding.location)}</p>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertCircle, CheckCircle2, ExternalLink, GitBranch } from 'lucide-react';
+import { formatLocation } from '../utils/pathUtils';
 
 interface FindingClarificationModalProps {
   finding: any;
@@ -170,8 +171,7 @@ export function FindingClarificationModal({
                 </p>
                 {finding.location && (
                   <p className="text-xs text-slate-400 font-mono mt-3">
-                    📄 {finding.location.file}
-                    {finding.location.line && `:${finding.location.line}`}
+                    📄 {formatLocation(finding.location)}
                   </p>
                 )}
               </div>

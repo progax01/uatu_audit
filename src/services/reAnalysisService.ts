@@ -950,17 +950,8 @@ async function applyFindingClarifications(
 
     log.info('🔍 Checking verification status for clarification...', { findingId, clarificationType });
 
-    // Get clarification record
-    const clarifications = await db
-      .select()
-      .from(auditClarifications)
-      .where(
-        and(
-          eq(auditClarifications.jobId, jobId),
-          eq(auditClarifications.status, 'answered')
-        )
-      );
-
+    // Find clarification from already-fetched array (don't re-fetch from DB)
+    // This is important because we may have already updated their status to 'resolved'
     const clarification = clarifications.find(c => {
       const answerValue = c.answerValue as any;
       const context = c.context as any;

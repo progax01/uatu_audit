@@ -21,6 +21,7 @@ import { DependencyScoreCard } from '../components/DependencyScoreCard'
 import { FindingClarificationModal, type FindingClarification } from '../components/FindingClarificationModal'
 import { organizeFindings } from '../services/findingSorter'
 import SEO from '../components/SEO'
+import { formatLocation } from '../utils/pathUtils'
 
 interface AuditDetailsProps {
   jobId?: number | string
@@ -2027,9 +2028,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                     <div className="text-left flex-1">
                                       <h4 className="text-base font-black text-slate-900 tracking-tight">{v.title}</h4>
                                       <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block mt-1">
-                                        {typeof v.location === 'object' && v.location ?
-                                          `${v.location.file || ''}${v.location.line ? `:L${v.location.line}` : ''}${v.location.column ? `:C${v.location.column}` : ''}` :
-                                          v.location || ''}
+                                        {formatLocation(v.location)}
                                       </span>
                                     </div>
                                   </button>
@@ -2310,9 +2309,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                           <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                                             <td className="px-6 py-4">
                                               <code className="text-xs font-bold text-indigo-600">
-                                                {typeof v.location === 'object' && v.location ?
-                                                  `${v.location.file || ''}${v.location.line ? `:L${v.location.line}` : ''}` :
-                                                  v.location || 'N/A'}
+                                                {formatLocation(v.location) || 'N/A'}
                                               </code>
                                             </td>
                                             <td className="px-6 py-4">
@@ -2409,9 +2406,7 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
                                     <div className="flex items-center gap-3">
                                       <Zap size={16} className="text-amber-500" />
                                       <span className="text-[11px] font-mono font-bold text-slate-500">
-                                        {typeof opt.location === 'object' && opt.location ?
-                                          `${opt.location.file || ''}${opt.location.line ? `:L${opt.location.line}` : ''}` :
-                                          opt.location || ''}
+                                        {formatLocation(opt.location)}
                                       </span>
                                     </div>
                                     {opt.estimatedSavings && (
