@@ -3240,10 +3240,6 @@ export default function AuditDetails({ jobId: propJobId, onHomeClick }: AuditDet
       <AuthModal
         isOpen={showClaimModal}
         onClose={() => setShowClaimModal(false)}
-        onGitHubLogin={() => {
-          localStorage.setItem('oauth_return_url', window.location.pathname);
-          window.location.href = '/auth/github/login';
-        }}
         purpose="claim-ownership"
         contractAddress={auditData?.contractAddress}
         deployerAddress={jobInfo?.deployerAddress}

@@ -84,9 +84,8 @@ export default function ConnectSource({ onNext, projectData, setProjectData }: C
   }
 
   const handleLogin = () => {
-    // Save current URL to return after OAuth
-    localStorage.setItem('oauth_return_url', window.location.pathname + window.location.search)
-    window.location.href = '/auth/github/login'
+    // GitHub can only be connected via Settings page after wallet authentication
+    window.location.href = '/settings?action=connect_github'
   }
 
   const fetchRepositories = async () => {

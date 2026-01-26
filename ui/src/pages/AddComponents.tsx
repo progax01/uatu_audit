@@ -211,8 +211,8 @@ export default function AddComponents({
   }
 
   const handleGithubLogin = () => {
-    localStorage.setItem('oauth_return_url', window.location.pathname + window.location.search)
-    window.location.href = '/auth/github/login'
+    // GitHub can only be connected via Settings page after wallet authentication
+    window.location.href = '/settings?action=connect_github'
   }
 
   const handleRepoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

@@ -10,7 +10,6 @@ export type AuthPurpose = 'login' | 'claim-ownership';
 interface AuthModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onGitHubLogin: () => void;
     onWalletSuccess?: (tokens: { accessToken: string; refreshToken: string; user: any }) => void;
     // For claim ownership flow
     purpose?: AuthPurpose;
@@ -24,7 +23,6 @@ type AuthStep = 'select' | 'connecting' | 'signing' | 'verifying' | 'claim-verif
 export default function AuthModal({
     isOpen,
     onClose,
-    onGitHubLogin,
     onWalletSuccess,
     purpose = 'login',
     contractAddress,

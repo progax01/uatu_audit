@@ -265,11 +265,11 @@ export default function SourcesTab({ projectId, components, onComponentAdded }: 
               <div className="text-center py-8">
                 <p className="text-sm text-slate-600 mb-4">Connect GitHub to import repositories</p>
                 <button
-                  onClick={() => window.location.href = '/auth/github/login'}
+                  onClick={() => window.location.href = '/settings?action=connect_github'}
                   className="btn-primary px-6 py-3"
                 >
                   <Github size={16} />
-                  Connect GitHub
+                  Connect GitHub in Settings
                 </button>
               </div>
             ) : (

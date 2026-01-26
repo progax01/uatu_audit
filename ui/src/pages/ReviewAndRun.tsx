@@ -498,12 +498,12 @@ export default function ReviewAndRun({ onBack, projectData, initialJobId }: Revi
                   <p className="text-red-500/80 text-sm mt-1">{authError}</p>
                   <button
                     onClick={() => {
-                      localStorage.setItem('oauth_return_url', window.location.pathname)
-                      window.location.href = '/auth/github/login'
+                      // GitHub can only be connected via Settings page after wallet authentication
+                      window.location.href = '/settings?action=connect_github'
                     }}
                     className="mt-3 px-4 py-2 bg-red-100 border border-red-300 rounded-lg text-red-600 hover:bg-red-200 transition-colors text-sm"
                   >
-                    Login with GitHub
+                    Connect GitHub in Settings
                   </button>
                 </div>
               </div>

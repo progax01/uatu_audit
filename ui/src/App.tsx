@@ -129,11 +129,6 @@ function App() {
     setShowAuthModal(true);
   };
 
-  const handleGitHubLogin = () => {
-    localStorage.setItem('oauth_return_url', '/dashboard');
-    window.location.href = '/auth/github/login';
-  };
-
   const handleLogout = async () => {
     try {
       await authLogout();
@@ -160,7 +155,6 @@ function App() {
             <AuthModal
               isOpen={showAuthModal}
               onClose={() => setShowAuthModal(false)}
-              onGitHubLogin={handleGitHubLogin}
               onWalletSuccess={handleWalletSuccess}
             />
             <Routes>
