@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { eq, asc, and } from 'drizzle-orm';
+import { eq, asc, and, inArray, desc } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { auditJobs, auditStepProgress, auditSopExecution, auditResults, projects, auditClarifications } from '../../db/schema.js';
 
@@ -371,7 +371,6 @@ export async function handleAuditRoutes(
         // User requirement: "The audits retry should start from last step -1 step again to make sure we use properly"
         if (job.currentStepId) {
           const { auditStepProgress } = await import('../../db/schema.js');
-          const { desc } = await import('drizzle-orm');
 
           // Get all completed steps in order
           const completedSteps = await db
