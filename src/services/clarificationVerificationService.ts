@@ -521,21 +521,28 @@ function buildBatchVerificationPrompt(
     evidenceUrl?: string;
     resolvedInCommit?: boolean;
     commitSha?: string;
-  }>
+  }>,
+  sourcePath?: string | null
 ): string {
+  const sourcePathInfo = sourcePath
+    ? `\n\nSOURCE CODE LOCATION:\nThe smart contract source files are located at: ${sourcePath}\nYou can read files from this directory to verify contracts and functions exist.`
+    : `\n\nNOTE: Source code path not provided. Base verification on code snippets and descriptions only.`;
+
   return `You are an expert smart contract auditor reviewing multiple clarifications submitted by the contract owner.
 
 YOUR TASK:
-Review ALL ${clarificationsData.length} clarifications below and verify each one independently.
+Review ALL ${clarificationsData.length} clarifications below and verify each one independently.${sourcePathInfo}
 
-BE EXTREMELY STRICT:
+BE STRICT BUT REASONABLE:
 - ❌ REJECT if user just says "not an issue" without technical reasoning
-- ❌ REJECT if explanation doesn't match the actual code
-- ❌ REJECT if it's clearly an attempt to dismiss a real vulnerability
+- ⚠️ If you cannot find the contract/function referenced, check if the code snippet shows it exists - if so, the issue is with file access, NOT the clarification
+- ❌ REJECT if explanation is clearly wrong or dismissive of a real vulnerability
 - ❌ REJECT if explanation is vague or generic
-- ❌ REJECT if commit diff doesn't actually fix the issue
-- ✅ ACCEPT only if the logic is sound, specific, and technically accurate
+- ✅ ACCEPT if the logic is sound and technically accurate, even if you can't access files to verify
+- ✅ ACCEPT if the clarification type is "accepted_risk" with valid business justification
 - ⚠️ MANUAL_REVIEW if explanation has some merit but needs human verification
+
+IMPORTANT: If the finding includes a code snippet or location that proves the code exists, DO NOT reject just because you cannot access the file. The audit already found and analyzed this code.
 
 CLARIFICATIONS TO VERIFY:
 ${JSON.stringify(clarificationsData, null, 2)}
@@ -571,7 +578,8 @@ CRITICAL: Respond with ONLY the JSON array, no markdown, no explanations outside
 export async function batchVerifyClarifications(
   jobId: string,
   pendingVerifications: Array<{ clarification: any; finding: any; findingId: string }>,
-  allFindings: any[]
+  allFindings: any[],
+  sourcePath?: string | null
 ): Promise<void> {
   log.info('🚀 Starting batch verification with SINGLE Claude session', {
     jobId,
@@ -601,14 +609,15 @@ export async function batchVerifyClarifications(
     };
   });
 
-  // Step 2: Build single batch verification prompt
+  // Step 2: Build single batch verification prompt with source path
   log.info('📝 Building batch verification prompt with all clarifications...');
-  const batchPrompt = buildBatchVerificationPrompt(clarificationsData);
+  const batchPrompt = buildBatchVerificationPrompt(clarificationsData, sourcePath);
 
   // Step 3: Call Claude ONCE with batch prompt
   log.info('🤖 Calling Claude ONCE for batch verification...', {
     promptLength: batchPrompt.length,
     clarificationCount: clarificationsData.length,
+    hasSourcePath: !!sourcePath,
   });
 
   let batchResults: Array<{

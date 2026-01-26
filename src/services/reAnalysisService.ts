@@ -868,11 +868,16 @@ async function applyFindingClarifications(
   if (pendingVerifications.length > 0) {
     log.info('🚀 Batch verifying clarifications...', { count: pendingVerifications.length });
 
+    // Get job metadata to find workspace path
+    const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
+    const workspace = job?.metadata ? (job.metadata as any).workspace : null;
+    const sourcePath = workspace?.sourcePath || null;
+
     // Import verification service
     const { batchVerifyClarifications } = await import('./clarificationVerificationService.js');
 
     try {
-      await batchVerifyClarifications(jobId, pendingVerifications, results.findings as any[]);
+      await batchVerifyClarifications(jobId, pendingVerifications, results.findings as any[], sourcePath);
       log.info('✅ Batch verification complete', { count: pendingVerifications.length });
     } catch (error: any) {
       log.error('❌ Batch verification failed', { error: error.message });
