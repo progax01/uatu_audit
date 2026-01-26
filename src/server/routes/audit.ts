@@ -367,9 +367,43 @@ export async function handleAuditRoutes(
           progress: job.progressPct,
         });
 
-        // Reset ONLY the last/failed step to 'pending'
+        // Reset the LAST SUCCESSFUL step AND the failed step to ensure clean retry
+        // User requirement: "The audits retry should start from last step -1 step again to make sure we use properly"
         if (job.currentStepId) {
           const { auditStepProgress } = await import('../../db/schema.js');
+          const { desc } = await import('drizzle-orm');
+
+          // Get all completed steps in order
+          const completedSteps = await db
+            .select()
+            .from(auditStepProgress)
+            .where(
+              and(
+                eq(auditStepProgress.jobId, jobId),
+                eq(auditStepProgress.status, 'completed')
+              )
+            )
+            .orderBy(desc(auditStepProgress.orderIndex));
+
+          // Reset the last completed step + the failed step
+          const stepsToReset = [job.currentStepId];
+          if (completedSteps.length > 0) {
+            const lastCompletedStep = completedSteps[0];
+            stepsToReset.push(lastCompletedStep.stepId);
+
+            log.info('🔄 Resetting last successful step + failed step for clean retry', {
+              jobId,
+              lastCompletedStep: lastCompletedStep.stepId,
+              failedStep: job.currentStepId,
+            });
+          } else {
+            log.info('🔄 No completed steps found, resetting only failed step', {
+              jobId,
+              failedStep: job.currentStepId,
+            });
+          }
+
+          // Reset selected steps to pending
           await db
             .update(auditStepProgress)
             .set({
@@ -382,13 +416,13 @@ export async function handleAuditRoutes(
             .where(
               and(
                 eq(auditStepProgress.jobId, jobId),
-                eq(auditStepProgress.stepId, job.currentStepId)
+                inArray(auditStepProgress.stepId, stepsToReset)
               )
             );
 
-          log.info('✅ Reset failed step to pending', {
+          log.info('✅ Reset steps to pending for retry', {
             jobId,
-            stepId: job.currentStepId,
+            stepsReset: stepsToReset,
           });
         }
 

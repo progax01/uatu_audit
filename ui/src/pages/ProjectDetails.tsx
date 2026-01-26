@@ -504,9 +504,10 @@ export default function ProjectDetails() {
                                     setShowAuditOptions(false)
                                     handleStartAudit()
                                 }}
-                                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md font-medium text-sm hover:bg-indigo-700 transition-colors"
+                                disabled={startingAudit}
+                                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md font-medium text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Start Audit
+                                {startingAudit ? 'Starting...' : 'Start Audit'}
                             </button>
                         </div>
                     </div>

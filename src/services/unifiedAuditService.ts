@@ -157,6 +157,39 @@ export class UnifiedAuditService extends EventEmitter {
       }
     }
 
+    // ============================================================================
+    // DEDUPLICATION CHECK #1: Prevent multiple running audits for same branch
+    // ============================================================================
+    if (validatedProjectId && request.source.type === 'github-repo') {
+      const { and, inArray } = await import('drizzle-orm');
+      const runningAudits = await db
+        .select()
+        .from(auditJobs)
+        .where(
+          and(
+            eq(auditJobs.projectId, validatedProjectId),
+            eq(auditJobs.branch, branch),
+            inArray(auditJobs.status, ['pending', 'running', 'auditing'])
+          )
+        );
+
+      if (runningAudits.length > 0) {
+        const runningAudit = runningAudits[0];
+        log.warn('Duplicate audit rejected - audit already running for this branch', {
+          projectId: validatedProjectId,
+          branch,
+          existingJobId: runningAudit.id,
+          existingStatus: runningAudit.status,
+        });
+
+        throw new Error(
+          `An audit is already running for this project and branch. ` +
+          `Please wait for it to complete or cancel it before starting a new one. ` +
+          `(Existing audit: ${runningAudit.id})`
+        );
+      }
+    }
+
     try {
       await db.insert(auditJobs).values({
         id: jobId,
@@ -568,11 +601,85 @@ export class UnifiedAuditService extends EventEmitter {
       if (commitSha) {
         log.info('Captured commit SHA', { commitSha: commitSha.substring(0, 7), full: commitSha });
 
-        // Update audit job with commit SHA and workspace metadata
+        // ============================================================================
+        // DEDUPLICATION CHECK #2: Prevent duplicate audits for same commit SHA
+        // ============================================================================
         const { db } = await import('../db/index.js');
         const { auditJobs } = await import('../db/schema.js');
-        const { eq } = await import('drizzle-orm');
+        const { eq, and, inArray, or, ne } = await import('drizzle-orm');
 
+        // Get the project ID for this job
+        const [currentJob] = await db
+          .select({ projectId: auditJobs.projectId })
+          .from(auditJobs)
+          .where(eq(auditJobs.id, jobId));
+
+        if (currentJob?.projectId) {
+          // Check if audit already exists for this commit SHA
+          const existingAudits = await db
+            .select()
+            .from(auditJobs)
+            .where(
+              and(
+                eq(auditJobs.projectId, currentJob.projectId),
+                eq(auditJobs.branch, branch),
+                eq(auditJobs.commitSha, commitSha),
+                ne(auditJobs.id, jobId), // Exclude current job
+                or(
+                  inArray(auditJobs.status, ['completed', 'running', 'auditing', 'pending']),
+                  eq(auditJobs.status, 'failed') // Also check failed to show retry message
+                )
+              )
+            );
+
+          if (existingAudits.length > 0) {
+            const existingAudit = existingAudits[0];
+
+            // If existing audit is completed or failed, inform user they can't re-audit same commit
+            if (existingAudit.status === 'completed' || existingAudit.status === 'failed') {
+              log.warn('Duplicate audit rejected - audit already exists for this commit', {
+                projectId: currentJob.projectId,
+                branch,
+                commitSha: commitSha.substring(0, 7),
+                existingJobId: existingAudit.id,
+                existingStatus: existingAudit.status,
+              });
+
+              // Delete the duplicate job we just created
+              await db.delete(auditJobs).where(eq(auditJobs.id, jobId));
+
+              throw new Error(
+                `An audit already exists for this commit (${commitSha.substring(0, 7)}). ` +
+                `${existingAudit.status === 'completed'
+                  ? 'The audit completed successfully. Push a new commit to run another audit.'
+                  : 'The previous audit failed. Use the "Retry Audit" button to resume from the last step.'} ` +
+                `(Existing audit: ${existingAudit.id})`
+              );
+            }
+
+            // If existing audit is still running, reject
+            if (['running', 'auditing', 'pending'].includes(existingAudit.status)) {
+              log.warn('Duplicate audit rejected - audit already running for this commit', {
+                projectId: currentJob.projectId,
+                branch,
+                commitSha: commitSha.substring(0, 7),
+                existingJobId: existingAudit.id,
+                existingStatus: existingAudit.status,
+              });
+
+              // Delete the duplicate job we just created
+              await db.delete(auditJobs).where(eq(auditJobs.id, jobId));
+
+              throw new Error(
+                `An audit is already running for this commit (${commitSha.substring(0, 7)}). ` +
+                `Please wait for it to complete. ` +
+                `(Existing audit: ${existingAudit.id})`
+              );
+            }
+          }
+        }
+
+        // Update audit job with commit SHA and workspace metadata
         await db
           .update(auditJobs)
           .set({
