@@ -6,6 +6,7 @@ import {
   bigint,
   smallint,
   integer,
+  real,
   boolean,
   timestamp,
   jsonb,
@@ -440,7 +441,7 @@ export const auditResults = pgTable(
     jobId: uuid('job_id')
       .notNull()
       .references(() => auditJobs.id, { onDelete: 'cascade' }),
-    scoreValue: smallint('score_value'),
+    scoreValue: real('score_value'), // Changed from smallint to real to support decimal scores like 95.8
     scoreLabel: varchar('score_label', { length: 50 }),
     findings: jsonb('findings').notNull().default([]),
     summary: text('summary'),
@@ -1941,6 +1942,22 @@ export type NewAIConversationHistory = typeof aiConversationHistory.$inferInsert
 export type AIContextSnapshot = typeof aiContextSnapshots.$inferSelect;
 export type NewAIContextSnapshot = typeof aiContextSnapshots.$inferInsert;
 
+// Neurons Token Payment Types
+export type TokenPaymentReservation = typeof tokenPaymentReservations.$inferSelect;
+export type NewTokenPaymentReservation = typeof tokenPaymentReservations.$inferInsert;
+
+export type TokenPaymentTransaction = typeof tokenPaymentTransactions.$inferSelect;
+export type NewTokenPaymentTransaction = typeof tokenPaymentTransactions.$inferInsert;
+
+export type UserTokenDebt = typeof userTokenDebt.$inferSelect;
+export type NewUserTokenDebt = typeof userTokenDebt.$inferInsert;
+
+export type TokenPricingConfig = typeof tokenPricingConfig.$inferSelect;
+export type NewTokenPricingConfig = typeof tokenPricingConfig.$inferInsert;
+
+export type TokenPaymentStatus = (typeof tokenPaymentStatusEnum.enumValues)[number];
+export type TokenTransactionType = (typeof tokenTransactionTypeEnum.enumValues)[number];
+
 // ============================================================================
 // AI CONVERSATION RELATIONS
 // ============================================================================
@@ -1962,4 +1979,168 @@ export const aiContextSnapshotsRelations = relations(aiContextSnapshots, ({ one 
     references: [auditSessions.id],
   }),
 }));
+
+// ============================================================================
+// NEURONS TOKEN PAYMENT SYSTEM
+// ============================================================================
+
+export const tokenPaymentStatusEnum = pgEnum('token_payment_status', [
+  'pending',      // Reservation created, awaiting payment
+  'reserved',     // Tokens reserved successfully
+  'processing',   // Audit in progress
+  'completed',    // Audit completed, final cost settled
+  'in_debt',      // Actual cost exceeded reservation
+  'refunded',     // Reservation cancelled, tokens refunded
+  'failed',       // Payment failed
+]);
+
+export const tokenTransactionTypeEnum = pgEnum('token_transaction_type', [
+  'reservation',  // Initial upfront reservation
+  'debit',        // Actual usage deduction
+  'refund',       // Unused tokens returned
+  'debt_payment', // Debt cleared
+  'adjustment',   // Manual adjustment
+]);
+
+// Token Payment Reservations - Upfront cost estimates and reservations
+export const tokenPaymentReservations = pgTable(
+  'token_payment_reservations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => auditJobs.id, { onDelete: 'cascade' })
+      .unique(),
+
+    // Cost Estimation
+    estimatedSloc: bigint('estimated_sloc', { mode: 'number' }).notNull(),
+    estimatedAiTokens: bigint('estimated_ai_tokens', { mode: 'number' }).notNull(),
+    estimatedCostNeurons: bigint('estimated_cost_neurons', { mode: 'number' }).notNull(),
+
+    // Reservation (with buffer)
+    reservationAmount: bigint('reservation_amount', { mode: 'number' }).notNull(), // estimatedCost * bufferMultiplier
+    bufferMultiplier: integer('buffer_multiplier').notNull().default(150), // 150 = 1.5x buffer
+
+    // Actual Usage (populated after audit)
+    actualSloc: bigint('actual_sloc', { mode: 'number' }),
+    actualAiTokens: bigint('actual_ai_tokens', { mode: 'number' }),
+    actualCostNeurons: bigint('actual_cost_neurons', { mode: 'number' }),
+
+    // Wallet & Transaction
+    walletAddress: varchar('wallet_address', { length: 128 }).notNull(),
+    chainId: smallint('chain_id').notNull().default(1), // 1 = Ethereum mainnet
+    txHash: varchar('tx_hash', { length: 100 }),
+
+    // Status
+    status: tokenPaymentStatusEnum('status').notNull().default('pending'),
+
+    // Debt tracking
+    debtAmount: bigint('debt_amount', { mode: 'number' }).default(0), // If actualCost > reservation
+    debtPaidAt: timestamp('debt_paid_at', { withTimezone: true }),
+
+    // Timestamps
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    reservedAt: timestamp('reserved_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index('token_reservations_user_id_idx').on(table.userId),
+    jobIdIdx: uniqueIndex('token_reservations_job_id_idx').on(table.jobId),
+    statusIdx: index('token_reservations_status_idx').on(table.status),
+    walletIdx: index('token_reservations_wallet_idx').on(table.walletAddress),
+  })
+);
+
+// Token Payment Transactions - Detailed transaction log
+export const tokenPaymentTransactions = pgTable(
+  'token_payment_transactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    reservationId: uuid('reservation_id')
+      .references(() => tokenPaymentReservations.id, { onDelete: 'cascade' }),
+    jobId: uuid('job_id')
+      .references(() => auditJobs.id, { onDelete: 'cascade' }),
+
+    // Transaction details
+    transactionType: tokenTransactionTypeEnum('transaction_type').notNull(),
+    amount: bigint('amount', { mode: 'number' }).notNull(), // Amount in Neurons (can be negative for refunds)
+    balanceBefore: bigint('balance_before', { mode: 'number' }).notNull(),
+    balanceAfter: bigint('balance_after', { mode: 'number' }).notNull(),
+
+    // Context
+    description: text('description').notNull(),
+    metadata: jsonb('metadata'), // { sloc, aiTokens, txHash, etc }
+
+    // Blockchain transaction
+    walletAddress: varchar('wallet_address', { length: 128 }),
+    txHash: varchar('tx_hash', { length: 100 }),
+    chainId: smallint('chain_id'),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index('token_transactions_user_id_idx').on(table.userId),
+    reservationIdIdx: index('token_transactions_reservation_id_idx').on(table.reservationId),
+    jobIdIdx: index('token_transactions_job_id_idx').on(table.jobId),
+    typeIdx: index('token_transactions_type_idx').on(table.transactionType),
+    createdAtIdx: index('token_transactions_created_at_idx').on(table.createdAt),
+  })
+);
+
+// User Debt Tracking - Aggregate debt status per user
+export const userTokenDebt = pgTable(
+  'user_token_debt',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: 'cascade' }),
+
+    // Debt details
+    totalDebtNeurons: bigint('total_debt_neurons', { mode: 'number' }).notNull().default(0),
+    unpaidAuditCount: smallint('unpaid_audit_count').notNull().default(0),
+
+    // Block status
+    isBlocked: boolean('is_blocked').notNull().default(false), // Block new audits if true
+    blockedAt: timestamp('blocked_at', { withTimezone: true }),
+    blockedReason: text('blocked_reason'),
+
+    // Grace period (optional - allow 1-2 audits to go into debt before blocking)
+    gracePeriodUsed: boolean('grace_period_used').notNull().default(false),
+
+    // Timestamps
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    lastDebtPaymentAt: timestamp('last_debt_payment_at', { withTimezone: true }),
+  },
+  (table) => ({
+    userIdIdx: uniqueIndex('user_token_debt_user_id_idx').on(table.userId),
+    isBlockedIdx: index('user_token_debt_is_blocked_idx').on(table.isBlocked),
+  })
+);
+
+// Neurons Token Pricing Configuration
+export const tokenPricingConfig = pgTable(
+  'token_pricing_config',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    configKey: varchar('config_key', { length: 100 }).unique().notNull(), // e.g., 'neurons_per_sloc', 'neurons_per_1k_ai_tokens'
+    configValue: bigint('config_value', { mode: 'number' }).notNull(), // Numeric value
+    description: text('description').notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    configKeyIdx: uniqueIndex('token_pricing_config_key_idx').on(table.configKey),
+  })
+);
 

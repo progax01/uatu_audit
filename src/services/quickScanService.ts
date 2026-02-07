@@ -635,40 +635,96 @@ ${userPrompt}`;
  * Calculate deterministic score from vulnerabilities
  * Uses weighted penalty system based on severity
  */
+/**
+ * Categorize vulnerability exploitability based on description
+ * This helps differentiate immediate risks from theoretical/conditional risks
+ */
+function categorizeVulnerability(vuln: any): {
+  category: 'immediate' | 'conditional' | 'theoretical';
+  reason: string;
+} {
+  const text = `${vuln.title || ''} ${vuln.description || ''}`.toLowerCase();
+
+  // Theoretical: Requires third-party to be malicious/compromised
+  if (text.includes('if') && (
+    text.includes('malicious') ||
+    text.includes('compromised') ||
+    text.includes('attacker') ||
+    text.includes('if the') && (text.includes('psm') || text.includes('usdc') || text.includes('token'))
+  )) {
+    return {
+      category: 'theoretical',
+      reason: 'Requires third-party contract to be malicious/compromised'
+    };
+  }
+
+  // Conditional: Requires specific conditions but not third-party malice
+  if (text.includes('could potentially') ||
+      text.includes('may be') ||
+      text.includes('timing') ||
+      text.includes('front-run') ||
+      (text.includes('if') && !text.includes('malicious'))) {
+    return {
+      category: 'conditional',
+      reason: 'Requires specific conditions or timing'
+    };
+  }
+
+  // Immediate: Direct exploitable issue
+  return {
+    category: 'immediate',
+    reason: 'Directly exploitable'
+  };
+}
+
 function calculateScoreFromVulnerabilities(vulnerabilities: any[]): number {
   // Start at 100 (perfect score)
   let score = 100;
 
-  // Severity penalty weights
-  const SEVERITY_PENALTIES = {
+  // Base severity penalty weights (for IMMEDIATE risks)
+  const BASE_PENALTIES = {
     critical: 25,  // Each critical finding removes 25 points
-    high: 15,      // Each high finding removes 15 points
-    medium: 8,     // Each medium finding removes 8 points
-    low: 3,        // Each low finding removes 3 points
+    high: 12,      // Reduced from 15 (was too harsh)
+    medium: 5,     // Reduced from 8 (was way too harsh)
+    low: 2,        // Reduced from 3 (was too harsh for info-level issues)
     info: 0        // Informational findings don't affect score
   };
 
-  // Count vulnerabilities by severity
-  const counts = {
-    critical: 0,
-    high: 0,
-    medium: 0,
-    low: 0,
-    info: 0
+  // Risk category multipliers
+  const RISK_MULTIPLIERS = {
+    immediate: 1.0,      // Full penalty - direct exploitability
+    conditional: 0.6,    // 60% penalty - requires specific conditions
+    theoretical: 0.3     // 30% penalty - requires third-party to be malicious
   };
 
+  // Categorize and score each vulnerability
   for (const vuln of vulnerabilities) {
     const severity = vuln.severity?.toLowerCase() || 'info';
-    if (severity in counts) {
-      counts[severity as keyof typeof counts]++;
-    }
-  }
 
-  // Apply penalties
-  score -= counts.critical * SEVERITY_PENALTIES.critical;
-  score -= counts.high * SEVERITY_PENALTIES.high;
-  score -= counts.medium * SEVERITY_PENALTIES.medium;
-  score -= counts.low * SEVERITY_PENALTIES.low;
+    // Skip info findings
+    if (severity === 'info') continue;
+
+    // Get base penalty
+    const basePenalty = BASE_PENALTIES[severity as keyof typeof BASE_PENALTIES] || 0;
+
+    // Categorize exploitability
+    const { category, reason } = categorizeVulnerability(vuln);
+
+    // Apply multiplier based on category
+    const multiplier = RISK_MULTIPLIERS[category];
+    const actualPenalty = basePenalty * multiplier;
+
+    score -= actualPenalty;
+
+    // Add scoring explanation to vulnerability (for transparency)
+    vuln._scoringNote = {
+      basePenalty,
+      category,
+      multiplier,
+      actualPenalty: Math.round(actualPenalty * 10) / 10,
+      reason
+    };
+  }
 
   // Floor at 0
   return Math.max(0, score);

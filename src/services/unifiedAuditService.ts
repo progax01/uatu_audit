@@ -649,11 +649,9 @@ export class UnifiedAuditService extends EventEmitter {
               await db.delete(auditJobs).where(eq(auditJobs.id, jobId));
 
               throw new Error(
-                `An audit already exists for this commit (${commitSha.substring(0, 7)}). ` +
-                `${existingAudit.status === 'completed'
-                  ? 'The audit completed successfully. Push a new commit to run another audit.'
-                  : 'The previous audit failed. Use the "Retry Audit" button to resume from the last step.'} ` +
-                `(Existing audit: ${existingAudit.id})`
+                existingAudit.status === 'completed'
+                  ? 'This code has already been audited. No new changes detected since the last audit.'
+                  : 'An audit is already in progress for this code. Please wait for it to complete or retry the failed audit.'
               );
             }
 
@@ -671,9 +669,7 @@ export class UnifiedAuditService extends EventEmitter {
               await db.delete(auditJobs).where(eq(auditJobs.id, jobId));
 
               throw new Error(
-                `An audit is already running for this commit (${commitSha.substring(0, 7)}). ` +
-                `Please wait for it to complete. ` +
-                `(Existing audit: ${existingAudit.id})`
+                'An audit is already running for this code. Please wait for it to complete.'
               );
             }
           }
@@ -1197,6 +1193,81 @@ export class UnifiedAuditService extends EventEmitter {
       // Don't fail the audit if OG image generation fails
     }
 
+    // ============================================================================
+    // PAYMENT SETTLEMENT: Collect Neurons tokens after audit completion
+    // ============================================================================
+    try {
+      const { getReservationForJob, settleReservation } = await import('./tokenPaymentService.js');
+
+      // Check if there's a payment reservation for this job
+      const reservation = await getReservationForJob(jobId);
+
+      if (reservation && reservation.status === 'reserved') {
+        log.info('[PAYMENT] Payment reservation found - initiating settlement', {
+          jobId,
+          reservationId: reservation.id,
+          reservationAmount: Number(reservation.reservationAmount),
+        });
+
+        // Calculate actual SLOC from project
+        const actualSloc = await this.calculateActualSloc(jobId, request);
+
+        // Estimate actual AI tokens used based on audit complexity
+        // TODO: Replace with actual token tracking from AI steps
+        const actualAiTokens = this.estimateActualAiTokens(request.depth, filteredFindings.length, actualSloc);
+
+        log.info('[PAYMENT] Calculated actual usage metrics', {
+          jobId,
+          actualSloc,
+          actualAiTokens,
+          estimatedSloc: Number(reservation.estimatedSloc),
+          estimatedAiTokens: Number(reservation.estimatedAiTokens),
+        });
+
+        // Settle the reservation (collect payment or create debt)
+        const settlement = await settleReservation({
+          reservationId: reservation.id,
+          actualSloc,
+          actualAiTokens,
+        });
+
+        log.info('[PAYMENT] Payment settlement completed', {
+          jobId,
+          settled: settlement.settled,
+          actualCostNeurons: settlement.actualCostNeurons,
+          reservationAmount: settlement.reservationAmount,
+          difference: settlement.difference,
+          debtCreated: settlement.debtCreated,
+        });
+
+        if (settlement.debtCreated) {
+          log.warn('[PAYMENT] Debt created for user - payment collection failed', {
+            jobId,
+            userId: request.userId,
+            debtAmount: settlement.actualCostNeurons - settlement.reservationAmount,
+          });
+        }
+      } else if (reservation) {
+        log.info('[PAYMENT] Payment reservation exists but not in reserved status', {
+          jobId,
+          reservationId: reservation.id,
+          status: reservation.status,
+        });
+      } else {
+        log.info('[PAYMENT] No payment reservation for this audit (free audit or testing)', {
+          jobId,
+        });
+      }
+    } catch (paymentError: any) {
+      // Don't fail the audit if payment settlement fails
+      log.error('[PAYMENT] Payment settlement failed - audit completed but payment not collected', {
+        jobId,
+        error: paymentError.message,
+        stack: paymentError.stack,
+      });
+      // Continue with audit completion even if payment fails
+    }
+
     // Update job status with completedAt timestamp
     await db
       .update(auditJobs)
@@ -1255,6 +1326,143 @@ export class UnifiedAuditService extends EventEmitter {
       .where(eq(auditJobs.id, jobId));
 
     this.emit('audit:failed', { jobId, error });
+  }
+
+  /**
+   * Calculate actual SLOC (Source Lines of Code) from the project
+   * Uses tokei for accurate SLOC counting
+   */
+  private async calculateActualSloc(jobId: string, request: UnifiedAuditRequest): Promise<number> {
+    try {
+      // Get project path from the request
+      let projectPath = '';
+
+      if (request.source.type === 'github-repo' || request.source.type === 'manual-upload') {
+        // For GitHub repos and manual uploads, we should have a projectPath in the job
+        const [job] = await db.select().from(auditJobs).where(eq(auditJobs.id, jobId));
+        projectPath = job?.projectPath || '';
+      }
+
+      if (!projectPath) {
+        log.warn('[SLOC] No project path available, using estimate', {
+          sourceType: request.source.type,
+        });
+        // Fall back to estimate based on depth
+        const estimates = { quick: 500, standard: 3000, deep: 5000 };
+        return estimates[request.depth] || 3000;
+      }
+
+      // Use tokei to count SLOC (fast and accurate)
+      const { spawn } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(spawn as any);
+
+      return new Promise((resolve) => {
+        const proc = spawn('tokei', [projectPath, '--output', 'json'], {
+          timeout: 30000, // 30 second timeout
+        });
+
+        let stdout = '';
+        let stderr = '';
+
+        proc.stdout.on('data', (data) => {
+          stdout += data.toString();
+        });
+
+        proc.stderr.on('data', (data) => {
+          stderr += data.toString();
+        });
+
+        proc.on('close', (code) => {
+          if (code === 0 && stdout) {
+            try {
+              const tokeiData = JSON.parse(stdout);
+              let totalCode = 0;
+
+              // Sum up code lines from all languages
+              for (const [lang, stats] of Object.entries(tokeiData)) {
+                if (lang !== 'Total' && typeof stats === 'object' && stats !== null) {
+                  totalCode += (stats as any).code || 0;
+                }
+              }
+
+              log.info('[SLOC] Calculated actual SLOC using tokei', {
+                totalCode,
+                languages: Object.keys(tokeiData).filter(k => k !== 'Total').length,
+                projectPath,
+              });
+
+              resolve(totalCode);
+            } catch (parseError) {
+              log.error('[SLOC] Failed to parse tokei output', { parseError, stdout });
+              // Fall back to estimate
+              const estimates = { quick: 500, standard: 3000, deep: 5000 };
+              resolve(estimates[request.depth] || 3000);
+            }
+          } else {
+            log.warn('[SLOC] Tokei failed, using estimate', { code, stderr });
+            // Fall back to estimate
+            const estimates = { quick: 500, standard: 3000, deep: 5000 };
+            resolve(estimates[request.depth] || 3000);
+          }
+        });
+
+        proc.on('error', (err) => {
+          log.warn('[SLOC] Tokei not available, using estimate', { error: err.message });
+          // Fall back to estimate
+          const estimates = { quick: 500, standard: 3000, deep: 5000 };
+          resolve(estimates[request.depth] || 3000);
+        });
+      });
+    } catch (error: any) {
+      log.error('[SLOC] Error calculating SLOC', { error: error.message });
+      // Fall back to estimate
+      const estimates = { quick: 500, standard: 3000, deep: 5000 };
+      return estimates[request.depth] || 3000;
+    }
+  }
+
+  /**
+   * Estimate actual AI tokens used during audit
+   *
+   * TODO: Replace with actual token tracking from AI steps
+   * For now, estimates based on:
+   * - Audit depth (more depth = more AI analysis)
+   * - Findings count (more findings = more AI work)
+   * - SLOC (more code = more context/analysis)
+   */
+  private estimateActualAiTokens(
+    depth: AuditDepth,
+    findingsCount: number,
+    sloc: number
+  ): number {
+    // Base tokens per SLOC varies by depth
+    const tokensPerSlocByDepth = {
+      quick: 50,     // Quick scan - minimal AI analysis
+      standard: 100, // Standard - thorough analysis
+      deep: 200,     // Deep - extensive analysis + clarifications
+    };
+
+    // Calculate base tokens from SLOC
+    const baseTokens = sloc * tokensPerSlocByDepth[depth];
+
+    // Add tokens for findings (each finding requires AI analysis and reporting)
+    const tokensPerFinding = 1000; // Roughly 1k tokens per finding for analysis + description
+    const findingsTokens = findingsCount * tokensPerFinding;
+
+    // Total estimate
+    const totalEstimate = baseTokens + findingsTokens;
+
+    log.info('[AI_TOKENS] Estimated actual AI tokens used', {
+      depth,
+      sloc,
+      findingsCount,
+      baseTokens,
+      findingsTokens,
+      totalEstimate,
+    });
+
+    return totalEstimate;
   }
 
   /**

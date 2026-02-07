@@ -483,14 +483,23 @@ export default function QuickScan() {
                         <button
                             onClick={handleStartScan}
                             disabled={validationStatus !== 'valid' || isStarting}
-                            className="w-full py-6 bg-slate-900 hover:bg-black disabled:bg-slate-50 disabled:text-slate-200 rounded-[22px] text-white text-[11px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 active:scale-[0.98] shadow-2xl shadow-slate-900/10 group overflow-hidden relative"
+                            className="w-full py-6 bg-slate-900 hover:bg-black disabled:bg-slate-50 disabled:text-slate-200 disabled:hover:bg-slate-50 disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100 rounded-[22px] text-white text-[11px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 active:scale-[0.98] shadow-2xl shadow-slate-900/10 group overflow-hidden relative"
                         >
                             {isStarting ? (
                                 <Loader2 size={20} className="animate-spin" />
                             ) : (
                                 <>
-                                    <span className="relative z-10 flex items-center gap-3">Let's Quick Scan <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" /></span>
-                                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <span className="relative z-10 flex items-center gap-3">
+                                        Let's Quick Scan
+                                        <ArrowRight
+                                            size={16}
+                                            strokeWidth={3}
+                                            className={validationStatus === 'valid' && !isStarting ? 'group-hover:translate-x-1 transition-transform' : 'transition-transform'}
+                                        />
+                                    </span>
+                                    {validationStatus === 'valid' && !isStarting && (
+                                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    )}
                                 </>
                             )}
                         </button>

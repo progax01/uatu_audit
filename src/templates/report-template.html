@@ -1292,6 +1292,90 @@
             color: var(--text-secondary);
         }
 
+        /* FAQ Styling */
+        .faq-content {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .faq-content h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-top: 32px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--brand-primary);
+        }
+
+        .faq-content h2:first-child {
+            margin-top: 0;
+        }
+
+        .faq-content h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 24px;
+            margin-bottom: 12px;
+        }
+
+        .faq-content p {
+            margin-bottom: 16px;
+        }
+
+        .faq-content ul, .faq-content ol {
+            margin-bottom: 16px;
+            padding-left: 24px;
+        }
+
+        .faq-content li {
+            margin-bottom: 8px;
+        }
+
+        .faq-content code {
+            background: var(--bg-card-alt);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            color: var(--brand-primary);
+        }
+
+        .faq-content pre {
+            background: var(--bg-card-alt);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+
+        .faq-content pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        .faq-content strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .faq-content blockquote {
+            border-left: 4px solid var(--brand-primary);
+            padding-left: 16px;
+            margin: 16px 0;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .faq-content hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 24px 0;
+        }
+
         /* Footer */
         .footer {
             display: flex;
@@ -1705,6 +1789,12 @@
         <section class="section">
             <h2 class="section-title">Recommendations</h2>
             <div id="recommendationsContainer"></div>
+        </section>
+
+        <!-- Scoring FAQ -->
+        <section class="section" id="scoringFAQSection">
+            <h2 class="section-title">📊 Understanding Your Audit Score</h2>
+            <div id="scoringFAQContainer" class="faq-content"></div>
         </section>
 
         <!-- Footer -->
@@ -2147,6 +2237,51 @@
             }
 
             recContainer.innerHTML = recHtml || '<p style="color: var(--text-muted);">No recommendations available.</p>';
+
+            // Render Scoring FAQ
+            const faqMarkdown = D.scoringFAQ || '';
+            if (faqMarkdown) {
+                const faqContainer = document.getElementById('scoringFAQContainer');
+                faqContainer.innerHTML = markdownToHtml(faqMarkdown);
+            } else {
+                document.getElementById('scoringFAQSection').style.display = 'none';
+            }
+        }
+
+        // Simple markdown to HTML converter for FAQ
+        function markdownToHtml(markdown) {
+            let html = markdown;
+
+            // Headers
+            html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+            html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+            // Bold
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+            // Lists
+            html = html.replace(/^• (.+)$/gim, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+
+            // Code blocks
+            html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+
+            // Inline code
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+            // Horizontal rules
+            html = html.replace(/^---$/gim, '<hr>');
+
+            // Paragraphs
+            html = html.split('\n\n').map(p => {
+                if (p.trim() && !p.startsWith('<h') && !p.startsWith('<ul') && !p.startsWith('<pre') && !p.startsWith('<hr')) {
+                    return '<p>' + p + '</p>';
+                }
+                return p;
+            }).join('\n');
+
+            return html;
         }
 
         // Helper to calculate verdict if not provided

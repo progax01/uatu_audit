@@ -26,10 +26,13 @@ export const logger = winston.createLogger({
 
 // Add jobId, project, branch context to logs
 export function createJobLogger(jobId?: number, project?: string, branch?: string) {
-  return logger.child({ 
-    jobId, 
-    project, 
+  return logger.child({
+    jobId,
+    project,
     branch,
-    pid: process.pid 
+    pid: process.pid
   });
 }
+
+// Default export for convenience
+export default logger;

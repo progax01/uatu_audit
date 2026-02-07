@@ -16,6 +16,7 @@ import {
 } from "../../types.js";
 import { classifyFindings, extractLibraryName } from "../findingClassifier.js";
 import { calculateDependencyScores } from "../dependencyScoreCalculator.js";
+import { generateScoringFAQ } from "../scoringFAQ.js";
 
 // Certificate data format for the new dark-themed template
 interface CertificateData {
@@ -285,6 +286,8 @@ interface UatuData {
   page1_certificate?: Page1Certificate;
   // PAGE 2: Risk Narrative data
   page2_risk_narrative?: Page2RiskNarrative;
+  // Scoring FAQ markdown for transparency
+  scoringFAQ?: string;
 }
 
 /**
@@ -727,7 +730,13 @@ export async function generateReportFromResults(
       type: (f as any).componentType || 'unknown',
       referencedBy: (f as any).referencedBy?.join(', ') || f.file || 'N/A',
       reason: f.description || 'Component referenced but not provided for audit'
-    }))
+    })),
+    // PAGE 1: Executive Certificate
+    page1_certificate: page1Certificate,
+    // PAGE 2: Risk Narrative
+    page2_risk_narrative: page2RiskNarrative,
+    // Scoring FAQ for transparency
+    scoringFAQ: generateScoringFAQ()
   };
 
   // Inject UATU_DATA into template

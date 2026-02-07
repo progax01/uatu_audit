@@ -19,6 +19,7 @@ import {
   handleProjectRoutes,
   handlePreAuditRoutes,
   handleBillingRoutes,
+  handlePaymentRoutes,
   handlePublicAuditRoutes,
   handleAuditRoutes,
   handleInteractiveAuditRoutes,
@@ -167,6 +168,9 @@ async function handleRequest(req: any, res: any) {
 
     // Billing routes (with user context)
     if (await handleBillingRoutes(req, res, { userId: userId || undefined, sessionId: sessionId || undefined })) return;
+
+    // Payment routes (Neurons token payments)
+    if (await handlePaymentRoutes(req, res, { userId: userId || null, parsed })) return;
 
     // Pre-audit questionnaire routes
     if (await handlePreAuditRoutes(req, res, parsed)) return;

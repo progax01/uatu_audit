@@ -116,7 +116,73 @@ export async function handleAuditRoutes(
         options,
       };
 
-      // Start audit
+      // ============================================================================
+      // PAYMENT FLOW: Create and confirm payment reservation
+      // ============================================================================
+      const { paymentApprovalTxHash, walletAddress, estimatedSloc, estimatedAiTokens } = body;
+
+      // If payment data is provided, create and confirm reservation
+      if (paymentApprovalTxHash && walletAddress && userId) {
+        log.info('[PAYMENT] Processing payment approval for audit', {
+          userId,
+          walletAddress,
+          txHash: paymentApprovalTxHash,
+          estimatedSloc,
+          estimatedAiTokens,
+        });
+
+        try {
+          const { createPaymentReservation, confirmPaymentReservation } = await import('../../services/tokenPaymentService.js');
+
+          // Start audit first to get jobId
+          const result = await startUnifiedAudit(auditRequest);
+
+          // Create payment reservation
+          const reservation = await createPaymentReservation({
+            userId,
+            jobId: result.jobId,
+            walletAddress,
+            chainId: 56, // BNB Chain
+            estimatedSloc: estimatedSloc || 3000,
+            estimatedAiTokens: estimatedAiTokens || 300000,
+          });
+
+          log.info('[PAYMENT] Payment reservation created', {
+            reservationId: reservation.reservationId,
+            jobId: result.jobId,
+            estimatedCost: reservation.estimatedCostNeurons,
+            reservationAmount: reservation.reservationAmount,
+          });
+
+          // Confirm the reservation with the approval txHash
+          await confirmPaymentReservation(reservation.reservationId, paymentApprovalTxHash);
+
+          log.info('[PAYMENT] Payment reservation confirmed - audit queued', {
+            reservationId: reservation.reservationId,
+            jobId: result.jobId,
+          });
+
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(result));
+          return true;
+        } catch (paymentError: any) {
+          log.error('[PAYMENT] Payment reservation/confirmation failed', {
+            error: paymentError.message,
+            userId,
+            walletAddress,
+          });
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            success: false,
+            error: `Payment failed: ${paymentError.message}`,
+          }));
+          return true;
+        }
+      }
+
+      // No payment data - start audit normally (free audit or testing)
+      log.info('[PAYMENT] No payment data provided - starting audit without payment', { userId });
       const result = await startUnifiedAudit(auditRequest);
 
       res.setHeader('Content-Type', 'application/json');

@@ -9,6 +9,7 @@ import logo from '../assets/logo.svg'
 import { Link, useLocation } from 'react-router-dom'
 import MouseTooltip from './MouseTooltip'
 import { getStoredUser, type AuthUser } from '../services/authService'
+import { NeuronsWalletWidget } from './NeuronsWalletWidget'
 
 interface DashboardLayoutProps {
     children: ReactNode
@@ -162,6 +163,7 @@ export default function DashboardLayout({ children, onLogout }: DashboardLayoutP
                     </div>
 
                     <div className="flex items-center gap-4">
+                        <NeuronsWalletWidget />
                         <button className="p-3 hover:bg-slate-50 rounded-2xl transition-all relative">
                             <Bell size={18} className="text-slate-400" />
                             <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white" />

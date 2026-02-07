@@ -161,24 +161,45 @@ export async function completeQuickScanJob(
     .where(eq(auditJobs.id, jobId));
 
   // Insert audit results with all comprehensive fields in metadata
-  await db.insert(auditResults).values({
-    jobId,
-    scoreValue: result.score,
-    scoreLabel: result.grade,
-    findings: result.vulnerabilities,
-    summary: result.summary,
-    metadata: {
-      riskLevel: result.riskLevel,
-      contractAnalysis: result.contractAnalysis,
-      gasOptimizations: result.gasOptimizations,
-      bestPractices: result.bestPractices,
-      scanDuration: result.scanDuration,
-      // NEW: Comprehensive report data stored in metadata
-      technicalChecks: result.technicalChecks || [],
-      businessRiskChecks: result.businessRiskChecks || [],
-      functionOverview: result.functionOverview || [],
-    },
-  });
+  try {
+    await db.insert(auditResults).values({
+      jobId,
+      scoreValue: result.score,
+      scoreLabel: result.grade,
+      findings: result.vulnerabilities,
+      summary: result.summary,
+      metadata: {
+        riskLevel: result.riskLevel,
+        contractAnalysis: result.contractAnalysis,
+        gasOptimizations: result.gasOptimizations,
+        bestPractices: result.bestPractices,
+        scanDuration: result.scanDuration,
+        // Comprehensive report data stored in metadata
+        technicalChecks: result.technicalChecks || [],
+        businessRiskChecks: result.businessRiskChecks || [],
+        functionOverview: result.functionOverview || [],
+      },
+    });
+  } catch (dbError: any) {
+    log.error('Database insert failed - FULL ERROR DUMP', {
+      jobId,
+      errorMessage: dbError.message,
+      errorName: dbError.name,
+      errorCode: dbError.code,
+      errorDetail: dbError.detail,
+      errorHint: dbError.hint,
+      errorConstraint: dbError.constraint,
+      errorTable: dbError.table,
+      errorColumn: dbError.column,
+      errorStack: dbError.stack,
+      findingsCount: result.vulnerabilities?.length,
+      technicalChecksCount: result.technicalChecks?.length,
+      businessRiskChecksCount: result.businessRiskChecks?.length,
+      allErrorProps: Object.keys(dbError),
+      fullError: JSON.stringify(dbError, Object.getOwnPropertyNames(dbError), 2),
+    });
+    throw dbError;
+  }
 
   // Generate post-audit clarification questions for liability triage
   try {

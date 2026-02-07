@@ -1,8 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuditProgress } from '../hooks/useAuditProgress'
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Play, FileText, Download, XCircle, RefreshCw } from 'lucide-react'
+import { useNeuronsBalance, approveNeurons } from '../hooks/useNeuronsBalance'
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Play, FileText, Download, XCircle, RefreshCw, Coins, AlertCircle } from 'lucide-react'
+import { ethers } from 'ethers'
+import { neuronsToWei, UATU_OPERATOR_ADDRESS } from '../../../src/constants/neuronsToken'
 
 import { ProjectData } from '../App'
+
+// Declare window.ethereum
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
 
 interface ReviewAndRunProps {
   onBack: () => void
@@ -27,6 +37,56 @@ export default function ReviewAndRun({ onBack, projectData, initialJobId }: Revi
   const smoothedRemainingRef = useRef<number | null>(null)
   const lastProgressRef = useRef<number>(0)
   const lastDiffRef = useRef<number>(0)
+
+  // Payment approval state
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentStep, setPaymentStep] = useState<'estimate' | 'approve' | 'confirming' | 'approved'>('estimate')
+  const [estimatedCost, setEstimatedCost] = useState<number>(0)
+  const [reservationAmount, setReservationAmount] = useState<number>(0)
+  const [reservationId, setReservationId] = useState<string | null>(null)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [approvalTxHash, setApprovalTxHash] = useState<string | null>(null)
+
+  // Web3 state
+  const [address, setAddress] = useState<string | null>(null)
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null)
+  const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null)
+
+  const { balance } = useNeuronsBalance(address, provider)
+
+  // Initialize Web3 connection
+  useEffect(() => {
+    const initWeb3 = async () => {
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          const browserProvider = new ethers.BrowserProvider(window.ethereum)
+          const accounts = await browserProvider.send('eth_accounts', [])
+          if (accounts && accounts.length > 0) {
+            const userSigner = await browserProvider.getSigner()
+            setProvider(browserProvider)
+            setSigner(userSigner)
+            setAddress(accounts[0])
+          }
+        } catch (err) {
+          console.error('Failed to initialize Web3:', err)
+        }
+      }
+    }
+
+    initWeb3()
+
+    // Listen for account changes
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', (accounts: string[]) => {
+        if (accounts.length > 0) {
+          setAddress(accounts[0])
+        } else {
+          setAddress(null)
+          setSigner(null)
+        }
+      })
+    }
+  }, [])
 
   const { progress, logs, jobLogs, isComplete, error, resetProgress } = useAuditProgress(
     projectData.name,
@@ -98,18 +158,118 @@ export default function ReviewAndRun({ onBack, projectData, initialJobId }: Revi
     return () => clearInterval(interval)
   }, [startTime, isComplete, progress?.overall_pct])
 
+  /**
+   * Step 1: Show payment modal and estimate cost
+   */
   const handleRunAudit = async () => {
-    setIsRunning(true)
+    // Check if user has wallet connected
+    if (!address || !signer) {
+      setAuthError('Please connect your Web3 wallet first to pay for the audit with Neurons tokens')
+      return
+    }
 
-    // Reset progress state BEFORE starting new audit to clear any cached data
+    // Reset progress state
     resetProgress()
     setIsCancelled(false)
-    // Reset EMA refs for fresh estimation
     smoothedRemainingRef.current = null
     lastProgressRef.current = 0
     lastDiffRef.current = 0
+    setPaymentError(null)
+
+    // Show payment modal and estimate cost
+    setShowPaymentModal(true)
+    setPaymentStep('estimate')
 
     try {
+      // Estimate cost based on project
+      const estimateRes = await fetch('/api/payments/estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectType: 'standard',
+          sloc: 3000, // Rough estimate, backend will calculate actual
+          aiTokens: 300000, // Rough estimate for standard audit
+        }),
+        credentials: 'include',
+      })
+
+      if (!estimateRes.ok) {
+        const error = await estimateRes.json()
+        throw new Error(error.error || 'Failed to estimate cost')
+      }
+
+      const estimate = await estimateRes.json()
+      setEstimatedCost(estimate.totalEstimatedCostNeurons)
+      setReservationAmount(estimate.reservationAmount)
+
+      console.log('[PAYMENT] Cost estimated:', {
+        estimated: estimate.totalEstimatedCostNeurons,
+        reservation: estimate.reservationAmount,
+        userBalance: balance,
+      })
+
+      // Check if user has sufficient balance
+      if (balance && balance < estimate.reservationAmount) {
+        setPaymentError(`Insufficient Neurons balance. You need ${estimate.reservationAmount.toFixed(2)} Neurons but only have ${balance.toFixed(2)} Neurons`)
+        return
+      }
+
+      // Move to approval step
+      setPaymentStep('approve')
+    } catch (error: any) {
+      console.error('[PAYMENT] Failed to estimate cost:', error)
+      setPaymentError(error.message || 'Failed to estimate audit cost')
+    }
+  }
+
+  /**
+   * Step 2: Request user to approve Neurons spending
+   */
+  const handleApproveSpending = async () => {
+    if (!signer || !address) {
+      setPaymentError('Wallet not connected')
+      return
+    }
+
+    setPaymentStep('approve')
+    setPaymentError(null)
+
+    try {
+      console.log('[PAYMENT] Requesting approval for', reservationAmount, 'Neurons')
+
+      // Request approval via MetaMask
+      const amountWei = neuronsToWei(reservationAmount)
+      const txHash = await approveNeurons(signer, UATU_OPERATOR_ADDRESS, amountWei)
+
+      console.log('[PAYMENT] Approval transaction sent:', txHash)
+      setApprovalTxHash(txHash)
+      setPaymentStep('confirming')
+
+      // Create payment reservation and confirm approval
+      await handleConfirmReservation(txHash)
+    } catch (error: any) {
+      console.error('[PAYMENT] Approval failed:', error)
+      if (error.message?.includes('Please switch to BNB Chain')) {
+        setPaymentError('Please switch your wallet to BNB Chain (BSC) to approve Neurons spending')
+      } else if (error.code === 'ACTION_REJECTED') {
+        setPaymentError('Transaction rejected. Please approve the transaction in MetaMask to continue.')
+      } else {
+        setPaymentError(error.message || 'Failed to approve spending')
+      }
+    }
+  }
+
+  /**
+   * Step 3: Confirm reservation with backend and start audit
+   */
+  const handleConfirmReservation = async (txHash: string) => {
+    try {
+      // Create payment reservation (this will be populated once we have jobId)
+      // For now, we'll create it inline in the actual audit start
+
+      // Start the audit with payment reservation
+      setIsRunning(true)
+
       const res = await fetch('/api/audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -121,40 +281,41 @@ export default function ReviewAndRun({ onBack, projectData, initialJobId }: Revi
           testStyles: projectData.testStyles || ['behavioral', 'stride'],
           selectedFiles: projectData.selectedFiles || [],
           components: projectData.components,
-          ai: true, // Assuming AI is always true for this flow
+          ai: true,
+          // Payment data
+          paymentApprovalTxHash: txHash,
+          walletAddress: address,
+          estimatedSloc: 3000,
+          estimatedAiTokens: 300000,
         }),
-        credentials: 'include', // Ensure cookies are sent
+        credentials: 'include',
       })
 
       const result = await res.json()
-      console.log('Audit queued:', result)
+      console.log('[PAYMENT] Audit queued with payment:', result)
 
-      // Check for authentication error
       if (!res.ok || result.ok === false) {
         if (res.status === 401 || result.error === 'Authentication required') {
           setAuthError(result.hint || 'Please login with GitHub OAuth before starting an audit')
-          console.error('Authentication required:', result)
           return
         }
-        // Other errors
         setAuthError(result.error || 'Failed to start audit')
-        console.error('Enqueue failed:', result)
         return
       }
 
-      // Clear any previous auth error
       setAuthError(null)
 
-      // Store job ID for job-specific log fetching
       if (result.job?.id) {
         setJobId(result.job.id)
       }
 
+      setPaymentStep('approved')
+      setShowPaymentModal(false)
       setStartTime(new Date())
       setHasStarted(true)
-    } catch (error) {
-      console.error('Failed to start audit:', error)
-      setAuthError('Network error: Failed to connect to server')
+    } catch (error: any) {
+      console.error('[PAYMENT] Failed to confirm reservation:', error)
+      setPaymentError(error.message || 'Failed to start audit after payment approval')
     } finally {
       setIsRunning(false)
     }
@@ -702,6 +863,104 @@ export default function ReviewAndRun({ onBack, projectData, initialJobId }: Revi
             )}
           </div>
         </div>
+
+        {/* Payment Approval Modal */}
+        {showPaymentModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 bg-indigo-100 rounded-full">
+                  <Coins className="w-6 h-6 text-indigo-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900">Audit Payment</h2>
+              </div>
+
+              {paymentError && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-red-600">{paymentError}</div>
+                </div>
+              )}
+
+              {/* Estimate Step */}
+              {paymentStep === 'estimate' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                  </div>
+                  <p className="text-center text-slate-600">Estimating audit cost...</p>
+                </div>
+              )}
+
+              {/* Approve Step */}
+              {paymentStep === 'approve' && (
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-sm text-slate-500 mb-4">
+                      To run this audit, you need to approve Uatu to spend Neurons tokens from your wallet.
+                    </p>
+
+                    <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-slate-600">Estimated Cost</span>
+                        <span className="text-lg font-bold text-slate-900">{estimatedCost.toFixed(2)} Neurons</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-slate-600">Reservation Amount</span>
+                        <span className="text-lg font-bold text-indigo-600">{reservationAmount.toFixed(2)} Neurons</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-3 border-t border-slate-200">
+                        <span className="text-sm font-medium text-slate-600">Your Balance</span>
+                        <span className="text-lg font-bold text-slate-900">{balance?.toFixed(2) || '0.00'} Neurons</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs text-blue-800">
+                        <strong>How it works:</strong> You approve {reservationAmount.toFixed(2)} Neurons (with buffer). After the audit completes, we'll deduct only the actual cost (~{estimatedCost.toFixed(2)} Neurons). Any unused approval stays in your wallet.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowPaymentModal(false)
+                        setPaymentError(null)
+                      }}
+                      className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleApproveSpending}
+                      className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+                    >
+                      Approve Spending
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Confirming Step */}
+              {paymentStep === 'confirming' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                  </div>
+                  <p className="text-center text-slate-600">
+                    Confirming your approval and starting audit...
+                  </p>
+                  {approvalTxHash && (
+                    <p className="text-xs text-center text-slate-500">
+                      Transaction: {approvalTxHash.substring(0, 10)}...{approvalTxHash.substring(approvalTxHash.length - 8)}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

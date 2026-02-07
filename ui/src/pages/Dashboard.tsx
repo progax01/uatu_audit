@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import {
   GitBranch, ArrowRight, Plus, X, ChevronRight,
   FileCode, Globe, Package,
-  ShieldCheck, Shield, FolderGit2, Clock, Github, Zap, Search, AlertTriangle
+  ShieldCheck, Shield, FolderGit2, Clock, Github, Zap, Search, AlertTriangle, AlertCircle, RefreshCw
 } from 'lucide-react'
 import { getStoredUser, authFetch } from '../services/authService'
 import { Link, useNavigate } from 'react-router-dom'
@@ -61,6 +61,7 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
   const [projectDescription, setProjectDescription] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [projectsWithClarifications, setProjectsWithClarifications] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const storedUser = getStoredUser()
@@ -135,6 +136,47 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
       clearInterval(pollInterval)
     }
   }, [projects])
+
+  // Fetch projects with pending clarifications
+  useEffect(() => {
+    const fetchClarificationStatus = async () => {
+      try {
+        const response = await authFetch('/api/projects/clarification-status')
+        if (response.ok) {
+          const data = await response.json()
+          setProjectsWithClarifications(new Set(data.projectIds || []))
+        }
+      } catch (err) {
+        console.error('Failed to fetch clarification status', err)
+      }
+    }
+
+    if (user) {
+      fetchClarificationStatus()
+    }
+  }, [user, projects])
+
+  const handleTriggerReAnalysis = async (jobId: string | number, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    try {
+      const res = await authFetch(`/api/audit/${jobId}/trigger-reanalysis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (res.ok) {
+        // Refresh clarification status
+        const response = await authFetch('/api/projects/clarification-status')
+        if (response.ok) {
+          const data = await response.json()
+          setProjectsWithClarifications(new Set(data.projectIds || []))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to trigger re-analysis:', error)
+    }
+  }
 
   const handleCreateProject = async () => {
     if (projectName.trim().length < 3) return
@@ -386,15 +428,26 @@ export default function Dashboard({ onViewAudit, onNewAudit }: DashboardProps) {
                     )}
                   </div>
                 )}
-                {project.componentCount === 0 ? (
-                  <div className="px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 border-amber-100">
-                    INCOMPLETE
-                  </div>
-                ) : (
-                  <div className={`px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider ${STATUS_CONFIG[project.status]?.colorClass || 'text-slate-400 bg-slate-50 border-slate-100'}`}>
-                    {STATUS_CONFIG[project.status]?.label || project.status}
-                  </div>
-                )}
+                <div className="flex flex-col gap-2 items-end">
+                  {project.componentCount === 0 ? (
+                    <div className="px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 border-amber-100">
+                      INCOMPLETE
+                    </div>
+                  ) : (
+                    <div className={`px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider ${STATUS_CONFIG[project.status]?.colorClass || 'text-slate-400 bg-slate-50 border-slate-100'}`}>
+                      {STATUS_CONFIG[project.status]?.label || project.status}
+                    </div>
+                  )}
+                  {projectsWithClarifications.has(project.id) && project.lastAuditJobId && (
+                    <button
+                      onClick={(e) => handleTriggerReAnalysis(project.lastAuditJobId!, e)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-amber-600 transition-colors shadow-sm"
+                    >
+                      <AlertCircle size={10} />
+                      Re-Analysis
+                    </button>
+                  )}
+                </div>
               </div>
 
               <h3

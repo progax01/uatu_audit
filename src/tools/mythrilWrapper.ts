@@ -106,7 +106,7 @@ const SWC_DESCRIPTIONS: Record<string, string> = {
  */
 async function checkMythrilNative(): Promise<boolean> {
   try {
-    await execAsync('myth version', { timeout: 5000 });
+    await execAsync('mythril version', { timeout: 5000 });
     return true;
   } catch {
     return false;
@@ -221,7 +221,7 @@ async function runMythrilOnFile(
     let stdout = '';
     let stderr = '';
 
-    const proc = spawn('myth', args, {
+    const proc = spawn('mythril', args, {
       cwd: config.projectPath,
       timeout: config.timeout || 120000, // 2 minutes per file
       env: {
@@ -302,7 +302,7 @@ async function runMythrilOnFileDocker(
       ecosystem: 'solidity',
       sourcePath: config.projectPath,
       outputPath: '/tmp/uatu-output',
-      tool: 'myth',
+      tool: 'mythril',
       args,
       timeout: config.timeout || 120000,
       memoryLimit: '4g',
