@@ -13,9 +13,11 @@ dist-ui
 *.env.production
 *.env.development.local
 *.env.neurons.example
-*backup*
+*.backup*
 *.bak
 *.tmp
 *.swp
 .DS_Store
 .idea/
+.env.*.backup
+config.bat
